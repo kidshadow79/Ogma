@@ -1078,129 +1078,6 @@ def _memory_modal():
                     ui.button('Enregistrer', icon='save', on_click=do_save).classes('send-button')
                     ui.button('Fermer', on_click=dialog.close).classes('action-button')
 
-        # === ZONE DANGEREUSE : Suppression totale de la mémoire ===
-        # Placée APRÈS le ui.row() pour éviter débordement sur colonnes
-        with ui.expansion('⚠️ Zone Dangereuse', icon='warning').classes('mt-4 w-full').style('''
-            background: rgba(220, 53, 69, 0.08) !important;
-            border: 1px solid rgba(220, 53, 69, 0.3) !important;
-            border-radius: 8px !important;
-            max-width: 100% !important;
-            margin-bottom: 16px !important;
-        '''):
-            ui.label('Cette section contient des opérations irréversibles').classes('text-red text-bold mb-2')
-            ui.label('⚠️ ATTENTION : La suppression totale efface TOUS les souvenirs de manière DÉFINITIVE').classes('text-sm text-muted mb-2')
-            
-            def do_delete_all_memories():
-                """Double protection : confirmation + code PIN aléatoire"""
-                import random
-                
-                # Générer code PIN aléatoire 4 chiffres
-                pin_code = str(random.randint(1000, 9999))
-                
-                # Créer modal de confirmation
-                confirm_dialog = ui.dialog()
-                with confirm_dialog, ui.card().classes('q-dark').style('''
-                    background: rgba(220, 53, 69, 0.12) !important;
-                    border: 2px solid rgba(220, 53, 69, 0.5) !important;
-                    padding: 24px !important;
-                    min-width: 500px !important;
-                '''):
-                    ui.label('⚠️ CONFIRMATION SUPPRESSION TOTALE').classes('text-h6 text-bold text-red mb-3')
-                    
-                    ui.label('Vous êtes sur le point de supprimer :').classes('mb-2')
-                    with ui.column().classes('gap-1 mb-3'):
-                        try:
-                            total = len(mm.get_all_memories_data() or [])
-                            ui.label(f'• {total} souvenirs mémorisés').classes('text-bold')
-                        except:
-                            ui.label('• TOUS les souvenirs mémorisés').classes('text-bold')
-                        ui.label('• Index FAISS complet').classes('text-bold')
-                        ui.label('• Tous les embeddings').classes('text-bold')
-                        ui.label('• Toutes les métadonnées').classes('text-bold')
-                    
-                    ui.label('⚠️ Cette opération est IRRÉVERSIBLE').classes('text-red text-bold mb-2')
-                    ui.label('✅ Un backup sera créé avant suppression').classes('text-green mb-3')
-                    
-                    ui.separator().classes('mb-3')
-                    
-                    ui.label(f'Pour confirmer, entrez le code PIN : {pin_code}').classes('text-bold mb-2').style('color: #d4af37;')
-                    pin_input = ui.input(label='Code PIN', placeholder=pin_code).classes('form-input mb-3')
-                    
-                    result_label = ui.label('').classes('text-sm mb-2')
-                    
-                    def execute_deletion():
-                        """Exécute la suppression après validation PIN"""
-                        if pin_input.value != pin_code:
-                            result_label.text = '❌ Code PIN incorrect'
-                            result_label.style('color: #dc3545;')
-                            return
-                        
-                        try:
-                            result_label.text = '⏳ Suppression en cours...'
-                            result_label.style('color: #ffc107;')
-                            
-                            # Exécuter la suppression
-                            result = mm.delete_all_memories()
-                            
-                            if result.get('deleted_count', 0) > 0:
-                                msg = f"✅ {result['deleted_count']} souvenirs supprimés"
-                                if result.get('backup_created'):
-                                    msg += f"\n💾 Backup créé: {result.get('backup_path', 'N/A')}"
-                                
-                                result_label.text = msg
-                                result_label.style('color: #28a745;')
-                                
-                                # Rafraîchir la liste
-                                try:
-                                    refresh_list()
-                                except:
-                                    pass
-                                
-                                # Notification principale
-                                ui.notify(
-                                    f"Mémoire totalement effacée ({result['deleted_count']} souvenirs)",
-                                    type='positive',
-                                    position='top'
-                                )
-                                
-                                # Fermer après 2 secondes
-                                ui.timer(2.0, lambda: confirm_dialog.close(), once=True)
-                            else:
-                                error_msg = result.get('error', 'Erreur inconnue')
-                                result_label.text = f'❌ Échec : {error_msg}'
-                                result_label.style('color: #dc3545;')
-                                ui.notify(f'Erreur suppression : {error_msg}', type='negative')
-                        
-                        except Exception as e:
-                            result_label.text = f'❌ Erreur : {e}'
-                            result_label.style('color: #dc3545;')
-                            ui.notify(f'Erreur critique : {e}', type='negative')
-                    
-                    with ui.row().classes('justify-end gap-2 mt-3'):
-                        ui.button('Annuler', icon='close', on_click=confirm_dialog.close).classes('action-button')
-                        ui.button(
-                            'SUPPRIMER TOUT', 
-                            icon='delete_forever', 
-                            on_click=execute_deletion
-                        ).classes('action-button').style('''
-                            background: rgba(220, 53, 69, 0.2) !important;
-                            border: 1px solid rgba(220, 53, 69, 0.5) !important;
-                            color: #dc3545 !important;
-                        ''')
-                
-                confirm_dialog.open()
-            
-            ui.button(
-                'Supprimer TOUS les souvenirs',
-                icon='delete_forever',
-                on_click=do_delete_all_memories
-            ).classes('action-button w-full').style('''
-                background: rgba(220, 53, 69, 0.15) !important;
-                border: 1px solid rgba(220, 53, 69, 0.4) !important;
-                color: #dc3545 !important;
-                font-weight: 600 !important;
-            ''')
-
         def load_into_form(mid: str):
             try:
                 mem = mm.get_memory_by_id(mid)
@@ -1399,6 +1276,128 @@ def _memory_modal():
         dialog.on('hide', lambda e=None: _on_close())
     except Exception:
         pass
+
+    # === ZONE DANGEREUSE : Suppression totale de la mémoire ===
+    # Placée EN BAS du modal, après le ui.row() et toutes les fonctions
+    with ui.expansion('⚠️ Zone Dangereuse', icon='warning').classes('mt-4').style('''
+        background: rgba(220, 53, 69, 0.08) !important;
+        border: 1px solid rgba(220, 53, 69, 0.3) !important;
+        border-radius: 8px !important;
+        padding: 8px !important;
+    '''):
+        ui.label('Cette section contient des opérations irréversibles').classes('text-red text-bold mb-2')
+        ui.label('⚠️ ATTENTION : La suppression totale efface TOUS les souvenirs de manière DÉFINITIVE').classes('text-sm text-muted mb-2')
+        
+        def do_delete_all_memories():
+            """Double protection : confirmation + code PIN aléatoire"""
+            import random
+            
+            # Générer code PIN aléatoire 4 chiffres
+            pin_code = str(random.randint(1000, 9999))
+            
+            # Créer modal de confirmation
+            confirm_dialog = ui.dialog()
+            with confirm_dialog, ui.card().classes('q-dark').style('''
+                background: rgba(220, 53, 69, 0.12) !important;
+                border: 2px solid rgba(220, 53, 69, 0.5) !important;
+                padding: 24px !important;
+                min-width: 500px !important;
+            '''):
+                ui.label('⚠️ CONFIRMATION SUPPRESSION TOTALE').classes('text-h6 text-bold text-red mb-3')
+                
+                ui.label('Vous êtes sur le point de supprimer :').classes('mb-2')
+                with ui.column().classes('gap-1 mb-3'):
+                    try:
+                        total = len(mm.get_all_memories_data() or [])
+                        ui.label(f'• {total} souvenirs mémorisés').classes('text-bold')
+                    except:
+                        ui.label('• TOUS les souvenirs mémorisés').classes('text-bold')
+                    ui.label('• Index FAISS complet').classes('text-bold')
+                    ui.label('• Tous les embeddings').classes('text-bold')
+                    ui.label('• Toutes les métadonnées').classes('text-bold')
+                
+                ui.label('⚠️ Cette opération est IRRÉVERSIBLE').classes('text-red text-bold mb-2')
+                ui.label('✅ Un backup sera créé avant suppression').classes('text-green mb-3')
+                
+                ui.separator().classes('mb-3')
+                
+                ui.label(f'Pour confirmer, entrez le code PIN : {pin_code}').classes('text-bold mb-2').style('color: #d4af37;')
+                pin_input = ui.input(label='Code PIN', placeholder=pin_code).classes('form-input mb-3')
+                
+                result_label = ui.label('').classes('text-sm mb-2')
+                
+                def execute_deletion():
+                    """Exécute la suppression après validation PIN"""
+                    if pin_input.value != pin_code:
+                        result_label.text = '❌ Code PIN incorrect'
+                        result_label.style('color: #dc3545;')
+                        return
+                    
+                    try:
+                        result_label.text = '⏳ Suppression en cours...'
+                        result_label.style('color: #ffc107;')
+                        
+                        # Exécuter la suppression
+                        result = mm.delete_all_memories()
+                        
+                        if result.get('deleted_count', 0) > 0:
+                            msg = f"✅ {result['deleted_count']} souvenirs supprimés"
+                            if result.get('backup_created'):
+                                msg += f"\n💾 Backup créé: {result.get('backup_path', 'N/A')}"
+                            
+                            result_label.text = msg
+                            result_label.style('color: #28a745;')
+                            
+                            # Rafraîchir la liste
+                            try:
+                                refresh_list()
+                            except:
+                                pass
+                            
+                            # Notification principale
+                            ui.notify(
+                                f"Mémoire totalement effacée ({result['deleted_count']} souvenirs)",
+                                type='positive',
+                                position='top'
+                            )
+                            
+                            # Fermer après 2 secondes
+                            ui.timer(2.0, lambda: confirm_dialog.close(), once=True)
+                        else:
+                            error_msg = result.get('error', 'Erreur inconnue')
+                            result_label.text = f'❌ Échec : {error_msg}'
+                            result_label.style('color: #dc3545;')
+                            ui.notify(f'Erreur suppression : {error_msg}', type='negative')
+                    
+                    except Exception as e:
+                        result_label.text = f'❌ Erreur : {e}'
+                        result_label.style('color: #dc3545;')
+                        ui.notify(f'Erreur critique : {e}', type='negative')
+                
+                with ui.row().classes('justify-end gap-2 mt-3'):
+                    ui.button('Annuler', icon='close', on_click=confirm_dialog.close).classes('action-button')
+                    ui.button(
+                        'SUPPRIMER TOUT', 
+                        icon='delete_forever', 
+                        on_click=execute_deletion
+                    ).classes('action-button').style('''
+                        background: rgba(220, 53, 69, 0.2) !important;
+                        border: 1px solid rgba(220, 53, 69, 0.5) !important;
+                        color: #dc3545 !important;
+                    ''')
+            
+            confirm_dialog.open()
+        
+        ui.button(
+            'Supprimer TOUS les souvenirs',
+            icon='delete_forever',
+            on_click=do_delete_all_memories
+        ).classes('w-full').style('''
+            background: rgba(220, 53, 69, 0.15) !important;
+            border: 1px solid rgba(220, 53, 69, 0.4) !important;
+            color: #dc3545 !important;
+            font-weight: 600 !important;
+        ''')
 
     ui.label("Note: la recherche sémantique peut refléter l'ancien embedding après modification; la recompaction de l'index se fera plus tard.").classes('text-muted text-xs mt-2')
 
