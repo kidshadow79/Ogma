@@ -2051,6 +2051,108 @@ Ta note contextuelle enrichie (réponds directement):"""
             print(f"[ERROR] Erreur suppression: {e}")
             return False
 
+    def delete_all_memories(self) -> Dict[str, Any]:
+        """
+        Supprime TOUS les souvenirs de la mémoire (SQLite + FAISS + embeddings).
+        
+        ⚠️ OPÉRATION DESTRUCTIVE IRRÉVERSIBLE ⚠️
+        
+        Chaîne complète :
+        - Supprime toutes les entrées SQLite
+        - Réinitialise l'index FAISS
+        - Efface tous les mappings ID↔FAISS
+        - Synchronise ego_prompt.txt si traits ego supprimés
+        
+        Returns:
+            Dict avec statistiques : {
+                'deleted_count': int,
+                'faiss_reset': bool,
+                'backup_created': bool,
+                'backup_path': str
+            }
+        """
+        try:
+            print("[DELETE-ALL] ⚠️  SUPPRESSION TOTALE DE LA MÉMOIRE DÉMARRÉE...")
+            
+            # Créer backup avant suppression
+            from datetime import datetime
+            import shutil
+            
+            backup_path = None
+            backup_created = False
+            
+            try:
+                backup_dir = self.db_path.parent / "backup"
+                backup_dir.mkdir(exist_ok=True)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_path = backup_dir / f"memories_backup_before_delete_all_{timestamp}.db"
+                shutil.copy2(self.db_path, backup_path)
+                backup_created = True
+                print(f"[DELETE-ALL] ✅ Backup créé: {backup_path}")
+            except Exception as e:
+                print(f"[DELETE-ALL] ⚠️  Backup échoué: {e}")
+            
+            # Compter souvenirs avant suppression
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute("SELECT COUNT(*) FROM memories")
+                count_before = cursor.fetchone()[0]
+            
+            print(f"[DELETE-ALL] 📊 {count_before} souvenirs à supprimer...")
+            
+            # Supprimer tous les souvenirs SQLite
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("DELETE FROM memories")
+                conn.commit()
+            
+            print(f"[DELETE-ALL] 🗑️  SQLite vidé ({count_before} souvenirs supprimés)")
+            
+            # Réinitialiser les mappings
+            with self._mapping_lock:
+                self.id_to_faiss.clear()
+                self.faiss_to_id.clear()
+                self.next_faiss_pos = 0
+            
+            print("[DELETE-ALL] 🔄 Mappings réinitialisés")
+            
+            # Réinitialiser l'index FAISS
+            with self._faiss_lock:
+                self.faiss_index = faiss.IndexFlatL2(self.embedding_dim)
+            
+            # Sauvegarder l'index vide
+            self.save_index()
+            
+            print("[DELETE-ALL] ✅ Index FAISS réinitialisé et sauvegardé")
+            
+            # Synchroniser ego_prompt.txt (vider les références)
+            try:
+                self.sync_ego_prompt_references()
+                print("[DELETE-ALL] 🔄 ego_prompt.txt synchronisé (références vidées)")
+            except Exception as e:
+                print(f"[DELETE-ALL] ⚠️  Sync ego_prompt échoué: {e}")
+            
+            result = {
+                'deleted_count': count_before,
+                'faiss_reset': True,
+                'backup_created': backup_created,
+                'backup_path': str(backup_path) if backup_path else None
+            }
+            
+            print(f"[DELETE-ALL] ✅ SUPPRESSION TOTALE TERMINÉE : {count_before} souvenirs effacés")
+            
+            return result
+            
+        except Exception as e:
+            print(f"[DELETE-ALL] ❌ ERREUR CRITIQUE: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'deleted_count': 0,
+                'faiss_reset': False,
+                'backup_created': False,
+                'backup_path': None,
+                'error': str(e)
+            }
+
     async def update_memory(self, memory_id: str, *, title: Optional[str] = None, summary: Optional[str] = None,
                       text_original: Optional[str] = None, valence: Optional[int] = None,
                       base_factor: Optional[float] = None, intensite: Optional[float] = None,
