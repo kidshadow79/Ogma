@@ -1,0 +1,18 @@
+[
+  {
+    "role": "user",
+    "content": "salut"
+  },
+  {
+    "role": "assistant",
+    "content": "Coucou ✨  \nComment tu vas ?"
+  },
+  {
+    "role": "user",
+    "content": "je vais bien"
+  },
+  {
+    "role": "assistant",
+    "content": "Parfait alors 🌙 Et tu fais quoi de beau en ce moment ?"
+  }
+]

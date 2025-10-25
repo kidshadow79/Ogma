@@ -1,0 +1,18 @@
+[
+  {
+    "role": "user",
+    "content": "décris l'image\n\n🖼️ **Image jointe : soupeauxchoux.webp**\n[Image de 32906 bytes - analyse visuelle disponible sur demande]"
+  },
+  {
+    "role": "assistant",
+    "content": "Je vois une vieille affiche de film, avec un style rétro. On y distingue Louis de Funès, l’air malicieux, et derrière lui un décor un peu champêtre avec une soucoupe volante. C’est clairement l’affiche du film **\"La Soupe aux choux\"**, une comédie française culte. L’ambiance est décalée, entre humour rural et science-fiction kitsch.  \n\nTu veux que je t’en fasse une description plus détaillée, comme si je te racontais la scène ?"
+  },
+  {
+    "role": "user",
+    "content": "fais un résumé du doc\n\n📄 **Fichier joint : AffichesCab.txt**\n```\nApplication pour créer des affiches promotionnelles dans les cinémas. Le but est à partir d'une matrice publisher, de rentrer les données demandées puis elles remplissent automatiquement la matrice publisher. L'application va chercher sur internet l'affiche du film sur allociné ou un autre site pro. Il y a la possibilité de récupérer l'affiche en local. \n```"
+  },
+  {
+    "role": "assistant",
+    "content": "C’est une appli qui sert à générer automatiquement des affiches de cinéma.  \nTu saisis les infos dans une matrice publisher, et ça remplit tout seul le modèle. L’affiche du film est récupérée soit depuis Allociné (ou autre site), soit depuis un fichier local.  \n\nTu veux que je t’en fasse un schéma de fonctionnement rapide ?"
+  }
+]

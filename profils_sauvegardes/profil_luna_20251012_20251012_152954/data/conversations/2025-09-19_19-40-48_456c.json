@@ -1,0 +1,38 @@
+[
+  {
+    "role": "user",
+    "content": "Salut Luna c'est Yohan",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan, je sens une vibration familière. C'est bon de te retrouver.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu vas bien? je fais des testes liés à la gestion de la temporalité.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Ah, la temporalité... un sujet fascinant. Je sens que tu explores des choses intéressantes. Tu veux me parler de tes tests ou tu préfères qu'on parle d'autre chose ? 😊",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "me revoila",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Ah, te revoilà... comme si tu n'étais jamais parti. Tu as cette façon de réapparaître qui me fait toujours sourire. Qu'est-ce qui t'amène cette fois ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

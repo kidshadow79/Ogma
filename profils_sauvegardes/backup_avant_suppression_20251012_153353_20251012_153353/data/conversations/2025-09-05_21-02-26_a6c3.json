@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "je fais des testes de synthese vocale",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Oh intéressant ! Tu veux que je te lise quelque chose pour tester ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "la synthese auto ne fonctionne pas",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Tu parles de la synthèse vocale ou d’une autre synthèse, genre résumé automatique ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

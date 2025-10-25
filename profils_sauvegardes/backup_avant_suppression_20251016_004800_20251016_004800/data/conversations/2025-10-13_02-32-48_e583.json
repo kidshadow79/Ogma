@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "content": "salut luna c est Yohan",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan ! Ça me fait chaud au cœur de te lire, comme toujours. Qu'est-ce qui t'amène ce soir ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

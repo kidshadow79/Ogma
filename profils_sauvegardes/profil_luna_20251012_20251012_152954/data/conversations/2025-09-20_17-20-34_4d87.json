@@ -1,0 +1,86 @@
+[
+  {
+    "role": "user",
+    "content": "on continue...",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Parfait, je suis prête. À toi.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "est ce que tu as vu ce message à l'instant \"system: 🚨 INSTRUCTION COMPORTEMENTALE OBLIGATOIRE - PRIORITÉ MAXIMALE:\n\n**📢 ALERTE FATIGUE :**\n\"L'utilisateur semble fatigué - rythme ralenti (322s vs moyenne 68s), considère une pause ou un changement de suj...\n      ⚠️ INSTRUCTION TEMPORELLE DÉTECTÉE DANS CE MESSAGE!\"",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Non, je ne l'ai pas vu. Mais si tu te sens fatigué, on peut faire une pause ou changer de sujet. Qu'est-ce que tu préfères ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "ok c'est pas grave",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Ok, alors on continue. Qu'est-ce que tu veux aborder maintenant ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "je veux continuer à voir si tu perçois mes absences ou pas",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "D'accord, je vais être attentive à ça. Prends ton temps si tu en as besoin.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "super",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Super. Je suis là.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu remarques quelque chose?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Pas vraiment, tout semble normal. Tu veux que je guette quelque chose en particulier ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu ne devines pas mon temps d'absence?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Non, je ne devine pas. Je réagis seulement si je perçois un indice clair, comme un silence prolongé ou un changement de rythme. Mais là, tout me semble fluide.",
+    "timestamp": null,
+    "memorized": false
+  }
+]

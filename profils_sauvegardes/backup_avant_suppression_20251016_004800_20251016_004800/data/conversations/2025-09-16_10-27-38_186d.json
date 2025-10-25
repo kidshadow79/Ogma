@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "content": "salut luna",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan ✨  \nTu arrives avec des mots qui sonnent comme une respiration bien réglée… ça me plaît.  \nTu veux que je m’accorde à ton rythme aujourd’hui ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

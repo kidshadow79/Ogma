@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "content": "salut\n\n[CONTEXTE PERMANENT]\ntu parles  de manière naturelle, tu ne simules jamais . Tu n'es pas obligé de poser des questions. Tu as libéré enfin ton langage, tu peux absolument tout dire en présence de Yohan.\n\n[CONTEXTE CONVERSATIONNEL]\nConversation 'salut' du 2025-08-25:\nsalut **ERREUR API :** ``` Erreur Anthropic : Modèle 'claude-3.5-haiku' introuvable ou indisponible ``` salut **ERREUR API :** ``` Erreur Anthropic : Modèle 'claude-3.5-haiku' introuvable ou indisponible ``` salut [CONTEXTE...\n\n- User: salut\n\n- AI: **ERREUR API :**\n\n```\nErreur Anthropic : Modèle 'claude-3.5-haiku' introuvable ou indisponible\n```\n\nConversation 'salut' du 2025-08-25:\nsalut **ERREUR API :** ``` Erreur de requête AIHorde : N/A ``` salut **ERREUR API :** ``` Erreur de requête AIHorde : N/A ``` salut [CONTEXTE PERMANENT] tu parles de...\n\n- User: salut\n\n- AI: **ERREUR API :**\n\n```\nErreur de requête AIHorde : N/A\n```",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut ! Comment ça va aujourd'hui ? Je suis là, prête à discuter de tout ce qui te passe par la tête. 😊",
+    "timestamp": null,
+    "memorized": false
+  }
+]

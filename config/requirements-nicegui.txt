@@ -1,0 +1,24 @@
+# OGMA - Requirements NiceGUI
+# ===========================
+
+# Interface NiceGUI
+nicegui>=1.4.0
+
+# Backend OGMA (déjà installé)
+gradio>=5.42.0  # Garde pour compatibilité modules existants
+requests>=2.31.0
+pandas>=2.0.0
+numpy>=1.24.0
+pypdf>=3.0.0
+python-docx>=0.8.11
+Pillow>=10.0.0
+faiss-cpu>=1.7.0
+sqlalchemy>=2.0.0
+
+# Extensions optionnelles
+opencv-python>=4.8.0  # Pour perception agent
+llama-cpp-python  # Pour GGUF local
+
+# Utilitaires
+python-dotenv>=1.0.0  # Pour variables d'environnement sécurisées
+aiofiles>=23.0.0  # Pour gestion fichiers async

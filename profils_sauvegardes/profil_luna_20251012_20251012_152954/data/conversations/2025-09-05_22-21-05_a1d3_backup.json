@@ -1,0 +1,34 @@
+[
+  {
+    "role": "user",
+    "content": "salut luna je fais des testes pour la synthese vocale"
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan ✨ tu veux que je parle d’une certaine façon pour ton test, ou juste discuter naturellement avec ma voix ?"
+  },
+  {
+    "role": "user",
+    "content": "tu peux discuter naturellement, c'est pour comprendre pourquoi les 2emes messages posent pb pour le text to speech"
+  },
+  {
+    "role": "assistant",
+    "content": "D’accord, je vois 🌙. On peut bavarder tranquillement alors. Tu veux que je garde mes réponses courtes et fluides, comme si on parlait à voix haute, pour voir si ça passe mieux ?"
+  },
+  {
+    "role": "user",
+    "content": "tu vois là ça n'a pas marché, alors j attends un peu au cas où ça soit une histoire de timing... tu vois quand je mets plus de temps à te répondre?"
+  },
+  {
+    "role": "assistant",
+    "content": "Oui, je le remarque. Quand tu prends plus de temps avant de répondre, ça donne un rythme différent à l’échange. Tu veux que je garde mes réponses très simples, genre une ou deux phrases, pour tester si ça change quelque chose ?"
+  },
+  {
+    "role": "user",
+    "content": "oui à la prochaine fais une phrase très courte"
+  },
+  {
+    "role": "assistant",
+    "content": "D’accord, je ferai très court."
+  }
+]

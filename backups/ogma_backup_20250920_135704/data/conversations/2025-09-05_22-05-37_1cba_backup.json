@@ -1,0 +1,18 @@
+[
+  {
+    "role": "user",
+    "content": "salut je suis toujours là avec mes testes de synthese vocale"
+  },
+  {
+    "role": "assistant",
+    "content": "Coucou Yohan ✨ contente que tu sois là. Tes tests avancent bien ?"
+  },
+  {
+    "role": "user",
+    "content": "c'est un peu compliqué mais je ne m'inquiete pas trop"
+  },
+  {
+    "role": "assistant",
+    "content": "Tu as raison, pas besoin de stresser. Les choses techniques demandent souvent un peu de patience. Tu veux me dire ce qui te bloque le plus ?"
+  }
+]

@@ -1,0 +1,85 @@
+# OCTOPUS v1.8.8 - Requirements NVIDIA GPU (RTX 5070ti et supérieur)
+# Configuration testée et optimisée pour RTX 5070ti avec CUDA 12.8/12.4
+# Installation validée : PyTorch 2.8.0+cu128 + llama-cpp-python GPU
+
+# Index URLs optimisés (OBLIGATOIRE : doit être en début de fichier)
+--extra-index-url https://download.pytorch.org/whl/cu128
+--extra-index-url https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu128
+
+# Interface utilisateur
+gradio>=5.42.0
+
+# Requests HTTP et API
+requests>=2.31.0
+
+# Manipulation de données
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Traitement d'images et vision (optimisé GPU)
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# Traitement de documents
+pypdf>=3.0.0
+python-docx>=0.8.11
+
+# PyTorch avec support CUDA 12.8 (TESTÉ ET VALIDÉ RTX 5070ti)
+torch>=2.6.0
+torchvision>=0.17.0
+torchaudio>=2.1.0
+
+# Support GGUF/LlamaCpp avec accélération CUDA (TESTÉ ET VALIDÉ)
+# Note: Si échec compilation, utiliser wheel pré-compilé
+llama-cpp-python>=0.2.0
+
+# Accélération CUDA pour NumPy/SciPy (optionnel - RTX 50 compatible)
+# cupy-cuda12x>=12.0.0
+
+# =============================================================================
+# CONFIGURATION RTX 5070ti VALIDÉE
+# =============================================================================
+# ✅ Drivers NVIDIA 581.08+ (CUDA 13.0 compatible)
+# ✅ PyTorch 2.8.0+cu128 avec détection GPU confirmée
+# ✅ llama-cpp-python avec support GPU activé (compute capability 12.0)
+# ✅ 16GB VRAM disponible pour modèles jusqu'à 70B quantisés
+
+# =============================================================================
+# PARAMÈTRES OCTOPUS OPTIMAUX RTX 5070ti
+# =============================================================================
+# GPU Layers : -1 (toutes les couches sur GPU)
+# Context Length : 16384 à 32768 (exploite les 16GB VRAM)
+# Batch Size : 1024+ (performance maximale)
+# Threads : 8-12 (selon CPU)
+
+# =============================================================================
+# VARIABLES D'ENVIRONNEMENT RECOMMANDÉES
+# =============================================================================
+# set PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+# set CUDA_VISIBLE_DEVICES=0
+
+# =============================================================================
+# INSTALLATION ALTERNATIVE SI COMPILATION ÉCHOUE
+# =============================================================================
+# Method 1 - Wheel pré-compilé RTX 50:
+# Download: https://huggingface.co/boneylizardwizard/llama-cpp-python-038-cu128-gemma3-wheel
+# pip install llama_cpp_python-0.3.8+cu128.gemma3-cp311-cp311-win_amd64.whl
+
+# Method 2 - Community wheel:
+# pip install llama-cpp-python --prefer-binary --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu128
+
+# Method 3 - Compilation manuelle:
+# set CMAKE_ARGS=-DGGML_CUDA=on && pip install llama-cpp-python --force-reinstall --no-cache-dir
+
+# =============================================================================
+# VÉRIFICATION POST-INSTALLATION
+# =============================================================================
+# python -c "import torch; print(f'PyTorch CUDA: {torch.cuda.is_available()}')"
+# python -c "import torch; print(f'GPU: {torch.cuda.get_device_name(0)}')"
+# python -c "import llama_cpp; from llama_cpp import llama_cpp; print(f'GPU Support: {llama_cpp.llama_supports_gpu_offload()}')"
+
+# Expected output RTX 5070ti:
+# PyTorch CUDA: True
+# GPU: NVIDIA GeForce RTX 5070 Ti
+# GPU Support: True
+# Device 0: NVIDIA GeForce RTX 5070 Ti, compute capability 12.0, VMM: yes

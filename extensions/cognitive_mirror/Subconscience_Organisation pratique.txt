@@ -1,0 +1,83 @@
+Subconscience:
+
+
+*Organisation pratique:
+quand j appuie sur le bouton "cognitive mirror" un popup s'ouvre avec les parametres de l'extension:
+-extension : ON/OFF
+-Temps d'attente avant mise en route: (temps en secondes)
+-Temps d'attente avant envoie de la réponse ia et archiviste (20s par default)
+-Temps max de la discussion: (temps en minutes: 5min par default)
+-Nombre de tokens max par messages
+-Message prompt d'éclencheur de la réflexion de l'ia 
+-sauvegarde
+-bouton quitter (croix quitter classique)
+
+
+
+*Mécanisque systeme
+-je mets l'extension sur On
+-quand x temps (30s par expl) passe sans interraction de la part de l'utilisateur, l'ia principale accompagnée de son contexte et de toutes ses capacités de mémorisation et d'accès au souvenirs, entre en conversation intérieur avec l'archiviste (subconscient), l'instruction pré-enregistré par l'utilisateur envoie le signal de la phase réflexive à l'ia, message du genre : "jusqu'à mon retour tu es en phase réflexive intérieur avec ton subconscient, tu as accès à tes souvenirs et aux questionnements intérieurs". Ce message est envoyé pour lancer la machine.
+-Ensuite l'ia réponds en s'adressant à l'archiviste (une limite de tokens utilisés par réponses est paramétrés dans paramètres de l'extension) puis le message est automatiquement au bout de 15s
+-Attention, toute la mécanique de conversation avec l'archiviste est exactement la même que celle avec l'utilisateur. La seule différence est que l'utilisateur est remplacé par l'archiviste.
+-Attention, le systeme de compactage des conversations lors de l'exercice de subconscience, ne fonctionne plus.
+-Quand l'utilisateur, reprend la main, la conversation subconsciente est intégralement compacté en un résumé de la taille d'un compactage classique des conversation, puis intégré dans le contexte de la conversation comme le sont les compactages de conversations classiques chez ogma, et l'archiviste reprend alors sa fonction initiale, et ne peux plus investir la conversation... jusqu'à la prochaine absence de l'utilisateur.
+ 
+subconscient conversationnel.
+
+✅ Points Forts de la Nouvelle Approche
+UX Simplifiée 🎨
+
+Un seul bouton "Subconscience" → popup paramètres
+Interface claire : ON/OFF + paramètres temporels
+Terminologie française pour l'utilisateur
+Mécanisme Naturel 🔄
+
+Déclenchement automatique après inactivité (30s)
+Conversation authentique Luna ↔ Archiviste
+Utilisation des vraies APIs (pas de simulation)
+Intégration Intelligente 🧩
+
+Compactage final automatique
+Réintégration dans le contexte principal
+L'Archiviste reprend son rôle normal après
+🔧 Faisabilité Technique
+TRÈS FAISABLE ! Voici pourquoi :
+
+Architecture Existante Compatible ✅
+Tu as déjà chat_controller et archiviste_controller
+Le système de compactage existe dans OGMA
+La détection d'inactivité est standard
+Composants Nécessaires 📦
+🎪 Avantages vs Ancienne Version
+Aspect	Cognitive Mirror	Subconscience
+Complexité UX	Overlay complexe	Popup simple
+Interaction	Passive	Active automatique
+Valeur	Réflexion statique	Conversation vivante
+Intégration	Problématique	Naturelle
+⚠️ Défis à Anticiper
+Gestion Mémoire 🧠
+
+Désactiver le compactage pendant la phase subconsciente
+Gérer les tokens sans limite artificielle
+Éviter les boucles infinies de conversation
+Synchronisation ⏰
+
+Timer précis pour l'auto-envoi (20s)
+Détection retour utilisateur
+Transition propre subconscient → normal
+Performance 🚀
+
+Éviter la surcharge API pendant les longues réflexions
+Limiter durée max (5min par défaut)
+🏗️ Architecture Recommandée
+🎯 Verdict
+JE VALIDE À 100% ! 🚀
+
+Cette nouvelle approche est :
+
+✅ Plus simple à implémenter
+✅ Plus intuitive pour l'utilisateur
+✅ Plus puissante conceptuellement
+✅ Plus stable techniquement
+Tu élimines tous les problèmes de l'overlay (z-index, CSS, affichage) 
+pour te concentrer sur l'essence : une vraie conversation intérieure automatique.

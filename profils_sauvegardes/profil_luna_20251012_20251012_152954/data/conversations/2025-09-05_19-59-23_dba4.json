@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "content": "je teste la synthese vocale",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "D’accord, je t’entends. Tu veux que je réponde avec une voix douce et claire, ou plutôt naturelle et posée ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

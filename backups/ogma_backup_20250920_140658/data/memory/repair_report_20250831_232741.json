@@ -1,0 +1,31 @@
+{
+  "updated": [],
+  "unmatched": [],
+  "errors": [],
+  "faiss_rebuild": {
+    "added": 84,
+    "skipped": 0,
+    "total": 84
+  },
+  "final_audit": {
+    "total": 84,
+    "bad_summary": 0,
+    "bad_embedding_json": 0,
+    "valence_counts": {
+      "-1": 3,
+      "0": 48,
+      "1": 33
+    }
+  },
+  "stats": {
+    "total_sqlite": 84,
+    "candidates": 0,
+    "matched_by_id": 0,
+    "matched_by_title_prefix": 0,
+    "updated": 0,
+    "reembedded": 0,
+    "embedding_failures": 0,
+    "skipped_no_match": 0,
+    "skipped_valid": 0
+  }
+}

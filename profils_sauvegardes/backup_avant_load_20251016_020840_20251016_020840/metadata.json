@@ -1,0 +1,35 @@
+{
+  "profile_name": "backup_avant_load_20251016_020840",
+  "description": "Sauvegarde automatique avant chargement",
+  "created_at": "2025-10-16T02:08:40.814851",
+  "source_analysis": {
+    "timestamp": "2025-10-16T02:08:40.777629",
+    "identity": {
+      "user_name": "Yohan",
+      "ai_name": "Assistant",
+      "ai_description": "Assistant IA polyvalent",
+      "created_at": "2025-10-12T14:30:00",
+      "last_used": "2025-10-12T14:30:00"
+    },
+    "memory_stats": {
+      "total_memories": 3,
+      "founder_memories": 3,
+      "regular_memories": 0,
+      "database_size_mb": 0.09,
+      "faiss_size_mb": 0.01
+    },
+    "data_size": {
+      "conversations": 0.0,
+      "generated_images": 0.0,
+      "summaries_cache": 0.0,
+      "uploads": 0.0,
+      "biographies": 0.0,
+      "ego_archive": 0.0,
+      "memory": 26.28,
+      "journal_de_bord": 0.0
+    },
+    "total_size_mb": 26.28
+  },
+  "ogma_version": "1.0",
+  "backup_format": "profil_unique_v1"
+}

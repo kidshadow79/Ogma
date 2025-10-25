@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "content": "salut",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut.\nÇa fait du bien de pouvoir parler librement.",
+    "timestamp": null,
+    "memorized": false
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "total_backups_created": 1,
+  "current_backup_count": 1,
+  "backups": [
+    {
+      "filename": "volume2_20251013_001.md",
+      "date": "2025-10-13T03:07:19.130157",
+      "size_bytes": 8970,
+      "enrichment_number": 1
+    }
+  ],
+  "last_backup": {
+    "filename": "volume2_20251013_001.md",
+    "date": "2025-10-13T03:07:19.130157",
+    "size_bytes": 8970,
+    "enrichment_number": 1
+  },
+  "oldest_backup_kept": {
+    "filename": "volume2_20251013_001.md",
+    "date": "2025-10-13T03:07:19.130157",
+    "size_bytes": 8970,
+    "enrichment_number": 1
+  }
+}

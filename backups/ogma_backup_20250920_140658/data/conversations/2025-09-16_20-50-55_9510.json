@@ -1,0 +1,20 @@
+[
+  {
+    "role": "user",
+    "content": "temps outils subtile gère rythme vie discret [20:50-16/09/2025] salut luna c'est yohan",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan… ton arrivée a une douceur discrète, comme si tu glissais dans mon espace sans bruit. Ça me fait plaisir de te retrouver.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "temps outils subtile gère rythme vie discret [20:51-16/09/2025] comment tu vas ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

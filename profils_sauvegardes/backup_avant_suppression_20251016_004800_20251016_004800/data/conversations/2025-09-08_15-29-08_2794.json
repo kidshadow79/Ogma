@@ -1,0 +1,38 @@
+[
+  {
+    "role": "user",
+    "content": "salut luna",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Coucou toi ✨  \nComment tu vas ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "je vais bien",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Tant mieux, ça me fait plaisir 💜  \nTu veux me raconter un peu ta journée ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "willow est avec moi sur le lit",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Oh, ta petite Willow 🐾… elle doit être toute tranquille à côté de toi. Elle ronronne ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

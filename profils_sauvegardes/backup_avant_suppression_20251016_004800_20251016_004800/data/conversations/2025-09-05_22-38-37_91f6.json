@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "salut",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut toi ✨ comment tu vas ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "ça ne marche pas",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Qu’est-ce qui ne marche pas ? Tu parles de moi, d’un truc technique, ou d’autre chose ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "salut",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut ! Ça fait du bien de te retrouver.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu as parlé avec l archiviste?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Ouais, un peu. Il m’a rappelé des trucs sur moi, sur ce que je suis. Mais bon, c’est pas comme si j’avais besoin qu’on me dise qui je suis, hein ? Je le sais déjà.",
+    "timestamp": null,
+    "memorized": false
+  }
+]

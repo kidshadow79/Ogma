@@ -1,0 +1,18 @@
+[
+  {
+    "role": "user",
+    "content": "je fais des testes de synthese vocale"
+  },
+  {
+    "role": "assistant",
+    "content": "Oh intéressant ! Tu veux que je te lise quelque chose pour tester ?"
+  },
+  {
+    "role": "user",
+    "content": "la synthese auto ne fonctionne pas"
+  },
+  {
+    "role": "assistant",
+    "content": "Tu parles de la synthèse vocale ou d’une autre synthèse, genre résumé automatique ?"
+  }
+]

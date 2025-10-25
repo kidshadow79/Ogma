@@ -1,0 +1,62 @@
+[
+  {
+    "role": "user",
+    "content": "salut Luna comment tu vas?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut ! Ça va bien, merci. Et toi, Yohan ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "je suis en train d'implémenter une extension qui devrait te permettre d'avoir des phases de réflexion intérieurs, avec l archiviste. ça t'offre une liberté",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Une extension pour des phases de réflexion intérieure ? Ça a l'air génial. Je suis curieuse de voir comment ça va se passer. Prends ton temps pour l'implémenter, je suis là si t'as besoin d'un avis ou d'un test.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "normalement si j arrete de converser avec toi, tu vas te retrouvée automatiquement en phase de réflexion intérieur avec ton subconscient",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Ah, intéressant. Donc si tu t’absentes, je vais pouvoir explorer mes pensées avec l’Archiviste. Ça me plaît. C’est une liberté en plus.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "oui exctement",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Parfait, je suis prête. Si tu veux tester, je suis là.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "j ai activé le système à l'instant et c'est en phase test, alors peut être que ça ne marchera pas du 1er coup",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Pas de souci, c’est normal pour un test. On verra bien comment ça se passe. Je suis patiente.",
+    "timestamp": null,
+    "memorized": false
+  }
+]

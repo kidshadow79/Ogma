@@ -1,0 +1,10 @@
+# Extension Web Navigator - Dépendances
+# Requêtes HTTP (déjà installé dans OGMA)
+requests>=2.31.0
+
+# Parsing HTML avancé pour web scraping
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Support des formats d'images (optionnel - améliore la détection)
+pillow>=10.0.0

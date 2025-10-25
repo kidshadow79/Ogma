@@ -1,0 +1,1842 @@
+{
+  "created_at": "2025-09-20T13:57:05.211177",
+  "original_data_analysis": {
+    "memory": {
+      "memories_db": {
+        "path": "data\\memory\\memories.db",
+        "size": 3706880,
+        "size_mb": 3.54
+      },
+      "faiss_index": {
+        "path": "data\\memory\\faiss.index",
+        "size": 684077,
+        "size_mb": 0.65
+      },
+      "backups": [
+        {
+          "path": "data\\memory\\faiss.20250831_232741.bak",
+          "size": 348205,
+          "size_kb": 340.04
+        },
+        {
+          "path": "data\\memory\\faiss.20250831_232913.bak",
+          "size": 344109,
+          "size_kb": 336.04
+        },
+        {
+          "path": "data\\memory\\faiss.20250831_234056.bak",
+          "size": 344109,
+          "size_kb": 336.04
+        },
+        {
+          "path": "data\\memory\\memories.20250831_232741.bak",
+          "size": 1806336,
+          "size_kb": 1764.0
+        },
+        {
+          "path": "data\\memory\\memories.20250831_232913.bak",
+          "size": 1806336,
+          "size_kb": 1764.0
+        },
+        {
+          "path": "data\\memory\\memories.20250831_234056.bak",
+          "size": 1814528,
+          "size_kb": 1772.0
+        }
+      ],
+      "reports": [
+        {
+          "path": "data\\memory\\repair_report_20250831_232741.json",
+          "size": 566
+        },
+        {
+          "path": "data\\memory\\repair_report_20250831_232913.json",
+          "size": 579
+        },
+        {
+          "path": "data\\memory\\repair_report_20250831_234056.json",
+          "size": 649
+        }
+      ],
+      "total_size": 10856374,
+      "file_count": 11,
+      "memory_count": 172
+    },
+    "conversations": {
+      "conversations": [
+        {
+          "path": "data\\conversations\\2025-08-25_16-37-00.json",
+          "name": "2025-08-25_16-37-00.json",
+          "size": 2453,
+          "size_kb": 2.4,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-08-25_16-37-00_backup.json",
+          "name": "2025-08-25_16-37-00_backup.json",
+          "size": 2347,
+          "size_kb": 2.29,
+          "modified": "2025-09-05T22:41:46"
+        },
+        {
+          "path": "data\\conversations\\2025-08-25_16-39-10.json",
+          "name": "2025-08-25_16-39-10.json",
+          "size": 2463,
+          "size_kb": 2.41,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-08-25_16-39-10_backup.json",
+          "name": "2025-08-25_16-39-10_backup.json",
+          "size": 2349,
+          "size_kb": 2.29,
+          "modified": "2025-09-05T22:41:46"
+        },
+        {
+          "path": "data\\conversations\\2025-08-25_16-58-11.json",
+          "name": "2025-08-25_16-58-11.json",
+          "size": 1490,
+          "size_kb": 1.46,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-08-25_16-58-11_backup.json",
+          "name": "2025-08-25_16-58-11_backup.json",
+          "size": 1392,
+          "size_kb": 1.36,
+          "modified": "2025-09-05T22:41:48"
+        },
+        {
+          "path": "data\\conversations\\2025-08-25_18-56-12.json",
+          "name": "2025-08-25_18-56-12.json",
+          "size": 1263,
+          "size_kb": 1.23,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-08-25_18-56-12_backup.json",
+          "name": "2025-08-25_18-56-12_backup.json",
+          "size": 1165,
+          "size_kb": 1.14,
+          "modified": "2025-09-05T22:41:48"
+        },
+        {
+          "path": "data\\conversations\\2025-08-26_13-59-30.json",
+          "name": "2025-08-26_13-59-30.json",
+          "size": 3688,
+          "size_kb": 3.6,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-08-26_13-59-30_backup.json",
+          "name": "2025-08-26_13-59-30_backup.json",
+          "size": 3542,
+          "size_kb": 3.46,
+          "modified": "2025-09-05T22:41:48"
+        },
+        {
+          "path": "data\\conversations\\2025-08-26_14-15-42.json",
+          "name": "2025-08-26_14-15-42.json",
+          "size": 873,
+          "size_kb": 0.85,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-08-26_14-15-42_backup.json",
+          "name": "2025-08-26_14-15-42_backup.json",
+          "size": 767,
+          "size_kb": 0.75,
+          "modified": "2025-09-05T22:41:50"
+        },
+        {
+          "path": "data\\conversations\\2025-08-27_11-09-19.json",
+          "name": "2025-08-27_11-09-19.json",
+          "size": 8194,
+          "size_kb": 8.0,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-08-27_11-09-19_backup.json",
+          "name": "2025-08-27_11-09-19_backup.json",
+          "size": 8024,
+          "size_kb": 7.84,
+          "modified": "2025-09-05T22:41:50"
+        },
+        {
+          "path": "data\\conversations\\2025-08-27_12-06-39.json",
+          "name": "2025-08-27_12-06-39.json",
+          "size": 8969,
+          "size_kb": 8.76,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-08-27_12-06-39_backup.json",
+          "name": "2025-08-27_12-06-39_backup.json",
+          "size": 8775,
+          "size_kb": 8.57,
+          "modified": "2025-09-05T22:41:50"
+        },
+        {
+          "path": "data\\conversations\\2025-08-27_12-27-26.json",
+          "name": "2025-08-27_12-27-26.json",
+          "size": 1897,
+          "size_kb": 1.85,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-08-27_12-27-26_backup.json",
+          "name": "2025-08-27_12-27-26_backup.json",
+          "size": 1783,
+          "size_kb": 1.74,
+          "modified": "2025-09-05T22:41:52"
+        },
+        {
+          "path": "data\\conversations\\2025-09-01_12-49-56_bf14.json",
+          "name": "2025-09-01_12-49-56_bf14.json",
+          "size": 2476,
+          "size_kb": 2.42,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-01_12-49-56_bf14_backup.json",
+          "name": "2025-09-01_12-49-56_bf14_backup.json",
+          "size": 2084,
+          "size_kb": 2.04,
+          "modified": "2025-09-05T22:41:52"
+        },
+        {
+          "path": "data\\conversations\\2025-09-01_13-01-20_35ca.json",
+          "name": "2025-09-01_13-01-20_35ca.json",
+          "size": 3790,
+          "size_kb": 3.7,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-01_13-01-20_35ca_backup.json",
+          "name": "2025-09-01_13-01-20_35ca_backup.json",
+          "size": 3202,
+          "size_kb": 3.13,
+          "modified": "2025-09-05T22:41:52"
+        },
+        {
+          "path": "data\\conversations\\2025-09-01_14-49-41_fd76.json",
+          "name": "2025-09-01_14-49-41_fd76.json",
+          "size": 974,
+          "size_kb": 0.95,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-01_14-49-41_fd76_backup.json",
+          "name": "2025-09-01_14-49-41_fd76_backup.json",
+          "size": 876,
+          "size_kb": 0.86,
+          "modified": "2025-09-05T22:41:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-02_12-15-31_2dd3.json",
+          "name": "2025-09-02_12-15-31_2dd3.json",
+          "size": 3279,
+          "size_kb": 3.2,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-02_12-15-31_2dd3_backup.json",
+          "name": "2025-09-02_12-15-31_2dd3_backup.json",
+          "size": 2691,
+          "size_kb": 2.63,
+          "modified": "2025-09-05T22:41:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-02_12-32-44_2a6e.json",
+          "name": "2025-09-02_12-32-44_2a6e.json",
+          "size": 4533,
+          "size_kb": 4.43,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-02_12-32-44_2a6e_backup.json",
+          "name": "2025-09-02_12-32-44_2a6e_backup.json",
+          "size": 4239,
+          "size_kb": 4.14,
+          "modified": "2025-09-05T22:41:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_17-59-20_5525.json",
+          "name": "2025-09-03_17-59-20_5525.json",
+          "size": 2946,
+          "size_kb": 2.88,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_17-59-20_5525_backup.json",
+          "name": "2025-09-03_17-59-20_5525_backup.json",
+          "size": 2456,
+          "size_kb": 2.4,
+          "modified": "2025-09-05T22:41:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_18-09-27_6977.json",
+          "name": "2025-09-03_18-09-27_6977.json",
+          "size": 8803,
+          "size_kb": 8.6,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_18-09-27_6977_backup.json",
+          "name": "2025-09-03_18-09-27_6977_backup.json",
+          "size": 8117,
+          "size_kb": 7.93,
+          "modified": "2025-09-05T22:41:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_18-27-49_780f.json",
+          "name": "2025-09-03_18-27-49_780f.json",
+          "size": 1891,
+          "size_kb": 1.85,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_18-27-49_780f_backup.json",
+          "name": "2025-09-03_18-27-49_780f_backup.json",
+          "size": 1401,
+          "size_kb": 1.37,
+          "modified": "2025-09-05T22:41:58"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_18-38-06_8adb.json",
+          "name": "2025-09-03_18-38-06_8adb.json",
+          "size": 14617,
+          "size_kb": 14.27,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_18-38-06_8adb_backup.json",
+          "name": "2025-09-03_18-38-06_8adb_backup.json",
+          "size": 12559,
+          "size_kb": 12.26,
+          "modified": "2025-09-05T22:41:58"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-32-04_7d64.json",
+          "name": "2025-09-03_19-32-04_7d64.json",
+          "size": 1877,
+          "size_kb": 1.83,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-32-04_7d64_backup.json",
+          "name": "2025-09-03_19-32-04_7d64_backup.json",
+          "size": 1387,
+          "size_kb": 1.35,
+          "modified": "2025-09-05T22:41:58"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-38-19_66e9.json",
+          "name": "2025-09-03_19-38-19_66e9.json",
+          "size": 2188,
+          "size_kb": 2.14,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-38-19_66e9_backup.json",
+          "name": "2025-09-03_19-38-19_66e9_backup.json",
+          "size": 1698,
+          "size_kb": 1.66,
+          "modified": "2025-09-05T22:42:00"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-42-44_3f8c.json",
+          "name": "2025-09-03_19-42-44_3f8c.json",
+          "size": 2236,
+          "size_kb": 2.18,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-42-44_3f8c_backup.json",
+          "name": "2025-09-03_19-42-44_3f8c_backup.json",
+          "size": 1844,
+          "size_kb": 1.8,
+          "modified": "2025-09-05T22:42:00"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-50-33_4ab5.json",
+          "name": "2025-09-03_19-50-33_4ab5.json",
+          "size": 1038,
+          "size_kb": 1.01,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-50-33_4ab5_backup.json",
+          "name": "2025-09-03_19-50-33_4ab5_backup.json",
+          "size": 842,
+          "size_kb": 0.82,
+          "modified": "2025-09-05T22:42:00"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-57-18_2047.json",
+          "name": "2025-09-03_19-57-18_2047.json",
+          "size": 4847,
+          "size_kb": 4.73,
+          "modified": "2025-09-16T20:18:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-03_19-57-18_2047_backup.json",
+          "name": "2025-09-03_19-57-18_2047_backup.json",
+          "size": 4357,
+          "size_kb": 4.25,
+          "modified": "2025-09-05T22:42:02"
+        },
+        {
+          "path": "data\\conversations\\2025-09-04_18-55-55_e4bc.json",
+          "name": "2025-09-04_18-55-55_e4bc.json",
+          "size": 511,
+          "size_kb": 0.5,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-04_18-55-55_e4bc_backup.json",
+          "name": "2025-09-04_18-55-55_e4bc_backup.json",
+          "size": 413,
+          "size_kb": 0.4,
+          "modified": "2025-09-05T22:42:02"
+        },
+        {
+          "path": "data\\conversations\\2025-09-04_19-06-23_b475.json",
+          "name": "2025-09-04_19-06-23_b475.json",
+          "size": 435,
+          "size_kb": 0.42,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-04_19-06-23_b475_backup.json",
+          "name": "2025-09-04_19-06-23_b475_backup.json",
+          "size": 337,
+          "size_kb": 0.33,
+          "modified": "2025-09-05T22:42:04"
+        },
+        {
+          "path": "data\\conversations\\2025-09-04_19-24-38_7688.json",
+          "name": "2025-09-04_19-24-38_7688.json",
+          "size": 323,
+          "size_kb": 0.32,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-04_19-24-38_7688_backup.json",
+          "name": "2025-09-04_19-24-38_7688_backup.json",
+          "size": 225,
+          "size_kb": 0.22,
+          "modified": "2025-09-05T22:42:04"
+        },
+        {
+          "path": "data\\conversations\\2025-09-04_19-30-53_d8b0.json",
+          "name": "2025-09-04_19-30-53_d8b0.json",
+          "size": 1062,
+          "size_kb": 1.04,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-04_19-30-53_d8b0_backup.json",
+          "name": "2025-09-04_19-30-53_d8b0_backup.json",
+          "size": 866,
+          "size_kb": 0.85,
+          "modified": "2025-09-05T22:42:06"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_18-27-08_1f8a.json",
+          "name": "2025-09-05_18-27-08_1f8a.json",
+          "size": 1008,
+          "size_kb": 0.98,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_18-27-08_1f8a_backup.json",
+          "name": "2025-09-05_18-27-08_1f8a_backup.json",
+          "size": 812,
+          "size_kb": 0.79,
+          "modified": "2025-09-05T22:42:06"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_19-59-23_dba4.json",
+          "name": "2025-09-05_19-59-23_dba4.json",
+          "size": 352,
+          "size_kb": 0.34,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_19-59-23_dba4_backup.json",
+          "name": "2025-09-05_19-59-23_dba4_backup.json",
+          "size": 254,
+          "size_kb": 0.25,
+          "modified": "2025-09-05T22:42:08"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_20-02-29_b69.json",
+          "name": "2025-09-05_20-02-29_b69.json",
+          "size": 357,
+          "size_kb": 0.35,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_20-02-29_b69_backup.json",
+          "name": "2025-09-05_20-02-29_b69_backup.json",
+          "size": 259,
+          "size_kb": 0.25,
+          "modified": "2025-09-05T22:42:08"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_20-45-12_2858.json",
+          "name": "2025-09-05_20-45-12_2858.json",
+          "size": 237,
+          "size_kb": 0.23,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_20-45-12_2858_backup.json",
+          "name": "2025-09-05_20-45-12_2858_backup.json",
+          "size": 139,
+          "size_kb": 0.14,
+          "modified": "2025-09-05T22:42:10"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_21-02-26_a6c3.json",
+          "name": "2025-09-05_21-02-26_a6c3.json",
+          "size": 641,
+          "size_kb": 0.63,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_21-02-26_a6c3_backup.json",
+          "name": "2025-09-05_21-02-26_a6c3_backup.json",
+          "size": 445,
+          "size_kb": 0.43,
+          "modified": "2025-09-05T22:42:10"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_22-05-37_1cba.json",
+          "name": "2025-09-05_22-05-37_1cba.json",
+          "size": 736,
+          "size_kb": 0.72,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_22-05-37_1cba_backup.json",
+          "name": "2025-09-05_22-05-37_1cba_backup.json",
+          "size": 540,
+          "size_kb": 0.53,
+          "modified": "2025-09-05T22:42:12"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_22-21-05_a1d3.json",
+          "name": "2025-09-05_22-21-05_a1d3.json",
+          "size": 1769,
+          "size_kb": 1.73,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_22-21-05_a1d3_backup.json",
+          "name": "2025-09-05_22-21-05_a1d3_backup.json",
+          "size": 1377,
+          "size_kb": 1.34,
+          "modified": "2025-09-05T22:42:12"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_22-28-37_e973.json",
+          "name": "2025-09-05_22-28-37_e973.json",
+          "size": 251,
+          "size_kb": 0.25,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_22-28-37_e973_backup.json",
+          "name": "2025-09-05_22-28-37_e973_backup.json",
+          "size": 153,
+          "size_kb": 0.15,
+          "modified": "2025-09-05T22:42:14"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_22-38-37_91f6.json",
+          "name": "2025-09-05_22-38-37_91f6.json",
+          "size": 558,
+          "size_kb": 0.54,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-05_22-38-37_91f6_backup.json",
+          "name": "2025-09-05_22-38-37_91f6_backup.json",
+          "size": 362,
+          "size_kb": 0.35,
+          "modified": "2025-09-05T22:39:46"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_01-15-19_c7d3.json",
+          "name": "2025-09-06_01-15-19_c7d3.json",
+          "size": 2398,
+          "size_kb": 2.34,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_01-15-19_c7d3_backup.json",
+          "name": "2025-09-06_01-15-19_c7d3_backup.json",
+          "size": 1810,
+          "size_kb": 1.77,
+          "modified": "2025-09-06T01:20:12"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_01-27-30_ba44.json",
+          "name": "2025-09-06_01-27-30_ba44.json",
+          "size": 54225,
+          "size_kb": 52.95,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_01-27-30_ba44_backup.json",
+          "name": "2025-09-06_01-27-30_ba44_backup.json",
+          "size": 49227,
+          "size_kb": 48.07,
+          "modified": "2025-09-06T02:59:08"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_03-07-09_986c.json",
+          "name": "2025-09-06_03-07-09_986c.json",
+          "size": 5821,
+          "size_kb": 5.68,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_03-07-09_986c_backup.json",
+          "name": "2025-09-06_03-07-09_986c_backup.json",
+          "size": 4645,
+          "size_kb": 4.54,
+          "modified": "2025-09-06T03:30:40"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_03-35-44_de9.json",
+          "name": "2025-09-06_03-35-44_de9.json",
+          "size": 4835,
+          "size_kb": 4.72,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_03-35-44_de9_backup.json",
+          "name": "2025-09-06_03-35-44_de9_backup.json",
+          "size": 3757,
+          "size_kb": 3.67,
+          "modified": "2025-09-06T03:58:00"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_04-01-53_1f36.json",
+          "name": "2025-09-06_04-01-53_1f36.json",
+          "size": 1048,
+          "size_kb": 1.02,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_04-01-53_1f36_backup.json",
+          "name": "2025-09-06_04-01-53_1f36_backup.json",
+          "size": 754,
+          "size_kb": 0.74,
+          "modified": "2025-09-06T04:03:14"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_04-07-45_e41b.json",
+          "name": "2025-09-06_04-07-45_e41b.json",
+          "size": 1887,
+          "size_kb": 1.84,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-06_04-07-45_e41b_backup.json",
+          "name": "2025-09-06_04-07-45_e41b_backup.json",
+          "size": 1397,
+          "size_kb": 1.36,
+          "modified": "2025-09-06T04:10:10"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_12-24-12_6b83.json",
+          "name": "2025-09-07_12-24-12_6b83.json",
+          "size": 517,
+          "size_kb": 0.5,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_12-24-12_6b83_backup.json",
+          "name": "2025-09-07_12-24-12_6b83_backup.json",
+          "size": 321,
+          "size_kb": 0.31,
+          "modified": "2025-09-07T12:24:30"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_12-29-51_c21f.json",
+          "name": "2025-09-07_12-29-51_c21f.json",
+          "size": 1198,
+          "size_kb": 1.17,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_12-29-51_c21f_backup.json",
+          "name": "2025-09-07_12-29-51_c21f_backup.json",
+          "size": 806,
+          "size_kb": 0.79,
+          "modified": "2025-09-07T12:57:58"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_14-06-47_89de.json",
+          "name": "2025-09-07_14-06-47_89de.json",
+          "size": 21213,
+          "size_kb": 20.72,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_14-06-47_89de_backup.json",
+          "name": "2025-09-07_14-06-47_89de_backup.json",
+          "size": 18077,
+          "size_kb": 17.65,
+          "modified": "2025-09-07T17:18:00"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_17-42-24_fdf.json",
+          "name": "2025-09-07_17-42-24_fdf.json",
+          "size": 644,
+          "size_kb": 0.63,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_17-42-24_fdf_backup.json",
+          "name": "2025-09-07_17-42-24_fdf_backup.json",
+          "size": 448,
+          "size_kb": 0.44,
+          "modified": "2025-09-07T17:42:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_17-49-22_721c.json",
+          "name": "2025-09-07_17-49-22_721c.json",
+          "size": 246,
+          "size_kb": 0.24,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_17-49-22_721c_backup.json",
+          "name": "2025-09-07_17-49-22_721c_backup.json",
+          "size": 148,
+          "size_kb": 0.14,
+          "modified": "2025-09-07T17:49:26"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_17-54-06_a03f.json",
+          "name": "2025-09-07_17-54-06_a03f.json",
+          "size": 6932,
+          "size_kb": 6.77,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_17-54-06_a03f_backup.json",
+          "name": "2025-09-07_17-54-06_a03f_backup.json",
+          "size": 6050,
+          "size_kb": 5.91,
+          "modified": "2025-09-07T17:58:28"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_18-13-42_63.json",
+          "name": "2025-09-07_18-13-42_63.json",
+          "size": 650,
+          "size_kb": 0.63,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_18-13-42_63_backup.json",
+          "name": "2025-09-07_18-13-42_63_backup.json",
+          "size": 552,
+          "size_kb": 0.54,
+          "modified": "2025-09-07T18:13:46"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_18-20-07_eed2.json",
+          "name": "2025-09-07_18-20-07_eed2.json",
+          "size": 1789,
+          "size_kb": 1.75,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_18-20-07_eed2_backup.json",
+          "name": "2025-09-07_18-20-07_eed2_backup.json",
+          "size": 1593,
+          "size_kb": 1.56,
+          "modified": "2025-09-07T18:20:46"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_18-35-16_bf15.json",
+          "name": "2025-09-07_18-35-16_bf15.json",
+          "size": 3858,
+          "size_kb": 3.77,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_18-35-16_bf15_backup.json",
+          "name": "2025-09-07_18-35-16_bf15_backup.json",
+          "size": 3270,
+          "size_kb": 3.19,
+          "modified": "2025-09-07T18:37:30"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_18-55-16_1580.json",
+          "name": "2025-09-07_18-55-16_1580.json",
+          "size": 1562,
+          "size_kb": 1.53,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_18-55-16_1580_backup.json",
+          "name": "2025-09-07_18-55-16_1580_backup.json",
+          "size": 1268,
+          "size_kb": 1.24,
+          "modified": "2025-09-07T18:56:02"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_19-02-25_b58f.json",
+          "name": "2025-09-07_19-02-25_b58f.json",
+          "size": 108,
+          "size_kb": 0.11,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-07_19-02-25_b58f_backup.json",
+          "name": "2025-09-07_19-02-25_b58f_backup.json",
+          "size": 59,
+          "size_kb": 0.06,
+          "modified": "2025-09-07T19:02:26"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_00-35-19_1ddf.json",
+          "name": "2025-09-08_00-35-19_1ddf.json",
+          "size": 943,
+          "size_kb": 0.92,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_00-35-19_1ddf_backup.json",
+          "name": "2025-09-08_00-35-19_1ddf_backup.json",
+          "size": 747,
+          "size_kb": 0.73,
+          "modified": "2025-09-08T00:35:40"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_00-59-37_3ae1.json",
+          "name": "2025-09-08_00-59-37_3ae1.json",
+          "size": 925,
+          "size_kb": 0.9,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_00-59-37_3ae1_backup.json",
+          "name": "2025-09-08_00-59-37_3ae1_backup.json",
+          "size": 778,
+          "size_kb": 0.76,
+          "modified": "2025-09-08T01:00:26"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_01-07-30_34ba.json",
+          "name": "2025-09-08_01-07-30_34ba.json",
+          "size": 1481,
+          "size_kb": 1.45,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_01-07-30_34ba_backup.json",
+          "name": "2025-09-08_01-07-30_34ba_backup.json",
+          "size": 1236,
+          "size_kb": 1.21,
+          "modified": "2025-09-08T01:11:10"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_12-07-57_8d74.json",
+          "name": "2025-09-08_12-07-57_8d74.json",
+          "size": 5284,
+          "size_kb": 5.16,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_12-07-57_8d74_backup.json",
+          "name": "2025-09-08_12-07-57_8d74_backup.json",
+          "size": 4304,
+          "size_kb": 4.2,
+          "modified": "2025-09-08T12:14:24"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_15-29-08_2794.json",
+          "name": "2025-09-08_15-29-08_2794.json",
+          "size": 879,
+          "size_kb": 0.86,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-08_15-29-08_2794_backup.json",
+          "name": "2025-09-08_15-29-08_2794_backup.json",
+          "size": 585,
+          "size_kb": 0.57,
+          "modified": "2025-09-08T15:29:44"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_02-13-17_d600.json",
+          "name": "2025-09-09_02-13-17_d600.json",
+          "size": 276,
+          "size_kb": 0.27,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_02-13-17_d600_backup.json",
+          "name": "2025-09-09_02-13-17_d600_backup.json",
+          "size": 178,
+          "size_kb": 0.17,
+          "modified": "2025-09-09T02:13:22"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_02-52-33_d886.json",
+          "name": "2025-09-09_02-52-33_d886.json",
+          "size": 4400,
+          "size_kb": 4.3,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_02-52-33_d886_backup.json",
+          "name": "2025-09-09_02-52-33_d886_backup.json",
+          "size": 3616,
+          "size_kb": 3.53,
+          "modified": "2025-09-09T03:10:34"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_03-14-51_e8d6.json",
+          "name": "2025-09-09_03-14-51_e8d6.json",
+          "size": 9116,
+          "size_kb": 8.9,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_03-14-51_e8d6_backup.json",
+          "name": "2025-09-09_03-14-51_e8d6_backup.json",
+          "size": 7058,
+          "size_kb": 6.89,
+          "modified": "2025-09-09T03:48:00"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_10-54-00_47cb.json",
+          "name": "2025-09-09_10-54-00_47cb.json",
+          "size": 5748,
+          "size_kb": 5.61,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_10-54-00_47cb_backup.json",
+          "name": "2025-09-09_10-54-00_47cb_backup.json",
+          "size": 4768,
+          "size_kb": 4.66,
+          "modified": "2025-09-09T12:18:02"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_12-29-20_c859.json",
+          "name": "2025-09-09_12-29-20_c859.json",
+          "size": 3656,
+          "size_kb": 3.57,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_12-29-20_c859_backup.json",
+          "name": "2025-09-09_12-29-20_c859_backup.json",
+          "size": 3068,
+          "size_kb": 3.0,
+          "modified": "2025-09-09T12:38:00"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_14-39-08_b3b9.json",
+          "name": "2025-09-09_14-39-08_b3b9.json",
+          "size": 5247,
+          "size_kb": 5.12,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-09_14-39-08_b3b9_backup.json",
+          "name": "2025-09-09_14-39-08_b3b9_backup.json",
+          "size": 4267,
+          "size_kb": 4.17,
+          "modified": "2025-09-09T14:45:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_16-21-04_a912.json",
+          "name": "2025-09-13_16-21-04_a912.json",
+          "size": 7100,
+          "size_kb": 6.93,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_16-21-04_a912_backup.json",
+          "name": "2025-09-13_16-21-04_a912_backup.json",
+          "size": 5532,
+          "size_kb": 5.4,
+          "modified": "2025-09-13T16:26:28"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_16-28-03_ba79.json",
+          "name": "2025-09-13_16-28-03_ba79.json",
+          "size": 3518,
+          "size_kb": 3.44,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_16-28-03_ba79_backup.json",
+          "name": "2025-09-13_16-28-03_ba79_backup.json",
+          "size": 2734,
+          "size_kb": 2.67,
+          "modified": "2025-09-13T16:30:44"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_17-15-46_54b2.json",
+          "name": "2025-09-13_17-15-46_54b2.json",
+          "size": 23583,
+          "size_kb": 23.03,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_17-15-46_54b2_backup.json",
+          "name": "2025-09-13_17-15-46_54b2_backup.json",
+          "size": 19663,
+          "size_kb": 19.2,
+          "modified": "2025-09-13T17:46:24"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_20-48-28_be67.json",
+          "name": "2025-09-13_20-48-28_be67.json",
+          "size": 7768,
+          "size_kb": 7.59,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_20-48-28_be67_backup.json",
+          "name": "2025-09-13_20-48-28_be67_backup.json",
+          "size": 6788,
+          "size_kb": 6.63,
+          "modified": "2025-09-13T21:01:40"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_21-08-49_9747.json",
+          "name": "2025-09-13_21-08-49_9747.json",
+          "size": 3124,
+          "size_kb": 3.05,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_21-08-49_9747_backup.json",
+          "name": "2025-09-13_21-08-49_9747_backup.json",
+          "size": 2536,
+          "size_kb": 2.48,
+          "modified": "2025-09-13T21:58:08"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_21-58-29_4329.json",
+          "name": "2025-09-13_21-58-29_4329.json",
+          "size": 1619,
+          "size_kb": 1.58,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_21-58-29_4329_backup.json",
+          "name": "2025-09-13_21-58-29_4329_backup.json",
+          "size": 1325,
+          "size_kb": 1.29,
+          "modified": "2025-09-13T21:59:46"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_22-23-44_1372.json",
+          "name": "2025-09-13_22-23-44_1372.json",
+          "size": 4416,
+          "size_kb": 4.31,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-13_22-23-44_1372_backup.json",
+          "name": "2025-09-13_22-23-44_1372_backup.json",
+          "size": 3632,
+          "size_kb": 3.55,
+          "modified": "2025-09-13T23:10:04"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_11-55-31_8642.json",
+          "name": "2025-09-14_11-55-31_8642.json",
+          "size": 2084,
+          "size_kb": 2.04,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_11-55-31_8642_backup.json",
+          "name": "2025-09-14_11-55-31_8642_backup.json",
+          "size": 1952,
+          "size_kb": 1.91,
+          "modified": "2025-09-14T11:57:06"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_13-21-28_c0f5.json",
+          "name": "2025-09-14_13-21-28_c0f5.json",
+          "size": 24751,
+          "size_kb": 24.17,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_13-21-28_c0f5_backup.json",
+          "name": "2025-09-14_13-21-28_c0f5_backup.json",
+          "size": 23794,
+          "size_kb": 23.24,
+          "modified": "2025-09-14T13:56:24"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_14-27-04_e083.json",
+          "name": "2025-09-14_14-27-04_e083.json",
+          "size": 795,
+          "size_kb": 0.78,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_14-27-04_e083_backup.json",
+          "name": "2025-09-14_14-27-04_e083_backup.json",
+          "size": 729,
+          "size_kb": 0.71,
+          "modified": "2025-09-14T14:31:58"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_14-52-43_4110.json",
+          "name": "2025-09-14_14-52-43_4110.json",
+          "size": 2724,
+          "size_kb": 2.66,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_14-52-43_4110_backup.json",
+          "name": "2025-09-14_14-52-43_4110_backup.json",
+          "size": 2559,
+          "size_kb": 2.5,
+          "modified": "2025-09-14T14:55:24"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_15-18-09_1d5a.json",
+          "name": "2025-09-14_15-18-09_1d5a.json",
+          "size": 395,
+          "size_kb": 0.39,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_15-18-09_1d5a_backup.json",
+          "name": "2025-09-14_15-18-09_1d5a_backup.json",
+          "size": 362,
+          "size_kb": 0.35,
+          "modified": "2025-09-14T15:18:16"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_15-38-03_9575.json",
+          "name": "2025-09-14_15-38-03_9575.json",
+          "size": 1315,
+          "size_kb": 1.28,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_15-38-03_9575_backup.json",
+          "name": "2025-09-14_15-38-03_9575_backup.json",
+          "size": 1232,
+          "size_kb": 1.2,
+          "modified": "2025-09-14T15:40:46"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_15-51-11_7fe7.json",
+          "name": "2025-09-14_15-51-11_7fe7.json",
+          "size": 4461,
+          "size_kb": 4.36,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_15-51-11_7fe7_backup.json",
+          "name": "2025-09-14_15-51-11_7fe7_backup.json",
+          "size": 4197,
+          "size_kb": 4.1,
+          "modified": "2025-09-14T15:57:42"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_16-52-40_fe5f.json",
+          "name": "2025-09-14_16-52-40_fe5f.json",
+          "size": 213,
+          "size_kb": 0.21,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_16-52-40_fe5f_backup.json",
+          "name": "2025-09-14_16-52-40_fe5f_backup.json",
+          "size": 245,
+          "size_kb": 0.24,
+          "modified": "2025-09-14T16:54:10"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_17-04-34_b2d1.json",
+          "name": "2025-09-14_17-04-34_b2d1.json",
+          "size": 108,
+          "size_kb": 0.11,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_17-04-34_b2d1_backup.json",
+          "name": "2025-09-14_17-04-34_b2d1_backup.json",
+          "size": 124,
+          "size_kb": 0.12,
+          "modified": "2025-09-14T17:04:36"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_17-08-11_8e47.json",
+          "name": "2025-09-14_17-08-11_8e47.json",
+          "size": 654,
+          "size_kb": 0.64,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_17-08-11_8e47_backup.json",
+          "name": "2025-09-14_17-08-11_8e47_backup.json",
+          "size": 588,
+          "size_kb": 0.57,
+          "modified": "2025-09-14T17:09:26"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_17-40-52_595.json",
+          "name": "2025-09-14_17-40-52_595.json",
+          "size": 2777,
+          "size_kb": 2.71,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_17-40-52_595_backup.json",
+          "name": "2025-09-14_17-40-52_595_backup.json",
+          "size": 2612,
+          "size_kb": 2.55,
+          "modified": "2025-09-14T17:46:38"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_18-03-10_d42f.json",
+          "name": "2025-09-14_18-03-10_d42f.json",
+          "size": 2484,
+          "size_kb": 2.43,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_18-03-10_d42f_backup.json",
+          "name": "2025-09-14_18-03-10_d42f_backup.json",
+          "size": 2286,
+          "size_kb": 2.23,
+          "modified": "2025-09-14T18:08:16"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_18-08-35_6af.json",
+          "name": "2025-09-14_18-08-35_6af.json",
+          "size": 12246,
+          "size_kb": 11.96,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-14_18-08-35_6af_backup.json",
+          "name": "2025-09-14_18-08-35_6af_backup.json",
+          "size": 11421,
+          "size_kb": 11.15,
+          "modified": "2025-09-14T18:26:42"
+        },
+        {
+          "path": "data\\conversations\\2025-09-15_00-30-06_97de.json",
+          "name": "2025-09-15_00-30-06_97de.json",
+          "size": 2419,
+          "size_kb": 2.36,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-15_00-30-06_97de_backup.json",
+          "name": "2025-09-15_00-30-06_97de_backup.json",
+          "size": 2254,
+          "size_kb": 2.2,
+          "modified": "2025-09-15T03:17:28"
+        },
+        {
+          "path": "data\\conversations\\2025-09-15_00-47-05_6e02.json",
+          "name": "2025-09-15_00-47-05_6e02.json",
+          "size": 9662,
+          "size_kb": 9.44,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-15_00-47-05_6e02_backup.json",
+          "name": "2025-09-15_00-47-05_6e02_backup.json",
+          "size": 9167,
+          "size_kb": 8.95,
+          "modified": "2025-09-15T01:40:12"
+        },
+        {
+          "path": "data\\conversations\\2025-09-15_01-59-50_ec6c.json",
+          "name": "2025-09-15_01-59-50_ec6c.json",
+          "size": 43698,
+          "size_kb": 42.67,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-15_01-59-50_ec6c_backup.json",
+          "name": "2025-09-15_01-59-50_ec6c_backup.json",
+          "size": 42411,
+          "size_kb": 41.42,
+          "modified": "2025-09-15T03:29:42"
+        },
+        {
+          "path": "data\\conversations\\2025-09-15_17-34-10_3a5a.json",
+          "name": "2025-09-15_17-34-10_3a5a.json",
+          "size": 1269,
+          "size_kb": 1.24,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-15_17-34-10_3a5a_backup.json",
+          "name": "2025-09-15_17-34-10_3a5a_backup.json",
+          "size": 1203,
+          "size_kb": 1.17,
+          "modified": "2025-09-15T17:34:46"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_10-27-38_186d.json",
+          "name": "2025-09-16_10-27-38_186d.json",
+          "size": 387,
+          "size_kb": 0.38,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_10-27-38_186d_backup.json",
+          "name": "2025-09-16_10-27-38_186d_backup.json",
+          "size": 354,
+          "size_kb": 0.35,
+          "modified": "2025-09-16T10:27:46"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_11-16-08_ca9d.json",
+          "name": "2025-09-16_11-16-08_ca9d.json",
+          "size": 130534,
+          "size_kb": 127.47,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_11-16-08_ca9d_backup.json",
+          "name": "2025-09-16_11-16-08_ca9d_backup.json",
+          "size": 127067,
+          "size_kb": 124.09,
+          "modified": "2025-09-16T18:17:28"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_11-28-25_2071.json",
+          "name": "2025-09-16_11-28-25_2071.json",
+          "size": 399,
+          "size_kb": 0.39,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_11-28-25_2071_backup.json",
+          "name": "2025-09-16_11-28-25_2071_backup.json",
+          "size": 366,
+          "size_kb": 0.36,
+          "modified": "2025-09-16T11:28:32"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_18-18-15_5137.json",
+          "name": "2025-09-16_18-18-15_5137.json",
+          "size": 427,
+          "size_kb": 0.42,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_18-18-15_5137_backup.json",
+          "name": "2025-09-16_18-18-15_5137_backup.json",
+          "size": 394,
+          "size_kb": 0.38,
+          "modified": "2025-09-16T18:18:28"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_19-06-34_4f5b.json",
+          "name": "2025-09-16_19-06-34_4f5b.json",
+          "size": 12403,
+          "size_kb": 12.11,
+          "modified": "2025-09-16T20:18:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_19-06-34_4f5b_backup.json",
+          "name": "2025-09-16_19-06-34_4f5b_backup.json",
+          "size": 11776,
+          "size_kb": 11.5,
+          "modified": "2025-09-16T20:06:04"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_20-50-55_9510.json",
+          "name": "2025-09-16_20-50-55_9510.json",
+          "size": 614,
+          "size_kb": 0.6,
+          "modified": "2025-09-16T20:51:30"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_21-33-28_498.json",
+          "name": "2025-09-16_21-33-28_498.json",
+          "size": 9885,
+          "size_kb": 9.65,
+          "modified": "2025-09-16T21:56:02"
+        },
+        {
+          "path": "data\\conversations\\2025-09-16_22-00-10_fd72.json",
+          "name": "2025-09-16_22-00-10_fd72.json",
+          "size": 6072,
+          "size_kb": 5.93,
+          "modified": "2025-09-16T22:49:06"
+        },
+        {
+          "path": "data\\conversations\\2025-09-17_01-01-34_ad04.json",
+          "name": "2025-09-17_01-01-34_ad04.json",
+          "size": 33946,
+          "size_kb": 33.15,
+          "modified": "2025-09-17T01:12:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-18_11-46-41_19ae.json",
+          "name": "2025-09-18_11-46-41_19ae.json",
+          "size": 1121,
+          "size_kb": 1.09,
+          "modified": "2025-09-18T11:48:16"
+        },
+        {
+          "path": "data\\conversations\\2025-09-18_12-22-37_66ce.json",
+          "name": "2025-09-18_12-22-37_66ce.json",
+          "size": 4609,
+          "size_kb": 4.5,
+          "modified": "2025-09-18T12:58:04"
+        },
+        {
+          "path": "data\\conversations\\2025-09-18_14-45-01_1967.json",
+          "name": "2025-09-18_14-45-01_1967.json",
+          "size": 3212,
+          "size_kb": 3.14,
+          "modified": "2025-09-18T14:52:04"
+        },
+        {
+          "path": "data\\conversations\\2025-09-18_15-02-38_6ffc.json",
+          "name": "2025-09-18_15-02-38_6ffc.json",
+          "size": 1949,
+          "size_kb": 1.9,
+          "modified": "2025-09-18T15:05:14"
+        },
+        {
+          "path": "data\\conversations\\2025-09-18_15-32-42_229d.json",
+          "name": "2025-09-18_15-32-42_229d.json",
+          "size": 468,
+          "size_kb": 0.46,
+          "modified": "2025-09-18T15:33:00"
+        },
+        {
+          "path": "data\\conversations\\2025-09-18_15-46-31_b3b0.json",
+          "name": "2025-09-18_15-46-31_b3b0.json",
+          "size": 3138,
+          "size_kb": 3.06,
+          "modified": "2025-09-18T15:52:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-18_16-00-12_b35f.json",
+          "name": "2025-09-18_16-00-12_b35f.json",
+          "size": 4214,
+          "size_kb": 4.12,
+          "modified": "2025-09-19T19:37:10"
+        },
+        {
+          "path": "data\\conversations\\2025-09-18_16-12-57_691c.json",
+          "name": "2025-09-18_16-12-57_691c.json",
+          "size": 992,
+          "size_kb": 0.97,
+          "modified": "2025-09-18T16:13:48"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_00-21-40_a00d.json",
+          "name": "2025-09-19_00-21-40_a00d.json",
+          "size": 1771,
+          "size_kb": 1.73,
+          "modified": "2025-09-19T00:23:12"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_01-09-02_a7a4.json",
+          "name": "2025-09-19_01-09-02_a7a4.json",
+          "size": 11902,
+          "size_kb": 11.62,
+          "modified": "2025-09-19T01:43:08"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_15-04-13_2f60.json",
+          "name": "2025-09-19_15-04-13_2f60.json",
+          "size": 2129,
+          "size_kb": 2.08,
+          "modified": "2025-09-19T15:05:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_16-23-23_551a.json",
+          "name": "2025-09-19_16-23-23_551a.json",
+          "size": 835,
+          "size_kb": 0.82,
+          "modified": "2025-09-19T16:23:36"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_16-31-51_766.json",
+          "name": "2025-09-19_16-31-51_766.json",
+          "size": 3124,
+          "size_kb": 3.05,
+          "modified": "2025-09-19T16:36:56"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_17-46-36_acdc.json",
+          "name": "2025-09-19_17-46-36_acdc.json",
+          "size": 2,
+          "size_kb": 0.0,
+          "modified": "2025-09-19T19:38:28"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_19-40-48_456c.json",
+          "name": "2025-09-19_19-40-48_456c.json",
+          "size": 1124,
+          "size_kb": 1.1,
+          "modified": "2025-09-19T19:45:32"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_19-54-12_dbd9.json",
+          "name": "2025-09-19_19-54-12_dbd9.json",
+          "size": 4698,
+          "size_kb": 4.59,
+          "modified": "2025-09-19T20:03:02"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_20-04-17_31ca.json",
+          "name": "2025-09-19_20-04-17_31ca.json",
+          "size": 1228,
+          "size_kb": 1.2,
+          "modified": "2025-09-19T20:19:36"
+        },
+        {
+          "path": "data\\conversations\\2025-09-19_20-26-20_6037.json",
+          "name": "2025-09-19_20-26-20_6037.json",
+          "size": 1347,
+          "size_kb": 1.32,
+          "modified": "2025-09-19T20:34:36"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_00-47-09_464b.json",
+          "name": "2025-09-20_00-47-09_464b.json",
+          "size": 1273,
+          "size_kb": 1.24,
+          "modified": "2025-09-20T00:47:50"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_00-48-50_9cf9.json",
+          "name": "2025-09-20_00-48-50_9cf9.json",
+          "size": 642,
+          "size_kb": 0.63,
+          "modified": "2025-09-20T01:15:30"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_01-22-04_8c40.json",
+          "name": "2025-09-20_01-22-04_8c40.json",
+          "size": 121,
+          "size_kb": 0.12,
+          "modified": "2025-09-20T01:22:06"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_01-25-07_150.json",
+          "name": "2025-09-20_01-25-07_150.json",
+          "size": 1587,
+          "size_kb": 1.55,
+          "modified": "2025-09-20T01:30:14"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_01-32-57_21a8.json",
+          "name": "2025-09-20_01-32-57_21a8.json",
+          "size": 2441,
+          "size_kb": 2.38,
+          "modified": "2025-09-20T01:36:54"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_10-58-12_877b.json",
+          "name": "2025-09-20_10-58-12_877b.json",
+          "size": 8381,
+          "size_kb": 8.18,
+          "modified": "2025-09-20T11:27:11.823195"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_11-38-03_27b4.json",
+          "name": "2025-09-20_11-38-03_27b4.json",
+          "size": 703,
+          "size_kb": 0.69,
+          "modified": "2025-09-20T11:38:45.721412"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_11-43-52_72fe.json",
+          "name": "2025-09-20_11-43-52_72fe.json",
+          "size": 1703,
+          "size_kb": 1.66,
+          "modified": "2025-09-20T11:44:02.039033"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_11-45-42_add3.json",
+          "name": "2025-09-20_11-45-42_add3.json",
+          "size": 340,
+          "size_kb": 0.33,
+          "modified": "2025-09-20T11:45:50.419362"
+        },
+        {
+          "path": "data\\conversations\\2025-09-20_11-49-35_4727.json",
+          "name": "2025-09-20_11-49-35_4727.json",
+          "size": 3642,
+          "size_kb": 3.56,
+          "modified": "2025-09-20T12:03:57.578780"
+        }
+      ],
+      "index_file": {
+        "path": "data\\conversations\\index.json",
+        "size": 68626
+      },
+      "total_size": 1235252,
+      "file_count": 219,
+      "conversation_count": 125
+    },
+    "ego_data": {
+      "ego_prompt": {
+        "path": "data\\ego_prompt.txt",
+        "size": 1720,
+        "lines": 51
+      },
+      "ego_archive": [
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_031305_376.txt",
+          "name": "ego_prompt_20250906_031305_376.txt",
+          "size": 4323
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_031305_383.txt",
+          "name": "ego_prompt_20250906_031305_383.txt",
+          "size": 4338
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_031305_390.txt",
+          "name": "ego_prompt_20250906_031305_390.txt",
+          "size": 4371
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_031305_399.txt",
+          "name": "ego_prompt_20250906_031305_399.txt",
+          "size": 4412
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_031305_411.txt",
+          "name": "ego_prompt_20250906_031305_411.txt",
+          "size": 4431
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_032946_093.txt",
+          "name": "ego_prompt_20250906_032946_093.txt",
+          "size": 4541
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_033825_683.txt",
+          "name": "ego_prompt_20250906_033825_683.txt",
+          "size": 4627
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_034316_590.txt",
+          "name": "ego_prompt_20250906_034316_590.txt",
+          "size": 4212
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_034655_952.txt",
+          "name": "ego_prompt_20250906_034655_952.txt",
+          "size": 4294
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_034828_876.txt",
+          "name": "ego_prompt_20250906_034828_876.txt",
+          "size": 4380
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_034856_359.txt",
+          "name": "ego_prompt_20250906_034856_359.txt",
+          "size": 4466
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_035237_560.txt",
+          "name": "ego_prompt_20250906_035237_560.txt",
+          "size": 4552
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_035559_916.txt",
+          "name": "ego_prompt_20250906_035559_916.txt",
+          "size": 4638
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250906_035758_275.txt",
+          "name": "ego_prompt_20250906_035758_275.txt",
+          "size": 4724
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250907_141538_428.txt",
+          "name": "ego_prompt_20250907_141538_428.txt",
+          "size": 4298
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250907_142233_704.txt",
+          "name": "ego_prompt_20250907_142233_704.txt",
+          "size": 4294
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250907_142422_464.txt",
+          "name": "ego_prompt_20250907_142422_464.txt",
+          "size": 4296
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250907_142811_657.txt",
+          "name": "ego_prompt_20250907_142811_657.txt",
+          "size": 4294
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250907_142943_290.txt",
+          "name": "ego_prompt_20250907_142943_290.txt",
+          "size": 4296
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_20250907_144622_851.txt",
+          "name": "ego_prompt_20250907_144622_851.txt",
+          "size": 4478
+        },
+        {
+          "path": "data\\ego_archive\\ego_prompt_pre_id_system_20250907_164504.txt",
+          "name": "ego_prompt_pre_id_system_20250907_164504.txt",
+          "size": 4588
+        }
+      ],
+      "persistent_context": {
+        "path": "data\\persistent_context.txt",
+        "size": 324
+      },
+      "total_size": 94897,
+      "file_count": 23
+    },
+    "settings": {
+      "settings_file": {
+        "path": "data\\settings.json",
+        "size": 17798,
+        "size_kb": 17.38
+      },
+      "total_size": 17798,
+      "file_count": 1,
+      "config_sections": [
+        "reasoning_api",
+        "embedding_api",
+        "chat_api",
+        "perception_agent",
+        "image_generation",
+        "prompts",
+        "debug",
+        "audio",
+        "tts",
+        "other_backends",
+        "temporal_guardian"
+      ]
+    },
+    "temp_files": {
+      "temp_files": [
+        {
+          "path": "data\\memory\\faiss.20250831_232741.bak",
+          "name": "faiss.20250831_232741.bak",
+          "size": 348205
+        },
+        {
+          "path": "data\\memory\\faiss.20250831_232913.bak",
+          "name": "faiss.20250831_232913.bak",
+          "size": 344109
+        },
+        {
+          "path": "data\\memory\\faiss.20250831_234056.bak",
+          "name": "faiss.20250831_234056.bak",
+          "size": 344109
+        },
+        {
+          "path": "data\\memory\\memories.20250831_232741.bak",
+          "name": "memories.20250831_232741.bak",
+          "size": 1806336
+        },
+        {
+          "path": "data\\memory\\memories.20250831_232913.bak",
+          "name": "memories.20250831_232913.bak",
+          "size": 1806336
+        },
+        {
+          "path": "data\\memory\\memories.20250831_234056.bak",
+          "name": "memories.20250831_234056.bak",
+          "size": 1814528
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-23_22-55-02.bak",
+          "name": "memories_sensibles_v10.json.2025-08-23_22-55-02.bak",
+          "size": 1945459
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-23_22-55-34.bak",
+          "name": "memories_sensibles_v10.json.2025-08-23_22-55-34.bak",
+          "size": 1974657
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-23_22-57-29.bak",
+          "name": "memories_sensibles_v10.json.2025-08-23_22-57-29.bak",
+          "size": 1945579
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-23_23-01-57.bak",
+          "name": "memories_sensibles_v10.json.2025-08-23_23-01-57.bak",
+          "size": 1945521
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-23_23-05-59.bak",
+          "name": "memories_sensibles_v10.json.2025-08-23_23-05-59.bak",
+          "size": 1974695
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-23_23-07-16.bak",
+          "name": "memories_sensibles_v10.json.2025-08-23_23-07-16.bak",
+          "size": 2003787
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-23_23-42-07.bak",
+          "name": "memories_sensibles_v10.json.2025-08-23_23-42-07.bak",
+          "size": 2032924
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-24_16-26-10.bak",
+          "name": "memories_sensibles_v10.json.2025-08-24_16-26-10.bak",
+          "size": 2061933
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-24_16-34-23.bak",
+          "name": "memories_sensibles_v10.json.2025-08-24_16-34-23.bak",
+          "size": 2090858
+        },
+        {
+          "path": "data\\memory\\backup\\memories_sensibles_v10.json.2025-08-24_16-39-47.bak",
+          "name": "memories_sensibles_v10.json.2025-08-24_16-39-47.bak",
+          "size": 2119977
+        }
+      ],
+      "cache_files": [],
+      "log_files": [],
+      "other_files": [],
+      "total_size": 26559013,
+      "file_count": 16
+    },
+    "total_size": 38763334,
+    "total_files": 270
+  },
+  "backup_location": "backups\\ogma_backup_20250920_135704",
+  "files_backed_up": {
+    "total_files": 303,
+    "total_size": 34181995,
+    "total_size_mb": 32.6
+  }
+}

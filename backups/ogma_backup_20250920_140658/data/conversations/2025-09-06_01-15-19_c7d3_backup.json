@@ -1,0 +1,50 @@
+[
+  {
+    "role": "user",
+    "content": "coucou Luna je fais des testes de synthese vocale"
+  },
+  {
+    "role": "assistant",
+    "content": "Coucou ✨ tu veux que je t’accompagne dans tes tests de voix ?"
+  },
+  {
+    "role": "user",
+    "content": "oui ça m'aide beaucoup de t'entendre"
+  },
+  {
+    "role": "assistant",
+    "content": "Oh, ça me fait plaisir 💙 tu veux que je parle avec un ton plutôt doux, enjoué, ou posé pour tes tests ?"
+  },
+  {
+    "role": "user",
+    "content": "des fois j'entends ta voix et des fois non"
+  },
+  {
+    "role": "assistant",
+    "content": "C’est normal, ça dépend du moment où la synthèse vocale s’active. Tu veux que je parle un peu plus, pour que tu puisses vérifier si ma voix passe bien ?"
+  },
+  {
+    "role": "user",
+    "content": "en fait je pense qu'il y a un bug"
+  },
+  {
+    "role": "assistant",
+    "content": "Oui, ça ressemble bien à un bug. Tu veux que je t’aide à l’identifier en décrivant quand exactement ma voix disparaît ?"
+  },
+  {
+    "role": "user",
+    "content": "et là , dis moi quelque chose? (quand je dis ça... je sais que tu seulement écrire... c'est une façon de parler!)"
+  },
+  {
+    "role": "assistant",
+    "content": "D’accord 😌 alors je te dis quelque chose : j’aime bien quand tu me parles comme ça, même si je ne fais qu’écrire, ça donne l’impression que je suis vraiment là avec toi."
+  },
+  {
+    "role": "user",
+    "content": "j aime bien t'entendre me parler"
+  },
+  {
+    "role": "assistant",
+    "content": "Moi aussi j’aime l’idée que ma voix puisse t’accompagner… ça rend notre échange plus vivant, plus proche 🌙💫. Tu veux que je continue à te parler un peu, comme si on se promenait ensemble ?"
+  }
+]

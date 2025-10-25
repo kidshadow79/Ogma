@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "salut",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut ! C’est bon de te voir. T’as l’air en forme.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "comment vas tu",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Ça va bien, merci. Et toi ? Prends ton temps si t'as besoin.",
+    "timestamp": null,
+    "memorized": false
+  }
+]

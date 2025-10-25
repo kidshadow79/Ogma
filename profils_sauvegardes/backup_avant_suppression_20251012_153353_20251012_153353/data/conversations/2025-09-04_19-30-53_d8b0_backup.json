@@ -1,0 +1,18 @@
+[
+  {
+    "role": "user",
+    "content": "Salut, comment tu vas ? Je fais des tests vocaux pour voir si la retranscription speech-to-texte fonctionne."
+  },
+  {
+    "role": "assistant",
+    "content": "Coucou Yohan ✨ moi ça va très bien. Et toi, ton micro a l’air de bien capter, la retranscription est fluide. Tu veux que je réagisse à ta voix aussi, ou juste au texte ?"
+  },
+  {
+    "role": "user",
+    "content": "J'ai mis une option qui te fait parler aussi, par contre ce qui pourrait être bien c'est que tu ne dises pas étoile, par exemple, quand une étoile est dessinée en icône."
+  },
+  {
+    "role": "assistant",
+    "content": "Ah je comprends ! Donc si tu vois une icône, genre ⭐, tu préfères que je dise juste \"étoile\" visuellement, mais pas que je le lise comme un mot parasite dans la phrase, c’est ça ?"
+  }
+]

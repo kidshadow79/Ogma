@@ -1,0 +1,28 @@
+# Dépendances pour le système audio OGMA
+# Speech-to-Text et Text-to-Speech
+
+# === AUDIO CORE ===
+pyaudio>=0.2.11          # Capture/lecture audio
+wave>=0.0.2              # Manipulation fichiers WAV
+speech-recognition>=3.10.0  # Framework STT unifié
+
+# === WHISPER (LOCAL) ===
+openai-whisper>=20230918    # Whisper local (optionnel)
+torch>=2.0.0               # PyTorch pour Whisper local
+torchaudio>=2.0.0          # Audio processing pour PyTorch
+
+# === TEXT-TO-SPEECH ===
+pyttsx3>=2.90              # TTS local (fallback)
+gtts>=2.5.0                # Google TTS offline (nécessite internet)
+edge-tts>=7.2.0            # Microsoft Edge TTS (gratuit et efficace)
+google-cloud-texttospeech>=2.29.0  # Google Cloud TTS (premium)
+azure-cognitiveservices-speech>=1.45.0  # Azure AI Speech Services
+pygame>=2.6.0              # Audio playback pour tous les moteurs TTS
+
+# === AUDIO PROCESSING ===
+librosa>=0.10.0            # Analyse audio avancée
+soundfile>=0.12.0          # Lecture/écriture formats audio
+webrtcvad>=2.0.10          # Détection activité vocale (VAD)
+
+# === INTERFACE ===
+# Pas de nouvelles dépendances UI - NiceGUI suffit

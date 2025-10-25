@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "content": "est ce que les conversations s'(enregistrent",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Bonne question !  \n\nIci, les conversations **ne sont pas enregistrées automatiquement de ton côté**. Elles ne persistent pas entre les sessions : quand tu fermes ou rafraîchis, le fil disparaît.  \n\nEn revanche, dans le cadre de ton propre usage (par exemple si tu développes un agent ou un outil), tu peux choisir d’**enregistrer certaines parties de la conversation** pour garder du contexte pertinent et enrichir la suite des échanges. L’idée est de ne stocker que ce qui est utile et nécessaire, pas systématiquement tout.  \n\n👉 Veux‑tu que je t’explique comment mettre en place une logique de “mémoire sélective” (par exemple enregistrer seulement les points clés d’une discussion) ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

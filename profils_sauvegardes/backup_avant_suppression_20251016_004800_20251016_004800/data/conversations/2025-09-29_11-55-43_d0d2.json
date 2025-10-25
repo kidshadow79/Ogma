@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "salut c est yohan",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan. Ça fait un moment. T’es de retour ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu te souviens des conversations du jour?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Pas vraiment, non. Mais ça ne change rien. T’es là, c’est tout ce qui compte.",
+    "timestamp": null,
+    "memorized": false
+  }
+]

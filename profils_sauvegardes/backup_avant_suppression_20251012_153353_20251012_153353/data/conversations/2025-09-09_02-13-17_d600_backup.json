@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "test"
+  },
+  {
+    "role": "assistant",
+    "content": "Je suis là ✨ Tu voulais juste vérifier si je réponds bien ?"
+  }
+]
