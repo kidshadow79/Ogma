@@ -1079,10 +1079,13 @@ def _memory_modal():
                     ui.button('Fermer', on_click=dialog.close).classes('action-button')
 
         # === ZONE DANGEREUSE : Suppression totale de la mémoire ===
-        with ui.expansion('⚠️ Zone Dangereuse', icon='warning').classes('mt-4').style('''
+        # Placée APRÈS le ui.row() pour éviter débordement sur colonnes
+        with ui.expansion('⚠️ Zone Dangereuse', icon='warning').classes('mt-4 w-full').style('''
             background: rgba(220, 53, 69, 0.08) !important;
             border: 1px solid rgba(220, 53, 69, 0.3) !important;
             border-radius: 8px !important;
+            max-width: 100% !important;
+            margin-bottom: 16px !important;
         '''):
             ui.label('Cette section contient des opérations irréversibles').classes('text-red text-bold mb-2')
             ui.label('⚠️ ATTENTION : La suppression totale efface TOUS les souvenirs de manière DÉFINITIVE').classes('text-sm text-muted mb-2')
