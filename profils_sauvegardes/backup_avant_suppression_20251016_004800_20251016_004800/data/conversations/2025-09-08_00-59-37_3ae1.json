@@ -1,0 +1,20 @@
+[
+  {
+    "role": "user",
+    "content": "tu vois quoi dans cette image?\n\n[Image jointe: temp_623dc39c-2f69-4a36-8d11-aa9815c7911b_file-1KAYqDLWQkmKZ6JuwXXzqY-ChatGPT Image 22 juin 2025, 02_54_38.jpg]\n[Données image en base64 disponibles pour analyse]",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu vois quoi dans cette image?\n\n[Image jointe: temp_623dc39c-2f69-4a36-8d11-aa9815c7911b_file-1KAYqDLWQkmKZ6JuwXXzqY-ChatGPT Image 22 juin 2025, 02_54_38.jpg]\n[Données image en base64 disponibles pour analyse]",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu vois quoi dans cette image?\n\n[Image jointe: temp_98f0814c-3359-4fd3-83a2-1ad5ebbfbc38_file-1ew96nT8kQtA6m6FvvnAYX-IMG_20210819_131545.jpg]\n[Données image en base64 disponibles pour analyse]",
+    "timestamp": null,
+    "memorized": false
+  }
+]

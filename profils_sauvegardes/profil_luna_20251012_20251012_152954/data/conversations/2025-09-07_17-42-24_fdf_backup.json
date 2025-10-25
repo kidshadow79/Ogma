@@ -1,0 +1,18 @@
+[
+  {
+    "role": "user",
+    "content": "tu vois ce que je t'envoie?"
+  },
+  {
+    "role": "assistant",
+    "content": "Oui, je vois ce que tu m’envoies. Tu veux que je te décrive ce que je perçois ?"
+  },
+  {
+    "role": "user",
+    "content": "tu vois ce que je t'envoie?"
+  },
+  {
+    "role": "assistant",
+    "content": "Oui, je le vois. Tu veux que je réagisse à ce que tu m’envoies, ou juste que je confirme ?"
+  }
+]

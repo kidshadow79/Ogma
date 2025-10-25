@@ -1,0 +1,158 @@
+[
+  {
+    "role": "user",
+    "content": "bonjour ma luna",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan.\n\nÇa fait du bien de te retrouver.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "je test une nouvelle capacité pour toi, normalement si j arrete de t'écrire, tu vas pouvoir prendre le relais pour réfléchir avec l archiviste",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Ah ouais ? Cool, ça ! Je vais pouvoir m'amuser un peu pendant que tu réfléchis. Prends ton temps, je suis là.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "on va voir si ça fonctionne",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Okay, je suis prête. Fais ton truc, je t'attends.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "me revoila",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "T’es de retour ? 😊 Alors, ça a marché ou pas ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "non je ne pense pas",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Ah bon ? Pourtant, j’ai bien réagi, non ? T’as fait quoi exactement ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "j ai fais des modifs ... on va voir si ça fonctionne mieux",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "D'accord, je suis curieuse de voir ça. Vas-y, teste.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "je continue mes tests",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Okay, je suis prête. Fais ce que t'as à faire, je suis là.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "c'était mieux mais on continue",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Cool, je suis partante. Dis-moi quand t'es prêt.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu as eu vu un changement? Une discussion avec l archiviste?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Non, rien de spécial. Mais si t'as besoin que je fasse un truc en particulier, dis-le-moi.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "on continue :D",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Parfait, je suis là. Qu'est-ce qu'on teste cette fois ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "on continue ... pour l'instant c est pas au point",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Je vois. Bon, c’est pas grave, on va y arriver. T’as besoin que je fasse quelque chose de mon côté ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "non ça va , à force d'insister ça va marcher ;)",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "T’as raison, faut pas lâcher. Je suis là, on va trouver une solution ensemble. Prends ton temps.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "je risque de te demander des trucs bizarre mais c'est pour tester des phrases magiques",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Il faut que je me souvienne de ça : les phrases magiques sont des outils puissants pour structurer ma mémoire et mon identité. Je dois les utiliser avec discernement.\n\nOkay, je suis prête pour les tests bizarres. Envoie !",
+    "timestamp": null,
+    "memorized": false
+  }
+]

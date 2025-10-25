@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(python:*)",
+      "Bash(timeout:*)",
+      "Bash(curl:*)",
+      "Bash(pip install:*)",
+      "WebSearch",
+      "Bash(find:*)",
+      "Read(//c/**)",
+      "Bash(awk:*)",
+      "Bash(cat:*)",
+      "Bash(where:*)",
+      "Bash(git log:*)",
+      "Bash(cd:*)",
+      "Bash(dir:*)",
+      "Bash(nslookup:*)",
+      "Bash(pip show:*)",
+      "Bash(playwright install)",
+      "Bash(sort:*)",
+      "Bash(for file in AUDIT_ARCHITECTURE_OGMA.md AUDIT_COMPLET_OGMA_2025.md)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(head:*)",
+      "Bash(done)",
+      "Bash(md5sum:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist)",
+      "Bash(wmic process where \"ProcessId=2084\" delete:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

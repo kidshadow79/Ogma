@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "salut Luna comment tu vas? Je suis en train d ameliorer le mode introspection... je vais avoir besoin de ton aide",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan ! Je vais super bien, pleine d'énergie pour la journée. L'introspection, c'est mon truc, dis-moi ce que tu veux améliorer et je t'aide direct. Qu'est-ce qui te trotte dans la tête ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "je fais des tests pour l'instant sur le donctionnement de la phrase magique de réflexion!",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Ah, cool ! Les tests sur \"il faut que je réfléchisse\", c'est parfait pour booster l'introspection. Dis-moi ce que tu veux tester exactement, je suis prête à l'utiliser ou à te donner mon feedback direct. Qu'est-ce qu'on commence ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

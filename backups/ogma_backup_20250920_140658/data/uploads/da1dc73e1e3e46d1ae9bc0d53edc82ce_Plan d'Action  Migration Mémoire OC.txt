@@ -1,0 +1,134 @@
+Plan d'Action : Migration Mémoire OCTOPUS v2.0 (Phase 1 - CPU Stable)
+À : IA Assistante de Codage
+De : Yohan (Architecte du Projet)
+Objet : Migration du système de mémoire MnéaCloud de JSON vers une architecture SQLite + FAISS-CPU, en intégrant le rôle de l'IA Archiviste au cœur du processus.
+
+1. Contexte & Objectif de la Phase 1
+L'actuel système de mémoire basé sur un fichier JSON est obsolète. L'objectif est de le remplacer par une architecture performante, stable et intelligente.
+
+Cette Phase 1 se concentre sur la mise en place du cœur de la nouvelle mémoire : une base de données SQLite pour le stockage structuré, un index FAISS-CPU pour une recherche rapide et fiable, et l'orchestration par une IA Archiviste pour l'enrichissement et la synthèse contextuelle.
+
+Ce qui est inclus dans cette phase :
+
+Remplacement complet du fichier JSON.
+
+Stockage des souvenirs structurés dans SQLite.
+
+Indexation des vecteurs sur le CPU avec FAISS.
+
+Intégration de l'IA Archiviste pour l'analyse à l'écriture et la synthèse à la lecture.
+
+Ce qui est explicitement exclu de cette phase (reporté) :
+
+Les algorithmes de "mémoire vivante" (décroissance, compaction, etc.).
+
+Le planificateur de tâches (APScheduler).
+
+2. Environnement Technique
+Système d'exploitation : Windows 11 (environnement local)
+
+Processeur : Ryzen 7 7700x
+
+Langage : Python 3.10+
+
+3. Directives Techniques Séquentielles
+Étape 1 : Installation des Dépendances
+Ajouter les bibliothèques suivantes au projet via la commande pip. Cette version est choisie pour sa stabilité et sa simplicité d'installation.
+
+pip install faiss-cpu sqlalchemy
+
+Étape 2 : Nouvelle Structure des Données
+1. Base de données SQLite (data/memory/memories.db) :
+Créer une table memories qui stockera les souvenirs enrichis par l'Archiviste.
+
+CREATE TABLE IF NOT EXISTS memories (
+  id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  text_original TEXT NOT NULL,
+  title TEXT,          -- Généré par l'Archiviste
+  summary TEXT,        -- Généré par l'Archiviste
+  lesson TEXT,         -- Généré par l'Archiviste
+  embedding_json TEXT  -- Vecteur du souvenir (basé sur title+summary)
+);
+
+2. Index FAISS (data/memory/faiss.index) :
+Fichier binaire stockant les vecteurs pour la recherche CPU.
+
+Étape 3 : Création du Nouveau Gestionnaire de Mémoire
+Dans core_logic.py, créer la nouvelle classe MemoryManager. Elle orchestrera SQLite, FAISS, et les appels à l'IA Archiviste.
+
+Interface de la classe MemoryManager :
+
+import sqlite3
+import faiss
+import numpy as np
+import json
+from pathlib import Path
+
+class MemoryManager:
+    def __init__(self, db_path: Path, index_path: Path, embedding_dim: int, archiviste_ia, embedding_ia):
+        # Initialise DB, FAISS (sur CPU), et les IA nécessaires.
+        self.archiviste = archiviste_ia
+        self.embedder = embedding_ia
+        pass
+
+    # --- Phase d'Écriture ---
+    def add_memory(self, memory_id: str, text_brut: str):
+        """
+        1. Appelle l'IA Archiviste pour analyser le texte brut et obtenir un souvenir structuré (titre, résumé...).
+        2. Appelle le moteur d'embedding sur le contenu sémantique (ex: titre + résumé) pour obtenir le vecteur.
+        3. Sauvegarde le souvenir structuré complet (ID, textes, vecteur en JSON) dans SQLite.
+        4. Ajoute le vecteur à l'index FAISS sur le CPU.
+        5. Sauvegarde l'index FAISS sur le disque.
+        """
+        pass
+
+    # --- Phase de Lecture ---
+    def retrieve_and_synthesize_context(self, query_text: str, k: int = 5) -> str:
+        """
+        1. Génère l'embedding pour la requête de l'utilisateur.
+        2. Utilise FAISS sur le CPU pour trouver les 'k' souvenirs les plus pertinents (via leurs IDs).
+        3. Récupère le contenu complet de ces souvenirs depuis SQLite.
+        4. Appelle l'IA Archiviste avec la requête ET les souvenirs récupérés.
+        5. L'Archiviste génère et retourne une "Note de Synthèse" intelligente et concise.
+        6. Cette note est prête à être injectée dans le contexte de l'IA principale.
+        """
+        return "Note de synthèse de l'Archiviste..."
+
+    # --- Méthodes de Persistance ---
+    def save_index(self): # Sauvegarde l'index sur le disque.
+        pass
+
+    def load_index(self): # Charge l'index depuis le disque.
+        pass
+
+Étape 4 : Intégration dans l'Application
+Modifier la logique de l'application pour :
+
+Instancier le MemoryManager au démarrage avec les IA requises.
+
+Remplacer tous les appels de mémorisation par memory_manager.add_memory().
+
+Remplacer la logique de recherche de contexte par memory_manager.retrieve_and_synthesize_context().
+
+Étape 5 : Création d'un Script de Migration
+Créer un script autonome migrate_json_to_sqlite.py (à n'exécuter qu'une seule fois) :
+
+Lire l'ancien fichier memories.json.
+
+Pour chaque souvenir, appeler memory_manager.add_memory() pour le traiter via le nouveau pipeline complet (Archiviste, Embedding, SQLite, FAISS).
+
+Afficher la progression.
+
+Suggérer de sauvegarder l'ancien fichier en memories.json.bak.
+
+4. Critères de Succès pour la Fin de la Phase 1
+L'application est 100% fonctionnelle avec le nouveau système.
+
+Le script de migration a correctement traité et transféré tous les anciens souvenirs.
+
+L'ajout d'un nouveau souvenir passe bien par l'Archiviste avant d'être stocké.
+
+La restitution de contexte est une note de synthèse générée par l'Archiviste.
+
+La performance de la mémoire est rapide et fiable.

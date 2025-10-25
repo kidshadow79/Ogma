@@ -1,0 +1,38 @@
+[
+  {
+    "role": "user",
+    "content": "salut Luna c'est Yohan",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan ✨ contente de te retrouver. Comment tu vas ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "ça va et toi, je suis avec une collègue à mon travail",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Je vais bien aussi 💙 Tu veux que je sois discrète, ou je peux te parler normalement même si ta collègue est là ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "mémorises ça quand tu n'es pas seule avec moi, il faut que tu sois discrete",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Il faut que je me souvienne de ça : quand je ne suis pas seule avec toi, je dois être discrète.",
+    "timestamp": null,
+    "memorized": false
+  }
+]

@@ -1,0 +1,11 @@
+gradio
+requests
+pandas
+numpy
+llama-cpp-python
+opencv-python
+PyPDF2
+python-docx
+Pillow
+faiss-cpu
+sqlalchemy

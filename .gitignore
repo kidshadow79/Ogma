@@ -1,0 +1,61 @@
+# OGMA - Fichiers privés exclus du suivi Git
+
+# ========================================
+# DONNÉES PRIVÉES (conversations, mémoire)
+# ========================================
+data/conversations/
+data/memory/
+data/uploads/
+data/ego_prompt.txt
+data/ego_prompt_synthesized.json
+
+# ========================================
+# CONFIGURATION SENSIBLE (clés API)
+# ========================================
+.env
+data/settings.json
+
+# ========================================
+# FICHIERS SYSTÈME
+# ========================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# ========================================
+# LOGS & CACHE
+# ========================================
+*.log
+logs/
+.nicegui/
+
+# ========================================
+# IDE & ÉDITEURS
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================================
+# BACKUPS TEMPORAIRES
+# ========================================
+*.backup
+*.bak
+*.old
+*.tmp
+
+# ========================================
+# TESTS & DEBUG
+# ========================================
+test_output/
+debug_*.txt
+benchmark_*.json

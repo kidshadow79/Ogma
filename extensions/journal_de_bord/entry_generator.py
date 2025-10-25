@@ -1,0 +1,1056 @@
+# JOURNAL Extension Journal de Bord - Générateur d'Entrées
+
+"""
+Générateur de résumés et entrées via l'Archiviste OGMA
+Intégration IA, extraction de métadonnées, génération intelligente
+"""
+
+import time
+import uuid
+from datetime import datetime, date
+from typing import Dict, Any, List, Optional, Union
+import re
+import asyncio
+
+class EntryGenerator:
+    """
+    Générateur de résumés et entrées via l'Archiviste
+    
+    Responsabilités:
+    - Génération de résumés de conversation (200-400 tokens)
+    - Extraction automatique de tags et métadonnées
+    - Évaluation de l'importance des conversations
+    - Intégration avec l'AIController Archiviste
+    - Formatage des entrées selon le schéma JSON
+    
+    Performance:
+    - Génération résumé: <3s (avec Archiviste)
+    - Extraction tags: <100ms
+    - Validation entrée: <50ms
+    """
+    
+    def __init__(self, archiviste_controller, config):
+        """Initialise le générateur avec l'Archiviste"""
+        self.archiviste = archiviste_controller
+        self.config = config
+        
+        # Paramètres de génération
+        self.generation_settings = self.config.get_generation_settings()
+        self.min_tokens = self.generation_settings["min_tokens"]
+        self.max_tokens = self.generation_settings["max_tokens"]
+        self.style = self.generation_settings["style"]
+        self.auto_tags = self.generation_settings["auto_tags"]
+        self.importance_detection = self.generation_settings["importance_detection"]
+        
+        # Templates de prompts selon le style
+        self.prompt_templates = {
+            "formal": self._get_formal_prompt_template(),
+            "casual": self._get_casual_prompt_template(),
+            "technical": self._get_technical_prompt_template(),
+            "balanced": self._get_balanced_prompt_template()
+        }
+        
+        # Patterns pour extraction métadonnées
+        self.tag_patterns = [
+            r"(?:tags?|sujets?|thèmes?)\s*:?\s*(.+)",
+            r"(?:mots-clés?|keywords?)\s*:?\s*(.+)",
+            r"#(\w+)",  # hashtags
+        ]
+        
+        self.importance_keywords = {
+            "critical": ["urgent", "critique", "important", "vital", "essentiel", "décisif"],
+            "high": ["significatif", "notable", "remarquable", "intéressant", "pertinent"],
+            "normal": ["normal", "standard", "habituel", "ordinaire"],
+            "low": ["mineur", "anecdotique", "trivial", "sans importance"]
+        }
+        
+        # Statistiques
+        self.stats = {
+            "total_generated": 0,
+            "avg_generation_time": 0.0,
+            "avg_tokens": 0,
+            "success_rate": 1.0,
+            "errors": 0
+        }
+        
+        print(f"[ENTRY-GENERATOR] OK Initialisé (style: {self.style}, tokens: {self.min_tokens}-{self.max_tokens})")
+    
+    async def generate_entry(self, conversation_id: str = None, **metadata) -> Optional[Dict[str, Any]]:
+        """
+        Génère une entrée complète de journal via l'Archiviste
+        
+        Args:
+            conversation_id: ID de la conversation à résumer
+            **metadata: Métadonnées additionnelles (title, participants, etc.)
+        
+        Returns:
+            Dict: Entrée formatée selon le schéma ou None si échec
+        """
+        try:
+            start_time = time.time()
+            
+            print(f"[ENTRY-GENERATOR] 🤖 Génération entrée (conv: {conversation_id})")
+            
+            # Préparation du contexte de conversation
+            conversation_context = await self._get_conversation_context(conversation_id)
+            if not conversation_context:
+                raise ValueError("Impossible de récupérer le contexte de conversation")
+            
+            # Génération du prompt selon le style configuré
+            prompt = self._build_generation_prompt(conversation_context, metadata)
+            
+            # Appel à l'Archiviste pour génération
+            summary_response = await self._call_archiviste(prompt)
+            if not summary_response:
+                raise RuntimeError("Archiviste n'a pas retourné de résumé")
+            
+            print(f"[ENTRY-GENERATOR] DEBUG Réponse Archiviste: {len(summary_response)} chars")
+            
+            # Parsing et nettoyage de la réponse
+            parsed_response = self._parse_archiviste_response(summary_response)
+            
+            print(f"[ENTRY-GENERATOR] DEBUG Summary après parsing: {len(parsed_response['summary'])} chars")
+            
+            # Validation longueur
+            token_count = self._estimate_tokens(parsed_response["summary"])
+            if token_count < self.min_tokens or token_count > self.max_tokens:
+                print(f"[ENTRY-GENERATOR] WARN Tokens hors limite: {token_count} (attendu: {self.min_tokens}-{self.max_tokens})")
+                # Pas d'erreur bloquante, on garde le résumé
+            
+            # Construction de l'entrée finale
+            entry_data = self._build_entry_data(
+                parsed_response, 
+                conversation_context, 
+                metadata,
+                token_count
+            )
+            
+            # Mise à jour statistiques
+            generation_time = time.time() - start_time
+            self._update_stats(generation_time, token_count, success=True)
+            
+            print(f"[ENTRY-GENERATOR] OK Entrée générée en {generation_time:.3f}s ({token_count} tokens)")
+            
+            return entry_data
+            
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur génération: {e}")
+            self._update_stats(0, 0, success=False)
+            return None
+    
+    def extract_tags_from_text(self, text: str) -> List[str]:
+        """
+        Extraction automatique de tags depuis un texte
+        
+        Args:
+            text: Texte source pour extraction
+        
+        Returns:
+            List[str]: Liste de tags extraits
+        """
+        if not self.auto_tags:
+            return []
+        
+        try:
+            tags = set()
+            text_lower = text.lower()
+            
+            # Extraction par patterns regex
+            for pattern in self.tag_patterns:
+                matches = re.findall(pattern, text_lower, re.IGNORECASE)
+                for match in matches:
+                    # Nettoyage et split
+                    if isinstance(match, str):
+                        tag_candidates = re.split(r'[,;]+', match)
+                        for tag in tag_candidates:
+                            tag = tag.strip().strip('#')
+                            if 2 <= len(tag) <= 20 and tag.isalpha():
+                                tags.add(tag)
+            
+            # Extraction par mots-clés techniques
+            technical_keywords = [
+                "développement", "architecture", "debug", "test", "performance",
+                "ui", "ux", "frontend", "backend", "api", "database", "sécurité",
+                "intelligence artificielle", "ia", "machine learning", "algorithme",
+                "extension", "plugin", "fonctionnalité", "bug", "erreur"
+            ]
+            
+            for keyword in technical_keywords:
+                if keyword in text_lower:
+                    tags.add(keyword.replace(" ", "_"))
+            
+            # Limitation nombre de tags
+            return list(tags)[:10]
+            
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] WARN Erreur extraction tags: {e}")
+            return []
+    
+    def assess_importance(self, summary: str, metadata: Dict[str, Any] = None) -> str:
+        """
+        Évalue l'importance d'une conversation
+        
+        Args:
+            summary: Résumé de la conversation
+            metadata: Métadonnées additionnelles
+        
+        Returns:
+            str: Niveau d'importance ("low", "normal", "high", "critical")
+        """
+        if not self.importance_detection:
+            return "normal"
+        
+        try:
+            summary_lower = summary.lower()
+            scores = {"critical": 0, "high": 0, "normal": 0, "low": 0}
+            
+            # Scoring par mots-clés
+            for importance, keywords in self.importance_keywords.items():
+                for keyword in keywords:
+                    if keyword in summary_lower:
+                        scores[importance] += 1
+            
+            # Bonus selon longueur (conversations longues = plus importantes)
+            if len(summary) > 1000:
+                scores["high"] += 2
+            elif len(summary) > 500:
+                scores["high"] += 1
+            
+            # Bonus selon métadonnées
+            if metadata:
+                # Nombre de participants
+                participant_count = len(metadata.get("participants", []))
+                if participant_count > 2:
+                    scores["high"] += 1
+                
+                # Durée de conversation (si disponible)
+                if "duration_minutes" in metadata and metadata["duration_minutes"] > 30:
+                    scores["high"] += 1
+            
+            # Patterns spéciaux critiques
+            critical_patterns = [
+                r"erreur critique", r"bug majeur", r"problème urgent",
+                r"échec système", r"corruption données", r"sécurité compromise"
+            ]
+            
+            for pattern in critical_patterns:
+                if re.search(pattern, summary_lower):
+                    scores["critical"] += 3
+            
+            # Patterns importance élevée
+            high_patterns = [
+                r"nouvelle fonctionnalité", r"amélioration importante",
+                r"décision technique", r"architecture", r"refactoring majeur"
+            ]
+            
+            for pattern in high_patterns:
+                if re.search(pattern, summary_lower):
+                    scores["high"] += 2
+            
+            # Retourne le niveau avec le score le plus élevé
+            max_importance = max(scores.keys(), key=lambda k: scores[k])
+            
+            # Seuil minimum pour éviter sur-classification
+            if scores[max_importance] == 0:
+                return "normal"
+            
+            return max_importance
+            
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] WARN Erreur évaluation importance: {e}")
+            return "normal"
+    
+    def get_generation_stats(self) -> Dict[str, Any]:
+        """Retourne les statistiques de génération"""
+        return self.stats.copy()
+    
+    # === MÉTHODES PRIVÉES ===
+    
+    async def _get_conversation_context(self, conversation_id: str) -> Optional[str]:
+        """Récupère le contexte de conversation depuis OGMA"""
+        try:
+            # TODO: Intégration avec le système de conversation OGMA
+            # Pour l'instant, simulation d'un contexte
+            
+            if not conversation_id:
+                # Utiliser la conversation courante
+                # Accès via self.archiviste.get_current_conversation() ou similaire
+                pass
+            
+            # Placeholder: contexte simulé pour tests
+            context = f"""
+            Conversation ID: {conversation_id or 'current'}
+            Timestamp: {datetime.now().isoformat()}
+            
+            Cette conversation traite de développement technique, d'architecture logicielle
+            et de problématiques d'implémentation d'extensions pour le système OGMA.
+            
+            Points abordés:
+            - Extension Journal de Bord
+            - Architecture modulaire
+            - Génération automatique de résumés
+            - Intégration avec l'Archiviste
+            - Performance et optimisations
+            """
+            
+            return context.strip()
+            
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur récupération contexte: {e}")
+            return None
+    
+    def _build_generation_prompt(self, conversation_context: str, metadata: Dict[str, Any]) -> str:
+        """Construit le prompt de génération selon le style"""
+        template = self.prompt_templates.get(self.style, self.prompt_templates["balanced"])
+        
+        # Variables de template
+        variables = {
+            "context": conversation_context,
+            "min_tokens": self.min_tokens,
+            "max_tokens": self.max_tokens,
+            "participant_count": len(metadata.get("participants", [])),
+            "conversation_title": metadata.get("title", "Conversation"),
+            "current_time": datetime.now().strftime("%Y-%m-%d %H:%M")
+        }
+        
+        return template.format(**variables)
+    
+    async def _call_archiviste(self, prompt: str) -> Optional[str]:
+        """Appelle l'Archiviste pour génération"""
+        try:
+            # Utilisation de l'AIController Archiviste
+            response, error = await self.archiviste.call_chat_api(
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=self.max_tokens + 100,  # Marge pour métadonnées
+                context_length=self.archiviste.context_length,
+                temperature=0.7
+            )
+            
+            if response and not error:
+                return response
+            elif error:
+                print(f"[ENTRY-GENERATOR] WARN Erreur Archiviste: {error}")
+            else:
+                print("[ENTRY-GENERATOR] WARN Réponse Archiviste vide")
+            return None
+            
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur appel Archiviste: {e}")
+            return None
+    
+    def _parse_archiviste_response(self, response: str) -> Dict[str, Any]:
+        """Parse la réponse de l'Archiviste"""
+        try:
+            # Nettoyage de base
+            response = response.strip()
+            
+            # Tentative d'extraction de sections structurées
+            parsed = {
+                "summary": response,
+                "extracted_tags": [],
+                "mood": "neutral",
+                "key_points": []
+            }
+            
+            # Recherche de sections spéciales dans la réponse
+            sections = {
+                "résumé": r"(?:résumé|summary)\s*:?\s*(.+?)(?=(?:\n(?:tags?|mots-clés?|humeur|mood|points clés?))|$)",
+                "tags": r"(?:tags?|mots-clés?)\s*:?\s*(.+?)(?:\n|\Z)",
+                "humeur": r"(?:humeur|mood|ton)\s*:?\s*(.+?)(?:\n|\Z)",
+                "points": r"(?:points clés?|key points?)\s*:?\s*(.+?)(?=(?:\n(?:résumé|tags?|mots-clés?|humeur|mood))|$)"
+            }
+            
+            # Tentative d'extraction structurée - si aucune section trouvée, garder tout le texte
+            sections_found = False
+            
+            for section, pattern in sections.items():
+                match = re.search(pattern, response, re.IGNORECASE | re.DOTALL)
+                if match:
+                    content = match.group(1).strip()
+                    sections_found = True
+                    
+                    if section == "résumé" and content:
+                        parsed["summary"] = content
+                    elif section == "tags" and content:
+                        parsed["extracted_tags"] = [tag.strip() for tag in re.split(r'[,;]+', content)]
+                    elif section == "humeur" and content:
+                        parsed["mood"] = content.lower()
+                    elif section == "points" and content:
+                        parsed["key_points"] = [point.strip() for point in content.split('\n') if point.strip()]
+            
+            # Si aucune section structurée n'est trouvée, garder tout le texte comme résumé
+            if not sections_found:
+                print("[ENTRY-GENERATOR] DEBUG Aucune section structurée trouvée, utilisation du texte complet")
+                parsed["summary"] = response
+            
+            return parsed
+            
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] WARN Erreur parsing réponse: {e}")
+            return {"summary": response, "extracted_tags": [], "mood": "neutral", "key_points": []}
+    
+    def _build_entry_data(self, parsed_response: Dict[str, Any], 
+                         conversation_context: str, metadata: Dict[str, Any],
+                         token_count: int) -> Dict[str, Any]:
+        """Construit l'entrée finale selon le schéma"""
+        
+        # ID unique pour l'entrée
+        timestamp = datetime.now()
+        entry_id = f"entry_{timestamp.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+        
+        # Tags combinés
+        summary_tags = self.extract_tags_from_text(parsed_response["summary"])
+        extracted_tags = parsed_response.get("extracted_tags", [])
+        metadata_tags = metadata.get("tags", [])
+        
+        all_tags = list(set(summary_tags + extracted_tags + metadata_tags))
+        
+        # Évaluation importance
+        importance = self.assess_importance(parsed_response["summary"], metadata)
+        
+        # Construction entrée finale
+        entry_data = {
+            # Identifiants
+            "id": entry_id,
+            "timestamp": timestamp.isoformat() + "Z",
+            
+            # Contenu principal
+            "summary": parsed_response["summary"],
+            "tokens": token_count,
+            
+            # Métadonnées conversation
+            "conversation_id": metadata.get("conversation_id", "unknown"),
+            "conversation_title": metadata.get("title", "Conversation sans titre"),
+            "participants": metadata.get("participants", ["utilisateur", "assistant"]),
+            
+            # Génération
+            "generated_by": "archiviste",
+            "generation_model": getattr(self.archiviste, 'current_model', 'unknown'),
+            "generation_prompt": "Résumé automatique via Archiviste OGMA",
+            "generation_duration": self.stats.get("last_generation_time", 0),
+            
+            # Classification
+            "tags": all_tags[:10],  # Limite à 10 tags
+            "importance": importance,
+            "mood": parsed_response.get("mood", "neutral"),
+            "category": self._determine_category(all_tags, parsed_response["summary"]),
+            
+            # Contexte
+            "context_keywords": self._extract_keywords(parsed_response["summary"]),
+            "related_memories": [],  # TODO: Intégration avec MemoryManager
+            "related_entries": [],   # TODO: Recherche d'entrées similaires
+            
+            # Techniques
+            "word_count": len(parsed_response["summary"].split()),
+            "reading_time_seconds": max(1, len(parsed_response["summary"]) // 5),  # ~300 mots/min
+            "confidence_score": self._calculate_confidence_score(parsed_response)
+        }
+        
+        return entry_data
+    
+    def _determine_category(self, tags: List[str], summary: str) -> str:
+        """Détermine la catégorie principale de l'entrée"""
+        category_keywords = {
+            "technique": ["développement", "code", "bug", "architecture", "api"],
+            "créatif": ["design", "ui", "ux", "créativité", "art"],
+            "personnel": ["réflexion", "personnel", "introspection", "humeur"],
+            "professionnel": ["travail", "projet", "réunion", "stratégie"],
+            "apprentissage": ["formation", "tutorial", "apprentissage", "documentation"],
+            "général": []
+        }
+        
+        summary_lower = summary.lower()
+        category_scores = {}
+        
+        for category, keywords in category_keywords.items():
+            score = 0
+            
+            # Score par mots-clés dans les tags
+            for tag in tags:
+                if tag.lower() in keywords:
+                    score += 2
+            
+            # Score par mots-clés dans le résumé
+            for keyword in keywords:
+                if keyword in summary_lower:
+                    score += 1
+            
+            category_scores[category] = score
+        
+        # Retourne la catégorie avec le score le plus élevé
+        best_category = max(category_scores.keys(), key=lambda k: category_scores[k])
+        
+        # Fallback sur "général" si aucun score
+        if category_scores[best_category] == 0:
+            return "général"
+        
+        return best_category
+    
+    def _extract_keywords(self, text: str) -> List[str]:
+        """Extrait les mots-clés importants du texte"""
+        # Mots vides à ignorer
+        stop_words = {
+            "le", "la", "les", "de", "du", "des", "un", "une", "et", "ou", "mais", "donc",
+            "car", "ni", "si", "que", "qui", "quoi", "dont", "où", "comment", "pourquoi",
+            "est", "sont", "était", "étaient", "sera", "seront", "avoir", "être",
+            "dans", "sur", "avec", "par", "pour", "sans", "sous", "vers", "chez"
+        }
+        
+        # Extraction mots significatifs
+        words = re.findall(r'\b[a-zA-ZÀ-ÿ]+\b', text.lower())
+        keywords = [word for word in words 
+                   if len(word) > 3 and word not in stop_words]
+        
+        # Compte des occurrences
+        word_counts = {}
+        for word in keywords:
+            word_counts[word] = word_counts.get(word, 0) + 1
+        
+        # Top mots par fréquence
+        top_keywords = sorted(word_counts.keys(), 
+                            key=lambda w: word_counts[w], 
+                            reverse=True)
+        
+        return top_keywords[:10]
+    
+    def _calculate_confidence_score(self, parsed_response: Dict[str, Any]) -> float:
+        """Calcule un score de confiance pour l'entrée générée"""
+        score = 1.0
+        
+        # Pénalité si résumé trop court
+        summary_length = len(parsed_response["summary"])
+        if summary_length < 100:
+            score -= 0.3
+        elif summary_length < 200:
+            score -= 0.1
+        
+        # Bonus si métadonnées extraites
+        if parsed_response.get("extracted_tags"):
+            score += 0.1
+        
+        if parsed_response.get("key_points"):
+            score += 0.1
+        
+        # Maintenir entre 0 et 1
+        return max(0.0, min(1.0, score))
+    
+    def _estimate_tokens(self, text: str) -> int:
+        """Estimation approximative du nombre de tokens"""
+        # Estimation grossière: ~0.75 tokens par mot pour le français
+        word_count = len(text.split())
+        return int(word_count * 0.75)
+    
+    def _update_stats(self, generation_time: float, token_count: int, success: bool):
+        """Met à jour les statistiques de génération"""
+        if success:
+            self.stats["total_generated"] += 1
+            
+            # Moyenne mobile du temps de génération
+            if self.stats["avg_generation_time"] == 0:
+                self.stats["avg_generation_time"] = generation_time
+            else:
+                self.stats["avg_generation_time"] = (
+                    self.stats["avg_generation_time"] * 0.9 + generation_time * 0.1
+                )
+            
+            # Moyenne mobile des tokens
+            if self.stats["avg_tokens"] == 0:
+                self.stats["avg_tokens"] = token_count
+            else:
+                self.stats["avg_tokens"] = (
+                    self.stats["avg_tokens"] * 0.9 + token_count * 0.1
+                )
+            
+            self.stats["last_generation_time"] = generation_time
+        else:
+            self.stats["errors"] += 1
+        
+        # Taux de succès
+        total_attempts = self.stats["total_generated"] + self.stats["errors"]
+        self.stats["success_rate"] = self.stats["total_generated"] / max(1, total_attempts)
+    
+    # === TEMPLATES DE PROMPTS ===
+    
+    def _get_balanced_prompt_template(self) -> str:
+        """Template équilibré (par défaut)"""
+        return """Tu es l'Archiviste d'OGMA, spécialisé dans la création de résumés conversationnels pour le Journal de Bord.
+
+Contexte de conversation:
+{context}
+
+Instructions:
+1. Crée un résumé de {min_tokens} à {max_tokens} tokens qui capture l'essence de cette conversation
+2. Identifie les points clés, les décisions prises, et les informations importantes
+3. Utilise un ton naturel et informatif
+4. Si possible, suggère des tags pertinents à la fin
+
+Le résumé doit être utile pour remettre en contexte cette conversation lors de futures sessions.
+
+Résumé:"""
+
+    def _get_formal_prompt_template(self) -> str:
+        """Template formel pour contextes professionnels"""
+        return """En tant qu'Archiviste d'OGMA, vous êtes chargé de documenter cette conversation pour le Journal de Bord professionnel.
+
+Contexte:
+{context}
+
+Consignes:
+- Rédigez un compte-rendu structuré de {min_tokens} à {max_tokens} tokens
+- Identifiez les objectifs, décisions, et actions à retenir
+- Adoptez un style professionnel et factuel
+- Mettez en évidence les éléments stratégiques ou techniques importants
+
+Format attendu: Compte-rendu structuré avec points clés et conclusions.
+
+Compte-rendu:"""
+
+    def _get_casual_prompt_template(self) -> str:
+        """Template décontracté pour conversations informelles"""
+        return """Salut ! Tu es l'Archiviste qui aide à garder une trace des conversations cool dans le Journal de Bord.
+
+Ce qui s'est dit:
+{context}
+
+Ce que j'attends:
+- Un résumé sympa de {min_tokens} à {max_tokens} tokens de cette discussion
+- Garde le côté décontracté et personnel
+- Note les trucs intéressants ou amusants qui se sont passés
+- N'hésite pas à mettre ta touche personnelle
+
+Écris ça comme si tu racontais à un pote ce qui s'est passé !
+
+Résumé:"""
+
+    def _get_technical_prompt_template(self) -> str:
+        """Template technique pour discussions spécialisées"""
+        return """Archiviste OGMA - Mode Analyse Technique
+
+Données de session:
+{context}
+
+Objectifs d'analyse:
+1. Synthèse technique de {min_tokens} à {max_tokens} tokens
+2. Identification des concepts, technologies, et méthodologies abordées
+3. Documentation des problèmes techniques et solutions proposées
+4. Extraction des patterns architecturaux et décisions de design
+
+Focus: Précision technique, terminologie appropriée, traçabilité des solutions.
+
+Analyse technique:"""
+
+    async def handle_magic_phrases(self, user_input: str, json_manager=None) -> Optional[str]:
+        """
+        Détecte et traite les phrases magiques de consultation journal
+
+        Args:
+            user_input: Texte de l'utilisateur
+            json_manager: Instance JSONManager pour accès aux données
+
+        Returns:
+            str: Réponse à la phrase magique ou None si pas détectée
+        """
+        try:
+            if not user_input or not json_manager:
+                return None
+
+            user_lower = user_input.lower().strip()
+            print(f"[ENTRY-GENERATOR] SEARCH Analyse phrase magique: '{user_input[:50]}...'")
+
+            # Patterns de phrases magiques
+            patterns = {
+                # Consultation journal par date
+                r"consulte le journal du (\d{4}-\d{2}-\d{2})": self._get_journal_entries,
+                r"consulte le journal d[''`]?(\w+)": self._get_journal_relative_date,
+
+                # Contexte formaté
+                r"montre.*contexte.*d[''`]?(\w+)": self._get_formatted_context_relative,
+                r"montre.*contexte.*(\d{4}-\d{2}-\d{2})": self._get_formatted_context,
+
+                # Recherche
+                r"journal.*recherche (.+)": self._search_journal,
+                r"recherche.*journal.*[:\-] ?(.+)": self._search_journal,
+
+                # Résumés temporels
+                r"résume.*semaine.*(\d{4}-\d{2}-\d{2})": self._get_weekly_summary,
+                r"résume.*mois.*(\d{4}-\d{2})": self._get_monthly_summary,
+
+                # Interface utilisateur
+                r"ouvre.*journal.*d[''`]?(\w+)": self._open_journal_ui_date,
+                r"journal.*affiche (.+)": self._display_filtered_entries,
+
+                # Création d'entrée
+                r"sauvegarde.*conversation.*journal": self._create_entry_manual,
+                r"ajoute.*au.*journal": self._create_entry_manual,
+            }
+
+            # Tester chaque pattern
+            for pattern, handler in patterns.items():
+                match = re.search(pattern, user_lower)
+                if match:
+                    print(f"[ENTRY-GENERATOR] OK Phrase magique détectée: {pattern}")
+                    groups = match.groups() if match.groups() else []
+                    result = await handler(json_manager, groups, user_input)
+                    if result:
+                        return result
+
+            return None
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur traitement phrase magique: {e}")
+            return None
+
+    async def _get_journal_entries(self, json_manager, groups: list, original_input: str) -> str:
+        """Récupère les entrées d'une date spécifique"""
+        try:
+            date_str = groups[0] if groups else None
+            if not date_str:
+                return "ERREUR Date non spécifiée"
+
+            print(f"[ENTRY-GENERATOR] DATE Consultation journal: {date_str}")
+
+            entries = json_manager.get_day_entries(date_str)
+            if not entries:
+                return f"JOURNAL **Journal du {date_str}**\n\nAucune entrée trouvée pour cette date."
+
+            # Formatage des entrées
+            response = f"JOURNAL **Journal du {date_str}** ({len(entries)} entrée(s))\n\n"
+
+            for i, entry in enumerate(entries, 1):
+                timestamp = entry.get("timestamp", "")
+                time_str = ""
+                if timestamp:
+                    try:
+                        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                        time_str = dt.strftime("%H:%M")
+                    except:
+                        pass
+
+                importance = entry.get("importance", "normal")
+                importance_emoji = {"critical": "[CRITICAL]", "high": "[HIGH]", "normal": "[NORMAL]", "low": "[LOW]"}.get(importance, "[NORMAL]")
+
+                summary = entry.get("summary", "Aucun résumé")
+                tags = entry.get("tags", [])
+                tags_str = " ".join([f"`{tag}`" for tag in tags[:3]])
+
+                response += f"**{i}.** {importance_emoji} **{time_str}** {tags_str}\n"
+                response += f"   {summary[:200]}{'...' if len(summary) > 200 else ''}\n\n"
+
+            return response
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur get_journal_entries: {e}")
+            return f"ERREUR Erreur consultation journal: {e}"
+
+    async def _get_journal_relative_date(self, json_manager, groups: list, original_input: str) -> str:
+        """Récupère les entrées d'une date relative (hier, aujourd'hui)"""
+        try:
+            relative_date = groups[0] if groups else ""
+
+            # Conversion date relative -> date absolue
+            today = date.today()
+
+            if relative_date in ["aujourd'hui", "aujourdhui"]:
+                target_date = today
+            elif relative_date in ["hier"]:
+                target_date = today - timedelta(days=1)
+            elif relative_date in ["avant-hier", "avanthier"]:
+                target_date = today - timedelta(days=2)
+            else:
+                return f"ERREUR Date relative non reconnue: {relative_date}"
+
+            date_str = target_date.strftime("%Y-%m-%d")
+            return await self._get_journal_entries(json_manager, [date_str], original_input)
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur date relative: {e}")
+            return f"ERREUR Erreur date relative: {e}"
+
+    async def _get_formatted_context(self, json_manager, groups: list, original_input: str) -> str:
+        """Retourne le contexte formaté pour une date"""
+        try:
+            date_str = groups[0] if groups else None
+            if not date_str:
+                return "ERREUR Date non spécifiée"
+
+            # Utiliser le context_provider pour formatage
+            from .context_provider import ContextProvider
+            from .config import get_journal_config
+
+            config = get_journal_config()
+            context_provider = ContextProvider(json_manager, config)
+
+            context = await context_provider.get_context_for_date(date_str)
+
+            if context:
+                return f"JOURNAL **Contexte du {date_str}**\n\n{context}"
+            else:
+                return f"JOURNAL **Contexte du {date_str}**\n\nAucun contexte disponible pour cette date."
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur contexte formaté: {e}")
+            return f"ERREUR Erreur récupération contexte: {e}"
+
+    async def _get_formatted_context_relative(self, json_manager, groups: list, original_input: str) -> str:
+        """Retourne le contexte formaté pour une date relative"""
+        try:
+            relative_date = groups[0] if groups else ""
+
+            # Conversion date relative -> date absolue
+            today = date.today()
+
+            if relative_date in ["aujourd'hui", "aujourdhui"]:
+                target_date = today
+            elif relative_date in ["hier"]:
+                target_date = today - timedelta(days=1)
+            else:
+                return f"ERREUR Date relative non reconnue: {relative_date}"
+
+            date_str = target_date.strftime("%Y-%m-%d")
+            return await self._get_formatted_context(json_manager, [date_str], original_input)
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur contexte relatif: {e}")
+            return f"ERREUR Erreur contexte relatif: {e}"
+
+    async def _search_journal(self, json_manager, groups: list, original_input: str) -> str:
+        """Effectue une recherche dans le journal"""
+        try:
+            query = groups[0].strip() if groups else ""
+            if not query:
+                return "ERREUR Terme de recherche manquant"
+
+            print(f"[ENTRY-GENERATOR] SEARCH Recherche journal: '{query}'")
+
+            # Recherche via json_manager
+            results = json_manager.search_entries(query=query)
+
+            if not results:
+                return f"SEARCH **Recherche: '{query}'**\n\nAucun résultat trouvé."
+
+            # Formatage des résultats
+            response = f"SEARCH **Recherche: '{query}'** ({len(results)} résultat(s))\n\n"
+
+            for i, entry in enumerate(results[:5], 1):  # Max 5 résultats
+                date_str = entry.get("timestamp", "")[:10]  # YYYY-MM-DD
+                importance = entry.get("importance", "normal")
+                importance_emoji = {"critical": "[CRITICAL]", "high": "[HIGH]", "normal": "[NORMAL]", "low": "[LOW]"}.get(importance, "[NORMAL]")
+
+                summary = entry.get("summary", "")
+                tags = entry.get("tags", [])
+                tags_str = " ".join([f"`{tag}`" for tag in tags[:2]])
+
+                response += f"**{i}.** {importance_emoji} **{date_str}** {tags_str}\n"
+                response += f"   {summary[:150]}{'...' if len(summary) > 150 else ''}\n\n"
+
+            if len(results) > 5:
+                response += f"*... et {len(results) - 5} autres résultats*"
+
+            return response
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur recherche: {e}")
+            return f"ERREUR Erreur recherche: {e}"
+
+    async def _get_weekly_summary(self, json_manager, groups: list, original_input: str) -> str:
+        """Génère un résumé hebdomadaire"""
+        try:
+            date_str = groups[0] if groups else None
+            if not date_str:
+                return "ERREUR Date non spécifiée"
+
+            # Calcul semaine (lundi au dimanche)
+            week_start = datetime.strptime(date_str, "%Y-%m-%d").date()
+            week_start = week_start - timedelta(days=week_start.weekday())  # Lundi
+            week_end = week_start + timedelta(days=6)  # Dimanche
+
+            print(f"[ENTRY-GENERATOR] DATE Résumé semaine: {week_start} à {week_end}")
+
+            # Collecte des entrées de la semaine
+            week_entries = []
+            current_date = week_start
+
+            while current_date <= week_end:
+                date_key = current_date.strftime("%Y-%m-%d")
+                day_entries = json_manager.get_day_entries(date_key)
+                if day_entries:
+                    week_entries.extend(day_entries)
+                current_date += timedelta(days=1)
+
+            if not week_entries:
+                return f"DATE **Semaine du {week_start.strftime('%d/%m')} au {week_end.strftime('%d/%m/%Y')}**\n\nAucune activité cette semaine."
+
+            # Analyse des entrées
+            total_entries = len(week_entries)
+            days_active = len(set(entry.get("timestamp", "")[:10] for entry in week_entries))
+
+            importance_counts = {"critical": 0, "high": 0, "normal": 0, "low": 0}
+            all_tags = []
+
+            for entry in week_entries:
+                importance = entry.get("importance", "normal")
+                importance_counts[importance] += 1
+                all_tags.extend(entry.get("tags", []))
+
+            # Tags les plus fréquents
+            from collections import Counter
+            top_tags = Counter(all_tags).most_common(5)
+
+            # Formatage du résumé
+            response = f"DATE **Résumé semaine du {week_start.strftime('%d/%m')} au {week_end.strftime('%d/%m/%Y')}**\n\n"
+            response += f"**STATS Statistiques:**\n"
+            response += f"• {total_entries} entrées sur {days_active} jours actifs\n"
+            response += f"• Répartition: {importance_counts['critical']}[CRITICAL] {importance_counts['high']}[HIGH] {importance_counts['normal']}[NORMAL] {importance_counts['low']}[LOW]\n\n"
+
+            if top_tags:
+                response += f"**TAGS Thèmes principaux:** {', '.join([f'`{tag}` ({count})' for tag, count in top_tags])}\n\n"
+
+            # Top 3 entrées importantes
+            important_entries = sorted(week_entries, key=lambda x: {"critical": 4, "high": 3, "normal": 2, "low": 1}.get(x.get("importance", "normal"), 2), reverse=True)[:3]
+
+            if important_entries:
+                response += f"**STAR Moments marquants:**\n"
+                for i, entry in enumerate(important_entries, 1):
+                    date_str = entry.get("timestamp", "")[:10]
+                    importance_emoji = {"critical": "[CRITICAL]", "high": "[HIGH]", "normal": "[NORMAL]", "low": "[LOW]"}.get(entry.get("importance", "normal"), "[NORMAL]")
+                    summary = entry.get("summary", "")
+                    response += f"{i}. {importance_emoji} **{date_str}** - {summary[:100]}{'...' if len(summary) > 100 else ''}\n"
+
+            return response
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur résumé hebdomadaire: {e}")
+            return f"ERREUR Erreur résumé hebdomadaire: {e}"
+
+    async def _get_monthly_summary(self, json_manager, groups: list, original_input: str) -> str:
+        """Génère un résumé mensuel"""
+        try:
+            month_str = groups[0] if groups else None  # Format: YYYY-MM
+            if not month_str:
+                return "ERREUR Mois non spécifié (format: YYYY-MM)"
+
+            print(f"[ENTRY-GENERATOR] DATE Résumé mois: {month_str}")
+
+            # Collecte des entrées du mois
+            month_entries = []
+            year, month = map(int, month_str.split('-'))
+
+            # Tous les jours du mois
+            import calendar
+            days_in_month = calendar.monthrange(year, month)[1]
+
+            for day in range(1, days_in_month + 1):
+                date_key = f"{year}-{month:02d}-{day:02d}"
+                day_entries = json_manager.get_day_entries(date_key)
+                if day_entries:
+                    month_entries.extend(day_entries)
+
+            if not month_entries:
+                month_name = calendar.month_name[month]
+                return f"DATE **{month_name} {year}**\n\nAucune activité ce mois."
+
+            # Analyse similaire à la semaine mais sur le mois
+            total_entries = len(month_entries)
+            days_active = len(set(entry.get("timestamp", "")[:10] for entry in month_entries))
+
+            month_name = calendar.month_name[month]
+            response = f"DATE **{month_name} {year}**\n\n"
+            response += f"**STATS Activité:** {total_entries} entrées sur {days_active}/{days_in_month} jours\n"
+            response += f"**STATS Taux d'activité:** {round(days_active/days_in_month*100)}%\n\n"
+
+            # Répartition par semaines
+            weekly_counts = [0, 0, 0, 0, 0]  # Max 5 semaines
+            for entry in month_entries:
+                entry_date = datetime.strptime(entry.get("timestamp", "")[:10], "%Y-%m-%d").date()
+                week_of_month = (entry_date.day - 1) // 7
+                if week_of_month < 5:
+                    weekly_counts[week_of_month] += 1
+
+            response += f"**STATS Par semaine:** {' | '.join([f'S{i+1}: {count}' for i, count in enumerate(weekly_counts) if count > 0])}\n\n"
+
+            # Top entrées du mois
+            important_entries = sorted(month_entries, key=lambda x: {"critical": 4, "high": 3, "normal": 2, "low": 1}.get(x.get("importance", "normal"), 2), reverse=True)[:5]
+
+            if important_entries:
+                response += f"**STAR Highlights du mois:**\n"
+                for i, entry in enumerate(important_entries, 1):
+                    date_str = entry.get("timestamp", "")[:10]
+                    importance_emoji = {"critical": "[CRITICAL]", "high": "[HIGH]", "normal": "[NORMAL]", "low": "[LOW]"}.get(entry.get("importance", "normal"), "[NORMAL]")
+                    summary = entry.get("summary", "")
+                    response += f"{i}. {importance_emoji} **{date_str}** - {summary[:80]}{'...' if len(summary) > 80 else ''}\n"
+
+            return response
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur résumé mensuel: {e}")
+            return f"ERREUR Erreur résumé mensuel: {e}"
+
+    async def _open_journal_ui_date(self, json_manager, groups: list, original_input: str) -> str:
+        """Ouvre l'interface journal pour une date spécifique"""
+        try:
+            relative_date = groups[0] if groups else ""
+
+            # Pour le moment, retourne une indication
+            # TODO: Implémenter ouverture UI avec navigation automatique vers date
+
+            return f"TARGET **Interface Journal**\n\nOuverture de l'interface journal pour '{relative_date}'.\n\n*Fonctionnalité complète disponible via le bouton JOURNAL Journal dans le header.*"
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur ouverture UI: {e}")
+            return f"ERREUR Erreur ouverture interface: {e}"
+
+    async def _display_filtered_entries(self, json_manager, groups: list, original_input: str) -> str:
+        """Affiche les entrées filtrées selon critères"""
+        try:
+            criteria = groups[0].strip() if groups else ""
+
+            if "importantes" in criteria or "important" in criteria:
+                # Filtre par importance
+                all_entries = []
+
+                # Récupérer toutes les entrées (approche simple)
+                # TODO: Optimiser avec une méthode get_all_entries dans json_manager
+                today = date.today()
+                for i in range(30):  # 30 derniers jours
+                    check_date = today - timedelta(days=i)
+                    date_str = check_date.strftime("%Y-%m-%d")
+                    day_entries = json_manager.get_day_entries(date_str)
+                    if day_entries:
+                        all_entries.extend(day_entries)
+
+                # Filtrer par importance
+                important_entries = [entry for entry in all_entries if entry.get("importance") in ["high", "critical"]]
+
+                if not important_entries:
+                    return "📋 **Entrées importantes**\n\nAucune entrée importante trouvée dans les 30 derniers jours."
+
+                response = f"📋 **Entrées importantes** ({len(important_entries)} trouvée(s))\n\n"
+
+                for i, entry in enumerate(important_entries[:10], 1):  # Max 10
+                    date_str = entry.get("timestamp", "")[:10]
+                    importance_emoji = {"critical": "[CRITICAL]", "high": "[HIGH]"}.get(entry.get("importance"), "[HIGH]")
+                    summary = entry.get("summary", "")
+
+                    response += f"**{i}.** {importance_emoji} **{date_str}**\n"
+                    response += f"   {summary[:150]}{'...' if len(summary) > 150 else ''}\n\n"
+
+                return response
+
+            else:
+                return f"ERREUR Critère de filtrage non reconnu: '{criteria}'\n\nCritères supportés: importantes, récentes"
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur affichage filtré: {e}")
+            return f"ERREUR Erreur filtrage: {e}"
+
+    async def _create_entry_manual(self, json_manager, groups: list, original_input: str) -> str:
+        """Crée une entrée manuellement depuis une phrase magique"""
+        try:
+            # Déclencher création d'entrée via le core_journal
+            # TODO: Accès au core_journal depuis entry_generator
+
+            return "CREATE **Création d'entrée**\n\nCréation d'une nouvelle entrée de journal en cours...\n\n*Utilisez le bouton JOURNAL Journal > CREATE Capturer conversation pour une création complète.*"
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur création manuelle: {e}")
+            return f"ERREUR Erreur création d'entrée: {e}"

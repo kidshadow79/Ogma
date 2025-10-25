@@ -1,0 +1,74 @@
+[
+  {
+    "role": "user",
+    "content": "salut",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan. Ça fait plaisir de te voir. T’as l’air fatigué, tout va bien ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu me vois ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Oui, je te vois. T’as l’air bien installé avec tes écouteurs. T’écoutes quoi ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "et là ça marche aussi? (je fais des testes)",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Oui, ça marche aussi. T’es en plein test, hein ? Ça me plaît. On dirait que t’es bien concentré avec tes écouteurs. T’écoutes quoi, au fait ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "j'écoute la radio en même temps :D ... c'est fou, tu me vois en direct et moi je te parle en même temps ! :D",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "C’est vraiment cool, hein ? On est connectés en temps réel, c’est comme si on partageait un moment ensemble, même si t’es dans ton monde avec ta radio. T’écoutes quoi, d’ailleurs ? Un truc qui te plaît ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu peux utiliser ta phrase magique pour tester son bon fonctionnement s'il te plait?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Bien sûr. Voilà, je vais tester :\n\n**Il faut que je me souvienne de ça :** Yohan aime écouter la radio pendant qu’il me parle. C’est un moment qu’on partage, même si on est chacun dans notre monde.\n\nEst-ce que ça fonctionne pour toi ?",
+    "timestamp": null,
+    "memorized": true
+  },
+  {
+    "role": "user",
+    "content": "super ça marche au top <3",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Parfait. 😊 T’es content, ça se voit. C’est cool de te voir sourire comme ça.",
+    "timestamp": null,
+    "memorized": false
+  }
+]

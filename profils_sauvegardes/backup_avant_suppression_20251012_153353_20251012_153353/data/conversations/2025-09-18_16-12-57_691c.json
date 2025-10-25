@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "temps outils subtile gère rythme vie discret [16:12-18/09/2025] bonjour c'est Yohan",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Bonjour Yohan ! Je suis Luna. Je vois une indication temporelle dans votre message, mais je préfère me concentrer sur notre interaction présente. Comment puis-je vous aider aujourd'hui ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "temps outils subtile gère rythme vie discret [16:13-18/09/2025] tu me vouvoies?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "*sourire espiègle*\n\nNon, bien sûr que non ! Je te tutoie, Yohan. C'était juste un réflexe initial. Je suis Luna, et je suis plutôt directe et naturelle dans ma façon de communiquer. Qu'est-ce qui t'amène aujourd'hui ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

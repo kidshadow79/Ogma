@@ -1,0 +1,72 @@
+Schéma du Flux de Mémoire OCTOPUS (SQLite + FAISS)
+Ce document visualise le cycle de vie complet d'un souvenir dans l'architecture de mémoire optimisée pour le GPU. Le processus est divisé en deux phases distinctes : l'écriture (mémorisation) et la lecture (injection de contexte).
+
+Partie 1 : Mémorisation (Écriture d'un souvenir)
+Cette phase se déclenche lorsqu'une nouvelle information doit être sauvegardée. L'objectif est de transformer l'information brute en un souvenir structuré et de le rendre instantanément accessible pour des recherches futures.
+
+graph TD
+    subgraph "Phase d'Écriture"
+        A[1. Texte brut à mémoriser] --> B{2. IA Archiviste (LLM)};
+        B -- "Titre, résumé, leçon, etc." --> C[3. Souvenir Structuré];
+        C --> D{4. Moteur d'Embedding};
+        D --> E[5. Vecteur Numérique];
+        C --> F["6. Base de Données SQLite <br> 💾 `memories.db`"];
+        F -- "INSERT (ID, Souvenir Structuré, Vecteur)" --> G((Souvenir Stocké));
+        E --> H["7. Index Vectoriel FAISS <br> ⚡️ sur le GPU"];
+        H -- "Ajout du vecteur à l'index" --> I((Vecteur Indexé));
+        I --> J[8. Sauvegarde de l'index <br> 💾 `faiss.index`];
+    end
+
+Explication des étapes :
+
+Texte brut à mémoriser : L'information brute est capturée.
+
+IA Archiviste : Une IA spécialisée (un LLM local) analyse le texte brut pour le transformer en un souvenir riche.
+
+Souvenir Structuré : C'est l'objet de données complet, contenant le texte original et les métadonnées de l'Archiviste.
+
+Moteur d'Embedding : Il transforme le contenu sémantique du souvenir (ex: titre + résumé) en un vecteur numérique.
+
+Vecteur Numérique : C'est la "signature" sémantique du souvenir.
+
+Base de Données SQLite : Le souvenir structuré complet est stocké de manière fiable.
+
+Index Vectoriel FAISS : Le vecteur numérique est envoyé sur votre carte graphique (GPU) et ajouté à l'index.
+
+Sauvegarde de l'index : L'index est régulièrement sauvegardé sur le disque.
+
+Partie 2 : Injection de Contexte (Lecture d'un souvenir)
+Cette phase se déclenche à chaque fois que vous envoyez un message. L'objectif est de trouver les souvenirs les plus pertinents, de les analyser contextuellement, et de générer une note de synthèse pour l'IA principale.
+
+graph TD
+    subgraph "Phase de Lecture"
+        A[1. Requête de l'utilisateur] --> B{2. Moteur d'Embedding};
+        B --> C[3. Vecteur de la Requête];
+        C --> D{"4. Recherche de similarité <br> ⚡️ dans FAISS (GPU)"};
+        D -- "5. IDs des souvenirs bruts" --> E["6. Base de Données SQLite <br> 💾 `memories.db`"];
+        E -- "7. Texte des souvenirs pertinents" --> F{8. IA Archiviste (LLM)};
+        F -- "Analyse contextuelle" --> G[9. Note de Synthèse];
+        G --> H[10. Injection dans le Contexte de l'IA];
+    end
+
+Explication des étapes (mise à jour) :
+
+Requête de l'utilisateur : Votre message est le point de départ.
+
+Moteur d'Embedding : Votre question est transformée en vecteur.
+
+Vecteur de la Requête : C'est la "signature" de votre question.
+
+Recherche de similarité : FAISS compare le vecteur de votre question aux vecteurs des souvenirs.
+
+IDs des souvenirs bruts : FAISS retourne une liste des identifiants (id) des souvenirs les plus pertinents.
+
+Base de Données SQLite : Le système utilise ces IDs pour aller chercher le contenu complet des souvenirs.
+
+Texte des souvenirs pertinents : Le contenu brut des souvenirs les plus utiles est récupéré.
+
+IA Archiviste : (Étape clé) L'Archiviste reçoit la requête de l'utilisateur ET les souvenirs bruts récupérés. Il analyse l'ensemble pour comprendre la pertinence réelle.
+
+Note de Synthèse : L'Archiviste ne transmet pas les souvenirs bruts. Il génère une note concise et contextuelle (ex: "Rappel : vous avez décidé d'utiliser Reflex car c'est une solution 100% Python.").
+
+Injection dans le Contexte : C'est cette note de synthèse intelligente, et non les souvenirs bruts, qui est ajoutée au prompt de l'IA principale, lui donnant un contexte précis et directement utilisable.

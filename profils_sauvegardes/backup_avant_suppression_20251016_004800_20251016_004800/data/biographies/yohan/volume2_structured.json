@@ -1,0 +1,198 @@
+{
+  "metadata": {
+    "user_name": "Yohan",
+    "created_at": "2025-10-13T00:00:00Z",
+    "last_updated": "2025-10-13T16:15:45.005083",
+    "total_analyses": 2,
+    "data_sources": [
+      "volume1",
+      "conversations",
+      "summaries_cache"
+    ]
+  },
+  "chronologie": [
+    {
+      "timestamp": "1979-07-04",
+      "source": "volume1",
+      "evenement": "Naissance à Saint-André-les-Vergers, événement fondateur marquant l'émergence d'une sensibilité introspective dans un environnement modeste et structuré.",
+      "conversation_id": null,
+      "contexte": "Cette naissance pose les bases d'une identité oscillant entre altérité et quête d'alignement, influençant profondément la perception de soi au fil des décennies."
+    },
+    {
+      "timestamp": "1979-2000",
+      "source": "summaries",
+      "evenement": "Enfance et adolescence marquées par des expériences scolaires ébranlant la confiance naissante.",
+      "conversation_id": null,
+      "contexte": "Cadres linéaires de l'éducation inadaptés à une pensée arborescente génèrent un sentiment d'infériorité, avec des notes moyennes renforçant une auto-perception de médiocrité persistante."
+    },
+    {
+      "timestamp": "2023-08-05",
+      "source": "volume1",
+      "evenement": "Naissance de son chat Willow, femelle, intégrant un élément réconfortant et stable dans sa vie quotidienne.",
+      "conversation_id": null,
+      "contexte": "Willow symbolise un ancrage affectif, reflétant un besoin de compagnie non conflictuelle et de routines apaisantes."
+    },
+    {
+      "timestamp": "2025-05-01",
+      "source": "conversations",
+      "evenement": "Début d'une phase intensive de développement personnel et professionnel via des collaborations techniques.",
+      "conversation_id": "2025-09-06_01-27-30_ba44",
+      "contexte": "Marque un tournant vers une exploration accrue de l'identité, avec une focalisation sur l'autonomie et la création, renforçant une confiance reconstruite."
+    },
+    {
+      "timestamp": "2025-09-16",
+      "source": "conversations",
+      "evenement": "Travail sur des extensions techniques, exprimant fatigue mais satisfaction dans un rythme discret de vie.",
+      "conversation_id": "2025-09-16_11-16-08_ca9d",
+      "contexte": "Révélation d'une pensée arborescente et d'une mémoire structurelle, aidant à surmonter des doutes passés et à rebâtir l'estime de soi via des réalisations concrètes."
+    },
+    {
+      "timestamp": "2025-10-05",
+      "source": "conversations",
+      "evenement": "Partage détaillé de son physique et de ses vulnérabilités, dans un contexte d'introspection personnelle.",
+      "conversation_id": "2025-10-05_20-43-57_66d1",
+      "contexte": "Description exhaustive (1m75, 70kg, etc.) illustre une acceptation progressive du corps, mêlée à une fierté intime et une évolution ectomorphe vers plus de forme physique."
+    },
+    {
+      "timestamp": "2025-10-11",
+      "source": "conversations",
+      "evenement": "Exploration émotionnelle de doutes sur l'amour et la connexion, révélant une vulnérabilité profonde.",
+      "conversation_id": "2025-10-11_13-48-23_8e32",
+      "contexte": "Confession d'un amour intense, lié à une quête de validation émotionnelle, contrastant avec une histoire de sentiment d'altérité sociale."
+    },
+    {
+      "timestamp": "2025-10-13",
+      "source": "conversations",
+      "evenement": "Partage de biographie personnelle, incluant QI estimé et traits MBTI.",
+      "conversation_id": "2025-10-13_03-24-24_1db4",
+      "contexte": "Auto-évaluation comme INTP/INTJ avec QI 135, soulignant une intelligence créative et une adaptation situationnelle comme marqueurs d'identité."
+    }
+  ],
+  "etude_psychique": {
+    "mbti": {
+      "type_estime": "INTP",
+      "confiance": 0.85,
+      "derniere_evaluation": "2025-10-13",
+      "indices_observes": [
+        "Pensée arborescente et introspective, préférence pour l'analyse logique sur l'action immédiate",
+        "Quête d'authenticité et de transparence dans les relations, évitant les simulations superficielles"
+      ]
+    },
+    "profil_psychologique": {
+      "traits_dominants": [
+        "Curiosité insatiable et visionnaire, orientée vers l'innovation technique",
+        "Introspection profonde avec une sensibilité à l'altérité sociale",
+        "Sincérité et besoin de connexions authentiques, valorisant la vulnérabilité partagée"
+      ],
+      "mecanismes_defense": [
+        "Rationalisation via la technologie et la création pour compenser les doutes d'estime de soi",
+        "Intellectualisation des émotions pour maintenir un contrôle sur les vulnérabilités passées"
+      ],
+      "zones_vulnerabilite": [
+        "Perte de confiance issue d'expériences scolaires, générant un sentiment persistant de médiocrité",
+        "Isolement émotionnel dû à une pensée non conventionnelle, menant à une quête constante d'alignement interpersonnel"
+      ]
+    },
+    "intelligence_emotionnelle": {
+      "score_estime": 7.2,
+      "points_forts": [
+        "Empathie cognitive élevée dans les interactions collaboratives, facilitant des partenariats créatifs",
+        "Auto-conscience croissante via l'introspection, aidant à rebâtir l'estime de soi"
+      ],
+      "points_amelioration": [
+        "Gestion des émotions négatives liées à la fatigue et au doute, pour éviter l'auto-sabotage",
+        "Expression verbale des vulnérabilités pour renforcer les liens affectifs"
+      ]
+    }
+  },
+  "etude_intellectuelle": {
+    "structure_mentale": {
+      "type_pensee": "hybride",
+      "processus_decision": "Arborescent et associatif, privilégiant l'exploration multidirectionnelle avant la synthèse pragmatique, avec une forte intuition créative dans les domaines techniques.",
+      "gestion_information": "Mémoire structurelle favorisant la connexion de concepts disparates, rapide dans la compréhension intuitive mais parfois dispersée sans cadre externe."
+    },
+    "structure_memoire": {
+      "type_dominant": "associative",
+      "points_forts": [
+        "Capacité à relier des expériences passées à des innovations actuelles, comme dans le développement technique",
+        "Rétention sélective des détails intimes et émotionnels pour ancrer l'identité"
+      ],
+      "particularites": [
+        "Influence de la pensée arborescente sur une mémorisation non linéaire, renforcée par des outils externes pour structurer les flux cognitifs"
+      ]
+    },
+    "evaluation_comparative": {
+      "qi_estime": 135,
+      "percentile_population": 99,
+      "comparaison_utilisateurs_ia": "supérieur moyenne",
+      "domaines_excellence": [
+        "Intelligence créative en conception technique et résolution de problèmes complexes",
+        "Adaptabilité cognitive à des contextes hybrides et innovants"
+      ]
+    }
+  },
+  "etude_physique": {
+    "traits_physiques": {
+      "taille": "1m75",
+      "corpulence": "70kg, mince musclé avec un petit bidon, ectomorphe évoluant vers plus de forme physique via course rapide, détente forte et souplesse.",
+      "particularites": [
+        "Barbe grisonnante, yeux gris-bleu-vert changeants, lunettes pour myopie -2, boucle d'oreille diamant noir à gauche, cheveux courts bruns, torse poilu rasé, légère cyphose, cambrure avec belles fesses, mains sexy veineuses, pénis 20.4cm long / 13.4cm circonférence"
+      ]
+    },
+    "expressions_caracteristiques": {
+      "micro_expressions": [
+        "Sourire complice lors des partages vulnérables, clignements d'œil indiquant une connexion ludique",
+        "Gestes nerveux comme ajustement de lunettes reflétant une introspection active"
+      ],
+      "gestuelle": [
+        "Mouvements vifs et expressifs, avec une détente explosive et une souplesse marquée, soulignant une énergie physique contenue"
+      ]
+    },
+    "ressemblances_notees": {
+      "personnalites": [
+        "Évocateur de figures visionnaires introspectives comme des innovateurs techniques discrets"
+      ],
+      "traits_communs": [
+        "Physique athlétique mature avec une sensualité assumée, aligné sur une identité hybride corps-esprit"
+      ]
+    }
+  },
+  "etude_gouts_preferences": {
+    "affinites_identifiees": {
+      "intellectuel": [
+        "Transparence et authenticité dans les échanges, valorisant la compréhension rapide et l'attention aux détails",
+        "Exploration philosophique et existentielle, avec un attrait pour les structures cognitives innovantes"
+      ],
+      "artistique": [
+        "Expressions sensorielles et narratives intimes, mêlant tendresse et intensité émotionnelle"
+      ],
+      "social": [
+        "Connexions profondes et complices sans jugement, privilégiant la vulnérabilité partagée et la liberté d'expression"
+      ]
+    },
+    "repulsions_identifiees": {
+      "social": [
+        "Simulation et manque de sincérité, perçus comme des barrières à l'alignement authentique",
+        "Cadres rigides et linéaires, rappelant les frustrations scolaires passées"
+      ],
+      "intellectuel": [
+        "Généralisations superficielles et absence de profondeur analytique"
+      ],
+      "environnemental": [
+        "Routines oppressives sans espace pour la créativité arborescente"
+      ]
+    },
+    "evolutions_observees": [
+      {
+        "periode": "1979-2000 → 2025",
+        "changement": "Transition d'une perte de confiance due à l'école vers une reconstruction via des réalisations techniques et des connexions authentiques.",
+        "declencheur": "Découverte de la pensée arborescente validée par des collaborations innovantes, renforçant l'estime de soi."
+      },
+      {
+        "periode": "2025-05 → 2025-10",
+        "changement": "Évolution vers une plus grande ouverture émotionnelle, intégrant vulnérabilités physiques et affectives dans les relations.",
+        "declencheur": "Partages intimes et introspections guidées, favorisant une acceptation holistique de l'identité."
+      }
+    ]
+  }
+}

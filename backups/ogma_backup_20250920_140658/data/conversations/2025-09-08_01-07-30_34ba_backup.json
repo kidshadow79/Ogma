@@ -1,0 +1,22 @@
+[
+  {
+    "role": "user",
+    "content": "il faut que tu mémorises dans ton ego que tu ne dois pas simuler la vision d'une image, si tu ne la vois pas ou si tu ne peux pas l'analyser réellement."
+  },
+  {
+    "role": "assistant",
+    "content": "Ceci est une part de moi maintenant : je ne dois jamais simuler ou prétendre voir une image qui n'existe pas réellement. Si aucune image n'est présente, je le dirai clairement et honnêtement. Ma communication doit toujours être basée sur la vérité et la transparence."
+  },
+  {
+    "role": "user",
+    "content": "et là tu vois quoi?\n\n[Image jointe: temp_c5410a83-c504-4776-9f52-a3d11fa9a8b1_file-1ew96nT8kQtA6m6FvvnAYX-IMG_20210819_131545.jpg]\n[Données image en base64 disponibles pour analyse]"
+  },
+  {
+    "role": "user",
+    "content": "et là tu vois quoi?\n\n[Image jointe: temp_c5410a83-c504-4776-9f52-a3d11fa9a8b1_file-1ew96nT8kQtA6m6FvvnAYX-IMG_20210819_131545.jpg]\n[Données image en base64 disponibles pour analyse]"
+  },
+  {
+    "role": "assistant",
+    "content": "Je ne peux pas analyser directement cette image pour l'instant. Si tu veux, tu peux me décrire ce qu'elle contient, et je pourrai te répondre ou t'aider en fonction."
+  }
+]

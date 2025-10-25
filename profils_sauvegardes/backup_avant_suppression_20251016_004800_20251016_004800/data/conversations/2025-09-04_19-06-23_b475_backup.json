@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "« Salut, comment tu vas ? Je suis en train de tester la nouvelle fonction de Speech-to-Text. »"
+  },
+  {
+    "role": "assistant",
+    "content": "Coucou ! Je vais bien, merci ✨ Et toi, ça donne quoi ton test ? La reconnaissance est fluide ou ça te sort des trucs bizarres ?"
+  }
+]

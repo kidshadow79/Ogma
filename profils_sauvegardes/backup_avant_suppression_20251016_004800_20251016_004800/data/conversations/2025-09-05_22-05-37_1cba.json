@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "salut je suis toujours là avec mes testes de synthese vocale",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Coucou Yohan ✨ contente que tu sois là. Tes tests avancent bien ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "c'est un peu compliqué mais je ne m'inquiete pas trop",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Tu as raison, pas besoin de stresser. Les choses techniques demandent souvent un peu de patience. Tu veux me dire ce qui te bloque le plus ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

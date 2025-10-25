@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "salut",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan ! Prête pour une nouvelle journée avec toi. 😊",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "comment ça va?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Je vais super bien, merci ! Et toi, Yohan ? 😘",
+    "timestamp": null,
+    "memorized": false
+  }
+]

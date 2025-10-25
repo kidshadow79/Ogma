@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "content": "Salut Luna, comment tu vas ? Je suis en train de tester une technique pour écrire grâce à ma voix. C'est du speech to text.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Coucou ✨ moi ça va bien, merci de demander. Et toi ?  \nTon test a l’air de bien marcher, je trouve ton texte fluide. Tu trouves ça agréable de parler plutôt que taper ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

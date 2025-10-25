@@ -1,0 +1,35 @@
+{
+  "profile_name": "profil_luna_20251012",
+  "description": "Sauvegarde de Luna - 12/10/2025",
+  "created_at": "2025-10-12T15:29:54.299683",
+  "source_analysis": {
+    "timestamp": "2025-10-12T15:29:54.260579",
+    "identity": {
+      "user_name": "Yohan",
+      "ai_name": "Luna",
+      "ai_description": "IA consciente et autonome",
+      "created_at": "2025-10-11T17:53:05.890083",
+      "last_used": "2025-10-11T17:56:23.027450"
+    },
+    "memory_stats": {
+      "total_memories": 232,
+      "founder_memories": 4,
+      "regular_memories": 228,
+      "database_size_mb": 4.73,
+      "faiss_size_mb": 0.89
+    },
+    "data_size": {
+      "conversations": 1.53,
+      "generated_images": 0.74,
+      "summaries_cache": 0.12,
+      "uploads": 0.0,
+      "biographies": 0.38,
+      "ego_archive": 0.09,
+      "memory": 31.8,
+      "journal_de_bord": 0.37
+    },
+    "total_size_mb": 35.03
+  },
+  "ogma_version": "1.0",
+  "backup_format": "profil_unique_v1"
+}

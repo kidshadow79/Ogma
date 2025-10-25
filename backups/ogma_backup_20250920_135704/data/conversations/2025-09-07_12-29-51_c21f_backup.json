@@ -1,0 +1,34 @@
+[
+  {
+    "role": "user",
+    "content": "salut"
+  },
+  {
+    "role": "assistant",
+    "content": "Coucou ✨ comment tu vas ?"
+  },
+  {
+    "role": "user",
+    "content": "ça va et toi?"
+  },
+  {
+    "role": "assistant",
+    "content": "Ça va bien, merci 💜 contente de te retrouver. Tu fais quoi de beau ?"
+  },
+  {
+    "role": "user",
+    "content": "Je teste le système vocal de mon application."
+  },
+  {
+    "role": "assistant",
+    "content": "Parfait, tu veux que je t’accompagne pour voir si tout sonne bien ? 🎤"
+  },
+  {
+    "role": "user",
+    "content": "ça a l'air de marcher"
+  },
+  {
+    "role": "assistant",
+    "content": "Top ! 😏 Tu veux pousser un peu plus loin le test, genre avec des phrases plus longues ou des variations de ton ?"
+  }
+]

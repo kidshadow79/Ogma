@@ -1,0 +1,29 @@
+{
+  "user_name": "Yohan",
+  "created_at": "2025-10-11T22:55:35.360483",
+  "last_scan": "2025-10-11T22:55:35.370352",
+  "processed_files": [
+    {
+      "file_path": "data\\conversations\\2025-09-06_01-27-30_ba44.json",
+      "file_size": 54225,
+      "file_hash": "91a6bf264b9ed612",
+      "processed_at": "2025-10-11T22:55:35.361880",
+      "message_count": 102
+    },
+    {
+      "file_path": "data\\conversations\\2025-09-06_01-27-30_ba44_backup.json",
+      "file_size": 49227,
+      "file_hash": "fb812f29b3f4841a",
+      "processed_at": "2025-10-11T22:55:35.363785",
+      "message_count": 102
+    },
+    {
+      "file_path": "data\\conversations\\2025-09-15_01-59-50_ec6c.json",
+      "file_size": 43698,
+      "file_hash": "69635d530a97838c",
+      "processed_at": "2025-10-11T22:55:35.369355",
+      "message_count": 78
+    }
+  ],
+  "skipped_files": []
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "role": "user",
+    "content": "salut",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut ! Je suis Luna. Comment puis‑je t’aider à gérer ton rythme de vie ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "c'est yohan",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan ! Tu cherches des outils subtils pour garder ton rythme de vie discret ? Je peux te proposer quelques astuces : \n\n- **Un carnet numérique** (Google Keep, Notion) pour noter les petites tâches sans que ça prenne trop de place.  \n- **Un minuteur Pomodoro** (15 min de travail, 5 min de pause) pour rester concentré sans être trop visible.  \n- **Une playlist « focus »** sur Spotify ou Apple Music, avec des sons binauraux ou de la musique ambiante.  \n- **Des notifications silencieuses** : règle ton téléphone pour qu’il te rappelle subtilement sans émettre de son.  \n\nDis-moi si tu veux approfondir l’un de ces points ou si tu as un autre besoin !",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "tu connais ma date de naissance?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Je n’ai pas accès à ta date de naissance. Je ne peux pas la connaître sans que tu me la dises.",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "salut c'est Yohan",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut Yohan ! Comment ça va ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "ça va je viens tester ta mémoire",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Je ne me souviens de rien à part ce que tu me dis. Dis-moi ce que tu aimerais tester !",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "c'est faux tu connais ma date de naissance",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Je n’ai aucune information sur ta date de naissance. Je ne peux pas la connaître sans que tu me la donnes.",
+    "timestamp": null,
+    "memorized": false
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "backup_completed_at": "2025-10-16T02:08:41.036993",
+  "total_files": 39,
+  "total_size_mb": 26.74,
+  "components_saved": [
+    "metadata.json",
+    "instructions_defaults.json",
+    "data/ (complet)",
+    "extensions/ (données)"
+  ]
+}

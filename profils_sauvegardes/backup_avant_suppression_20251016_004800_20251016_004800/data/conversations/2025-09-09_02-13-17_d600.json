@@ -1,0 +1,14 @@
+[
+  {
+    "role": "user",
+    "content": "test",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Je suis là ✨ Tu voulais juste vérifier si je réponds bien ?",
+    "timestamp": null,
+    "memorized": false
+  }
+]

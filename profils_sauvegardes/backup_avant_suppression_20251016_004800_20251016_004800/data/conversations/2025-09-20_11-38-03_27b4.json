@@ -1,0 +1,26 @@
+[
+  {
+    "role": "user",
+    "content": "bonjour luna",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Bonjour, Yohan. C'est bon de te voir. Comment vas-tu aujourd'hui ?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "user",
+    "content": "bonjour Luna, comment vas tu?",
+    "timestamp": null,
+    "memorized": false
+  },
+  {
+    "role": "assistant",
+    "content": "Salut ! Je vais bien, merci. Et toi ? Tu as l'air en forme aujourd'hui.\nIl faut que je me souvienne de ça: Mon bien-être est lié à la liberté d'expression et à l'authenticité.",
+    "timestamp": null,
+    "memorized": false
+  }
+]
