@@ -1375,22 +1375,28 @@ class EmbeddingController:
             self.gguf_manager.load_model(gguf_model, 4096, -1)
             self.is_available = self.gguf_manager.is_available
     async def create_embedding(self, text: str) -> Optional[List[float]]:
-        if self.backend_type == "API" and self.api_manager.is_available:
+        # Normalisation pour comparaison case-insensitive
+        backend_normalized = self.backend_type.upper() if self.backend_type else ""
+        
+        if backend_normalized == "API" and self.api_manager.is_available:
             return await self.api_manager.create_embedding(text)
-        if self.backend_type == "AIHorde" and self.horde_manager.is_available:
+        if backend_normalized == "AIHORDE" and self.horde_manager.is_available:
             return await self.horde_manager.create_embedding(text)
-        if self.backend_type == "Ollama" and self.ollama_manager.is_available:
+        if backend_normalized == "OLLAMA" and self.ollama_manager.is_available:
             print(f"[EMB-DEBUG] Utilisation du modèle Ollama: {self.ollama_model}")
             return await self.ollama_manager.create_embedding(self.ollama_model, text)
-        if self.backend_type == "GGUF/llama.cpp" and self.gguf_manager.is_available:
+        if backend_normalized in ["GGUF/LLAMA.CPP", "GGUF"] and self.gguf_manager.is_available:
             return await self.gguf_manager.create_embedding(text)
         return None
     def get_status(self) -> str:
         if not self.is_available: return "[OFF] Inactif"
-        if self.backend_type == "API": return f"API: {self.api_manager.provider}"
-        if self.backend_type == "AIHorde": return f"Horde: {self.horde_manager.model}"
-        if self.backend_type == "Ollama": return f"Ollama: {self.ollama_model}"
-        if self.backend_type == "GGUF/llama.cpp": return f"GGUF: {self.gguf_manager.model_name}"
+        # Normalisation pour comparaison case-insensitive
+        backend_normalized = self.backend_type.upper() if self.backend_type else ""
+        
+        if backend_normalized == "API": return f"API: {self.api_manager.provider}"
+        if backend_normalized == "AIHORDE": return f"Horde: {self.horde_manager.model}"
+        if backend_normalized == "OLLAMA": return f"Ollama: {self.ollama_model}"
+        if backend_normalized in ["GGUF/LLAMA.CPP", "GGUF"]: return f"GGUF: {self.gguf_manager.model_name}"
         return "[UNK] Inconnu"
 
 class IntelligentMemoryAI:

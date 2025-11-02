@@ -5412,6 +5412,13 @@ def main_page():
     except Exception as e:
         print(f"[INIT] Erreur initialisation audio manager: {e}")
     
+    # Initialiser le memory manager (avec archiviste + embedding)
+    try:
+        _ensure_memory_manager()
+        print("[INIT] Memory manager initialisé au démarrage")
+    except Exception as e:
+        print(f"[INIT] Erreur initialisation memory manager: {e}")
+    
     # Extension Archi_sensor activée par défaut
     print("[INIT] Archi_sensor extension initialized")
     
