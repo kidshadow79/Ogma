@@ -1414,7 +1414,8 @@ def _new_conversation():
 
 def _sidebar():
     """Barre latérale listant les conversations (type ChatGPT)."""
-    idx = _load_conversation_index()
+    # Charger l'index depuis le disque au démarrage
+    _load_conversation_index()
     with ui.element('aside').classes('sidebar'):
         # Actions disponibles dans l'entête
         def do_rename():
@@ -1758,9 +1759,9 @@ def _sidebar():
             list_container.clear()
             with list_container:
                 try:
-                    items = sorted(idx.values(), key=lambda x: x.get('created', ''), reverse=True)
+                    items = sorted(_get_conv_index().values(), key=lambda x: x.get('created', ''), reverse=True)
                 except Exception:
-                    items = list(idx.values())
+                    items = list(_get_conv_index().values())
                 for item in items:
                     cid = item.get('id')
                     if not cid:
@@ -1912,9 +1913,8 @@ def _sidebar():
                             title_label.on('click', _on_click)
         # Expose render callback pour mises à jour temps réel
         def _cb(active_id: Optional[str] = None):
-            nonlocal idx
-            # recharger l'index depuis disque pour afficher les nouvelles conversations
-            idx = _load_conversation_index()
+            # Recharger l'index depuis disque pour afficher les nouvelles conversations
+            _load_conversation_index()
             render_items(active_id)
         _get_ogma()._sidebar_render_cb = _cb
         render_items(_get_ogma()._current_conversation_id)
