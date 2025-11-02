@@ -10,16 +10,20 @@ def map_backend_for_controller(backend: str) -> str:
     """
     Normalise le nom du backend pour compatibilité controllers.
     
+    CRITIQUE: Retourne UPPERCASE pour compatibilité avec dictionnaires AIController.
+    
     Args:
         backend: Nom du backend (ex: "GGUF", "API", "Ollama")
         
     Returns:
-        str: Nom normalisé du backend
+        str: Nom normalisé du backend en MAJUSCULES
         
     Examples:
         >>> map_backend_for_controller("GGUF")
-        'gguf'
-        >>> map_backend_for_controller("API")
-        'api'
+        'GGUF'
+        >>> map_backend_for_controller("api")
+        'API'
+        >>> map_backend_for_controller("Ollama")
+        'OLLAMA'
     """
-    return backend.lower() if backend else "api"
+    return backend.upper() if backend else "API"
