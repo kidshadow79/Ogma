@@ -272,7 +272,8 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                                 from identity_manager import get_current_identities
                                                 identities = get_current_identities()
 
-                                                extended_history = _get_ogma()._chat_history[-20:] if len(_chat_history) > 20 else _chat_history
+                                                chat_hist = _get_chat_history()
+                                                extended_history = chat_hist[-20:] if len(chat_hist) > 20 else chat_hist
 
                                                 conversation_context = {
                                                     'user_message': f"[Auto-déclenchement suite à phrase magique IA]",
@@ -746,9 +747,6 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
         pass
 
 
-# Variable globale pour stocker l'index du message en cours d'édition
-_editing_message_index = None
-
 def load_message_for_edit(original_content: str, message_index: int):
     """
     Charge un message dans l'input field pour édition
@@ -770,8 +768,9 @@ def load_message_for_edit(original_content: str, message_index: int):
             print(f"[EDIT-MESSAGE] 🔄 Message #{message_index} démarqué - devient éditable")
 
         # Charger le texte dans l'input
-        if _input_field:
-            _input_field.value = original_content
+        input_field = _get_ogma()._input_field
+        if input_field:
+            input_field.value = original_content
             ui.notify('✎ Message chargé - Modifiez et envoyez', type='info', position='top')
             print(f"[EDIT-MESSAGE] 📝 Message #{message_index} chargé dans l'input pour édition")
         else:
