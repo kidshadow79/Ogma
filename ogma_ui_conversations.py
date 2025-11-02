@@ -102,6 +102,70 @@ def _get_current_conversation_id():
     """Wrapper thread-safe pour _current_conversation_id depuis ogma_ng"""
     return _get_ogma()._current_conversation_id
 
+def _try_restore_index_from_backup() -> bool:
+    """
+    Tente de restaurer l'index depuis le backup le plus récent.
+    Retourne True si restauration réussie, False sinon.
+    """
+    try:
+        import json
+        from pathlib import Path
+        
+        conv_dir = DATA_DIR / 'conversations'
+        # Chercher tous les backups index_backup_*.json
+        backups = list(conv_dir.glob('index_backup_*.json'))
+        
+        if not backups:
+            print(f"[CONV-INDEX-RESTORE] ⚠️ Aucun backup trouvé")
+            return False
+        
+        # Trier par date (nom contient timestamp) - le plus récent en premier
+        backups.sort(reverse=True)
+        
+        # Essayer les backups du plus récent au plus ancien
+        for backup_path in backups:
+            try:
+                content = backup_path.read_text(encoding='utf-8-sig').strip()
+                if not content or content == '{}':
+                    print(f"[CONV-INDEX-RESTORE] ⏭️  {backup_path.name} vide, ignoré")
+                    continue
+                
+                data = json.loads(content)
+                
+                # Vérifier format valide
+                if isinstance(data, dict) and 'conversations' in data:
+                    conversations = data.get('conversations', {})
+                else:
+                    conversations = data if isinstance(data, dict) else {}
+                
+                if len(conversations) == 0:
+                    print(f"[CONV-INDEX-RESTORE] ⏭️  {backup_path.name} aucune conversation, ignoré")
+                    continue
+                
+                # BACKUP VALIDE TROUVÉ !
+                _get_ogma()._conv_index = conversations
+                print(f"[CONV-INDEX-RESTORE] ✅ Restauré depuis {backup_path.name}")
+                print(f"[CONV-INDEX-RESTORE] 📊 {len(conversations)} conversations récupérées")
+                
+                # Sauvegarder dans index.json
+                idx_path = conv_dir / 'index.json'
+                payload = {"conversations": conversations}
+                idx_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+                print(f"[CONV-INDEX-RESTORE] 💾 index.json restauré")
+                
+                return True
+                
+            except Exception as e:
+                print(f"[CONV-INDEX-RESTORE] ❌ Erreur lecture {backup_path.name}: {e}")
+                continue
+        
+        print(f"[CONV-INDEX-RESTORE] ⚠️ Aucun backup valide trouvé sur {len(backups)} fichiers")
+        return False
+        
+    except Exception as e:
+        print(f"[CONV-INDEX-RESTORE] ❌ Erreur restauration: {e}")
+        return False
+
 # === VARIABLES GLOBALES IMPORTÉES DEPUIS OGMA_NG ===
 # Note: Ces variables sont définies dans ogma_ng.py qui est le point d'entrée
 # L'import circulaire est résolu car ogma_ng est toujours chargé en premier
@@ -723,12 +787,15 @@ def _load_conversation_index() -> Dict[str, Dict]:
             # Lire avec utf-8-sig pour gérer le BOM automatiquement
             content = idx_path.read_text(encoding='utf-8-sig').strip()
             
-            # Gérer fichier vide ou corrompu
+            # Gérer fichier vide ou corrompu - TENTER RESTAURATION BACKUP
             if not content:
-                print(f"[CONV-INDEX] ⚠️ Fichier index.json vide, réinitialisation")
+                print(f"[CONV-INDEX] ⚠️ Fichier index.json vide, tentative restauration backup...")
+                backup_restored = _try_restore_index_from_backup()
+                if backup_restored:
+                    return _get_ogma()._conv_index
+                # Pas de backup valide - initialiser vide SANS sauvegarder
+                print(f"[CONV-INDEX] ⚠️ Aucun backup valide, index vide (manuel: python repair_conversation_index.py)")
                 _get_ogma()._conv_index = {}
-                # Sauvegarder structure vide valide
-                _save_conversation_index()
                 return _get_ogma()._conv_index
             
             data = json.loads(content)
@@ -742,18 +809,52 @@ def _load_conversation_index() -> Dict[str, Dict]:
             _get_ogma()._conv_index = {}
             print(f"[CONV-INDEX] ⚠️ Fichier index.json introuvable: {idx_path}")
     except Exception as e:
-        _get_ogma()._conv_index = {}
         print(f"[CONV-INDEX] ❌ Erreur chargement index: {e}")
-        print(f"[CONV-INDEX] 🔧 Réinitialisation index conversations")
+        # TENTER RESTAURATION BACKUP AVANT RÉINITIALISATION
+        backup_restored = _try_restore_index_from_backup()
+        if backup_restored:
+            print(f"[CONV-INDEX] ✅ Index restauré depuis backup")
+            return _get_ogma()._conv_index
+        # Pas de backup - initialiser vide SANS sauvegarder
+        print(f"[CONV-INDEX] ⚠️ Aucun backup, index vide (manuel: python repair_conversation_index.py)")
+        _get_ogma()._conv_index = {}
     return _get_ogma()._conv_index
 
 
 def _save_conversation_index() -> Tuple[bool, str]:
-    """Sauvegarde l'index des conversations sur disque."""
+    """
+    Sauvegarde l'index des conversations sur disque.
+    Crée automatiquement un backup avant sauvegarde (rotation 5 backups max).
+    """
     try:
+        import json
+        from datetime import datetime
+        
         idx_path = DATA_DIR / 'conversations' / 'index.json'
         idx_path.parent.mkdir(parents=True, exist_ok=True)
-        import json
+        
+        # PROTECTION: Backup automatique AVANT sauvegarde
+        if idx_path.exists():
+            try:
+                # Lire l'ancien index pour backup
+                old_content = idx_path.read_text(encoding='utf-8-sig').strip()
+                if old_content and old_content != '{}':
+                    # Créer backup avec timestamp
+                    backup_name = f"index_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                    backup_path = idx_path.parent / backup_name
+                    backup_path.write_text(old_content, encoding='utf-8')
+                    
+                    # Rotation: garder max 5 backups les plus récents
+                    backups = sorted(idx_path.parent.glob('index_backup_*.json'), reverse=True)
+                    for old_backup in backups[5:]:  # Supprimer au-delà de 5
+                        old_backup.unlink()
+                        print(f"[CONV-INDEX-SAVE] 🗑️ Ancien backup supprimé: {old_backup.name}")
+                    
+                    print(f"[CONV-INDEX-SAVE] 💾 Backup créé: {backup_name}")
+            except Exception as e:
+                print(f"[CONV-INDEX-SAVE] ⚠️ Erreur création backup (non bloquant): {e}")
+        
+        # Sauvegarder le nouvel index
         payload = {"conversations": _get_conv_index()}
         idx_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
         return True, 'Index sauvegardé.'
