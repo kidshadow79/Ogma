@@ -86,6 +86,22 @@ def _ensure_embedding_controller():
     """Wrapper pour _ensure_embedding_controller depuis ogma_ng"""
     return _get_ogma()._embedding_controller
 
+def _ensure_audio_manager():
+    """Wrapper thread-safe pour _audio_manager depuis ogma_ng"""
+    return _get_ogma()._audio_manager
+
+def _get_conv_index():
+    """Wrapper thread-safe pour _conv_index depuis ogma_ng"""
+    return _get_ogma()._conv_index
+
+def _get_chat_history():
+    """Wrapper thread-safe pour _chat_history depuis ogma_ng"""
+    return _get_ogma()._chat_history
+
+def _get_current_conversation_id():
+    """Wrapper thread-safe pour _current_conversation_id depuis ogma_ng"""
+    return _get_ogma()._current_conversation_id
+
 # === VARIABLES GLOBALES IMPORTÉES DEPUIS OGMA_NG ===
 # Note: Ces variables sont définies dans ogma_ng.py qui est le point d'entrée
 # L'import circulaire est résolu car ogma_ng est toujours chargé en premier
@@ -534,8 +550,9 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                             
                             if is_playing:  # STOP - Arrêter la lecture
                                 print("[TTS] ⏹️ STOP - Arrêt de la lecture demandé")
-                                if _audio_manager and hasattr(_audio_manager, 'stop_speaking'):
-                                    success = _audio_manager.stop_speaking()
+                                audio_mgr = _ensure_audio_manager()
+                                if audio_mgr and hasattr(audio_mgr, 'stop_speaking'):
+                                    success = audio_mgr.stop_speaking()
                                     if success:
                                         ui.notify("🔇 Lecture arrêtée", type='info')
                                     else:
@@ -548,7 +565,8 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                 
                             else:  # PLAY - Démarrer la lecture
                                 print(f"[TTS] ▶️ PLAY - Démarrage lecture: {content[:50]}...")
-                                if _audio_manager and hasattr(_audio_manager, 'speak'):
+                                audio_mgr = _ensure_audio_manager()
+                                if audio_mgr and hasattr(audio_mgr, 'speak'):
                                     import asyncio
                                     # Nettoyer le contenu pour la synthèse
                                     clean_content = content.replace('*', '').replace('**', '').replace('#', '').replace('`', '')
@@ -561,7 +579,8 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                         """Tâche audio synchrone avec wrapper TTS sans conflit"""
                                         try:
                                             # Le nouveau wrapper retourne bool directement (pas async)
-                                            success = _audio_manager.speak(clean_content)
+                                            audio_mgr = _ensure_audio_manager()
+                                            success = audio_mgr.speak(clean_content) if audio_mgr else False
                                             if success:
                                                 print("[TTS] ✅ Synthèse réussie")
                                             else:
@@ -595,7 +614,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                         auto_speak = sm.settings.get('tts', {}).get('auto_speak', False)
                         
                         # N'afficher le bouton que si la lecture automatique n'est PAS activée
-                        if tts_enabled and _audio_manager and not auto_speak:
+                        if tts_enabled and _ensure_audio_manager() and not auto_speak:
                             with ui.row().classes('gap-2 mt-2'):
                                 # Bouton Play permanent - clic = toggle play/stop
                                 ui.button("▶", on_click=speak_message).classes('tts-button').tooltip(
@@ -723,7 +742,7 @@ def _save_conversation_index() -> Tuple[bool, str]:
         idx_path = DATA_DIR / 'conversations' / 'index.json'
         idx_path.parent.mkdir(parents=True, exist_ok=True)
         import json
-        payload = {"conversations": _conv_index}
+        payload = {"conversations": _get_conv_index()}
         idx_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
         return True, 'Index sauvegardé.'
     except Exception as e:
@@ -816,17 +835,21 @@ def _schedule_smart_title_generation(conv_id: str):
     Génère un titre intelligent via l'Archiviste après 5 interactions
     """
     try:
-        if conv_id in _conv_index and len(_chat_history) >= 10:  # 5 interactions = 10 messages
+        conv_index = _get_conv_index()
+        chat_history = _get_chat_history()
+        if conv_id in conv_index and len(chat_history) >= 10:  # 5 interactions = 10 messages
             print("BRAIN [SMART-TITLE] Génération titre intelligent via Archiviste...")
             import asyncio
             asyncio.create_task(_generate_smart_title_async(conv_id))
         else:
             # Reset du flag si pas assez d'interactions
-            if conv_id in _conv_index:
+            conv_index = _get_conv_index()
+            if conv_id in conv_index:
                 _get_ogma()._conv_index[conv_id]['smart_title_pending'] = False
     except Exception as e:
         print(f"ERROR [SMART-TITLE] Erreur programmation titre: {e}")
-        if conv_id in _conv_index:
+        conv_index = _get_conv_index()
+        if conv_id in conv_index:
             _get_ogma()._conv_index[conv_id]['smart_title_pending'] = False
 
 
@@ -898,7 +921,8 @@ Réponds UNIQUEMENT avec le titre, sans guillemets."""
             
         if title and len(title) > 3:
             # Mettre à jour le titre dans l'index
-            if conv_id in _conv_index:
+            conv_index = _get_conv_index()
+            if conv_id in conv_index:
                 old_title = _get_ogma()._conv_index[conv_id]['title']
                 _get_ogma()._conv_index[conv_id]['title'] = title
                 _get_ogma()._conv_index[conv_id]['smart_title_pending'] = False
@@ -921,7 +945,8 @@ Réponds UNIQUEMENT avec le titre, sans guillemets."""
         print(f"ERROR [SMART-TITLE] Erreur génération: {e}")
     finally:
         # Reset du flag en cas d'erreur
-        if conv_id in _conv_index:
+        conv_index = _get_conv_index()
+        if conv_id in conv_index:
             _get_ogma()._conv_index[conv_id]['smart_title_pending'] = False
 
 
@@ -1097,13 +1122,15 @@ def _persist_conversation(initial_text_for_title: Optional[str] = None) -> None:
     """Sauvegarde l'historique courant dans data/conversations/<id>.json et met à jour l'index."""
     try:
         # Assure l'ID et l'entrée d'index
-        if not _current_conversation_id:
+        current_id = _get_current_conversation_id()
+        if not current_id:
             _get_ogma()._current_conversation_id = _make_conv_id()
-        cid = _current_conversation_id
+        cid = _get_current_conversation_id()
         # Met à jour/Crée l'entrée index
         from datetime import datetime
         now_iso = datetime.now().isoformat(timespec='seconds')
-        if cid not in _conv_index:
+        conv_index = _get_conv_index()
+        if cid not in conv_index:
             title = _make_title_from_text(initial_text_for_title or '')
             _get_ogma()._conv_index[cid] = {
                 'id': cid,
@@ -2004,16 +2031,15 @@ ID: {conversation_id}
 
 def _mark_conversation_memorized(conversation_id: str, memorized: bool):
     """Marque une conversation comme mémorisée dans l'index."""
-    global _conv_index
-    if conversation_id in _conv_index:
+    conv_index = _get_conv_index()
+    if conversation_id in conv_index:
         _get_ogma()._conv_index[conversation_id]['memorized'] = memorized
         _save_conversation_index()
 
 
 def _is_conversation_memorized(conversation_id: str) -> bool:
     """Vérifie si une conversation est déjà mémorisée."""
-    global _conv_index
-    return _get_ogma()._conv_index.get(conversation_id, {}).get('memorized', False)
+    return _get_conv_index().get(conversation_id, {}).get('memorized', False)
 
 
 def _count_memorized_conversations() -> int:
@@ -2742,14 +2768,14 @@ def _profile_modal():
             tts_enabled = sm.settings.get('tts', {}).get('enabled', True)
             
             def on_tts_enabled_change(e):
-                global _audio_manager
                 if 'tts' not in sm.settings:
                     sm.settings['tts'] = {}
                 sm.settings['tts']['enabled'] = e.value
                 sm.save_settings()
                 
-                if _audio_manager and hasattr(_audio_manager, 'set_tts_settings'):
-                    _audio_manager.set_tts_settings(enabled=e.value)
+                audio_mgr = _ensure_audio_manager()
+                if audio_mgr and hasattr(audio_mgr, 'set_tts_settings'):
+                    audio_mgr.set_tts_settings(enabled=e.value)
                 
                 status = "activé" if e.value else "désactivé"
                 ui.notify(f'TTS {status}', type='positive')
@@ -2793,9 +2819,9 @@ def _profile_modal():
                     sm.save_settings()
                     
                     # Reconfigurer l'audio manager
-                    global _audio_manager
-                    if _audio_manager:
-                        _audio_manager.configure_tts_engine(e.value)
+                    audio_mgr = _ensure_audio_manager()
+                    if audio_mgr:
+                        audio_mgr.configure_tts_engine(e.value)
                     
                     ui.notify(f'Moteur changé: {e.value}', type='positive')
                     print(f"[DEBUG-TTS] Changement moteur vers: {e.value}")
