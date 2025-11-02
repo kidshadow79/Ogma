@@ -178,6 +178,10 @@ def _header():
                     # Récupération de la conversation actuelle depuis OGMA
                     current_conversation_id = _get_current_conversation_id()
                     
+                    # 🔧 FIX: Récupérer l'historique de conversation réel
+                    chat_history_ui = _get_global_var('_chat_history_ui', [])
+                    print(f"[JOURNAL] Historique récupéré: {len(chat_history_ui)} messages")
+                    
                     # Capturer le contexte UI avant la tâche asynchrone
                     from nicegui import context
                     current_context = context.client
@@ -188,6 +192,7 @@ def _header():
                             print(f"[JOURNAL] Création entrée pour conversation: {current_conversation_id}")
                             success = await create_manual_entry(
                                 conversation_id=current_conversation_id,
+                                conversation_history=chat_history_ui,  # 🔧 FIX: Passer l'historique réel
                                 source="button_click",
                                 manual=True
                             )

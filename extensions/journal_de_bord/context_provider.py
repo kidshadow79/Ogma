@@ -6,8 +6,9 @@ Formatage intelligent, sélection des entrées pertinentes, performance optimis�
 """
 
 from datetime import datetime, date, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 import re
+import time
 
 class ContextProvider:
     """
@@ -51,6 +52,90 @@ class ContextProvider:
         self.cache_duration = 300  # 5 minutes
         
         print(f"[CONTEXT-PROVIDER] OK Initialisé (format: {self.format_style}, max_entries: {self.max_entries})")
+    
+    def get_recent_context_with_cascade(self, max_entries: int = 3) -> str:
+        """
+        Récupère les N dernières conversations, quelle que soit leur date.
+        
+        Avantage: Pas de limite temporelle arbitraire.
+        Si dernière conv = il y a 10 ans, elle sera trouvée instantanément.
+        
+        Args:
+            max_entries: Nombre de conversations récentes à récupérer (défaut: 3)
+        
+        Returns:
+            str: Contexte formaté avec header adaptatif selon délai
+        """
+        try:
+            start_time = time.time()
+            
+            # Récupérer toutes les entrées triées
+            all_entries = self.json_manager.get_all_entries_sorted()
+            
+            if not all_entries:
+                print("[CONTEXT-PROVIDER] JOURNAL Aucune entrée dans le journal")
+                return ""
+            
+            # Prendre les N dernières
+            recent_entries = all_entries[-max_entries:] if len(all_entries) > max_entries else all_entries
+            
+            # Calculer le délai depuis la plus récente
+            last_entry = recent_entries[-1]
+            last_timestamp = datetime.fromisoformat(last_entry["timestamp"])
+            # S'assurer que les datetimes sont timezone-naive pour comparaison
+            if last_timestamp.tzinfo is not None:
+                last_timestamp = last_timestamp.replace(tzinfo=None)
+            # Comparer les DATES uniquement (pas heures) pour days_since
+            days_since = (datetime.now().date() - last_timestamp.date()).days
+            
+            # Header adaptatif selon délai
+            if days_since == 0:
+                header = "Aujourd'hui"
+            elif days_since == 1:
+                header = "Hier"
+            elif days_since < 7:
+                header = f"Il y a {days_since} jours"
+            elif days_since < 30:
+                weeks = days_since // 7
+                header = f"Il y a {weeks} semaine{'s' if weeks > 1 else ''}"
+            elif days_since < 365:
+                months = days_since // 30
+                header = f"Il y a {months} mois"
+            else:
+                years = days_since // 365
+                header = f"Il y a {years} an{'s' if years > 1 else ''}"
+            
+            # Ajouter l'heure actuelle au contexte
+            now = datetime.now()
+            current_hour = now.hour
+            
+            # Déterminer le moment de la journée en français (format 24h)
+            if 5 <= current_hour < 12:
+                time_of_day = "matin"
+            elif 12 <= current_hour < 18:
+                time_of_day = "après-midi"
+            elif 18 <= current_hour < 22:
+                time_of_day = "soirée"
+            else:
+                time_of_day = "nuit"
+            
+            current_time_str = now.strftime("%Hh%M")
+            
+            # Formatage du contexte
+            context = self._format_entries_context(recent_entries, header, days_since)
+            
+            # Préfixer avec l'heure actuelle
+            temporal_prefix = f"⏰ **CONTEXTE TEMPOREL ACTUEL**: Nous sommes le {now.strftime('%d/%m/%Y')}, il est {current_time_str} ({time_of_day}).\n\n"
+            context = temporal_prefix + context
+            
+            duration = time.time() - start_time
+            print(f"[CONTEXT-PROVIDER] CASCADE Contexte récent généré: {len(recent_entries)} entrées ({header}) en {duration:.3f}s")
+            
+            return context
+            
+        except Exception as e:
+            print(f"[CONTEXT-PROVIDER] ERROR Erreur cascade contexte: {e}")
+            return ""
     
     def get_daily_context(self, target_date: str = None, max_entries: int = None) -> str:
         """
@@ -266,16 +351,32 @@ class ContextProvider:
         
         return score
     
-    def _format_entries_context(self, entries: List[Dict[str, Any]], target_date: str) -> str:
-        """Formate les entrées selon le style configuré"""
+    def _format_entries_context(self, entries: List[Dict[str, Any]], target_date: Union[str, int], days_since: int = 0) -> str:
+        """
+        Formate les entrées selon le style configuré
+        
+        Args:
+            entries: Liste des entrées à formater
+            target_date: Date (str YYYY-MM-DD) OU header personnalisé (int = days_since utilisé)
+            days_since: Nombre de jours depuis la dernière entrée (pour header adaptatif)
+        """
         template = self.format_templates.get(self.format_style, self.format_templates["summary"])
+        
+        # Détection si header personnalisé ou date standard
+        if isinstance(target_date, int) or days_since > 0:
+            # Header personnalisé déjà calculé
+            formatted_date = target_date if isinstance(target_date, str) else "date inconnue"
+        else:
+            # Date standard à formater
+            formatted_date = self._format_date_human(target_date)
         
         # Variables communes
         variables = {
-            "date": target_date,
-            "formatted_date": self._format_date_human(target_date),
+            "date": target_date if isinstance(target_date, str) else "",
+            "formatted_date": formatted_date,
             "entry_count": len(entries),
-            "total_entries": len(entries)
+            "total_entries": len(entries),
+            "days_since": days_since
         }
         
         # Formatage spécifique selon le style

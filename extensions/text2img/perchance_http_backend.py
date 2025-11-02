@@ -14,6 +14,9 @@ from typing import Optional, Dict, Any
 from urllib.parse import quote
 import io
 
+# Import du PromptEnhancer pour enrichissement qualité Perchance
+from .prompt_enhancer import get_enhancer
+
 class PerchanceHTTPBackend:
     """Backend de génération d'images via API HTTP Pollinations.ai"""
 
@@ -25,14 +28,18 @@ class PerchanceHTTPBackend:
         # API endpoint
         self.base_url = "https://image.pollinations.ai/prompt"
 
-        # Paramètres par défaut
-        self.default_width = 1024
-        self.default_height = 1024
+        # Paramètres par défaut (optimisés pour qualité Perchance)
+        self.default_width = 1536  # Augmenté de 1024 pour meilleure qualité
+        self.default_height = 1536
         self.default_timeout = 120  # 2 minutes
         self.default_model = "flux"  # flux (défaut), turbo
-        self.default_safe_mode = True  # Filtre NSFW activé par défaut
-        self.default_enhance = False  # Enhancement LLM du prompt
+        self.default_safe_mode = False  # NSFW autorisé
+        self.default_enhance = True  # Enhancement LLM du prompt activé
         self.default_nologo = True  # Pas de logo Pollinations
+        
+        # PromptEnhancer pour enrichissement qualité Perchance
+        self.prompt_enhancer = None
+        self.enable_prompt_enhancement = True  # Activé par défaut
 
     def initialize(self) -> bool:
         """
@@ -53,9 +60,21 @@ class PerchanceHTTPBackend:
                 print(f"[TEXT2IMG-HTTP] 💡 Installez avec: pip install aiohttp")
                 return False
 
+            # Initialiser le PromptEnhancer
+            if self.enable_prompt_enhancement:
+                try:
+                    self.prompt_enhancer = get_enhancer(debug=False)
+                    print(f"[TEXT2IMG-HTTP] ✅ PromptEnhancer initialisé (qualité Perchance)")
+                except Exception as e:
+                    print(f"[TEXT2IMG-HTTP] ⚠️ Erreur init PromptEnhancer: {e}")
+                    print(f"[TEXT2IMG-HTTP] ℹ️ Fonctionnement sans enrichissement prompts")
+                    self.prompt_enhancer = None
+
             self.is_available = True
             print(f"[TEXT2IMG-HTTP] ✅ Backend Perchance HTTP initialisé")
             print(f"[TEXT2IMG-HTTP] 🌐 API: {self.base_url}")
+            print(f"[TEXT2IMG-HTTP] 📐 Résolution défaut: {self.default_width}×{self.default_height}")
+            print(f"[TEXT2IMG-HTTP] 🎨 Enhancement: {self.default_enhance} | Safe: {self.default_safe_mode}")
             return True
 
         except Exception as e:
@@ -80,16 +99,16 @@ class PerchanceHTTPBackend:
         **kwargs
     ) -> tuple[Optional[bytes], Optional[str]]:
         """
-        Génère une image via API HTTP Pollinations.ai
+        Génère une image via API HTTP Pollinations.ai avec enrichissement Perchance
 
         Args:
             prompt: Description de l'image à générer
-            width: Largeur de l'image (défaut: 1024)
-            height: Hauteur de l'image (défaut: 1024)
+            width: Largeur de l'image (défaut: 1536)
+            height: Hauteur de l'image (défaut: 1536)
             seed: Graine aléatoire (défaut: None = random)
             model: Modèle à utiliser (flux, turbo)
-            safe_mode: Filtre NSFW strict (défaut: True)
-            enhance: Enhancement LLM du prompt (défaut: False)
+            safe_mode: Filtre NSFW strict (défaut: False)
+            enhance: Enhancement LLM du prompt (défaut: True)
             nologo: Désactiver logo Pollinations (défaut: True)
             guidance_scale: Non supporté
             steps: Non supporté
@@ -110,10 +129,21 @@ class PerchanceHTTPBackend:
         safe_mode = safe_mode if safe_mode is not None else self.default_safe_mode
         enhance = enhance if enhance is not None else self.default_enhance
         nologo = nologo if nologo is not None else self.default_nologo
+        
+        # ENRICHISSEMENT PROMPT PERCHANCE
+        original_prompt = prompt
+        if self.prompt_enhancer and self.enable_prompt_enhancement:
+            try:
+                prompt = self.prompt_enhancer.enhance(prompt)
+                print(f"[TEXT2IMG-HTTP] 🚀 Prompt enrichi ({len(original_prompt)} → {len(prompt)} chars)")
+            except Exception as e:
+                print(f"[TEXT2IMG-HTTP] ⚠️ Erreur enrichissement prompt: {e}")
+                print(f"[TEXT2IMG-HTTP] ℹ️ Utilisation prompt original")
+                prompt = original_prompt
 
         try:
             print(f"[TEXT2IMG-HTTP] 🎨 Génération image...")
-            print(f"[TEXT2IMG-HTTP]    Prompt: '{prompt[:60]}...'")
+            print(f"[TEXT2IMG-HTTP]    Prompt original: '{original_prompt[:60]}...'")
             print(f"[TEXT2IMG-HTTP]    Résolution: {width}×{height}")
             print(f"[TEXT2IMG-HTTP]    Modèle: {model} | Safe: {safe_mode}")
 

@@ -316,6 +316,14 @@ def _instructions_modal():
             'settings_key': 'perception'
         },
         {
+            'id': 'salutations',
+            'title': '👋 Salutations & Contexte Initial',
+            'subtitle': 'Orchestration cognitive au démarrage',
+            'description': 'Directives pour utilisation naturelle des contextes injectés (Temporal Guardian, Journal, Mémoires) en début de conversation.',
+            'source': 'settings',
+            'settings_key': 'salutations'
+        },
+        {
             'id': 'memorization',
             'title': 'COGNITIF Prompt Mémorisation',
             'subtitle': 'Archiviste (template)',
@@ -1076,6 +1084,115 @@ def _memory_modal():
                     ui.button('Recalculer via Archiviste', icon='auto_awesome', on_click=do_reenrich).classes('action-button')
                     ui.button('Supprimer', icon='delete', on_click=do_delete).classes('action-button')
                     ui.button('Enregistrer', icon='save', on_click=do_save).classes('send-button')
+                    
+                    # Fonction pour supprimer TOUS les souvenirs avec confirmation
+                    def do_delete_all():
+                        """Suppression totale avec overlay de confirmation"""
+                        
+                        # Overlay de confirmation
+                        confirm_overlay = ui.element('div').style('''
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100vw;
+                            height: 100vh;
+                            background: rgba(0, 0, 0, 0.7);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            z-index: 9999;
+                        ''')
+                        
+                        with confirm_overlay:
+                            with ui.card().classes('q-dark').style('''
+                                background: var(--bg-secondary);
+                                border: 2px solid var(--error);
+                                padding: 24px;
+                                min-width: 500px;
+                                max-width: 600px;
+                            '''):
+                                ui.label('⚠️ SUPPRESSION TOTALE').classes('text-h5 text-bold text-red mb-3')
+                                
+                                ui.label('Vous êtes sur le point de supprimer DÉFINITIVEMENT :').classes('mb-2')
+                                with ui.column().classes('gap-1 mb-3'):
+                                    try:
+                                        total_memories = len(mm.get_all_memories_data() or [])
+                                        ui.label(f'• {total_memories} souvenirs mémorisés').classes('text-bold')
+                                    except:
+                                        ui.label('• TOUS les souvenirs mémorisés').classes('text-bold')
+                                    ui.label('• Index FAISS complet').classes('text-bold')
+                                    ui.label('• Tous les embeddings').classes('text-bold')
+                                    ui.label('• Toutes les métadonnées').classes('text-bold')
+                                
+                                ui.separator().classes('my-3')
+                                ui.label('⚠️ Cette action est IRRÉVERSIBLE').classes('text-red text-bold mb-2')
+                                ui.label('✅ Un backup sera créé automatiquement avant suppression').classes('text-green mb-3')
+                                
+                                result_label = ui.label('').classes('text-sm')
+                                
+                                def execute_deletion():
+                                    """Exécuter la suppression après confirmation"""
+                                    try:
+                                        result_label.text = '⏳ Suppression en cours...'
+                                        result_label.style('color: var(--warning);')
+                                        
+                                        # Appeler la méthode backend
+                                        result = mm.delete_all_memories()
+                                        
+                                        if result.get('deleted_count', 0) > 0:
+                                            success_msg = f"✅ {result['deleted_count']} souvenirs supprimés"
+                                            if result.get('backup_created'):
+                                                backup_path = result.get('backup_path', 'N/A')
+                                                success_msg += f"\n💾 Backup: {backup_path}"
+                                            
+                                            result_label.text = success_msg
+                                            result_label.style('color: var(--success);')
+                                            
+                                            # Rafraîchir la liste
+                                            try:
+                                                refresh_list()
+                                            except:
+                                                pass
+                                            
+                                            # Notification principale
+                                            ui.notify(f"Mémoire totalement effacée ({result['deleted_count']} souvenirs)", type='positive')
+                                            
+                                            # Fermer l'overlay après 2 secondes
+                                            ui.timer(2.0, lambda: confirm_overlay.delete(), once=True)
+                                        else:
+                                            error_msg = result.get('error', 'Aucun souvenir à supprimer')
+                                            result_label.text = f'❌ {error_msg}'
+                                            result_label.style('color: var(--error);')
+                                            ui.notify(f'Erreur: {error_msg}', type='negative')
+                                    
+                                    except Exception as e:
+                                        result_label.text = f'❌ Erreur critique: {e}'
+                                        result_label.style('color: var(--error);')
+                                        ui.notify(f'Erreur: {e}', type='negative')
+                                
+                                def cancel_deletion():
+                                    """Annuler et fermer l'overlay"""
+                                    confirm_overlay.delete()
+                                    ui.notify('Suppression annulée', type='info')
+                                
+                                # Boutons d'action
+                                with ui.row().classes('justify-end gap-2 mt-4'):
+                                    ui.button('Annuler', icon='close', on_click=cancel_deletion).classes('action-button')
+                                    ui.button(
+                                        'SUPPRIMER TOUT', 
+                                        icon='delete_forever', 
+                                        on_click=execute_deletion
+                                    ).classes('action-button').style('''
+                                        background: var(--error) !important;
+                                        color: white !important;
+                                    ''')
+                    
+                    ui.button('Supprimer TOUT', icon='delete_forever', on_click=do_delete_all).classes('action-button').style('''
+                        background: var(--error);
+                        color: white;
+                        margin-left: 8px;
+                    ''')
+                    
                     ui.button('Fermer', on_click=dialog.close).classes('action-button')
 
         def load_into_form(mid: str):
@@ -1276,6 +1393,8 @@ def _memory_modal():
         dialog.on('hide', lambda e=None: _on_close())
     except Exception:
         pass
+
+    ui.label("Note: la recherche sémantique peut refléter l'ancien embedding après modification; la recompaction de l'index se fera plus tard.").classes('text-muted text-xs mt-2')
 
     return dialog
 

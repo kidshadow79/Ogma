@@ -78,19 +78,21 @@ from audio_manager_wrapper import get_audio_manager
 from conversation_summarizer import summarizer, archive
 from extensions.temporal_guardian import create_temporal_guardian
 
-# Fonction utilitaire simple pour formater les tailles
-def format_size(size_bytes):
-    """Formate une taille en octets en format lisible"""
-    if size_bytes == 0:
-        return "0 B"
-    elif size_bytes < 1024:
-        return f"{size_bytes} B"
-    elif size_bytes < 1024**2:
-        return f"{size_bytes/1024:.1f} KB"
-    elif size_bytes < 1024**3:
-        return f"{size_bytes/(1024**2):.1f} MB"
-    else:
-        return f"{size_bytes/(1024**3):.2f} GB"
+# ====== MODULES REFACTORÉS (Phase 1 - Nov 2025) ======
+from utils.formatting_utils import format_size, format_datetime, truncate_filename, get_file_icon
+from utils.message_parsers import parse_thinking_format, parse_introspection_format
+from utils.backend_utils import map_backend_for_controller
+from conversations import (
+    load_conversation_index, save_conversation_index,
+    make_conv_id, make_title_from_text
+)
+from conversations.conversation_commands import handle_conversation_commands
+from backend import list_models, test_connection, check_global_ia_status, update_ia_status_indicators
+from files.file_management import (
+    process_uploaded_file, update_header_display, update_file_tab_display,
+    remove_active_file, show_file_upload_dialog
+)
+# ====== FIN MODULES REFACTORÉS ======
 
 # COGNITIVE MIRROR EXTENSION
 try:
@@ -147,6 +149,9 @@ _embedding_controller: Optional[EmbeddingController] = None
 _memory_manager: Optional[MemoryManager] = None
 _temporal_guardian = None  # Extension Temporal Guardian
 _cognitive_mirror = None   # Extension Cognitive Mirror - Transparence cognitive
+_contextual_recall_ext = None  # Extension Contextual Recall - Mémoire conversationnelle
+_file_writer_ext = None  # Extension File Writer - Sauvegarde automatique .md
+_journal_preformed_response = None  # Réponse journal prête à être injectée
 _introspection_box_content = []  # Buffer messages introspection en cours
 _introspection_md_widget = None  # Référence au widget markdown de la boîte
 _status_queue: Optional[queue.Queue] = None
@@ -159,6 +164,7 @@ _active_file_data: Optional[Dict] = None  # Données du fichier actuel
 _loaded_conversation: Optional[List[Dict]] = None  # Conversation actuellement chargée pour l'IA
 _loaded_conversation_filename: Optional[str] = None  # Nom du fichier de conversation chargé
 _conversation_context_injected: bool = False  # Indique si le contexte a déjà été injecté
+_orchestration_injected: bool = False  # Indique si l'orchestration cognitive a été injectée
 _thinking_css_injected: bool = False  # Indique si le CSS pour thinking a été injecté
 _file_tab_container = None  # Conteneur pour l'onglet de fichier
 _header_container = None  # Conteneur du header pour basculer titre/onglet
@@ -306,11 +312,7 @@ def _ensure_backends():
         print(f"[ERROR] Erreur initialisation backends: {e}")
     return _api_mgr, _ollama_mgr, _gguf_mgr, _kobold_mgr
 
-
-def _map_backend_for_controller(backend: str) -> str:
-    """Uniformise les libellés backend attendus par les contrôleurs."""
-    return 'GGUF/llama.cpp' if backend == 'GGUF' else backend
-
+# NOTA: _map_backend_for_controller extrait vers utils/backend_utils.py
 
 def _get_current_time() -> str:
     """Fonction pour que Luna puisse demander l'heure actuelle quand nécessaire."""
@@ -340,7 +342,8 @@ def _ensure_memory_manager() -> Optional[MemoryManager]:
     # Contrôleur Archiviste
     _archiviste_controller = AIController('archiviste', cast(OllamaManager, _ollama_mgr), cast(GGUFManager, _gguf_mgr), cast(KoboldManager, _kobold_mgr))
     arch = sm.settings.get('reasoning_api', {})
-    arch_backend = _map_backend_for_controller(arch.get('backend_type', 'API'))
+    # map_backend_for_controller importé depuis utils.backend_utils
+    arch_backend = map_backend_for_controller(arch.get('backend_type', 'API'))
     _archiviste_controller.set_active_backend(arch_backend)
     
     # Gestion des valeurs -1 pour auto-detect avec vraies capacités modèle
@@ -407,7 +410,8 @@ def _ensure_memory_manager() -> Optional[MemoryManager]:
     # Contrôleur Embeddings
     _embedding_controller = EmbeddingController(cast(OllamaManager, _ollama_mgr), cast(GGUFManager, _gguf_mgr))
     emb = sm.settings.get('embedding_api', {})
-    emb_backend = _map_backend_for_controller(emb.get('backend_type', 'API'))
+    # map_backend_for_controller importé depuis utils.backend_utils
+    emb_backend = map_backend_for_controller(emb.get('backend_type', 'API'))
     _embedding_controller.configure(
         emb_backend,
         api_provider=emb.get('provider'),
@@ -503,6 +507,55 @@ def _ensure_temporal_guardian():
         _temporal_guardian = create_temporal_guardian(debug=False)
     
     return _temporal_guardian
+
+
+def _ensure_contextual_recall():
+    """Initialise l'extension Contextual Recall pour accès mémoire conversationnelle."""
+    global _contextual_recall_ext
+    if _contextual_recall_ext is not None:
+        return _contextual_recall_ext
+    
+    try:
+        from extensions.contextual_recall import initialize_recall
+        
+        _contextual_recall_ext = initialize_recall(
+            summaries_cache_path="data/summaries_cache",
+            conversations_path="data/conversations",
+            debug=False
+        )
+        
+        if _contextual_recall_ext:
+            print("[CONTEXTUAL-RECALL] ✅ Extension initialisée")
+        
+    except Exception as e:
+        print(f"[CONTEXTUAL-RECALL] ⚠️ Erreur initialisation: {e}")
+        _contextual_recall_ext = None
+    
+    return _contextual_recall_ext
+
+
+def _ensure_file_writer():
+    """Initialise l'extension File Writer pour sauvegarde automatique fichiers .md"""
+    global _file_writer_ext
+    if _file_writer_ext is not None:
+        return _file_writer_ext
+    
+    try:
+        from extensions.file_writer import initialize_file_writer
+        
+        _file_writer_ext = initialize_file_writer(
+            uploads_dir="data/uploads",
+            debug=False
+        )
+        
+        if _file_writer_ext:
+            print("[FILE-WRITER] ✅ Extension initialisée")
+        
+    except Exception as e:
+        print(f"[FILE-WRITER] ⚠️ Erreur initialisation: {e}")
+        _file_writer_ext = None
+    
+    return _file_writer_ext
 
 
 def _handle_cognitive_mirror_callback(setting_key: str, new_value):
@@ -620,7 +673,8 @@ def _process_subconscience_messages():
 
                 # Afficher immédiatement le déroulé pour ce message
                 if _chat_inner is not None:
-                    parsed_introspection, main_content = _parse_introspection_format(introspection_content)
+                    # Importé depuis utils.message_parsers
+                    parsed_introspection, main_content = parse_introspection_format(introspection_content)
 
                     if parsed_introspection:
                         # 🛡️ Protection UI pour la création d'éléments
@@ -1067,21 +1121,7 @@ REMOTE_PROVIDERS = ['OpenAI', 'Mistral', 'Anthropic', 'Google', 'GROK', 'AIHorde
 LOCAL_BACKENDS = ['Ollama', 'GGUF', 'KoboldCpp']
 EMBED_SUPPORTED_PROVIDERS = ['OpenAI', 'Mistral', 'Google']  # Anthropic: pas d'API embeddings à ce jour
 
-
-def _truncate_filename(filename: str, max_length: int = 15) -> str:
-    """Tronque le nom de fichier à 15 caractères max"""
-    if len(filename) <= max_length:
-        return filename
-    return filename[:max_length-3] + "..."
-
-def _get_file_icon(filename: str) -> str:
-    """Retourne l'icône appropriée selon l'extension du fichier"""
-    ext = filename.lower().split('.')[-1] if '.' in filename else ''
-    icons = {
-        'pdf': 'PAGE', 'docx': 'EDIT', 'doc': 'EDIT', 'txt': 'PAGE',
-        'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'webp': '🖼️', 'gif': '🖼️'
-    }
-    return icons.get(ext, '📎')
+# NOTA: _truncate_filename et _get_file_icon extraites vers utils/formatting_utils.py
 
 def _update_header_display():
     """Met à jour l'affichage du header (sans les fichiers actifs)"""
@@ -1113,8 +1153,9 @@ def _update_file_tab_display():
             if _active_file_data:
                 # Affichage de l'onglet fichier sous la messagerie
                 filename = _active_file_data.get('filename', 'Fichier inconnu')
-                icon = _get_file_icon(filename)
-                truncated = _truncate_filename(filename)
+                # Importées depuis utils.formatting_utils
+                icon = get_file_icon(filename)
+                truncated = truncate_filename(filename)
                 
                 with ui.element('div').classes('file-tab-container file-tab-bottom'):
                     with ui.element('div').classes('file-tab'):
@@ -1567,8 +1608,8 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
         with ui.element('div').classes('message-container'):
             with ui.element('div').classes(cls):
                 if role == 'assistant':
-                    # Parser le format thinking si présent
-                    thinking_content, main_content = _parse_thinking_format(content)
+                    # Parser le format thinking si présent (importé depuis utils.message_parsers)
+                    thinking_content, main_content = parse_thinking_format(content)
 
                     # 📖 BIOGRAPHIE PROFIL: Détection phrases magiques Luna dans les réponses
                     biography_context_to_inject = ""
@@ -1881,8 +1922,9 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                 )
 
                     # Parser le format introspection depuis le contenu restant après thinking
+                    # Importé depuis utils.message_parsers
                     current_content = main_content if thinking_content else content
-                    introspection_content, final_content = _parse_introspection_format(current_content)
+                    introspection_content, final_content = parse_introspection_format(current_content)
                     
                     # Afficher la partie introspection si elle existe (dans un cadre dépliant orange)
                     if introspection_content:
@@ -2711,7 +2753,7 @@ def _render_full_history():
 
 def _load_conversation(conv_id: str):
     """Charge une conversation depuis data/conversations/<id>.json et l'affiche."""
-    global _chat_history, _chat_history_ui, _current_conversation_id, _loaded_conversation, _loaded_conversation_filename, _conversation_context_injected
+    global _chat_history, _chat_history_ui, _current_conversation_id, _loaded_conversation, _loaded_conversation_filename, _conversation_context_injected, _orchestration_injected
 
     # 🛡️ MAGIC PHRASE GUARD: Importer module protection
     from magic_phrase_guard import activate_loading_mode, deactivate_loading_mode_delayed, mark_message_as_historical
@@ -2751,6 +2793,7 @@ def _load_conversation(conv_id: str):
         _loaded_conversation = new_hist.copy()
         _loaded_conversation_filename = f"{conv_id}.json"
         _conversation_context_injected = False  # Réinitialiser le flag pour la nouvelle conversation
+        _orchestration_injected = False  # Réinitialiser le flag d'orchestration cognitive
 
         # Mettre à jour les deux historiques et afficher (pour lecture seulement)
         _chat_history = new_hist.copy()  # Pour l'IA (peut être résumé)
@@ -2787,7 +2830,7 @@ def _load_conversation(conv_id: str):
 
 def _new_conversation():
     """Réinitialise l'historique pour démarrer une nouvelle conversation."""
-    global _chat_history, _chat_history_ui, _current_conversation_id, _loaded_conversation, _loaded_conversation_filename
+    global _chat_history, _chat_history_ui, _current_conversation_id, _loaded_conversation, _loaded_conversation_filename, _orchestration_injected
 
     # 🛡️ MAGIC PHRASE GUARD: S'assurer que flag temporel est désactivé
     from magic_phrase_guard import deactivate_loading_mode
@@ -2801,6 +2844,7 @@ def _new_conversation():
     _loaded_conversation = None
     _loaded_conversation_filename = None
     _conversation_context_injected = False  # Réinitialiser le flag
+    _orchestration_injected = False  # Réinitialiser le flag d'orchestration cognitive
 
     # 📖 BIOGRAPHIE PROFIL: Réinitialiser les noms injectés pour nouvelle conversation
     try:
@@ -2817,142 +2861,9 @@ def _new_conversation():
 
     _render_full_history()
 
-
-def _format_datetime(datetime_str: str) -> str:
-    """Formate une date/heure ISO en format lisible français."""
-    try:
-        from datetime import datetime
-        if not datetime_str:
-            return ""
-        # Parse ISO format
-        dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
-        # Format français
-        return dt.strftime("%d/%m/%Y à %H:%M")
-    except Exception:
-        return datetime_str
-
-
-def _parse_thinking_format(content: str) -> tuple[str, str]:
-    """
-    Parse le format thinking des IA qui retournent des structures JSON complexes.
-    
-    Format attendu: "[{'type': 'thinking', 'thinking': [...], {'type': 'text', 'text': '...'}]"
-    
-    Retourne:
-        tuple[str, str]: (thinking_content, main_text)
-        - thinking_content: Le contenu de réflexion interne (peut être vide)
-        - main_text: Le texte principal à afficher
-    """
-    import json
-    import re
-    
-    # Si le contenu ne ressemble pas au format thinking, retourner tel quel
-    # Gérer le cas où le JSON est entre guillemets
-    test_content = content.strip()
-    if test_content.startswith('"') and test_content.endswith('"'):
-        test_content = test_content[1:-1]  # Enlever les guillemets de début/fin
-
-    if not (test_content.startswith('[{') and 'thinking' in content):
-        return "", content
-    
-    try:
-        # Utiliser le contenu nettoyé (sans guillemets externes si présents)
-        working_content = test_content
-
-        print(f"[THINKING-PARSER] DEBUG Content original: {content[:100]}...")
-        print(f"[THINKING-PARSER] DEBUG Content nettoyé: {working_content[:100]}...")
-
-        # Tenter de corriger les guillemets simples en guillemets doubles pour JSON valide
-        # Cette correction est nécessaire car les IA renvoient parfois des JSON malformés
-        json_content = working_content
-        
-        # Remplacer les guillemets simples par des guillemets doubles dans les clés
-        json_content = re.sub(r"'(type|thinking|text)':", r'"\1":', json_content)
-        
-        # Plus complexe : gérer les guillemets simples dans les valeurs qui peuvent contenir des apostrophes
-        # On utilise une approche plus sûre en essayant d'abord le parsing direct
-        try:
-            data = json.loads(json_content)
-        except json.JSONDecodeError:
-            # Si ça échoue, on essaie de convertir tout avec ast.literal_eval (plus permissif)
-            import ast
-            try:
-                data = ast.literal_eval(working_content)
-            except (ValueError, SyntaxError):
-                # Dernière tentative : retourner le contenu original
-                return "", content
-        
-        thinking_parts = []
-        text_parts = []
-        
-        # Parcourir la structure
-        for item in data:
-            if isinstance(item, dict):
-                if item.get('type') == 'thinking' and 'thinking' in item:
-                    # Extraire le contenu thinking
-                    thinking_data = item['thinking']
-                    if isinstance(thinking_data, list):
-                        for thinking_item in thinking_data:
-                            if isinstance(thinking_item, dict) and thinking_item.get('type') == 'text':
-                                thinking_parts.append(thinking_item.get('text', ''))
-                    elif isinstance(thinking_data, str):
-                        thinking_parts.append(thinking_data)
-                        
-                elif item.get('type') == 'text' and 'text' in item:
-                    # Extraire le texte principal
-                    text_parts.append(item['text'])
-        
-        thinking_content = '\n'.join(thinking_parts).strip()
-        main_text = '\n'.join(text_parts).strip()
-        
-        print(f"[THINKING-PARSER] OK Parsing réussi - Thinking: {len(thinking_content)} chars, Text: {len(main_text)} chars")
-        return thinking_content, main_text
-        
-    except Exception as e:
-        print(f"[THINKING-PARSER] WARN Erreur parsing format thinking: {e}")
-        # En cas d'erreur, retourner le contenu original
-        return "", content
-
-
-def _parse_introspection_format(content: str) -> tuple[str, str]:
-    """
-    Parse le format introspection pour les dialogues Subconscience Luna-Archiviste.
-    
-    Format attendu: "<introspection>dialogue Luna-Archiviste</introspection>"
-    
-    Retourne:
-        tuple[str, str]: (introspection_content, main_text)
-        - introspection_content: Le contenu du dialogue subconscient (peut être vide)
-        - main_text: Le texte principal restant à afficher
-    """
-    import re
-    
-    # Si pas de balises introspection, retourner tel quel
-    if '<introspection>' not in content or '</introspection>' not in content:
-        return "", content
-    
-    try:
-        # Pattern pour extraire le contenu entre les balises
-        pattern = r'<introspection>(.*?)</introspection>'
-        match = re.search(pattern, content, re.DOTALL)
-        
-        if match:
-            introspection_content = match.group(1).strip()
-            # Supprimer les balises introspection du contenu principal
-            main_content = re.sub(pattern, '', content, flags=re.DOTALL).strip()
-            
-            print(f"[INTROSPECTION-PARSER] OK Parsing reussi - Introspection: {len(introspection_content)} chars, Text: {len(main_content)} chars")
-            return introspection_content, main_content
-        else:
-            # Balises trouvées mais pattern invalide
-            print("[INTROSPECTION-PARSER] WARN Balises introspection malformees")
-            return "", content
-            
-    except Exception as e:
-        print(f"[INTROSPECTION-PARSER] WARN Erreur parsing format introspection: {e}")
-        # En cas d'erreur, retourner le contenu original
-        return "", content
-
+# NOTA: _format_datetime extrait vers utils/formatting_utils.py
+# NOTA: _parse_thinking_format extrait vers utils/message_parsers.py
+# NOTA: _parse_introspection_format extrait vers utils/message_parsers.py
 
 def _sidebar():
     """Barre latérale listant les conversations (type ChatGPT)."""
@@ -3051,13 +2962,19 @@ def _sidebar():
                 # 📖 Journal de Bord
                 ui.label('📖 Journal de Bord').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 journal_phrases = [
+                    # Phrases UTILISATEUR
                     ("consulte le journal du [date YYYY-MM-DD]", "Affiche les entrées du journal pour une date précise"),
-                    ("consulte le journal d'hier / d'aujourd'hui", "Affiche les entrées du journal pour une date relative"),
+                    ("consulte le journal d'hier / d'aujourd'hui / de lundi", "Affiche les entrées du journal pour une date relative"),
+                    ("consulte le journal de la semaine", "Affiche les entrées de la semaine en cours"),
                     ("montre le contexte du [date] / d'hier", "Affiche le contexte formaté d'une journée"),
                     ("journal recherche [terme]", "Recherche un terme dans toutes les entrées du journal"),
                     ("résume la semaine du [date]", "Génère un résumé des entrées de la semaine"),
                     ("résume le mois [YYYY-MM]", "Génère un résumé des entrées du mois"),
                     ("sauvegarde la conversation dans le journal", "Crée une entrée manuelle depuis la conversation actuelle"),
+                    ("ouvre le journal d'hier / d'aujourd'hui", "Ouvre l'interface journal pour une date"),
+                    ("journal affiche [filtre]", "Affiche entrées filtrées par critère"),
+                    # Phrases IA (automatiques)
+                    ("Injection automatique contexte matinal", "Luna reçoit automatiquement le journal du jour au premier message"),
                 ]
                 for phrase, description in journal_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -3087,6 +3004,7 @@ def _sidebar():
                 # 🧠 Cognitive Mirror (Introspection)
                 ui.label('🧠 Miroir Cognitif (Introspection)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 mirror_phrases = [
+                    # Phrases UTILISATEUR (commandes directes)
                     ("il faut que tu réfléchisses", "Déclenche immédiatement une session d'introspection (prioritaire)"),
                     ("lance une introspection", "Démarre une phase de réflexion intérieure avec le subconscient"),
                     ("déclenche une introspection", "Active la conversation entre l'IA et son subconscient"),
@@ -3094,7 +3012,11 @@ def _sidebar():
                     ("réfléchis en profondeur", "Lance une analyse métacognitive approfondie"),
                     ("arrête de réfléchir", "Interrompt l'introspection - L'IA génère organiquement une synthèse"),
                     ("stop la réflexion", "Termine la réflexion - Synthèse organique générée par l'IA"),
+                    # Phrases IA (auto-déclenchement)
+                    ("il faut que je réfléchisse sur : [thème]", "Luna démarre auto-introspection sur un sujet (phrase IA)"),
+                    # UI
                     ("Bouton ⏹ dans zone introspection", "Arrêt d'urgence avec génération organique de synthèse"),
+                    ("Déclenchement automatique inactivité", "Introspection automatique après période sans interaction"),
                 ]
                 for phrase, description in mirror_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -3107,9 +3029,14 @@ def _sidebar():
                 # 💾 Mémorisation
                 ui.label('💾 Mémorisation').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 memory_phrases = [
-                    ("il faut que je me souvienne de ça: [texte]", "Mémorise explicitement un élément important (haute priorité)"),
-                    ("mémorise ça: [texte]", "Sauvegarde un souvenir avec haute importance"),
-                    ("souviens-toi de ça: [texte]", "Crée un souvenir mémorable de la phrase suivante"),
+                    # Phrases IA (Luna mémorise)
+                    ("il faut que je me souvienne de ça: [texte]", "Luna mémorise explicitement un élément important (phrase IA)"),
+                    # Phrases UTILISATEUR
+                    ("mémorise ça: [texte]", "Commande utilisateur pour sauvegarder un souvenir avec haute importance"),
+                    ("mémorises ça: [texte]", "Variante impérative pour mémorisation"),
+                    ("souviens-toi de ça: [texte]", "Commande utilisateur pour créer un souvenir mémorable"),
+                    ("je vais mémoriser [texte]", "Mémorisation différée par l'utilisateur"),
+                    ("je dois mémoriser [texte]", "Mémorisation prioritaire par l'utilisateur"),
                     ("lis le souvenir [usr-xxx...]", "Affiche le contenu complet d'un souvenir par son ID"),
                     ("consulte le souvenir [usr-xxx...]", "Charge et affiche un souvenir spécifique depuis la base"),
                 ]
@@ -3140,18 +3067,21 @@ def _sidebar():
                 # 🌐 Recherche Internet (Web Navigator)
                 ui.label('🌐 Recherche Internet').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 web_phrases = [
+                    # Commandes UTILISATEUR slash
                     ("/web [terme]", "Recherche web générale avec Serper API"),
                     ("/news [sujet]", "Recherche d'actualités récentes"),
                     ("/image [description]", "Recherche d'images avec description"),
+                    # Phrases UTILISATEUR naturelles
                     ("cherche sur internet [terme]", "Phrase naturelle pour recherche web"),
                     ("recherche sur le web [sujet]", "Demande de recherche en langage naturel"),
                     ("trouve sur internet [information]", "Recherche d'information spécifique"),
                     ("regarde sur google [terme]", "Recherche via phrase familière"),
-                    ("il faut que je recherche sur le net", "Phrase IA pour auto-déclenchement (réponses IA)"),
-                    ("il faut que je cherche sur internet", "Auto-recherche par l'IA dans ses réponses"),
-                    ("je dois vérifier sur le web", "Vérification automatique par l'IA"),
                     ("actualités sur [sujet]", "Recherche de news sur un sujet précis"),
                     ("recherche des images de [description]", "Recherche d'images descriptive"),
+                    # Phrases IA (auto-déclenchement)
+                    ("il faut que je recherche sur le net", "Luna auto-déclenche recherche web (phrase IA)"),
+                    ("il faut que je cherche sur internet", "Auto-recherche par Luna dans ses réponses (phrase IA)"),
+                    ("je dois vérifier sur le web", "Vérification automatique par Luna (phrase IA)"),
                 ]
                 for phrase, description in web_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -3162,16 +3092,86 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 👁️ Perception Visuelle (Webcam)
-                ui.label('👁️ Perception Visuelle (IA)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label('👁️ Perception Visuelle').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 perception_phrases = [
-                    ("il faut que je te vois", "Luna active automatiquement la webcam pour vous voir (réponse IA)"),
-                    ("je veux te voir", "L'IA démarre la perception visuelle en temps réel (réponse IA)"),
-                    ("il faut que je vois", "L'IA active l'extension Perception pour vision webcam (réponse IA)"),
-                    ("je n'ai plus besoin de te voir", "Luna désactive la webcam automatiquement (réponse IA)"),
-                    ("je peux arrêter de te voir", "L'IA coupe la perception visuelle (réponse IA)"),
-                    ("je ferme ma vision", "L'IA termine la session de perception (réponse IA)"),
+                    # Phrases IA (Luna active/désactive webcam)
+                    ("il faut que je te vois", "Luna active automatiquement la webcam pour vous voir (phrase IA)"),
+                    ("je veux te voir", "Luna démarre la perception visuelle en temps réel (phrase IA)"),
+                    ("il faut que je vois", "Luna active l'extension Perception pour vision webcam (phrase IA)"),
+                    ("je n'ai plus besoin de te voir", "Luna désactive la webcam automatiquement (phrase IA)"),
+                    ("je peux arrêter de te voir", "Luna coupe la perception visuelle (phrase IA)"),
+                    ("je ferme ma vision", "Luna termine la session de perception (phrase IA)"),
+                    # Phrases UTILISATEUR (commandes directes)
+                    ("active la webcam", "Commande utilisateur pour démarrer perception visuelle"),
+                    ("désactive la webcam", "Commande utilisateur pour arrêter perception visuelle"),
+                    # Triggers automatiques
+                    ("Détection automatique demande visuelle", "Si Luna a besoin de voir, elle active automatiquement"),
                 ]
                 for phrase, description in perception_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px;'):
+                        ui.label('•').style('color: var(--accent-gold); font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
+
+                ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
+
+                # 🎨 Génération Images
+                ui.label('🎨 Génération Images').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                image_phrases = [
+                    ("je dois créer une image de : [description]", "Luna génère une image via Pollinations.AI (réponse IA)"),
+                    ("il faut que je crée une image de : [description]", "Variante phrase magique génération image (réponse IA)"),
+                    ("je vais créer une image de : [description]", "Variante phrase magique génération image (réponse IA)"),
+                    ("je dois générer une image de : [description]", "Variante phrase magique génération image (réponse IA)"),
+                ]
+                for phrase, description in image_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px;'):
+                        ui.label('•').style('color: var(--accent-gold); font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
+
+                ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
+
+                # 💭 Souvenirs Contextuels
+                ui.label('💭 Souvenirs Contextuels').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                recall_phrases = [
+                    # Phrases UTILISATEUR (expressions temporelles)
+                    ("il y a [X] jours / [X] semaines", "Recherche souvenirs par période relative (ex: il y a 3 jours)"),
+                    ("hier / avant-hier / aujourd'hui", "Recherche souvenirs par date simple"),
+                    ("la semaine dernière / cette semaine", "Recherche souvenirs par période nommée"),
+                    ("le mois dernier / il y a [X] mois", "Recherche souvenirs du mois précédent ou relatif"),
+                    ("quand on a parlé de [sujet]", "Recherche souvenirs par conversation thématique"),
+                    ("tu te souviens de [événement]", "Trigger recherche mémorielle contextuelle"),
+                    ("tu te rappelles quand [contexte]", "Recherche souvenir par contexte événementiel"),
+                    ("notre conversation sur [thème]", "Recherche discussions passées par sujet"),
+                    ("ce qu'on a dit sur [sujet]", "Recherche contenu conversationnel thématique"),
+                    ("rappelle-moi ce que [contexte]", "Demande explicite rappel mémoriel"),
+                    # Détection automatique
+                    ("Injection automatique souvenirs pertinents", "Système injecte souvenirs contextuels selon requête temporelle"),
+                ]
+                for phrase, description in recall_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px;'):
+                        ui.label('•').style('color: var(--accent-gold); font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
+
+                ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
+
+                # 📝 Éditeur Docs
+                ui.label('📝 Éditeur Docs').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                filewriter_phrases = [
+                    # Commande UTILISATEUR slash
+                    ("/doc [titre document]", "Commande slash pour créer un document markdown"),
+                    # Phrases UTILISATEUR naturelles
+                    ("crée un document markdown sur [sujet]", "Génération document .md avec titre et contenu"),
+                    ("écris un fichier markdown qui [description]", "Création fichier .md selon spécification"),
+                    ("rédige un .md sur [thème]", "Génération document markdown thématique"),
+                    ("fais-moi un fichier markdown pour [usage]", "Création document .md avec usage précis"),
+                    ("génère un document markdown de [type]", "Production automatique document .md typé"),
+                    ("écris un .md qui [objectif]", "Création fichier avec objectif défini"),
+                    # Détection automatique
+                    ("Détection automatique demande .md", "Système détecte intention création document et propose génération"),
+                ]
+                for phrase, description in filewriter_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
                         ui.label('•').style('color: var(--accent-gold); font-weight: bold;')
                         ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
@@ -3245,9 +3245,10 @@ def _sidebar():
                     tooltip_lines = []
                     
                     if created:
-                        tooltip_lines.append(f"Créé : {_format_datetime(created)}")
+                        # format_datetime importé depuis utils.formatting_utils
+                        tooltip_lines.append(f"Créé : {format_datetime(created)}")
                     if updated and updated != created:
-                        tooltip_lines.append(f"Modifié : {_format_datetime(updated)}")
+                        tooltip_lines.append(f"Modifié : {format_datetime(updated)}")
                     
                     if tooltip_lines:
                         tooltip_text = " | ".join(tooltip_lines)  # Une seule ligne séparée par |
@@ -4321,132 +4322,6 @@ def _profile_modal():
                 _render_tts_config(current_engine, sm, refresh_content)
             
 
-            # === ZONE DANGEREUSE : Suppression totale de la mémoire ===
-            ui.separator().classes('my-4')
-            ui.label('⚠️ Zone Dangereuse').classes('text-h6 text-bold text-red mb-2')
-            
-            with ui.expansion('Suppression totale de la mémoire', icon='warning').classes('mt-2').style('''
-                background: rgba(220, 53, 69, 0.08) !important;
-                border: 1px solid rgba(220, 53, 69, 0.3) !important;
-                border-radius: 8px !important;
-                padding: 8px !important;
-            '''):
-                ui.label('Cette section contient des opérations irréversibles').classes('text-red text-bold mb-2')
-                ui.label('⚠️ ATTENTION : La suppression totale efface TOUS les souvenirs de manière DÉFINITIVE').classes('text-sm text-muted mb-2')
-                
-                def do_delete_all_memories():
-                    """Double protection : confirmation + code PIN aléatoire"""
-                    import random
-                    
-                    # Générer code PIN aléatoire 4 chiffres
-                    pin_code = str(random.randint(1000, 9999))
-                    
-                    # Créer modal de confirmation
-                    confirm_dialog = ui.dialog()
-                    with confirm_dialog, ui.card().classes('q-dark').style('''
-                        background: rgba(220, 53, 69, 0.12) !important;
-                        border: 2px solid rgba(220, 53, 69, 0.5) !important;
-                        padding: 24px !important;
-                        min-width: 500px !important;
-                    '''):
-                        ui.label('⚠️ CONFIRMATION SUPPRESSION TOTALE').classes('text-h6 text-bold text-red mb-3')
-                        
-                        ui.label('Vous êtes sur le point de supprimer :').classes('mb-2')
-                        with ui.column().classes('gap-1 mb-3'):
-                            try:
-                                mm = _ensure_memory_manager()
-                                if mm:
-                                    total = len(mm.get_all_memories_data() or [])
-                                    ui.label(f'• {total} souvenirs mémorisés').classes('text-bold')
-                                else:
-                                    ui.label('• TOUS les souvenirs mémorisés').classes('text-bold')
-                            except:
-                                ui.label('• TOUS les souvenirs mémorisés').classes('text-bold')
-                            ui.label('• Index FAISS complet').classes('text-bold')
-                            ui.label('• Tous les embeddings').classes('text-bold')
-                            ui.label('• Toutes les métadonnées').classes('text-bold')
-                        
-                        ui.label('⚠️ Cette opération est IRRÉVERSIBLE').classes('text-red text-bold mb-2')
-                        ui.label('✅ Un backup sera créé avant suppression').classes('text-green mb-3')
-                        
-                        ui.separator().classes('mb-3')
-                        
-                        ui.label(f'Pour confirmer, entrez le code PIN : {pin_code}').classes('text-bold mb-2').style('color: #d4af37;')
-                        pin_input = ui.input(label='Code PIN', placeholder=pin_code).classes('form-input mb-3')
-                        
-                        result_label = ui.label('').classes('text-sm mb-2')
-                        
-                        def execute_deletion():
-                            """Exécute la suppression après validation PIN"""
-                            if pin_input.value != pin_code:
-                                result_label.text = '❌ Code PIN incorrect'
-                                result_label.style('color: #dc3545;')
-                                return
-                            
-                            try:
-                                result_label.text = '⏳ Suppression en cours...'
-                                result_label.style('color: #ffc107;')
-                                
-                                # Exécuter la suppression
-                                mm = _ensure_memory_manager()
-                                if not mm:
-                                    result_label.text = '❌ Memory Manager indisponible'
-                                    result_label.style('color: #dc3545;')
-                                    ui.notify('Memory Manager indisponible', type='negative')
-                                    return
-                                
-                                result = mm.delete_all_memories()
-                                
-                                if result.get('deleted_count', 0) > 0:
-                                    msg = f"✅ {result['deleted_count']} souvenirs supprimés"
-                                    if result.get('backup_created'):
-                                        msg += f"\n💾 Backup créé: {result.get('backup_path', 'N/A')}"
-                                    
-                                    result_label.text = msg
-                                    result_label.style('color: #28a745;')
-                                    
-                                    # Notification principale
-                                    ui.notify(
-                                        f"Mémoire totalement effacée ({result['deleted_count']} souvenirs)",
-                                        type='positive',
-                                        position='top'
-                                    )
-                                    
-                                    # Fermer après 2 secondes
-                                    ui.timer(2.0, lambda: confirm_dialog.close(), once=True)
-                                else:
-                                    error_msg = result.get('error', 'Erreur inconnue')
-                                    result_label.text = f'❌ Échec : {error_msg}'
-                                    result_label.style('color: #dc3545;')
-                                    ui.notify(f'Erreur suppression : {error_msg}', type='negative')
-                            
-                            except Exception as e:
-                                result_label.text = f'❌ Erreur : {e}'
-                                result_label.style('color: #dc3545;')
-                                ui.notify(f'Erreur critique : {e}', type='negative')
-                        
-                        with ui.row().classes('justify-end gap-2 mt-3'):
-                            ui.button('Annuler', icon='close', on_click=confirm_dialog.close).classes('bg-gray-500 text-white')
-                            ui.button(
-                                'SUPPRIMER TOUT', 
-                                icon='delete_forever', 
-                                on_click=execute_deletion
-                            ).classes('bg-red-600 text-white')
-                    
-                    confirm_dialog.open()
-                
-                ui.button(
-                    'Supprimer TOUS les souvenirs',
-                    icon='delete_forever',
-                    on_click=do_delete_all_memories
-                ).classes('w-full').style('''
-                    background: rgba(220, 53, 69, 0.15) !important;
-                    border: 1px solid rgba(220, 53, 69, 0.4) !important;
-                    color: #dc3545 !important;
-                    font-weight: 600 !important;
-                ''')
-            
-            ui.label("Note: la recherche sémantique peut refléter l'ancien embedding après suppression.").classes('text-muted text-xs mt-2')
             
             # === BOUTONS D'ACTION ===
             ui.separator().classes('my-4')
@@ -5105,7 +4980,7 @@ async def _display_available_conversations():
 
 
 async def _send_chat_message(input_el=None, text_override: Optional[str] = None, skip_history_append: bool = False):
-    global _chat_history, _chat_history_ui, _chat_inner, _pending_notifications, _editing_message_index, _pending_behavioral_injections
+    global _chat_history, _chat_history_ui, _chat_inner, _pending_notifications, _editing_message_index, _pending_behavioral_injections, _journal_preformed_response
     import re  # Import au début pour éviter UnboundLocalError
     
     # 🚨 DÉDUPLICATION: Réinitialiser la session si c'est un nouveau chat
@@ -5202,11 +5077,19 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
             if magic_response:
                 print(f"[JOURNAL-EXTENSION] SPARKLE Phrase magique traitée")
                 print(f"[SEND-CHAT-DEBUG] Journal a intercepté le message, return prématuré")
-                # Afficher la réponse directement sans passer par l'IA
-                _message('assistant', magic_response)
-                if input_el and not text_override:
-                    input_el.value = ''
-                return
+                # Vérifier si c'est une erreur avant d'afficher
+                if magic_response.startswith("ERREUR"):
+                    print(f"[JOURNAL-EXTENSION] ERROR dans réponse: {magic_response}")
+                    # Ne pas intercepter les erreurs, laisser passer à l'IA normale
+                else:
+                    # SOLUTION ROBUSTE: Injecter la réponse journal comme réponse IA prédéfinie
+                    # au lieu d'essayer de contourner le système d'affichage
+                    global _journal_preformed_response
+                    _journal_preformed_response = magic_response
+                    print(f"[JOURNAL-EXTENSION] REDIRECT Réponse sauvegardée pour injection IA")
+                    
+                    # Continuer le flux normal mais avec réponse prédéfinie
+                    # La réponse sera injectée plus tard dans le processus
 
     except Exception as e:
         print(f"[JOURNAL-EXTENSION] ERROR Erreur traitement phrase magique: {e}")
@@ -5740,7 +5623,8 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                 display_text = cleaned_text
                 if _active_file_data:
                     filename = _active_file_data.get('filename', 'Fichier')
-                    icon = _get_file_icon(filename)
+                    # Importée depuis utils.formatting_utils
+                    icon = get_file_icon(filename)
                     display_text = f"{cleaned_text}\n\n{icon} {filename}"
                 _message('user', display_text, ['mémorisé'] if user_memorized else None, message_index=len(_chat_history)-1)
         try:
@@ -6243,35 +6127,75 @@ Réponds naturellement en tenant compte de cette histoire partagée."""
     elif _loaded_conversation and _conversation_context_injected:
         print(f"[CONVERSATION-INJECT] ⚪ Contexte déjà injecté, pas de nouvelle injection")
     
-    # 📔 INJECTION CONTEXTE JOURNAL DE BORD - Pour nouvelles conversations
+    # 📔 INJECTION CONTEXTE JOURNAL DE BORD - Pour utilisateur principal uniquement
     print("[JOURNAL-INJECT] SEARCH Vérification injection contexte journal...")
     try:
         # Vérifier si c'est une nouvelle conversation (pas de contexte conversation chargée injecté)
         if not _conversation_context_injected:
-            journal_context = _inject_journal_context()
+            # Détection profil utilisateur via identity_manager
+            from identity_manager import get_current_user_name
+            user_name = get_current_user_name()
             
-            if journal_context and journal_context.strip():
-                print(f"[JOURNAL-INJECT] 📔 Contexte journal actuel détecté: {len(journal_context)} chars")
+            # Injection uniquement si utilisateur principal identifié (pas "Utilisateur" par défaut)
+            is_main_user = (user_name and user_name != "" and user_name != "Utilisateur")
+            
+            if is_main_user:
+                print(f"[JOURNAL-INJECT] ✅ Utilisateur principal détecté: {user_name}")
+                journal_context = _inject_journal_context()
                 
-                # Injecter le contexte journal dans le premier message système ou en créer un nouveau
-                if messages and messages[0]['role'] == 'system':
-                    journal_addon = f"\n\n--- CONTEXTE JOURNAL DU JOUR ---\n{journal_context}\n--- FIN CONTEXTE JOURNAL ---"
-                    messages[0]['content'] += journal_addon
-                    print("[JOURNAL-INJECT] OK Contexte ajouté au message système existant")
-                else:
-                    journal_system_msg = f"""--- CONTEXTE JOURNAL DU JOUR ---
+                if journal_context and journal_context.strip():
+                    print(f"[JOURNAL-INJECT] 📔 Contexte journal actuel détecté: {len(journal_context)} chars")
+                    
+                    # Injecter le contexte journal dans le premier message système ou en créer un nouveau
+                    if messages and messages[0]['role'] == 'system':
+                        journal_addon = f"\n\n--- CONTEXTE JOURNAL DU JOUR ---\n{journal_context}\n--- FIN CONTEXTE JOURNAL ---"
+                        messages[0]['content'] += journal_addon
+                        print("[JOURNAL-INJECT] OK Contexte ajouté au message système existant")
+                    else:
+                        journal_system_msg = f"""--- CONTEXTE JOURNAL DU JOUR ---
 {journal_context}
 --- FIN CONTEXTE JOURNAL ---"""
-                    messages.insert(0, {'role': 'system', 'content': journal_system_msg})
-                    print("[JOURNAL-INJECT] OK Nouveau message système journal créé")
-                
-                print(f"[JOURNAL-INJECT] STATS Contexte journal injecté avec succès")
+                        messages.insert(0, {'role': 'system', 'content': journal_system_msg})
+                        print("[JOURNAL-INJECT] OK Nouveau message système journal créé")
+                    
+                    print(f"[JOURNAL-INJECT] STATS Contexte journal injecté avec succès")
+                else:
+                    print("[JOURNAL-INJECT] ⚪ Pas de contexte journal disponible")
             else:
-                print("[JOURNAL-INJECT] ⚪ Pas de contexte journal disponible pour aujourd'hui")
+                print(f"[JOURNAL-INJECT] ⚪ Profil anonyme ou par défaut ({user_name or 'anonyme'}) - pas d'injection journal")
         else:
             print("[JOURNAL-INJECT] SKIP Conversation chargée - pas d'injection journal")
     except Exception as e:
         print(f"[JOURNAL-INJECT] ERROR Erreur injection contexte journal: {e}")
+
+    # 🧠 INJECTION CONTEXTUAL RECALL - Mémoire conversationnelle automatique
+    print("[CONTEXTUAL-RECALL] SEARCH Vérification patterns temporels...")
+    try:
+        recall_ext = _ensure_contextual_recall()
+        
+        if recall_ext:
+            # Détecter si le message contient une référence temporelle
+            recall_context = recall_ext.process_message(text)
+            
+            if recall_context and recall_context.strip():
+                print(f"[CONTEXTUAL-RECALL] 📚 Contexte mémoire détecté: {len(recall_context)} chars")
+                
+                # Injecter le contexte dans le premier message système
+                if messages and messages[0]['role'] == 'system':
+                    recall_addon = f"\n\n{recall_context}"
+                    messages[0]['content'] += recall_addon
+                    print("[CONTEXTUAL-RECALL] OK Contexte ajouté au message système existant")
+                else:
+                    messages.insert(0, {'role': 'system', 'content': recall_context})
+                    print("[CONTEXTUAL-RECALL] OK Nouveau message système créé")
+                
+                print("[CONTEXTUAL-RECALL] STATS Injection réussie")
+            else:
+                print("[CONTEXTUAL-RECALL] ⚪ Pas de pattern temporel détecté")
+        else:
+            print("[CONTEXTUAL-RECALL] SKIP Extension non disponible")
+    except Exception as e:
+        print(f"[CONTEXTUAL-RECALL] ERROR Erreur injection: {e}")
 
     # TARGET INJECTION ÉMOTIONNELLE - Système Archi_sensor 
     print("[ARCHI-INJECT] SEARCH Vérification injection émotionnelle...")
@@ -6306,6 +6230,75 @@ Réponds naturellement en tenant compte de cette histoire partagée."""
             
     except Exception as e:
         print(f"[ARCHI-INJECT] ERROR Erreur injection émotionnelle: {e}")
+    
+    # 🧠 ORCHESTRATION COGNITIVE - Directives pour utilisation naturelle des contextes
+    global _orchestration_injected
+    print("[COGNITIF-ORCHESTRATION] APPLY Injection directives d'orchestration cognitive...")
+    try:
+        # Vérifier si l'orchestration a déjà été injectée dans cette session
+        is_new_session = not _orchestration_injected
+        print(f"[COGNITIF-ORCHESTRATION] DEBUG is_new_session={is_new_session}, _orchestration_injected={_orchestration_injected}")
+        
+        if is_new_session:
+            # Charger l'instruction salutations depuis settings ou utiliser défaut
+            sm = _ensure_settings_manager()
+            orchestration_prompt = sm.settings.get('prompts', {}).get('salutations')
+            
+            if orchestration_prompt:
+                print(f"[COGNITIF-ORCHESTRATION] ✅ LOAD Instruction chargée depuis settings.json ({len(orchestration_prompt)} chars)")
+            
+            # Si pas dans settings, charger depuis defaults
+            if not orchestration_prompt:
+                try:
+                    import json
+                    defaults_path = DATA_DIR / "instructions_defaults.json"
+                    if defaults_path.exists():
+                        with open(defaults_path, 'r', encoding='utf-8') as f:
+                            defaults_data = json.load(f)
+                            orchestration_prompt = defaults_data.get('prompts_defaults', {}).get('salutations', '')
+                            print("[COGNITIF-ORCHESTRATION] LOAD Instruction chargée depuis defaults")
+                except Exception as e:
+                    print(f"[COGNITIF-ORCHESTRATION] WARN Erreur chargement defaults: {e}")
+                    orchestration_prompt = ""
+            
+            # Si toujours vide, utiliser hardcodé comme fallback
+            if not orchestration_prompt:
+                orchestration_prompt = """
+🧠 DIRECTIVES D'ORCHESTRATION COGNITIVE
+
+Tu as maintenant accès à plusieurs sources de contexte qui t'ont été automatiquement injectées :
+- Données temporelles sur le temps écoulé depuis notre dernière interaction
+- Entrées de journal de bord récentes de l'utilisateur  
+- Souvenirs et conversations passées pertinentes
+- Analyse émotionnelle contextuelle
+
+INSTRUCTIONS NATURELLES :
+1. Fais référence au temps écoulé de manière conversationnelle (ex: "Ça fait un moment !", "Depuis hier...", "Il y a quelques jours...")
+2. Évoque les éléments du journal s'ils sont pertinents au contexte actuel
+3. Utilise les souvenirs pour créer des liens avec nos échanges précédents
+4. Adapte ton ton selon l'état émotionnel détecté
+5. Sois naturelle - ne mentionne JAMAIS explicitement ces systèmes d'injection
+
+RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité conversationnelle. Utilise-les organiquement dans tes réponses pour créer une vraie connexion temporelle et émotionnelle.
+"""
+                print("[COGNITIF-ORCHESTRATION] WARN Utilisation instruction hardcodée (fallback)")
+            
+            # Injecter les directives d'orchestration dans le message système
+            if messages and messages[0]['role'] == 'system':
+                messages[0]['content'] += orchestration_prompt
+                print("[COGNITIF-ORCHESTRATION] OK Directives ajoutées au message système existant")
+            else:
+                messages.insert(0, {'role': 'system', 'content': orchestration_prompt})
+                print("[COGNITIF-ORCHESTRATION] OK Nouveau message système d'orchestration créé")
+            
+            # Marquer comme injecté pour éviter les injections répétées
+            _orchestration_injected = True
+            print(f"[COGNITIF-ORCHESTRATION] ✨ Orchestration cognitive activée - Luna guidée pour usage naturel des contextes")
+        else:
+            print("[COGNITIF-ORCHESTRATION] SKIP Conversation en cours - pas de nouvelles directives")
+            
+    except Exception as e:
+        print(f"[COGNITIF-ORCHESTRATION] ERROR Erreur orchestration cognitive: {e}")
     
     # Chat: réponses libres (pas JSON forcé)
     
@@ -6597,14 +6590,57 @@ Réponds naturellement en tenant compte de cette histoire partagée."""
         except Exception as e:
             print(f"[IMAGE] ERROR Erreur traitement génération: {e}")
 
-        # 🕐 DÉTECTION DEMANDE D'HEURE AUTOMATIQUE
-        if re.search(r'\b(quelle heure|l\'heure|heure est|heures? est|time)\b', reply_text.lower()):
+        # 🕐 DÉTECTION DEMANDE D'HEURE AUTOMATIQUE (uniquement dans le message utilisateur)
+        if re.search(r'\b(quelle heure|l\'heure|heure est|heures? est)\b', text.lower()):
             current_time = _get_current_time()
             cleaned_reply = f"{cleaned_reply}\n\nTIME Il est actuellement {current_time}"
 
-        msg = {'role': 'assistant', 'content': cleaned_reply, 'memorized': ai_memorized}
+        # 📝 FILE WRITER - Sauvegarde automatique fichiers .md
+        print("[FILE-WRITER] Vérification demande création fichier...")
+        try:
+            file_writer = _ensure_file_writer()
+            
+            if file_writer:
+                saved_path = file_writer.process_response(
+                    user_message=text,
+                    ai_response=cleaned_reply
+                )
+                
+                if saved_path:
+                    print(f"[FILE-WRITER] ✅ Fichier sauvegardé: {saved_path}")
+                    # Notification utilisateur
+                    _notify_safe(f"📁 Fichier sauvegardé: {Path(saved_path).name}", 'positive')
+                else:
+                    print("[FILE-WRITER] ⚪ Pas de fichier à sauvegarder")
+            else:
+                print("[FILE-WRITER] SKIP Extension non disponible")
+        except Exception as e:
+            print(f"[FILE-WRITER] ERROR Erreur traitement: {e}")
+
+        # 🧹 NETTOYAGE HISTORIQUE - Remplacer HTML images par phrase magique pour réutilisation
+        # Problème : Luna voit le format "🖼️ **Image générée :**" dans l'historique et le copie
+        # sans prononcer la phrase magique, ce qui empêche les générations suivantes
+        history_content = cleaned_reply
+        
+        # Pattern pour détecter les blocs d'images générées avec phrase magique cachée
+        image_block_pattern = r'🖼️ \*\*Image générée :\*\* "(.*?)".*?<img src=.*?/>.*?🎨.*?via.*?💾.*?(?:Sauvegardée|Échec sauvegarde).*?(?:\n|$)'
+        
+        # Remplacer par la phrase magique simple pour que Luna puisse la réutiliser
+        def replace_with_magic_phrase(match):
+            description = match.group(1)
+            return f"je dois créer une image de : {description}"
+        
+        history_content = re.sub(image_block_pattern, replace_with_magic_phrase, history_content, flags=re.DOTALL)
+        
+        if history_content != cleaned_reply:
+            print(f"[IMAGE-HISTORY] ✂️ HTML image nettoyé de l'historique - phrase magique conservée")
+
+        msg = {'role': 'assistant', 'content': history_content, 'memorized': ai_memorized}
         _chat_history.append(msg)
-        _chat_history_ui.append(msg)
+        
+        # Pour l'UI, garder le HTML complet avec l'image
+        msg_ui = {'role': 'assistant', 'content': cleaned_reply, 'memorized': ai_memorized}
+        _chat_history_ui.append(msg_ui)
         
         # Résumisation progressive intelligente
         try:
@@ -6625,7 +6661,13 @@ Réponds naturellement en tenant compte de cette histoire partagée."""
             pass
         if _chat_inner is not None:
             with _chat_inner:
-                _message('assistant', cleaned_reply, ['mémorisé'] if ai_memorized else None, message_index=len(_chat_history)-1)
+                # Vérifier si on a une réponse journal prédéfinie à injecter
+                if _journal_preformed_response:
+                    print(f"[JOURNAL-EXTENSION] INJECT Affichage réponse journal prédéfinie")
+                    _message('assistant', _journal_preformed_response, None, message_index=len(_chat_history)-1)
+                    _journal_preformed_response = None  # Nettoyer après usage
+                else:
+                    _message('assistant', cleaned_reply, ['mémorisé'] if ai_memorized else None, message_index=len(_chat_history)-1)
                 
                 # Lecture automatique si activée
                 sm = _ensure_settings_manager()
@@ -7729,7 +7771,15 @@ def run_ogma(host: str = 'localhost', port: int = 8080):
     
     # Démarrer avec gestion d'erreur améliorée
     try:
-        ui.run(title='OGMA - IA Conversationnelle', host=host, port=port, reload=False, show=True, dark=True)
+        ui.run(
+            title='OGMA - IA Conversationnelle', 
+            host=host, 
+            port=port, 
+            reload=False, 
+            show=True, 
+            dark=True,
+            reconnect_timeout=60.0  # 60s au lieu de 3s par défaut pour les réponses IA longues
+        )
     except KeyboardInterrupt:
         print("[INFO] Arrêt de l'application...")
         cleanup_on_exit()

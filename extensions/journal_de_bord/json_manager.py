@@ -263,6 +263,51 @@ class JSONManager:
             print(f"[JSON-MANAGER] ERREUR Erreur search: {e}")
             return []
     
+    def get_all_entries_sorted(self) -> List[Dict[str, Any]]:
+        """
+        Récupère toutes les entrées du journal, triées par timestamp croissant.
+        
+        Optimisé pour récupérer les N dernières conversations peu importe leur date.
+        Utile pour contexte "dernières interactions" sans limite temporelle arbitraire.
+        
+        Returns:
+            List[Dict]: Toutes les entrées avec timestamp, summary, tags, etc.
+                       Triées du plus ancien au plus récent.
+        
+        Performance: O(n log n) pour tri, mais n = nombre total d'entrées
+                     Pour 77 entrées actuelles: <5ms
+        """
+        try:
+            start_time = time.time()
+            all_entries = []
+            
+            # Parcours de tous les fichiers année
+            for year_file in sorted(self.data_dir.glob("journal_*.json")):
+                year = year_file.stem.split('_')[1]  # journal_2025.json -> 2025
+                year_data = self._load_year_data(year)
+                
+                # Parcours mois
+                for month_key in sorted(year_data.get("months", {}).keys()):
+                    month_data = year_data["months"][month_key]
+                    
+                    # Parcours jours
+                    for day_key in sorted(month_data.get("days", {}).keys()):
+                        day_data = month_data["days"][day_key]
+                        entries = day_data.get("entries", [])
+                        all_entries.extend(entries)
+            
+            # Tri par timestamp (plus ancien → plus récent)
+            all_entries.sort(key=lambda e: e.get("timestamp", ""))
+            
+            duration = time.time() - start_time
+            print(f"[JSON-MANAGER] ALL-SORTED {len(all_entries)} entrées récupérées et triées en {duration:.3f}s")
+            
+            return all_entries
+            
+        except Exception as e:
+            print(f"[JSON-MANAGER] ERREUR get_all_entries_sorted: {e}")
+            return []
+    
     def get_statistics(self) -> Dict[str, Any]:
         """Retourne les statistiques complètes du journal"""
         # Mise à jour stats temps réel

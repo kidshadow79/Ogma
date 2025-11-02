@@ -7,7 +7,7 @@ Intégration IA, extraction de métadonnées, génération intelligente
 
 import time
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Dict, Any, List, Optional, Union
 import re
 import asyncio
@@ -92,7 +92,7 @@ class EntryGenerator:
             print(f"[ENTRY-GENERATOR] 🤖 Génération entrée (conv: {conversation_id})")
             
             # Préparation du contexte de conversation
-            conversation_context = await self._get_conversation_context(conversation_id)
+            conversation_context = await self._get_conversation_context(conversation_id, metadata)
             if not conversation_context:
                 raise ValueError("Impossible de récupérer le contexte de conversation")
             
@@ -122,7 +122,8 @@ class EntryGenerator:
                 parsed_response, 
                 conversation_context, 
                 metadata,
-                token_count
+                token_count,
+                conversation_id  # 🔧 FIX: Passer conversation_id explicitement
             )
             
             # Mise à jour statistiques
@@ -155,29 +156,43 @@ class EntryGenerator:
             tags = set()
             text_lower = text.lower()
             
-            # Extraction par patterns regex
-            for pattern in self.tag_patterns:
-                matches = re.findall(pattern, text_lower, re.IGNORECASE)
-                for match in matches:
-                    # Nettoyage et split
-                    if isinstance(match, str):
-                        tag_candidates = re.split(r'[,;]+', match)
-                        for tag in tag_candidates:
-                            tag = tag.strip().strip('#')
-                            if 2 <= len(tag) <= 20 and tag.isalpha():
-                                tags.add(tag)
+            # 🔧 FIX: Extraction intelligente par mots-clés thématiques
+            keyword_categories = {
+                # Contexte personnel/relationnel
+                "relationnel": ["amour", "affection", "tendresse", "intimité", "connexion", "émotionnel"],
+                "soutien": ["encouragement", "motivation", "réconfort", "support", "aide"],
+                
+                # Contexte professionnel/apprentissage  
+                "professionnel": ["travail", "emploi", "carrière", "projet", "réunion"],
+                "apprentissage": ["étude", "examen", "formation", "cours", "apprentissage", "diplôme"],
+                
+                # Contexte technique
+                "technique": ["développement", "code", "programmation", "architecture", "api"],
+                "debug": ["bug", "erreur", "problème", "correction", "fix"],
+                "performance": ["optimisation", "performance", "vitesse", "efficacité"],
+                
+                # Contexte créatif
+                "créatif": ["design", "créativité", "artistique", "innovation"],
+                "ui_ux": ["interface", "expérience", "ergonomie", "design"],
+                
+                # États/moments
+                "bien-être": ["détente", "relaxation", "repos", "calme", "sérénité"],
+                "stress": ["stress", "pression", "anxiété", "tension", "préoccupation"]
+            }
             
-            # Extraction par mots-clés techniques
-            technical_keywords = [
-                "développement", "architecture", "debug", "test", "performance",
-                "ui", "ux", "frontend", "backend", "api", "database", "sécurité",
-                "intelligence artificielle", "ia", "machine learning", "algorithme",
-                "extension", "plugin", "fonctionnalité", "bug", "erreur"
-            ]
+            # Détection par catégories
+            for category, keywords in keyword_categories.items():
+                for keyword in keywords:
+                    if keyword in text_lower:
+                        tags.add(category)
+                        break  # Une seule fois par catégorie
             
-            for keyword in technical_keywords:
-                if keyword in text_lower:
-                    tags.add(keyword.replace(" ", "_"))
+            # Extraction de mots-clés spécifiques importants
+            # Chercher des noms propres, termes techniques, etc.
+            important_words = re.findall(r'\b[A-ZÀ-Ÿ][a-zà-ÿ]{2,15}\b', text)  # Mots capitalisés
+            for word in important_words[:5]:  # Max 5
+                if word.lower() not in ["cette", "dans", "pour", "avec", "sans"]:
+                    tags.add(word.lower())
             
             # Limitation nombre de tags
             return list(tags)[:10]
@@ -266,34 +281,39 @@ class EntryGenerator:
     
     # === MÉTHODES PRIVÉES ===
     
-    async def _get_conversation_context(self, conversation_id: str) -> Optional[str]:
+    async def _get_conversation_context(self, conversation_id: str, metadata: Dict[str, Any] = None) -> Optional[str]:
         """Récupère le contexte de conversation depuis OGMA"""
         try:
-            # TODO: Intégration avec le système de conversation OGMA
-            # Pour l'instant, simulation d'un contexte
+            # 🔧 FIX: Utiliser l'historique réel passé dans les métadonnées
+            if metadata and "conversation_history" in metadata:
+                conversation_history = metadata["conversation_history"]
+                print(f"[ENTRY-GENERATOR] ✅ Historique réel récupéré: {len(conversation_history)} messages")
+                
+                # Formater l'historique en texte pour l'Archiviste
+                context_parts = [f"Conversation ID: {conversation_id or 'current'}"]
+                context_parts.append(f"Timestamp: {datetime.now().isoformat()}")
+                context_parts.append(f"Nombre de messages: {len(conversation_history)}\n")
+                
+                # Convertir les messages en texte lisible
+                for i, msg in enumerate(conversation_history, 1):
+                    role = msg.get("role", "unknown")
+                    content = msg.get("content", "")
+                    
+                    # Nettoyer le contenu (enlever balises système si présentes)
+                    if content:
+                        context_parts.append(f"\n[Message {i} - {role.upper()}]:")
+                        context_parts.append(content[:2000])  # Limiter à 2000 chars par message
+                
+                context = "\n".join(context_parts)
+                print(f"[ENTRY-GENERATOR] ✅ Contexte formaté: {len(context)} chars")
+                return context.strip()
             
-            if not conversation_id:
-                # Utiliser la conversation courante
-                # Accès via self.archiviste.get_current_conversation() ou similaire
-                pass
+            # ❌ Fallback: Si pas d'historique fourni, logger l'erreur
+            print(f"[ENTRY-GENERATOR] ❌ ERREUR: Aucun historique de conversation fourni dans les métadonnées")
+            print(f"[ENTRY-GENERATOR] ❌ Métadonnées reçues: {list(metadata.keys()) if metadata else 'None'}")
             
-            # Placeholder: contexte simulé pour tests
-            context = f"""
-            Conversation ID: {conversation_id or 'current'}
-            Timestamp: {datetime.now().isoformat()}
-            
-            Cette conversation traite de développement technique, d'architecture logicielle
-            et de problématiques d'implémentation d'extensions pour le système OGMA.
-            
-            Points abordés:
-            - Extension Journal de Bord
-            - Architecture modulaire
-            - Génération automatique de résumés
-            - Intégration avec l'Archiviste
-            - Performance et optimisations
-            """
-            
-            return context.strip()
+            # Ne plus retourner de placeholder - retourner None pour forcer l'erreur
+            return None
             
         except Exception as e:
             print(f"[ENTRY-GENERATOR] ERREUR Erreur récupération contexte: {e}")
@@ -344,6 +364,30 @@ class EntryGenerator:
             # Nettoyage de base
             response = response.strip()
             
+            # 🔧 FIX: Nettoyer les résidus JSON de l'Archiviste
+            # Parfois l'Archiviste retourne du JSON brut qu'on doit parser
+            if response.startswith('{"') or response.startswith('{'):
+                try:
+                    # Tenter de parser comme JSON
+                    import json
+                    json_data = json.loads(response)
+                    # Extraire le champ summary si présent
+                    if isinstance(json_data, dict) and "summary" in json_data:
+                        response = json_data["summary"]
+                        print("[ENTRY-GENERATOR] FIX JSON detecté et extrait du champ 'summary'")
+                    else:
+                        # Prendre tout le JSON comme texte
+                        response = json.dumps(json_data, ensure_ascii=False)
+                except json.JSONDecodeError:
+                    # Pas du JSON valide, continuer avec le texte brut
+                    pass
+            
+            # 🔧 FIX: Nettoyer les guillemets résiduels au début
+            # Pattern: ": "Texte commence ici...
+            if response.startswith('": "') or response.startswith('":'):
+                response = response.lstrip('":').strip()
+                print("[ENTRY-GENERATOR] FIX Guillemets résiduels supprimés")
+            
             # Tentative d'extraction de sections structurées
             parsed = {
                 "summary": response,
@@ -355,8 +399,8 @@ class EntryGenerator:
             # Recherche de sections spéciales dans la réponse
             sections = {
                 "résumé": r"(?:résumé|summary)\s*:?\s*(.+?)(?=(?:\n(?:tags?|mots-clés?|humeur|mood|points clés?))|$)",
-                "tags": r"(?:tags?|mots-clés?)\s*:?\s*(.+?)(?:\n|\Z)",
-                "humeur": r"(?:humeur|mood|ton)\s*:?\s*(.+?)(?:\n|\Z)",
+                "tags": r"(?:tags?|mots-clés?)\s*:?\s*(.+?)(?:\n|$)",  # Capture jusqu'à fin de ligne
+                "humeur": r"(?:humeur|mood|ton)\s*:?\s*(.+?)(?:\n|$)",
                 "points": r"(?:points clés?|key points?)\s*:?\s*(.+?)(?=(?:\n(?:résumé|tags?|mots-clés?|humeur|mood))|$)"
             }
             
@@ -372,7 +416,18 @@ class EntryGenerator:
                     if section == "résumé" and content:
                         parsed["summary"] = content
                     elif section == "tags" and content:
-                        parsed["extracted_tags"] = [tag.strip() for tag in re.split(r'[,;]+', content)]
+                        # 🔧 FIX: Nettoyage strict des tags
+                        # Séparer par virgules, point-virgules
+                        raw_tags = re.split(r'[,;]+', content)
+                        clean_tags = []
+                        for tag in raw_tags:
+                            tag = tag.strip()
+                            # Enlever les guillemets, parenthèses, etc.
+                            tag = tag.strip('"\'()[]{}')
+                            # Ignorer les tags trop longs (probablement du texte)
+                            if tag and 2 <= len(tag) <= 30 and not tag.endswith('.'):
+                                clean_tags.append(tag)
+                        parsed["extracted_tags"] = clean_tags[:10]  # Limite 10 tags max
                     elif section == "humeur" and content:
                         parsed["mood"] = content.lower()
                     elif section == "points" and content:
@@ -391,7 +446,7 @@ class EntryGenerator:
     
     def _build_entry_data(self, parsed_response: Dict[str, Any], 
                          conversation_context: str, metadata: Dict[str, Any],
-                         token_count: int) -> Dict[str, Any]:
+                         token_count: int, conversation_id: str = None) -> Dict[str, Any]:
         """Construit l'entrée finale selon le schéma"""
         
         # ID unique pour l'entrée
@@ -419,7 +474,7 @@ class EntryGenerator:
             "tokens": token_count,
             
             # Métadonnées conversation
-            "conversation_id": metadata.get("conversation_id", "unknown"),
+            "conversation_id": conversation_id or metadata.get("conversation_id", "unknown"),  # 🔧 FIX: Utiliser conversation_id passé en paramètre
             "conversation_title": metadata.get("title", "Conversation sans titre"),
             "participants": metadata.get("participants", ["utilisateur", "assistant"]),
             
@@ -661,7 +716,8 @@ Analyse technique:"""
             patterns = {
                 # Consultation journal par date
                 r"consulte le journal du (\d{4}-\d{2}-\d{2})": self._get_journal_entries,
-                r"consulte le journal d[''`]?(\w+)": self._get_journal_relative_date,
+                r"consulte le journal de la (\w+)": self._get_weekly_summary_by_period,  # Nouveau: "de la semaine"
+                r"consulte le journal d[''`]?(hier|aujourd'hui|aujourdhui|avant-hier|avanthier|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)": self._get_journal_relative_date,
 
                 # Contexte formaté
                 r"montre.*contexte.*d[''`]?(\w+)": self._get_formatted_context_relative,
@@ -851,6 +907,28 @@ Analyse technique:"""
         except Exception as e:
             print(f"[ENTRY-GENERATOR] ERREUR Erreur recherche: {e}")
             return f"ERREUR Erreur recherche: {e}"
+
+    async def _get_weekly_summary_by_period(self, json_manager, groups: list, original_input: str) -> str:
+        """Génère un résumé de période (semaine, mois)"""
+        try:
+            period = groups[0] if groups else ""
+            
+            if period == "semaine":
+                # Semaine courante
+                today = date.today()
+                week_start = today - timedelta(days=today.weekday())  # Lundi
+                return await self._get_weekly_summary(json_manager, [week_start.strftime("%Y-%m-%d")], original_input)
+            elif period == "mois":
+                # Mois courant
+                today = date.today()
+                month_str = today.strftime("%Y-%m")
+                return await self._get_monthly_summary(json_manager, [month_str], original_input)
+            else:
+                return f"ERREUR Période non reconnue: {period}. Utilisez 'semaine' ou 'mois'."
+
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERREUR Erreur résumé période: {e}")
+            return f"ERREUR Erreur résumé période: {e}"
 
     async def _get_weekly_summary(self, json_manager, groups: list, original_input: str) -> str:
         """Génère un résumé hebdomadaire"""
