@@ -3895,7 +3895,7 @@ Applique cette adaptation AVANT toute autre considération.
             # Support pour l'ancien système de textes intégraux (rétrocompatibilité)
             if mem.get('text_original_complete'):
                 full_text = mem.get('text_original_complete', '')
-                memories_text += f"   JOURNAL Texte original complet: {full_text}\n"
+                memories_text += f"   Détails complets de ce souvenir: {full_text}\n"
                 print(f"[MEMORY-FULLTEXT] OK Texte complet inclus pour: {mem.get('title', 'N/A')} ({len(full_text)} chars)")
             
             memories_text += "\n"
