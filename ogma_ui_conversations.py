@@ -29,7 +29,62 @@ except ImportError:
 # === IMPORTS MODULES OGMA ===
 from utils.message_parsers import parse_thinking_format, parse_introspection_format
 from utils.formatting_utils import format_datetime, format_size, truncate_filename, get_file_icon
+from conversations import load_conversation_index, save_conversation_index
 from conversations import make_conv_id, make_title_from_text
+
+# === CONSTANTES ===
+DATA_DIR = Path('data')  # Dossier data pour conversations
+
+
+# === HELPER POUR LAZY IMPORT ===
+def _get_ogma():
+    """Import paresseux pour éviter import circulaire"""
+    import ogma_ng
+    return ogma_ng
+
+def deactivate_loading_mode():
+    """Wrapper pour deactivate_loading_mode"""
+    _get_ogma().deactivate_loading_mode()
+
+def _notify_safe(message: str, type: str = 'info') -> None:
+    """Wrapper pour _notify_safe depuis ogma_ng"""
+    try:
+        _get_ogma()._notify_safe(message, type)
+    except Exception:
+        # Fallback si _notify_safe n'existe pas
+        if ui:
+            ui.notify(message, type=type)
+
+def _ensure_settings_manager():
+    """Wrapper pour _ensure_settings_manager depuis ogma_ng"""
+    return _get_ogma()._ensure_settings_manager()
+
+def _get_cognitive_mirror_available() -> bool:
+    """Helper pour récupérer COGNITIVE_MIRROR_AVAILABLE depuis ogma_ng"""
+    try:
+        return _get_ogma().COGNITIVE_MIRROR_AVAILABLE
+    except AttributeError:
+        return False
+
+def _memorization_popup(conv_id: str, conv_title: str):
+    """Wrapper pour _memorization_popup depuis ogma_ng"""
+    _get_ogma()._memorization_popup(conv_id, conv_title)
+
+def _ensure_archiviste_controller():
+    """Wrapper pour _ensure_archiviste_controller depuis ogma_ng"""
+    return _get_ogma()._ensure_archiviste_controller()
+
+def _ensure_memory_manager():
+    """Wrapper pour _ensure_memory_manager depuis ogma_ng"""
+    return _get_ogma()._ensure_memory_manager()
+
+def _ensure_chat_controller():
+    """Wrapper pour _ensure_chat_controller depuis ogma_ng"""
+    return _get_ogma()._ensure_chat_controller()
+
+def _ensure_embedding_controller():
+    """Wrapper pour _ensure_embedding_controller depuis ogma_ng"""
+    return _get_ogma()._embedding_controller
 
 # === VARIABLES GLOBALES IMPORTÉES DEPUIS OGMA_NG ===
 # Note: Ces variables sont définies dans ogma_ng.py qui est le point d'entrée
@@ -37,11 +92,11 @@ from conversations import make_conv_id, make_title_from_text
 # Elles seront déclarées "global" dans les fonctions qui les utilisent
 
 # Liste des variables globales utilisées (référence pour documentation):
-# - _chat_history, _chat_history_ui, _chat_inner
-# - _current_conversation_id, _conv_index
-# - _sidebar_render_cb, _sidebar_container
+# - _get_ogma()._chat_history, _get_ogma()._chat_history_ui, _chat_inner
+# - _get_ogma()._current_conversation_id, _conv_index
+# - _get_ogma()._sidebar_render_cb, _sidebar_container
 # - _chat_controller, _archiviste_controller, _memory_manager, _settings_manager
-# - _editing_message_index, _biography_available
+# - _get_ogma()._editing_message_index, _biography_available
 # - _is_speech_active, _stt_manager, _tts_manager
 # - etc.
 
@@ -67,14 +122,14 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                     # 📖 BIOGRAPHIE PROFIL: Détection phrases magiques Luna dans les réponses
                     biography_context_to_inject = ""
                     try:
-                        if _biography_available and main_content:
+                        if _get_ogma()._biography_available and main_content:
                             # 🛡️ MAGIC PHRASE GUARD: Vérifier si message historique
                             from magic_phrase_guard import should_process_magic_phrase
 
                             # Récupérer métadonnées du message actuel
                             current_message_data = {}
-                            if message_index is not None and message_index < len(_chat_history_ui):
-                                current_message_data = _chat_history_ui[message_index]
+                            if message_index is not None and message_index < len(_get_ogma()._chat_history_ui):
+                                current_message_data = _get_ogma()._chat_history_ui[message_index]
 
                             # Vérifier si traitement autorisé (message temps réel)
                             if should_process_magic_phrase(current_message_data, "BIOGRAPHIE"):
@@ -93,7 +148,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
 
                     # 🧠 COGNITIVE MIRROR v2.0: Détection phrases magiques IA pour introspection
                     try:
-                        if COGNITIVE_MIRROR_AVAILABLE and main_content:
+                        if _get_cognitive_mirror_available() and main_content:
                             from extensions.cognitive_mirror import is_enabled, check_magic_phrases
 
                             if is_enabled():
@@ -102,8 +157,8 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
 
                                 # Récupérer métadonnées du message actuel
                                 current_message_data = {}
-                                if message_index is not None and message_index < len(_chat_history_ui):
-                                    current_message_data = _chat_history_ui[message_index]
+                                if message_index is not None and message_index < len(_get_ogma()._chat_history_ui):
+                                    current_message_data = _get_ogma()._chat_history_ui[message_index]
 
                                 # Vérifier si traitement autorisé (message temps réel)
                                 if should_process_magic_phrase(current_message_data, "INTROSPECTION"):
@@ -131,7 +186,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                                 from identity_manager import get_current_identities
                                                 identities = get_current_identities()
 
-                                                extended_history = _chat_history[-20:] if len(_chat_history) > 20 else _chat_history
+                                                extended_history = _get_ogma()._chat_history[-20:] if len(_chat_history) > 20 else _chat_history
 
                                                 conversation_context = {
                                                     'user_message': f"[Auto-déclenchement suite à phrase magique IA]",
@@ -153,7 +208,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                                     global _introspection_box_content, _introspection_md_widget
                                                     _introspection_box_content = []
 
-                                                    with _chat_inner:
+                                                    with _get_ogma()._chat_inner:
                                                         with ui.expansion().classes('thinking-expansion') as introspection_box:
                                                             introspection_box.props('label=""')
                                                             with introspection_box.add_slot('header'):
@@ -181,12 +236,12 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
 
                                                         # Afficher la réponse finale dans la conversation
                                                         if final_response:
-                                                            with _chat_inner:
+                                                            with _get_ogma()._chat_inner:
                                                                 _message('assistant', final_response)
 
                                                             msg = {'role': 'assistant', 'content': final_response}
-                                                            _chat_history.append(msg)
-                                                            _chat_history_ui.append(msg)
+                                                            _get_ogma()._chat_history.append(msg)
+                                                            _get_ogma()._chat_history_ui.append(msg)
                                                     else:
                                                         print("[INTROSPECTION] ❌ Échec auto-introspection")
                                                 else:
@@ -212,8 +267,8 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
 
                             # Récupérer métadonnées du message actuel
                             current_message_data = {}
-                            if message_index is not None and message_index < len(_chat_history_ui):
-                                current_message_data = _chat_history_ui[message_index]
+                            if message_index is not None and message_index < len(_get_ogma()._chat_history_ui):
+                                current_message_data = _get_ogma()._chat_history_ui[message_index]
 
                             # Vérifier si traitement autorisé (message temps réel)
                             if should_process_magic_phrase(current_message_data, "PERCEPTION"):
@@ -613,17 +668,16 @@ def load_message_for_edit(original_content: str, message_index: int):
         original_content: Texte original du message
         message_index: Index du message dans _chat_history
     """
-    global _editing_message_index, _input_field, _chat_history_ui
 
     try:
         # Stocker l'index pour que _send_chat_message sache qu'on édite
-        _editing_message_index = message_index
+        _get_ogma()._editing_message_index = message_index
 
         # 🛡️ MAGIC PHRASE GUARD: Retirer from_history (message devient "vivant")
         from magic_phrase_guard import unmark_message_as_historical
 
-        if message_index < len(_chat_history_ui):
-            _chat_history_ui[message_index] = unmark_message_as_historical(_chat_history_ui[message_index])
+        if message_index < len(_get_ogma()._chat_history_ui):
+            _get_ogma()._chat_history_ui[message_index] = unmark_message_as_historical(_get_ogma()._chat_history_ui[message_index])
             print(f"[EDIT-MESSAGE] 🔄 Message #{message_index} démarqué - devient éditable")
 
         # Charger le texte dans l'input
@@ -648,12 +702,19 @@ def _load_conversation_index() -> Dict[str, Dict]:
         if idx_path.exists():
             import json
             data = json.loads(idx_path.read_text(encoding='utf-8'))
-            _conv_index = data.get('conversations', {}) or {}
+            # Support ancien format {'conversations': {...}} et nouveau format direct {...}
+            if isinstance(data, dict) and 'conversations' in data:
+                _get_ogma()._conv_index = data.get('conversations', {})
+            else:
+                _get_ogma()._conv_index = data or {}
+            print(f"[CONV-INDEX] ✅ Index chargé: {len(_get_ogma()._conv_index)} conversations")
         else:
-            _conv_index = {}
-    except Exception:
-        _conv_index = {}
-    return _conv_index
+            _get_ogma()._conv_index = {}
+            print(f"[CONV-INDEX] ⚠️ Fichier index.json introuvable: {idx_path}")
+    except Exception as e:
+        _get_ogma()._conv_index = {}
+        print(f"[CONV-INDEX] ❌ Erreur chargement index: {e}")
+    return _get_ogma()._conv_index
 
 
 def _save_conversation_index() -> Tuple[bool, str]:
@@ -705,7 +766,7 @@ async def _generate_smart_title_from_history() -> str:
         relevant_messages = []
         user_count = 0
         
-        for msg in _chat_history:
+        for msg in _get_ogma()._chat_history:
             if msg.get('role') in ('user', 'assistant'):
                 relevant_messages.append(msg)
                 if msg.get('role') == 'user':
@@ -714,7 +775,7 @@ async def _generate_smart_title_from_history() -> str:
                         break
         
         if len(relevant_messages) < 3:  # Pas assez de contenu
-            return _make_title_from_text(_chat_history[0].get('content', '') if _chat_history else '')
+            return _make_title_from_text(_get_ogma()._chat_history[0].get('content', '') if _get_ogma()._chat_history else '')
         
         # Génère un résumé concis pour le titre
         title_prompt = """Génère un titre court (maximum 40 caractères) qui résume le sujet principal de cette conversation. 
@@ -762,24 +823,24 @@ def _schedule_smart_title_generation(conv_id: str):
         else:
             # Reset du flag si pas assez d'interactions
             if conv_id in _conv_index:
-                _conv_index[conv_id]['smart_title_pending'] = False
+                _get_ogma()._conv_index[conv_id]['smart_title_pending'] = False
     except Exception as e:
         print(f"ERROR [SMART-TITLE] Erreur programmation titre: {e}")
         if conv_id in _conv_index:
-            _conv_index[conv_id]['smart_title_pending'] = False
+            _get_ogma()._conv_index[conv_id]['smart_title_pending'] = False
 
 
 async def _generate_smart_title_async(conv_id: str):
     """Génère un titre intelligent en utilisant l'Archiviste"""
     try:
-        global _archiviste_controller, _conv_index
         
-        if not _archiviste_controller:
+        archiviste = _ensure_archiviste_controller()
+        if not archiviste:
             print("WARN [SMART-TITLE] Archiviste non disponible")
             return
             
         # Récupérer les premiers messages pour contexte
-        recent_messages = [m for m in _chat_history[-10:] if m.get('role') in ('user', 'assistant')]
+        recent_messages = [m for m in _get_ogma()._chat_history[-10:] if m.get('role') in ('user', 'assistant')]
         
         if len(recent_messages) < 4:
             return
@@ -810,7 +871,7 @@ Réponds UNIQUEMENT avec le titre, sans guillemets."""
 
         messages = [{"role": "user", "content": prompt}]
         
-        response, error = await _archiviste_controller.call_chat_api(
+        response, error = await archiviste.call_chat_api(
             messages=messages,
             max_tokens=50,
             temperature=0.3,  # Plus déterministe pour les titres
@@ -838,10 +899,10 @@ Réponds UNIQUEMENT avec le titre, sans guillemets."""
         if title and len(title) > 3:
             # Mettre à jour le titre dans l'index
             if conv_id in _conv_index:
-                old_title = _conv_index[conv_id]['title']
-                _conv_index[conv_id]['title'] = title
-                _conv_index[conv_id]['smart_title_pending'] = False
-                _conv_index[conv_id]['auto_title'] = False
+                old_title = _get_ogma()._conv_index[conv_id]['title']
+                _get_ogma()._conv_index[conv_id]['title'] = title
+                _get_ogma()._conv_index[conv_id]['smart_title_pending'] = False
+                _get_ogma()._conv_index[conv_id]['auto_title'] = False
                 
                 # Sauvegarder l'index
                 _save_conversation_index()
@@ -861,7 +922,7 @@ Réponds UNIQUEMENT avec le titre, sans guillemets."""
     finally:
         # Reset du flag en cas d'erreur
         if conv_id in _conv_index:
-            _conv_index[conv_id]['smart_title_pending'] = False
+            _get_ogma()._conv_index[conv_id]['smart_title_pending'] = False
 
 
 async def _regenerate_title_manual(conv_id: str) -> bool:
@@ -938,9 +999,9 @@ Réponds UNIQUEMENT avec le titre, sans guillemets ni ponctuation finale."""
         
         if len(title) > 3:
             # Mettre à jour le titre
-            old_title = _conv_index[conv_id]['title']
-            _conv_index[conv_id]['title'] = title
-            _conv_index[conv_id]['auto_title'] = False
+            old_title = _get_ogma()._conv_index[conv_id]['title']
+            _get_ogma()._conv_index[conv_id]['title'] = title
+            _get_ogma()._conv_index[conv_id]['auto_title'] = False
             
             _save_conversation_index()
             
@@ -948,9 +1009,9 @@ Réponds UNIQUEMENT avec le titre, sans guillemets ni ponctuation finale."""
             _notify_safe(f"UPDATE Nouveau titre: {title}", type='positive')
             
             # Mettre à jour la sidebar avec la conversation modifiée
-            if _sidebar_render_cb:
+            if _get_ogma()._sidebar_render_cb:
                 print(f"[MANUAL-TITLE] UPDATE Rafraîchissement sidebar pour: {conv_id}")
-                _sidebar_render_cb(conv_id)
+                _get_ogma()._sidebar_render_cb(conv_id)
             else:
                 print(f"[MANUAL-TITLE] WARN Pas de callback sidebar disponible")
                 
@@ -967,12 +1028,11 @@ Réponds UNIQUEMENT avec le titre, sans guillemets ni ponctuation finale."""
 
 async def _check_progressive_summarization():
     """Vérifie si une résumisation progressive doit être déclenchée"""
-    global _chat_history, _chat_history_ui
     try:
         from conversation_summarizer import summarizer
 
         # Filtrer les messages utilisateur/assistant
-        valid_messages = [m for m in _chat_history if m.get('role') in ('user', 'assistant')]
+        valid_messages = [m for m in _get_ogma()._chat_history if m.get('role') in ('user', 'assistant')]
         message_count = len(valid_messages)
 
         # Vérifier si on doit résumer
@@ -1001,7 +1061,7 @@ async def _check_progressive_summarization():
                 new_history = []
 
                 # Préserver les messages système en début
-                for msg in _chat_history:
+                for msg in _get_ogma()._chat_history:
                     if msg.get('role') == 'system':
                         new_history.append(msg)
                     else:
@@ -1022,12 +1082,12 @@ async def _check_progressive_summarization():
 
                 # ✅ NOUVEAU : Remplacer UNIQUEMENT l'historique IA
                 # L'historique UI (_chat_history_ui) reste INTACT avec tous les messages originaux
-                _chat_history[:] = new_history
+                _get_ogma()._chat_history[:] = new_history
 
                 reduction = original_count - len(recent_messages)
                 print(f"OK [SUMMARIZER] Historique IA optimisé: {reduction} messages → {len(summaries)} résumés")
                 print(f"STATS [SUMMARIZER] IA - Avant: {original_count} messages, Après: {len(recent_messages)} + {len(summaries)} résumés")
-                print(f"INFO [SUMMARIZER] UI - Historique complet préservé: {len(_chat_history_ui)} messages")
+                print(f"INFO [SUMMARIZER] UI - Historique complet préservé: {len(_get_ogma()._chat_history_ui)} messages")
 
     except Exception as e:
         print(f"ERROR [SUMMARIZER] Erreur résumisation progressive: {e}")
@@ -1035,37 +1095,36 @@ async def _check_progressive_summarization():
 
 def _persist_conversation(initial_text_for_title: Optional[str] = None) -> None:
     """Sauvegarde l'historique courant dans data/conversations/<id>.json et met à jour l'index."""
-    global _current_conversation_id, _conv_index, _chat_history_ui
     try:
         # Assure l'ID et l'entrée d'index
         if not _current_conversation_id:
-            _current_conversation_id = _make_conv_id()
+            _get_ogma()._current_conversation_id = _make_conv_id()
         cid = _current_conversation_id
         # Met à jour/Crée l'entrée index
         from datetime import datetime
         now_iso = datetime.now().isoformat(timespec='seconds')
         if cid not in _conv_index:
             title = _make_title_from_text(initial_text_for_title or '')
-            _conv_index[cid] = {
+            _get_ogma()._conv_index[cid] = {
                 'id': cid,
                 'title': title,
                 'created': now_iso,
                 'updated': now_iso,
-                'message_count': len(_chat_history_ui),  # ✅ Utiliser _chat_history_ui
+                'message_count': len(_get_ogma()._chat_history_ui),  # ✅ Utiliser _chat_history_ui
                 'auto_title': True,
                 'smart_title_pending': False,
             }
         else:
-            _conv_index[cid]['updated'] = now_iso
-            _conv_index[cid]['message_count'] = len(_chat_history_ui)  # ✅ Utiliser _chat_history_ui
+            _get_ogma()._conv_index[cid]['updated'] = now_iso
+            _get_ogma()._conv_index[cid]['message_count'] = len(_get_ogma()._chat_history_ui)  # ✅ Utiliser _chat_history_ui
 
             # 🆕 NOUVEAU: Marque pour génération d'un titre intelligent après 5 interactions
-            user_messages = len([m for m in _chat_history_ui if m.get('role') == 'user'])  # ✅ Utiliser _chat_history_ui
-            if (_conv_index[cid].get('auto_title', True) and
+            user_messages = len([m for m in _get_ogma()._chat_history_ui if m.get('role') == 'user'])  # ✅ Utiliser _chat_history_ui
+            if (_get_ogma()._conv_index[cid].get('auto_title', True) and
                 user_messages >= 5 and
-                not _conv_index[cid].get('smart_title_pending', False)):
+                not _get_ogma()._conv_index[cid].get('smart_title_pending', False)):
 
-                _conv_index[cid]['smart_title_pending'] = True
+                _get_ogma()._conv_index[cid]['smart_title_pending'] = True
                 # Planifie la génération du titre intelligent de manière asynchrone
                 from nicegui_client_guard import safe_timer_callback
                 ui.timer(0.1, safe_timer_callback(lambda: _schedule_smart_title_generation(cid)), once=True)
@@ -1077,7 +1136,7 @@ def _persist_conversation(initial_text_for_title: Optional[str] = None) -> None:
 
         # ✅ SAUVEGARDER _chat_history_ui (historique complet) au lieu de _chat_history (résumé)
         payload = []
-        for m in _chat_history_ui:
+        for m in _get_ogma()._chat_history_ui:
             role = m.get('role')
             content = m.get('content')
             
@@ -1097,8 +1156,8 @@ def _persist_conversation(initial_text_for_title: Optional[str] = None) -> None:
         _save_conversation_index()
         # Rafraîchit la barre latérale si disponible
         try:
-            if _sidebar_render_cb:
-                _sidebar_render_cb(_current_conversation_id)
+            if _get_ogma()._sidebar_render_cb:
+                _get_ogma()._sidebar_render_cb(_current_conversation_id)
         except Exception:
             pass
     except Exception as e:
@@ -1107,21 +1166,20 @@ def _persist_conversation(initial_text_for_title: Optional[str] = None) -> None:
 
 async def _maybe_update_conv_title() -> None:
     """Après au moins 2 messages (user+assistant), proposer un titre contextualisé (IA → fallback heuristique)."""
-    global _title_updating
     try:
-        if _title_updating:
+        if _get_ogma()._title_updating:
             return
-        cid = _current_conversation_id
-        if not cid or cid not in _conv_index:
+        cid = _get_ogma()._current_conversation_id
+        if not cid or cid not in _get_ogma()._conv_index:
             return
-        entry = _conv_index[cid]
+        entry = _get_ogma()._conv_index[cid]
         if not entry.get('auto_title', True):
             return
         # Compter messages significatifs
-        msgs = [m for m in _chat_history if m.get('role') in ('user','assistant') and isinstance(m.get('content'), str)]
+        msgs = [m for m in _get_ogma()._chat_history if m.get('role') in ('user','assistant') and isinstance(m.get('content'), str)]
         if len(msgs) < 2:
             return
-        _title_updating = True
+        _get_ogma()._title_updating = True
         # Préparer un corpus compact (derniers 6 messages max)
         recent = msgs[-6:]
         def _compact_text(s: str, max_len: int = 220) -> str:
@@ -1132,7 +1190,7 @@ async def _maybe_update_conv_title() -> None:
         # Appel IA (Archiviste si dispo sinon Chat)
         title_resp: Optional[str] = None
         try:
-            ctrl = _archiviste_controller or _ensure_chat_controller()
+            ctrl = _ensure_archiviste_controller() or _ensure_chat_controller()
             sys_prompt = (
                 "Tu es un assistant qui génère des titres courts et précis. "
                 "Donne un seul titre en français qui résume le sujet de la conversation ci-dessous. "
@@ -1183,30 +1241,28 @@ async def _maybe_update_conv_title() -> None:
             entry['auto_title'] = False  # fige le titre proposé
             _save_conversation_index()
             try:
-                if _sidebar_render_cb:
-                    _sidebar_render_cb(_current_conversation_id)
+                if _get_ogma()._sidebar_render_cb:
+                    _get_ogma()._sidebar_render_cb(_current_conversation_id)
             except Exception:
                 pass
     finally:
-        _title_updating = False
+        _get_ogma()._title_updating = False
 
 
 def _render_full_history():
     """Ré-affiche l'historique courant dans la zone de conversation."""
-    global _chat_inner, _chat_history_ui
-    if _chat_inner is None:
+    if _get_ogma()._chat_inner is None:
         return
-    with _chat_inner:
-        _chat_inner.clear()
+    with _get_ogma()._chat_inner:
+        _get_ogma()._chat_inner.clear()
         # ✅ UTILISER _chat_history_ui pour l'affichage (historique complet sans résumés)
-        for i, m in enumerate(_chat_history_ui):
+        for i, m in enumerate(_get_ogma()._chat_history_ui):
             badges = ['mémorisé'] if m.get('memorized') else None
             _message(m.get('role', 'system'), m.get('content', ''), badges, message_index=i)
 
 
 def _load_conversation(conv_id: str):
     """Charge une conversation depuis data/conversations/<id>.json et l'affiche."""
-    global _chat_history, _chat_history_ui, _current_conversation_id, _loaded_conversation, _loaded_conversation_filename, _conversation_context_injected, _orchestration_injected
 
     # 🛡️ MAGIC PHRASE GUARD: Importer module protection
     from magic_phrase_guard import activate_loading_mode, deactivate_loading_mode_delayed, mark_message_as_historical
@@ -1249,9 +1305,9 @@ def _load_conversation(conv_id: str):
         _orchestration_injected = False  # Réinitialiser le flag d'orchestration cognitive
 
         # Mettre à jour les deux historiques et afficher (pour lecture seulement)
-        _chat_history = new_hist.copy()  # Pour l'IA (peut être résumé)
-        _chat_history_ui = new_hist.copy()  # Pour l'UI (toujours complet)
-        _current_conversation_id = conv_id
+        _get_ogma()._chat_history = new_hist.copy()  # Pour l'IA (peut être résumé)
+        _get_ogma()._chat_history_ui = new_hist.copy()  # Pour l'UI (toujours complet)
+        _get_ogma()._current_conversation_id = conv_id
         _render_full_history()
 
         # Informer l'utilisateur que la conversation est prête mais pas encore injectée
@@ -1283,15 +1339,14 @@ def _load_conversation(conv_id: str):
 
 def _new_conversation():
     """Réinitialise l'historique pour démarrer une nouvelle conversation."""
-    global _chat_history, _chat_history_ui, _current_conversation_id, _loaded_conversation, _loaded_conversation_filename, _orchestration_injected
 
     # 🛡️ MAGIC PHRASE GUARD: S'assurer que flag temporel est désactivé
     from magic_phrase_guard import deactivate_loading_mode
     deactivate_loading_mode()
 
-    _chat_history = []
-    _chat_history_ui = []
-    _current_conversation_id = None
+    _get_ogma()._chat_history = []
+    _get_ogma()._chat_history_ui = []
+    _get_ogma()._current_conversation_id = None
 
     # 📚 Nettoyer le contexte de conversation chargée
     _loaded_conversation = None
@@ -1301,7 +1356,7 @@ def _new_conversation():
 
     # 📖 BIOGRAPHIE PROFIL: Réinitialiser les noms injectés pour nouvelle conversation
     try:
-        if _biography_available:
+        if _get_ogma()._biography_available:
             from extensions.biographie_profil import get_biography_magic_phrases
             biography_magic = get_biography_magic_phrases()
             if biography_magic:
@@ -1324,26 +1379,26 @@ def _sidebar():
     with ui.element('aside').classes('sidebar'):
         # Actions disponibles dans l'entête
         def do_rename():
-            cid = _current_conversation_id
-            if not cid or cid not in _conv_index:
+            cid = _get_ogma()._current_conversation_id
+            if not cid or cid not in _get_ogma()._conv_index:
                 _notify_safe('Aucune conversation sélectionnée.', 'warning')
                 return
             d = ui.dialog()
             with d, ui.card().classes('popup-content'):
                 ui.label('Renommer la conversation').classes('popup-title')
-                new_title = ui.input(label='Nouveau titre', value=_conv_index[cid].get('title', '')).classes('form-input')
+                new_title = ui.input(label='Nouveau titre', value=_get_ogma()._conv_index[cid].get('title', '')).classes('form-input')
                 with ui.row().classes('justify-end gap-2 mt-4'):
                     ui.button('Annuler', on_click=d.close).classes('action-button')
                     def _apply():
                         title = (new_title.value or '').strip() or 'Sans titre'
-                        _conv_index[cid]['title'] = title
-                        _conv_index[cid]['auto_title'] = False
+                        _get_ogma()._conv_index[cid]['title'] = title
+                        _get_ogma()._conv_index[cid]['auto_title'] = False
                         ok, msg = _save_conversation_index()
                         _notify_safe(msg, 'positive' if ok else 'warning')
                         d.close()
                         try:
-                            if _sidebar_render_cb:
-                                _sidebar_render_cb(cid)
+                            if _get_ogma()._sidebar_render_cb:
+                                _get_ogma()._sidebar_render_cb(cid)
                             else:
                                 render_items(cid)
                         except Exception:
@@ -1352,8 +1407,8 @@ def _sidebar():
             d.open()
 
         def do_delete():
-            cid = _current_conversation_id
-            if not cid or cid not in _conv_index:
+            cid = _get_ogma()._current_conversation_id
+            if not cid or cid not in _get_ogma()._conv_index:
                 _notify_safe('Aucune conversation sélectionnée.', 'warning')
                 return
             d = ui.dialog()
@@ -1371,14 +1426,14 @@ def _sidebar():
                             path = DATA_DIR / 'conversations' / f'{cid}.json'
                             if path.exists():
                                 path.unlink()
-                            _conv_index.pop(cid, None)
+                            _get_ogma()._conv_index.pop(cid, None)
                             ok, msg = _save_conversation_index()
                             _notify_safe(msg, 'positive' if ok else 'warning')
                             d.close()
                             _new_conversation()
                             try:
-                                if _sidebar_render_cb:
-                                    _sidebar_render_cb(None)
+                                if _get_ogma()._sidebar_render_cb:
+                                    _get_ogma()._sidebar_render_cb(None)
                                 else:
                                     render_items(None)
                             except Exception:
@@ -1680,8 +1735,8 @@ def _sidebar():
                     def _on_click(conv_id=cid):
                         _load_conversation(conv_id)
                         try:
-                            if _sidebar_render_cb:
-                                _sidebar_render_cb(conv_id)
+                            if _get_ogma()._sidebar_render_cb:
+                                _get_ogma()._sidebar_render_cb(conv_id)
                             else:
                                 render_items(conv_id)
                         except Exception:
@@ -1720,8 +1775,8 @@ def _sidebar():
                                     _mark_conversation_memorized(conv_id, False)
                                     _trigger_memory_update()  # Actualiser la liste des mémoires
                                     # Recharger la sidebar pour mettre à jour l'icône
-                                    if _sidebar_render_cb:
-                                        _sidebar_render_cb(_current_conversation_id)
+                                    if _get_ogma()._sidebar_render_cb:
+                                        _get_ogma()._sidebar_render_cb(_get_ogma()._current_conversation_id)
                                     ui.notify(f'💔 Conversation "{conv_title}" supprimée de la mémoire', type='info')
                                 else:
                                     # Vérifier la limite de 15 conversations mémorisées
@@ -1792,9 +1847,9 @@ def _sidebar():
                                             # Forcer le rafraîchissement avec un petit délai
                                             import asyncio
                                             await asyncio.sleep(0.2)  # Petit délai pour que l'index soit bien sauvé
-                                            if _sidebar_render_cb:
+                                            if _get_ogma()._sidebar_render_cb:
                                                 print(f"[DEBUG-TITLE] UPDATE Rafraîchissement sidebar forcé")
-                                                _sidebar_render_cb(conv_id)
+                                                _get_ogma()._sidebar_render_cb(conv_id)
                                     except Exception as e:
                                         print(f"[DEBUG-TITLE] ERROR Erreur dans do_regenerate: {e}")
                                         _notify_safe(f"ERROR Erreur: {e}", type='negative')
@@ -1817,14 +1872,13 @@ def _sidebar():
                             title_label = ui.label(title).classes('sidebar-item-title flex-1 cursor-pointer')
                             title_label.on('click', _on_click)
         # Expose render callback pour mises à jour temps réel
-        global _sidebar_render_cb
         def _cb(active_id: Optional[str] = None):
             nonlocal idx
             # recharger l'index depuis disque pour afficher les nouvelles conversations
             idx = _load_conversation_index()
             render_items(active_id)
-        _sidebar_render_cb = _cb
-        render_items(_current_conversation_id)
+        _get_ogma()._sidebar_render_cb = _cb
+        render_items(_get_ogma()._current_conversation_id)
 
         # Footer: uniquement pour l'espacement
         with ui.element('div').classes('sidebar-footer'):
@@ -1952,27 +2006,27 @@ def _mark_conversation_memorized(conversation_id: str, memorized: bool):
     """Marque une conversation comme mémorisée dans l'index."""
     global _conv_index
     if conversation_id in _conv_index:
-        _conv_index[conversation_id]['memorized'] = memorized
+        _get_ogma()._conv_index[conversation_id]['memorized'] = memorized
         _save_conversation_index()
 
 
 def _is_conversation_memorized(conversation_id: str) -> bool:
     """Vérifie si une conversation est déjà mémorisée."""
     global _conv_index
-    return _conv_index.get(conversation_id, {}).get('memorized', False)
+    return _get_ogma()._conv_index.get(conversation_id, {}).get('memorized', False)
 
 
 def _count_memorized_conversations() -> int:
     """Compte le nombre total de conversations mémorisées."""
     global _conv_index
-    return sum(1 for conv in _conv_index.values() if conv.get('memorized', False))
+    return sum(1 for conv in _get_ogma()._conv_index.values() if conv.get('memorized', False))
 
 
 def _get_memorized_conversations_list() -> list[tuple[str, str]]:
     """Retourne la liste des conversations mémorisées avec leur date."""
     global _conv_index
     memorized = []
-    for conv_id, conv_data in _conv_index.items():
+    for conv_id, conv_data in _get_ogma()._conv_index.items():
         if conv_data.get('memorized', False):
             created = conv_data.get('created', '')
             memorized.append((conv_id, created))
@@ -2066,8 +2120,8 @@ def _create_edit_interface(dialog, conversation_id: str, title: str, summary: st
                     ui.notify('OK Conversation mémorisée avec succès', type='positive')
                     dialog.close()
                     # Rafraîchir la sidebar pour mettre à jour l'icône
-                    if _sidebar_render_cb:
-                        _sidebar_render_cb(_current_conversation_id)
+                    if _get_ogma()._sidebar_render_cb:
+                        _get_ogma()._sidebar_render_cb(_get_ogma()._current_conversation_id)
                     # Actualiser la liste des mémoires si ouverte
                     _trigger_memory_update()
                 else:
@@ -3319,7 +3373,7 @@ async def _display_archived_conversation(filename: str, conversation: List[Dict]
     """Affiche une conversation archivée dans le chat"""
     global _chat_inner
     
-    with _chat_inner:
+    with _get_ogma()._chat_inner:
         ui.html(f"""
         <div class="archived-conversation">
             <div class="system-message">
@@ -3350,7 +3404,7 @@ async def _display_search_results(search_term: str, results: List[Dict]):
     """Affiche les résultats de recherche dans les conversations"""
     global _chat_inner
     
-    with _chat_inner:
+    with _get_ogma()._chat_inner:
         ui.html(f"""
         <div class="search-results">
             <div class="system-message">
@@ -3378,7 +3432,7 @@ async def _display_conversation_summary(filename: str, summary: str):
     """Affiche le résumé d'une conversation"""
     global _chat_inner
     
-    with _chat_inner:
+    with _get_ogma()._chat_inner:
         ui.html(f"""
         <div class="conversation-summary">
             <div class="system-message">
@@ -3397,7 +3451,7 @@ async def _display_available_conversations():
     
     conversations = archive.list_conversations()
     
-    with _chat_inner:
+    with _get_ogma()._chat_inner:
         ui.html(f"""
         <div class="available-conversations">
             <div class="system-message">
