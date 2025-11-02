@@ -94,6 +94,32 @@ from files.file_management import (
 )
 # ====== FIN MODULES REFACTORÉS ======
 
+# ====== MODULE UI CONVERSATIONS (Scénario A - Nov 2025) ======
+# Import des fonctions UI pour conversations, sidebar, modals  
+# NOTE: Import circulaire résolu car ogma_ng.py est le point d'entrée
+# Les fonctions restent AUSSI définies ci-dessous pour rétro-compatibilité temporaire
+# TODO Phase 2bis: Supprimer les définitions locales après tests
+try:
+    from ogma_ui_conversations import (
+        _message as _message_refactored,
+        load_message_for_edit as load_message_for_edit_refactored,
+        _sidebar as _sidebar_refactored,
+        _load_conversation_index as _load_conversation_index_refactored,
+        _save_conversation_index as _save_conversation_index_refactored,
+        _load_conversation as _load_conversation_refactored,
+        _new_conversation as _new_conversation_refactored,
+        _persist_conversation as _persist_conversation_refactored,
+        _delete_conversation_modal as _delete_conversation_modal_refactored,
+        _edit_conversation_title_modal as _edit_conversation_title_modal_refactored,
+        _display_search_results as _display_search_results_refactored
+    )
+    _UI_CONVERSATIONS_AVAILABLE = True
+    print("[REFACTORING] ✅ Module ogma_ui_conversations chargé")
+except ImportError as e:
+    print(f"[REFACTORING] ⚠️ Module ogma_ui_conversations non disponible: {e}")
+    _UI_CONVERSATIONS_AVAILABLE = False
+# ====== FIN MODULE UI CONVERSATIONS ======
+
 # COGNITIVE MIRROR EXTENSION
 try:
     from extensions.cognitive_mirror import initialize_cognitive_mirror, get_cognitive_mirror
