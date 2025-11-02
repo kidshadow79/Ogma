@@ -1790,6 +1790,45 @@ def _image_modal():
                 ).classes('mb-2')
                 ui.label('⚠️ Recommandé: ACTIVER pour filtrer le contenu inapproprié').classes('text-sm text-yellow-400')
 
+            # Section Prompt Enhancement - Exposer les paramètres backend
+            with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
+                ui.label('🚀 Amélioration des Prompts (PromptEnhancer)').classes('font-semibold mb-2')
+                ui.label('Modifiez les qualifiers ajoutés automatiquement aux prompts').classes('text-sm text-gray-400 mb-3')
+                
+                prompt_config = img_config.get('prompt_enhancement', {})
+                
+                # Valeurs par défaut du backend
+                default_quality = "highly detailed, photorealistic, 8k uhd resolution, sharp focus, professional photography, studio quality lighting, cinematic composition, masterpiece quality, perfect anatomy, natural skin texture, realistic details, high definition, crisp image, professional color grading"
+                default_nsfw = "anatomically correct, natural proportions, realistic body, authentic human anatomy, detailed skin pores, natural skin imperfections, subtle muscle definition, realistic lighting on skin"
+
+                # Zone 1: Quality Boosts (14 qualifiers par défaut)
+                ui.label('📊 Quality Boosts (qualité générale):').classes('text-sm font-medium mb-1')
+                quality_boosts_input = ui.textarea(
+                    placeholder='Qualifiers de qualité séparés par des virgules',
+                    value=prompt_config.get('quality_boosts', default_quality)
+                ).classes('w-full').style('min-height: 100px;')
+                ui.label('Ajoutés à TOUS les prompts pour améliorer la qualité').classes('text-xs text-gray-500 mb-3')
+
+                # Zone 2: NSFW Boosts (8 qualifiers par défaut)
+                ui.label('🔞 NSFW Boosts (réalisme anatomique):').classes('text-sm font-medium mb-1')
+                nsfw_boosts_input = ui.textarea(
+                    placeholder='Qualifiers NSFW séparés par des virgules',
+                    value=prompt_config.get('nsfw_boosts', default_nsfw)
+                ).classes('w-full').style('min-height: 80px;')
+                ui.label('Ajoutés uniquement quand contenu NSFW détecté (mots-clés: nue, naked, seins, etc.)').classes('text-xs text-gray-500 mb-3')
+
+            # Section Prompt Négatif
+            with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
+                ui.label('🚫 Prompt Négatif').classes('font-semibold mb-2')
+                ui.label('Éléments à éviter dans les générations').classes('text-sm text-gray-400 mb-3')
+
+                negative_prompt_input = ui.textarea(
+                    placeholder='Exemple: blurry, low quality, distorted, bad anatomy, deformed, ugly, disfigured',
+                    value=img_config.get('negative_prompt', 'blurry, low quality, distorted')
+                ).classes('w-full').style('min-height: 100px;')
+                
+                ui.label('💡 Intégré au prompt via "| AVOID: ..."').classes('text-sm text-blue-400 mt-2')
+
             # Section sauvegarde
             with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
                 ui.label('Sauvegarde').classes('font-semibold mb-2')
@@ -1850,12 +1889,22 @@ def _image_modal():
                     'model': model_select.value,
                     'safe_mode': safe_check.value,
                     'save_images': save_check.value,
-                    'ai_can_see_images': vision_check.value
+                    'ai_can_see_images': vision_check.value,
+                    'negative_prompt': negative_prompt_input.value.strip(),
+                    'prompt_enhancement': {
+                        'quality_boosts': quality_boosts_input.value.strip(),
+                        'nsfw_boosts': nsfw_boosts_input.value.strip()
+                    }
                 }
 
                 # Sauvegarder
                 sm.settings['image_generation'] = new_config
                 sm.save_settings()
+                
+                print(f"[IMAGE-CONFIG] ✅ Configuration sauvegardée:")
+                print(f"  - Quality boosts: {len(new_config['prompt_enhancement']['quality_boosts'])} chars")
+                print(f"  - NSFW boosts: {len(new_config['prompt_enhancement']['nsfw_boosts'])} chars")
+                print(f"  - Negative prompt: {len(new_config['negative_prompt'])} chars")
 
                 # Réinitialiser l'extension text2img avec les nouveaux paramètres
                 from extensions.text2img import initialize_text2img
