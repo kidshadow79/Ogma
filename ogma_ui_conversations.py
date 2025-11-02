@@ -720,7 +720,17 @@ def _load_conversation_index() -> Dict[str, Dict]:
         idx_path = DATA_DIR / 'conversations' / 'index.json'
         if idx_path.exists():
             import json
-            data = json.loads(idx_path.read_text(encoding='utf-8'))
+            content = idx_path.read_text(encoding='utf-8').strip()
+            
+            # Gérer fichier vide ou corrompu
+            if not content:
+                print(f"[CONV-INDEX] ⚠️ Fichier index.json vide, réinitialisation")
+                _get_ogma()._conv_index = {}
+                # Sauvegarder structure vide valide
+                _save_conversation_index()
+                return _get_ogma()._conv_index
+            
+            data = json.loads(content)
             # Support ancien format {'conversations': {...}} et nouveau format direct {...}
             if isinstance(data, dict) and 'conversations' in data:
                 _get_ogma()._conv_index = data.get('conversations', {})
@@ -733,6 +743,7 @@ def _load_conversation_index() -> Dict[str, Dict]:
     except Exception as e:
         _get_ogma()._conv_index = {}
         print(f"[CONV-INDEX] ❌ Erreur chargement index: {e}")
+        print(f"[CONV-INDEX] 🔧 Réinitialisation index conversations")
     return _get_ogma()._conv_index
 
 
