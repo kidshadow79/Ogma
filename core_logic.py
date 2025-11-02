@@ -1354,10 +1354,13 @@ class EmbeddingController:
         self.ollama_model = "mistral:latest"  # Modèle Ollama par défaut
     def configure(self, backend_type, api_provider=None, api_key=None, api_model=None, ollama_model=None, gguf_model=None):
         self.backend_type = backend_type
-        if backend_type == "API":
+        # Normalisation backend_type pour comparaison case-insensitive
+        backend_normalized = backend_type.upper() if backend_type else ""
+        
+        if backend_normalized == "API":
             self.api_manager.configure(api_provider, api_key, api_model)
             self.is_available = self.api_manager.is_available
-        elif backend_type == "AIHorde":
+        elif backend_normalized == "AIHORDE":
             settings = SettingsManager(Path("data/settings.json")).settings
             horde_settings = settings.get("horde_api", {})
             self.horde_manager.configure(
@@ -1365,10 +1368,10 @@ class EmbeddingController:
                 horde_settings.get("model", "PygmalionAI/pygmalion-2-13b")
             )
             self.is_available = self.horde_manager.is_available
-        elif backend_type == "Ollama": 
+        elif backend_normalized == "OLLAMA": 
             self.ollama_model = ollama_model or "mistral:latest"
             self.is_available = self.ollama_manager.is_available
-        elif backend_type == "GGUF/llama.cpp":
+        elif backend_normalized in ["GGUF/LLAMA.CPP", "GGUF"]:
             self.gguf_manager.load_model(gguf_model, 4096, -1)
             self.is_available = self.gguf_manager.is_available
     async def create_embedding(self, text: str) -> Optional[List[float]]:
