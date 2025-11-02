@@ -765,13 +765,15 @@ Commence par un emoji approprié (🧠 ou 🛑)."""
         """
         try:
             # Import dynamique pour éviter dépendances circulaires
-            import sys
-            import os
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            import ogma_ng
+            def _get_ogma():
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+                import ogma_ng
+                return ogma_ng
             
             # Récupérer _chat_history global d'OGMA
-            chat_history = getattr(ogma_ng, '_chat_history', [])
+            chat_history = _get_ogma()._chat_history if hasattr(_get_ogma(), '_chat_history') else []
             
             if not chat_history:
                 return "Aucun historique conversationnel disponible."
@@ -814,12 +816,14 @@ Commence par un emoji approprié (🧠 ou 🛑)."""
         """
         try:
             # Tenter d'accéder au memory_manager d'OGMA
-            import sys
-            import os
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            import ogma_ng
+            def _get_ogma():
+                import sys
+                import os
+                sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+                import ogma_ng
+                return ogma_ng
             
-            memory_manager = getattr(ogma_ng, '_memory_manager', None)
+            memory_manager = _get_ogma()._ensure_memory_manager()
             
             if not memory_manager:
                 return "Aucun gestionnaire de mémoire disponible."

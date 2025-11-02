@@ -128,8 +128,11 @@ class BiographyMagicPhrases:
         """
         try:
             # 1. Analyser les derniers messages de la conversation actuelle
-            import ogma_ng
-            chat_history = getattr(ogma_ng, '_chat_history', [])
+            def _get_ogma():
+                import ogma_ng
+                return ogma_ng
+            
+            chat_history = _get_ogma()._chat_history if hasattr(_get_ogma(), '_chat_history') else []
 
             if chat_history:
                 # Chercher prénoms dans les 15 derniers messages utilisateur
