@@ -725,17 +725,22 @@ class StructuredBiographyManager:
     async def _analyze_summary_content(self, content: str, file_info: Dict) -> Dict:
         """Analyse un résumé via l'IA pour extraire des insights psychologiques"""
         try:
-            # Accéder aux instances IA globales OGMA
-            import ogma_ng
+            # Accéder aux instances IA globales OGMA via _get_ogma()
+            def _get_ogma():
+                import ogma_ng
+                return ogma_ng
             
             # Utiliser l'archiviste si disponible, sinon le chat controller
-            if hasattr(ogma_ng, '_archiviste_controller') and ogma_ng._archiviste_controller:
-                ai_controller = ogma_ng._archiviste_controller
-            elif hasattr(ogma_ng, '_chat_controller') and ogma_ng._chat_controller:
-                ai_controller = ogma_ng._chat_controller  
+            archiviste = _get_ogma()._ensure_archiviste_controller()
+            if archiviste and archiviste.is_available():
+                ai_controller = archiviste
             else:
-                # Fallback : essayer d'analyser avec une approche simplifiée
-                return self._simple_summary_analysis(content, file_info)
+                chat = _get_ogma()._ensure_chat_controller()
+                if chat and chat.is_available():
+                    ai_controller = chat
+                else:
+                    # Fallback : essayer d'analyser avec une approche simplifiée
+                    return self._simple_summary_analysis(content, file_info)
             
             # Prompt d'analyse spécialisé pour les résumés
             analysis_prompt = f"""Analyse ce résumé de conversation pour extraire des insights biographiques structurés.
