@@ -175,13 +175,16 @@ class JournalCore:
     
     def get_today_context(self, max_entries: int = None) -> str:
         """
-        Retourne le contexte de la journée actuelle pour enrichir conversation
+        Retourne le contexte des dernières conversations pour enrichir conversation.
+        
+        Utilise la cascade intelligente: récupère les N dernières conversations
+        peu importe leur date (aujourd'hui, hier, il y a 1 mois, etc.)
         
         Args:
             max_entries: Nombre max d'entrées (par défaut: config)
         
         Returns:
-            str: Contexte formaté pour injection en début de conversation
+            str: Contexte formaté avec header adaptatif selon délai
         """
         if not self.is_ready():
             print("[JOURNAL-CORE] WARN Journal non prêt pour get_today_context")
@@ -191,9 +194,8 @@ class JournalCore:
             self._set_state(JournalState.ACTIVE)
             start_time = time.time()
             
-            # Vérification cache
-            today = date.today().isoformat()
-            cache_key = f"context_{today}_{max_entries}"
+            # Vérification cache (invalidé toutes les 5 minutes)
+            cache_key = f"context_cascade_{max_entries}"
             
             if (cache_key in self.context_cache and 
                 self.last_cache_update and 
@@ -201,9 +203,8 @@ class JournalCore:
                 print("[JOURNAL-CORE] INIT Contexte depuis cache")
                 return self.context_cache[cache_key]
             
-            # Génération du contexte
-            context = self.context_provider.get_daily_context(
-                target_date=today,
+            # Génération du contexte avec CASCADE
+            context = self.context_provider.get_recent_context_with_cascade(
                 max_entries=max_entries or self.config.get("context_max_entries", 3)
             )
             
@@ -213,7 +214,7 @@ class JournalCore:
             
             # Callback
             if self.on_context_requested:
-                self.on_context_requested(today, context)
+                self.on_context_requested("cascade", context)
             
             duration = time.time() - start_time
             print(f"[JOURNAL-CORE] JOURNAL Contexte généré en {duration:.3f}s")
@@ -251,7 +252,7 @@ class JournalCore:
             # Génération du résumé via Archiviste
             entry_data = await self.entry_generator.generate_entry(
                 conversation_id=conversation_id,
-                metadata=metadata
+                **metadata  # 🔧 FIX: Décompresser metadata pour passer conversation_history
             )
             
             if not entry_data:

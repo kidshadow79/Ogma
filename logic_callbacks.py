@@ -1136,10 +1136,12 @@ async def process_image_generation(response_text: str, settings_manager, text2im
         print("[IMAGE-DEBUG] Génération d'images désactivée")
         return response_text
 
-    # Pattern de détection : "je dois créer une image de : [description]"
-    # IMPORTANT: Phrase magique stricte uniquement pour éviter faux positifs
+    # Patterns de détection : phrases magiques et variantes naturelles
+    # IMPORTANT: Accepte les variations naturelles du langage de Luna
     patterns = [
         r"je dois créer une image de\s*[:]\s*(.*?)(?:[.\n]|$)",  # Pattern original exact
+        r"il faut que je crée une image de\s*[:]\s*(.*?)(?:[.\n]|$)",  # Variante "il faut que"
+        r"je (?:vais|dois) (?:générer|créer) une image de\s*[:]\s*(.*?)(?:[.\n]|$)",  # Variantes actives
     ]
 
     image_match = None

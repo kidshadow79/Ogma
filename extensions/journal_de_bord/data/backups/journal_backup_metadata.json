@@ -1,6 +1,6 @@
 {
-  "total_backups_created": 54,
-  "current_backup_count": 5,
+  "total_backups_created": 63,
+  "current_backup_count": 6,
   "journal_backups": [
     {
       "filename": "journal_2025_backup_20251012_010.json",
@@ -41,10 +41,18 @@
       "size_bytes": 118311,
       "backup_number": 50,
       "type": "journal_auto_backup"
+    },
+    {
+      "filename": "journal_2025_backup_20251101_060.json",
+      "original_filename": "journal_2025.json",
+      "date": "2025-11-01T12:38:12.173287",
+      "size_bytes": 157833,
+      "backup_number": 60,
+      "type": "journal_auto_backup"
     }
   ],
   "backup_interval": 10,
-  "next_backup_threshold": 60,
+  "next_backup_threshold": 70,
   "oldest_backup_kept": {
     "filename": "journal_2025_backup_20251012_010.json",
     "original_filename": "journal_2025.json",
@@ -54,11 +62,11 @@
     "type": "journal_auto_backup"
   },
   "latest_backup": {
-    "filename": "journal_2025_backup_20251019_050.json",
+    "filename": "journal_2025_backup_20251101_060.json",
     "original_filename": "journal_2025.json",
-    "date": "2025-10-19T03:27:20.773713",
-    "size_bytes": 118311,
-    "backup_number": 50,
+    "date": "2025-11-01T12:38:12.173287",
+    "size_bytes": 157833,
+    "backup_number": 60,
     "type": "journal_auto_backup"
   }
 }

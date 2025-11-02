@@ -2053,103 +2053,85 @@ Ta note contextuelle enrichie (réponds directement):"""
 
     def delete_all_memories(self) -> Dict[str, Any]:
         """
-        Supprime TOUS les souvenirs de la mémoire (SQLite + FAISS + embeddings).
-        
-        ⚠️ OPÉRATION DESTRUCTIVE IRRÉVERSIBLE ⚠️
+        Supprime TOUS les souvenirs de manière sécurisée avec backup automatique.
         
         Chaîne complète :
-        - Supprime toutes les entrées SQLite
-        - Réinitialise l'index FAISS
-        - Efface tous les mappings ID↔FAISS
-        - Synchronise ego_prompt.txt si traits ego supprimés
+        1. Backup automatique de la base SQLite
+        2. Suppression de tous les enregistrements SQLite
+        3. Réinitialisation de l'index FAISS
+        4. Clear des mappings id_to_faiss et faiss_to_id
+        5. Synchronisation ego_prompt.txt
         
         Returns:
-            Dict avec statistiques : {
-                'deleted_count': int,
-                'faiss_reset': bool,
-                'backup_created': bool,
-                'backup_path': str
-            }
+            Dict avec les statistiques de suppression et info backup
         """
+        from datetime import datetime
+        import shutil
+        from pathlib import Path
+        
         try:
-            print("[DELETE-ALL] ⚠️  SUPPRESSION TOTALE DE LA MÉMOIRE DÉMARRÉE...")
+            # 1. Créer backup automatique avant suppression
+            backup_dir = Path(self.db_path).parent / 'backup'
+            backup_dir.mkdir(exist_ok=True)
             
-            # Créer backup avant suppression
-            from datetime import datetime
-            import shutil
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = backup_dir / f"memories_backup_before_delete_all_{timestamp}.db"
             
-            backup_path = None
-            backup_created = False
+            shutil.copy2(self.db_path, backup_path)
+            print(f"[DELETE-ALL] Backup créé: {backup_path}")
             
-            try:
-                backup_dir = self.db_path.parent / "backup"
-                backup_dir.mkdir(exist_ok=True)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                backup_path = backup_dir / f"memories_backup_before_delete_all_{timestamp}.db"
-                shutil.copy2(self.db_path, backup_path)
-                backup_created = True
-                print(f"[DELETE-ALL] ✅ Backup créé: {backup_path}")
-            except Exception as e:
-                print(f"[DELETE-ALL] ⚠️  Backup échoué: {e}")
-            
-            # Compter souvenirs avant suppression
+            # 2. Compter les souvenirs et vider la base
+            count_before = 0
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute("SELECT COUNT(*) FROM memories")
                 count_before = cursor.fetchone()[0]
-            
-            print(f"[DELETE-ALL] 📊 {count_before} souvenirs à supprimer...")
-            
-            # Supprimer tous les souvenirs SQLite
-            with sqlite3.connect(self.db_path) as conn:
+                print(f"[DELETE-ALL] {count_before} souvenirs à supprimer")
+                
+                # Supprimer tous les enregistrements
                 conn.execute("DELETE FROM memories")
                 conn.commit()
+                print(f"[DELETE-ALL] Base vidée")
             
-            print(f"[DELETE-ALL] 🗑️  SQLite vidé ({count_before} souvenirs supprimés)")
+            # 3. Compacter la base (VACUUM doit être hors transaction)
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("VACUUM")  # Compacter pour libérer l'espace des embeddings
+                print(f"[DELETE-ALL] Base compactée (VACUUM) - espace libéré")
             
-            # Réinitialiser les mappings
-            with self._mapping_lock:
-                self.id_to_faiss.clear()
-                self.faiss_to_id.clear()
-                self.next_faiss_pos = 0
+            # 4. Clear des mappings
+            self.id_to_faiss.clear()
+            self.faiss_to_id.clear()
+            print(f"[DELETE-ALL] Mappings id_to_faiss et faiss_to_id vidés")
             
-            print("[DELETE-ALL] 🔄 Mappings réinitialisés")
+            # 5. Réinitialiser l'index FAISS
+            self.faiss_index = faiss.IndexFlatL2(self.embedding_dim)
+            self.save_index()  # Sauvegarder l'index vide
+            print(f"[DELETE-ALL] Index FAISS réinitialisé (dim={self.embedding_dim})")
             
-            # Réinitialiser l'index FAISS
-            with self._faiss_lock:
-                self.faiss_index = faiss.IndexFlatL2(self.embedding_dim)
-            
-            # Sauvegarder l'index vide
-            self.save_index()
-            
-            print("[DELETE-ALL] ✅ Index FAISS réinitialisé et sauvegardé")
-            
-            # Synchroniser ego_prompt.txt (vider les références)
+            # 6. Synchronisation ego_prompt.txt (supprimer références orphelines)
             try:
                 self.sync_ego_prompt_references()
-                print("[DELETE-ALL] 🔄 ego_prompt.txt synchronisé (références vidées)")
+                print(f"[DELETE-ALL] ego_prompt.txt synchronisé")
             except Exception as e:
-                print(f"[DELETE-ALL] ⚠️  Sync ego_prompt échoué: {e}")
+                print(f"[DELETE-ALL] Erreur sync ego_prompt: {e}")
             
+            # 7. Statistiques retournées
             result = {
                 'deleted_count': count_before,
                 'faiss_reset': True,
-                'backup_created': backup_created,
-                'backup_path': str(backup_path) if backup_path else None
+                'backup_created': True,
+                'backup_path': str(backup_path),
+                'database_vacuumed': True
             }
             
-            print(f"[DELETE-ALL] ✅ SUPPRESSION TOTALE TERMINÉE : {count_before} souvenirs effacés")
-            
+            print(f"[DELETE-ALL] Suppression terminée: {count_before} souvenirs supprimés, base compactée")
             return result
             
         except Exception as e:
-            print(f"[DELETE-ALL] ❌ ERREUR CRITIQUE: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"[DELETE-ALL] Erreur critique: {e}")
             return {
                 'deleted_count': 0,
                 'faiss_reset': False,
                 'backup_created': False,
-                'backup_path': None,
                 'error': str(e)
             }
 
