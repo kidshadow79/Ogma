@@ -42,9 +42,15 @@ def _get_ogma():
     import ogma_ng
     return ogma_ng
 
+def activate_loading_mode():
+    """Wrapper pour activate_loading_mode depuis magic_phrase_guard"""
+    from magic_phrase_guard import activate_loading_mode as _activate
+    _activate()
+
 def deactivate_loading_mode():
-    """Wrapper pour deactivate_loading_mode"""
-    _get_ogma().deactivate_loading_mode()
+    """Wrapper pour deactivate_loading_mode depuis magic_phrase_guard"""
+    from magic_phrase_guard import deactivate_loading_mode as _deactivate
+    _deactivate()
 
 def _notify_safe(message: str, type: str = 'info') -> None:
     """Wrapper pour _notify_safe depuis ogma_ng"""
@@ -779,7 +785,6 @@ def load_message_for_edit(original_content: str, message_index: int):
 
 def _load_conversation_index() -> Dict[str, Dict]:
     """Charge data/conversations/index.json si présent."""
-    global _conv_index
     try:
         idx_path = DATA_DIR / 'conversations' / 'index.json'
         if idx_path.exists():
@@ -1067,9 +1072,8 @@ async def _regenerate_title_manual(conv_id: str) -> bool:
     """Régénère manuellement le titre d'une conversation via l'IA principale."""
     try:
         print(f"[MANUAL-TITLE] SEARCH Début régénération pour conversation: {conv_id}")
-        global _chat_controller
         
-        if conv_id not in _conv_index:
+        if conv_id not in _get_conv_index():
             print(f"[MANUAL-TITLE] ERROR Conversation {conv_id} non trouvée dans l'index")
             return False
             
@@ -2157,13 +2161,11 @@ def _is_conversation_memorized(conversation_id: str) -> bool:
 
 def _count_memorized_conversations() -> int:
     """Compte le nombre total de conversations mémorisées."""
-    global _conv_index
     return sum(1 for conv in _get_ogma()._conv_index.values() if conv.get('memorized', False))
 
 
 def _get_memorized_conversations_list() -> list[tuple[str, str]]:
     """Retourne la liste des conversations mémorisées avec leur date."""
-    global _conv_index
     memorized = []
     for conv_id, conv_data in _get_ogma()._conv_index.items():
         if conv_data.get('memorized', False):
