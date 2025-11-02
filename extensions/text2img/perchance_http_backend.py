@@ -20,10 +20,11 @@ from .prompt_enhancer import get_enhancer
 class PerchanceHTTPBackend:
     """Backend de génération d'images via API HTTP Pollinations.ai"""
 
-    def __init__(self):
+    def __init__(self, settings_manager=None):
         self.is_available = False
         self.backend_name = "Pollinations.AI"
         self.model_name = "Flux"
+        self.settings_manager = settings_manager
 
         # API endpoint
         self.base_url = "https://image.pollinations.ai/prompt"
@@ -132,13 +133,56 @@ class PerchanceHTTPBackend:
         
         # ENRICHISSEMENT PROMPT PERCHANCE
         original_prompt = prompt
+        negative_prompt_text = ""
+        
         if self.prompt_enhancer and self.enable_prompt_enhancement:
             try:
-                prompt = self.prompt_enhancer.enhance(prompt)
+                # Récupérer les paramètres depuis settings
+                quality_boosts = ""
+                nsfw_boosts = ""
+                custom_boosts = ""
+                
+                if self.settings_manager:
+                    img_settings = self.settings_manager.settings.get('image_generation', {})
+                    prompt_config = img_settings.get('prompt_enhancement', {})
+                    
+                    # Récupérer les boosts depuis settings
+                    quality_boosts = prompt_config.get('quality_boosts', '')
+                    nsfw_boosts = prompt_config.get('nsfw_boosts', '')
+                    custom_boosts = prompt_config.get('custom_boosts', '')
+                    
+                    # Récupérer prompt négatif
+                    negative_prompt_text = img_settings.get('negative_prompt', '')
+                    
+                    if quality_boosts:
+                        print(f"[TEXT2IMG-HTTP] 📊 Quality boosts: {len(quality_boosts)} chars")
+                    if nsfw_boosts:
+                        print(f"[TEXT2IMG-HTTP] 🔞 NSFW boosts: {len(nsfw_boosts)} chars")
+                    if custom_boosts:
+                        print(f"[TEXT2IMG-HTTP] ✨ Custom boosts: {len(custom_boosts)} chars")
+                    if negative_prompt_text:
+                        print(f"[TEXT2IMG-HTTP] 🚫 Negative prompt: '{negative_prompt_text[:50]}...'")
+                
+                # Enrichir le prompt avec les boosts depuis settings
+                prompt = self.prompt_enhancer.enhance(
+                    prompt,
+                    quality_boosts=quality_boosts,
+                    nsfw_boosts=nsfw_boosts,
+                    custom_boosts=custom_boosts
+                )
+                
+                # Ajouter le prompt négatif en instruction explicite (workaround Pollinations)
+                # Note: Pollinations ne supporte pas negative_prompt nativement,
+                # mais on peut l'ajouter comme instruction dans le prompt
+                if negative_prompt_text:
+                    prompt = f"{prompt} | AVOID: {negative_prompt_text}"
+                
                 print(f"[TEXT2IMG-HTTP] 🚀 Prompt enrichi ({len(original_prompt)} → {len(prompt)} chars)")
             except Exception as e:
                 print(f"[TEXT2IMG-HTTP] ⚠️ Erreur enrichissement prompt: {e}")
                 print(f"[TEXT2IMG-HTTP] ℹ️ Utilisation prompt original")
+                import traceback
+                traceback.print_exc()
                 prompt = original_prompt
 
         try:

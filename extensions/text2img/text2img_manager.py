@@ -42,7 +42,8 @@ class Text2ImageManager:
             print("[TEXT2IMG-MANAGER] 🔧 Initialisation backend...")
 
             # Utiliser le backend HTTP (plus fiable que la lib Python)
-            self.backend = PerchanceHTTPBackend()
+            # Passer settings_manager pour accès aux paramètres custom
+            self.backend = PerchanceHTTPBackend(settings_manager=self.settings_manager)
             success = self.backend.initialize()
 
             if success:

@@ -127,16 +127,18 @@ class PromptEnhancer:
     def enhance(
         self,
         prompt: str,
-        max_quality_boosts: int = 10,
-        enable_nsfw_boosts: bool = True
+        quality_boosts: str = "",
+        nsfw_boosts: str = "",
+        custom_boosts: str = ""
     ) -> str:
         """
         Enrichit un prompt simple en prompt ultra-détaillé
         
         Args:
             prompt: Prompt original simple de Luna
-            max_quality_boosts: Nombre max de boosts qualité à ajouter
-            enable_nsfw_boosts: Active les boosts NSFW spécifiques
+            quality_boosts: String CSV des quality boosts (ou utilise QUALITY_BOOSTS par défaut)
+            nsfw_boosts: String CSV des NSFW boosts (ou utilise NSFW_QUALITY_BOOSTS par défaut)
+            custom_boosts: Boosts personnalisés additionnels (string CSV)
             
         Returns:
             str: Prompt enrichi avec expansions et qualifiers
@@ -165,18 +167,44 @@ class PromptEnhancer:
         if expansions:
             parts.extend(expansions)
         
-        # 3. Ajouter les boosts qualité généraux
-        quality_boosts = self.QUALITY_BOOSTS[:max_quality_boosts]
-        parts.extend(quality_boosts)
+        # 3. Ajouter les quality boosts (depuis settings ou défaut)
+        if quality_boosts:
+            # Utiliser les boosts depuis settings (CSV string)
+            quality_list = [b.strip() for b in quality_boosts.split(',') if b.strip()]
+            parts.extend(quality_list)
+            if self.debug:
+                print(f"[PROMPT-ENHANCER] 📊 {len(quality_list)} quality boosts (custom)")
+        else:
+            # Utiliser les boosts par défaut hardcodés
+            parts.extend(self.QUALITY_BOOSTS)
+            if self.debug:
+                print(f"[PROMPT-ENHANCER] 📊 {len(self.QUALITY_BOOSTS)} quality boosts (défaut)")
         
         # 4. Ajouter les boosts NSFW si pertinent
-        if enable_nsfw_boosts and self._is_nsfw_content(prompt, detected_keywords):
-            parts.extend(self.NSFW_QUALITY_BOOSTS)
-            
-            if self.debug:
-                print(f"[PROMPT-ENHANCER] 🔞 Boosts NSFW ajoutés")
+        if self._is_nsfw_content(prompt, detected_keywords):
+            if nsfw_boosts:
+                # Utiliser les boosts NSFW depuis settings (CSV string)
+                nsfw_list = [b.strip() for b in nsfw_boosts.split(',') if b.strip()]
+                parts.extend(nsfw_list)
+                if self.debug:
+                    print(f"[PROMPT-ENHANCER] 🔞 {len(nsfw_list)} NSFW boosts (custom)")
+            else:
+                # Utiliser les boosts NSFW par défaut hardcodés
+                parts.extend(self.NSFW_QUALITY_BOOSTS)
+                if self.debug:
+                    print(f"[PROMPT-ENHANCER] 🔞 {len(self.NSFW_QUALITY_BOOSTS)} NSFW boosts (défaut)")
         
-        # 5. Assembler le prompt final
+        # 5. Ajouter les boosts personnalisés additionnels
+        if custom_boosts:
+            # Parser les boosts personnalisés (CSV)
+            custom_list = [b.strip() for b in custom_boosts.split(',') if b.strip()]
+            
+            if custom_list:
+                parts.extend(custom_list)
+                if self.debug:
+                    print(f"[PROMPT-ENHANCER] ✨ {len(custom_list)} boosts custom additionnels")
+        
+        # 6. Assembler le prompt final
         enhanced_prompt = ", ".join(parts)
         
         if self.debug:
