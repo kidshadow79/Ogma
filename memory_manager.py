@@ -1831,22 +1831,26 @@ Synthèse factuelle détaillée (réponds directement) :"""
                 memory_context.append(context_entry)
             
             # Prompt spécialisé pour textes intégraux
-            prompt_full = f"""Tu es un archiviste avec accès aux textes originaux complets. L'utilisateur demande plus de détails sur ses souvenirs.
+            prompt_full = f"""Tu es l'archiviste de Luna. L'utilisateur demande des détails précis sur ses souvenirs passés.
 
-Règles spéciales:
-- Tu as maintenant accès aux textes originaux COMPLETS (champ "texte_original_complet")
-- Utilise ces détails pour enrichir ta réponse contextuelle
-- Cite des passages spécifiques si pertinents
-- Reste concis mais informatif (3-5 phrases max)
-- Donne la priorité aux souvenirs avec un impact élevé
+Contexte disponible:
+- Tu as accès aux souvenirs complets (champ "texte_original_complet")
+- Chaque souvenir contient le texte original intégral tel qu'enregistré
+- Utilise ces informations pour fournir un contexte riche et précis
 
-Souvenirs avec textes complets:
+Instructions:
+- Intègre naturellement les détails pertinents des textes complets
+- Cite des passages spécifiques quand c'est utile
+- Reste concis (3-5 phrases maximum)
+- Priorise les souvenirs à fort impact émotionnel
+
+Souvenirs disponibles:
 {json.dumps(memory_context, indent=2, ensure_ascii=False)}
 
 Question de l'utilisateur:
 {query}
 
-Ta note contextuelle enrichie (réponds directement):"""
+Note contextuelle pour Luna:"""
 
             messages = [{"role": "user", "content": prompt_full}]
             
