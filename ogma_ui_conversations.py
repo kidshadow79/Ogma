@@ -720,7 +720,8 @@ def _load_conversation_index() -> Dict[str, Dict]:
         idx_path = DATA_DIR / 'conversations' / 'index.json'
         if idx_path.exists():
             import json
-            content = idx_path.read_text(encoding='utf-8').strip()
+            # Lire avec utf-8-sig pour gérer le BOM automatiquement
+            content = idx_path.read_text(encoding='utf-8-sig').strip()
             
             # Gérer fichier vide ou corrompu
             if not content:
