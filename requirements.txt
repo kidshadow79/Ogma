@@ -1,0 +1,109 @@
+# ==============================================================================
+# OGMA - Requirements unifiés
+# ==============================================================================
+# Installation complète : pip install -r requirements.txt
+#
+# Pour GPU NVIDIA (CUDA) : voir config/requirements-nvidia.txt
+# Pour les tests         : voir tests/requirements-testing.txt
+# ==============================================================================
+
+
+# ==============================
+# INTERFACE UTILISATEUR
+# ==============================
+nicegui>=2.0.0                    # Interface web moderne et reactive
+
+# ==============================
+# INTELLIGENCE ARTIFICIELLE - APIs
+# ==============================
+openai>=1.0.0                     # API OpenAI (GPT-4, GPT-5, Whisper)
+anthropic>=0.25.0                 # API Anthropic (Claude)
+mistralai>=1.0.0                  # API Mistral (Archiviste)
+
+# ==============================
+# TRAITEMENT AUDIO
+# ==============================
+# Speech-to-Text
+openai-whisper>=20231117          # Whisper local pour transcription
+pyaudio>=0.2.11                   # Capture audio en temps réel
+speechrecognition>=3.10.0         # Interface unifiée reconnaissance vocale
+torch>=2.0.0                      # Backend pour Whisper
+torchaudio>=2.0.0                 # Audio processing pour Whisper
+numba>=0.58.0                     # Optimisations pour Whisper
+llvmlite>=0.41.0                  # Backend pour Numba
+
+# Text-to-Speech
+pyttsx3>=2.90                     # Synthèse vocale locale
+pywin32>=306                      # Interface Windows SAPI (voix système)
+comtypes>=1.1.14                  # COM objects pour Windows
+gtts>=2.5.0                       # Google Text-to-Speech
+edge-tts>=7.2.0                   # Microsoft Edge TTS
+google-cloud-texttospeech>=2.29.0 # Google Cloud TTS (premium)
+azure-cognitiveservices-speech>=1.45.0  # Azure AI Speech Services
+
+# Audio Playback
+pygame>=2.6.0                     # Lecture audio pour tous les moteurs TTS
+
+# ==============================
+# SYSTÈME DE MÉMOIRE
+# ==============================
+faiss-cpu>=1.7.4                  # Recherche vectorielle (CPU)
+sqlalchemy>=2.0.23                # ORM base de données
+sentence-transformers>=2.2.2      # Encodage vectoriel
+numpy>=1.24.0                     # Calculs numériques
+pandas>=2.0.0                     # Manipulation données
+
+# ==============================
+# TRAITEMENT DE DOCUMENTS
+# ==============================
+pypdf>=3.17.0                     # Lecture PDF
+python-docx>=1.1.0                # Lecture documents Word
+Pillow>=10.1.0                    # Traitement images
+python-magic>=0.4.27              # Détection types fichiers (optionnel)
+
+# ==============================
+# EXTENSIONS PERCEPTUELLES
+# ==============================
+opencv-python>=4.8.1              # Vision et traitement d'images
+
+# ==============================
+# WEB / NAVIGATION / RECHERCHE
+# ==============================
+requests>=2.31.0                  # Communications HTTP
+aiohttp>=3.9.0                    # HTTP asynchrone
+beautifulsoup4>=4.12.0            # Parsing HTML intelligent
+lxml>=4.9.0                       # Parser HTML/XML rapide
+duckduckgo_search>=6.0.0          # Recherche web gratuite (sans clé API)
+
+# ==============================
+# MODÈLES LOCAUX (OPTIONNEL)
+# ==============================
+llama-cpp-python>=0.2.11          # Support modèles GGUF en local
+transformers>=4.36.0              # Modèles Hugging Face
+
+# ==============================
+# GESTION CONFIGURATION
+# ==============================
+python-dotenv>=1.0.0              # Variables d'environnement
+pyyaml>=6.0.1                     # Configuration YAML
+toml>=0.10.2                      # Configuration TOML
+
+# ==============================
+# UTILITAIRES SYSTÈME
+# ==============================
+aiofiles>=23.2.0                  # Gestion fichiers async
+psutil>=5.9.6                     # Monitoring système
+watchdog>=3.0.0                   # Surveillance fichiers
+colorama>=0.4.6                   # Couleurs terminal
+
+# ==============================
+# AFFICHAGE ET LOGGING
+# ==============================
+rich>=13.7.0                      # Affichage enrichi terminal
+loguru>=0.7.2                     # Logging avancé
+
+# ==============================
+# SÉCURITÉ ET VALIDATION
+# ==============================
+cryptography>=41.0.7              # Chiffrement
+validators>=0.22.0                # Validation données

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 TemporalInjector - Module d'injection d'horodatage compressé pour OGMA
 ====================================================================
@@ -86,7 +86,7 @@ class TemporalInjector:
         return enhanced_prompt
     
     def get_current_time(self) -> str:
-        """Retourne l'heure actuelle pour accès ponctuel de Luna."""
+        """Retourne l'heure actuelle pour accès ponctuel de l'IA principale."""
         now = datetime.now()
         return now.strftime("%H:%M le %d/%m/%Y")
     
@@ -162,7 +162,7 @@ class OGMATemporalIntegration:
     Module d'intégration pour OGMA avec support multi-mode.
     
     Modes disponibles :
-    - DEBUT : Horodatage uniquement début conversation (Luna)
+    - DEBUT : Horodatage uniquement début conversation (IA principale)
     - ARCHIVISTE : Injection continue pour analyse comportementale
     - COMPLET : Injection continue traditionnelle
     """
@@ -186,8 +186,8 @@ class OGMATemporalIntegration:
         """
         return self.injector.inject_temporal_awareness(message, force_inject)
     
-    def get_current_time_for_luna(self) -> str:
-        """Retourne l'heure actuelle formatée pour Luna."""
+    def get_current_time_for_l'IA principale(self) -> str:
+        """Retourne l'heure actuelle formatée pour l'IA principale."""
         return self.injector.get_current_time()
     
     def start_new_conversation(self):

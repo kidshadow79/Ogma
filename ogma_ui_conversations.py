@@ -35,12 +35,99 @@ from conversations import make_conv_id, make_title_from_text
 # === CONSTANTES ===
 DATA_DIR = Path('data')  # Dossier data pour conversations
 
+# === SÉLECTION MULTIPLE CONVERSATIONS ===
+# Set des IDs de conversations sélectionnées pour suppression en lot
+_selected_conversations: set = set()
+
 
 # === HELPER POUR LAZY IMPORT ===
 def _get_ogma():
     """Import paresseux pour éviter import circulaire"""
     import ogma_ng
     return ogma_ng
+
+def _escape_image_underscores(content: str) -> str:
+    r"""
+    Échappe les underscores dans les URLs d'images pour éviter l'interprétation markdown.
+    NiceGUI ui.markdown() interprète _text_ comme <em>text</em>, corrompant les URLs.
+    
+    Cette fonction échappe les _ en \_ UNIQUEMENT dans les attributs src des balises img.
+    """
+    if not content or '<img' not in content:
+        return content
+    
+    # Pattern pour capturer le src des images
+    img_src_pattern = r'(<img\s+[^>]*src=")([^"]+)("[^>]*>)'
+    
+    def escape_underscores_in_url(match):
+        prefix = match.group(1)  # <img ... src="
+        url = match.group(2)     # URL de l'image
+        suffix = match.group(3)  # " ... >
+        
+        # Échapper les underscores dans l'URL
+        escaped_url = url.replace('_', r'\_')
+        
+        return prefix + escaped_url + suffix
+    
+    return re.sub(img_src_pattern, escape_underscores_in_url, content)
+
+
+def _filter_missing_images(content: str) -> str:
+    """
+    Filtre les images /generated/ manquantes et les remplace par un placeholder.
+    Évite le spam de warnings NiceGUI pour fichiers non trouvés.
+    """
+    if not content or '/generated/' not in content:
+        return content
+    
+    generated_dir = Path(__file__).parent / 'data' / 'generated_images'
+    # Pattern ultra-robuste pour capturer toute la balise img jusqu'au dernier guillemet + fermeture
+    # Capture tout depuis <img src="..." jusqu'au dernier " /> ou ">
+    # Fonctionne même avec onclick JavaScript complexe contenant des >
+    pattern = r'<img\s+src="(/generated/([^"]+))".*?"\s*/?\s*>'
+    
+    def replace_if_missing(match):
+        filename = match.group(2)
+        # Nettoyer le filename des doubles extensions (.pnng → .png)
+        filename_clean = filename.replace('.pnng', '.png').replace('.jpgg', '.jpg')
+        filepath = generated_dir / filename_clean
+        
+        # Si le fichier nettoyé existe, corriger le tag avec le bon filename
+        if filepath.exists():
+            if filename != filename_clean:
+                print(f"[IMAGE-FILTER] 🔧 Extension corrigée: {filename} → {filename_clean}")
+                # Reconstruire le tag avec le bon filename
+                corrected_url = f"/generated/{filename_clean}"
+                return match.group(0).replace(f'"/generated/{filename}"', f'"{corrected_url}"')
+            return match.group(0)
+        
+        # Vérifier avec le nom original
+        filepath_original = generated_dir / filename
+        if filepath_original.exists():
+            return match.group(0)
+        
+        # Recherche approchée : timestamp proche (±5 secondes)
+        # Ex: wavespeed_20260119_185123... → chercher wavespeed_20260119_18512[0-8]...
+        import re
+        timestamp_match = re.search(r'_(\d{8})_(\d{6})_', filename_clean)
+        if timestamp_match:
+            date_part = timestamp_match.group(1)
+            time_part = timestamp_match.group(2)
+            base_name = filename_clean.split(time_part)[0]
+            suffix = filename_clean.split(time_part)[1]
+            
+            # Chercher fichiers avec timestamp proche
+            for file in generated_dir.glob(f"{base_name}{time_part[:5]}*{suffix}"):
+                print(f"[IMAGE-FILTER] 🔍 Fichier trouvé avec timestamp proche: {file.name}")
+                corrected_url = f"/generated/{file.name}"
+                return match.group(0).replace(f'"/generated/{filename}"', f'"{corrected_url}"')
+        
+        # Image manquante : supprimer complètement le tag au lieu d'afficher une erreur
+        print(f"[IMAGE-FILTER] 🧹 Image manquante supprimée: {filename}")
+        return ''  # Suppression silencieuse du tag orphelin
+    
+    return re.sub(pattern, replace_if_missing, content)
+
 
 def activate_loading_mode():
     """Wrapper pour activate_loading_mode depuis magic_phrase_guard"""
@@ -64,6 +151,18 @@ def _notify_safe(message: str, type: str = 'info') -> None:
 def _ensure_settings_manager():
     """Wrapper pour _ensure_settings_manager depuis ogma_ng"""
     return _get_ogma()._ensure_settings_manager()
+
+def _ensure_backends():
+    """Wrapper pour _ensure_backends depuis ogma_ng"""
+    return _get_ogma()._ensure_backends()
+
+def _get_ollama_mgr():
+    """Getter pour _ollama_mgr depuis ogma_ng"""
+    return _get_ogma()._ollama_mgr
+
+def _get_kobold_mgr():
+    """Getter pour _kobold_mgr depuis ogma_ng"""
+    return _get_ogma()._kobold_mgr
 
 def _get_cognitive_mirror_available() -> bool:
     """Helper pour récupérer COGNITIVE_MIRROR_AVAILABLE depuis ogma_ng"""
@@ -191,6 +290,376 @@ def _try_restore_index_from_backup() -> bool:
 
 # === FONCTIONS EXTRAITES D'OGMA_NG.PY ===
 
+
+async def _detect_introspection_magic_memories(introspection_result: dict):
+    """
+    Détecte et mémorise les phrases magiques dans la synthèse d'introspection.
+    Utilisé par le chemin d'introspection différée (trigger_delayed_introspection).
+    
+    Scanne synthesis (texte brut complet) et final_response pour trouver
+    les patterns "Il faut que je me souvienne de ça: ..." et les sauvegarder en mémoire.
+    
+    Patterns identiques à _extract_magic_memories() dans ogma_ng.py/_send_chat_message().
+    """
+    synthesis_full = introspection_result.get("synthesis", "")
+    final_response = introspection_result.get("final_response", "")
+    texts_to_scan = [t for t in [synthesis_full, final_response] if t]
+
+    if not texts_to_scan:
+        print("[INTROSPECTION-DETECT-DEFERRED] ⚪ Aucun texte à scanner")
+        return
+
+    # Patterns de phrases magiques mémoire (identiques à _extract_magic_memories dans ogma_ng.py)
+    magic_patterns = [
+        r"(?:\*\*|__)?il\s+faut\s+que\s+je\s+me\s+souvienne\s+de\s+(?:ça|ca|cela|ceci)(?:\*\*|__)?[\s\.\-:]*(.+?)(?=\n\n|\n\s*\n|$)",
+        r"(?:\*\*|__)?m[ée]morise(?:s)?\s+(?:ça|ca|cela|ceci)(?:\*\*|__)?[\s\.\-:]*(.+?)(?=\n\n|\n\s*\n|$)",
+    ]
+
+    for scan_text in texts_to_scan:
+        try:
+            magic_found = []
+            for pat in magic_patterns:
+                found = re.findall(pat, scan_text, flags=re.IGNORECASE | re.DOTALL)
+                if found:
+                    print(f"[INTROSPECTION-DETECT-DEFERRED] 🔍 Match trouvé: {found}")
+                for m in found:
+                    content = m.strip()
+                    if content:
+                        content = re.sub(r'^[:\-\s\.]+', '', content)
+                        content = re.sub(r'(\*\*|__)$', '', content).strip()
+                        # Nettoyer balises XML résiduelles (ex: </RÉPONSE>)
+                        content = re.sub(r'</?[A-ZÉÈÊa-zéèê_]+>', '', content).strip()
+                        if content:
+                            magic_found.append(content)
+
+            if magic_found:
+                print(f"[INTROSPECTION-DETECT-DEFERRED] ✅ {len(magic_found)} phrase(s) magique(s) détectée(s)")
+                ogma = _get_ogma()
+                mm = ogma._ensure_memory_manager()
+                if mm:
+                    for mem_content in magic_found:
+                        try:
+                            print(f"[INTROSPECTION-DETECT-DEFERRED] 💾 Mémorisation: '{mem_content[:80]}...'")
+                            mem_id = f"ai-{uuid.uuid4()}"
+                            conv_ctx = "\n".join([
+                                f"{m['role']}: {m.get('content', '')}"
+                                for m in ogma._chat_history[-3:]
+                                if isinstance(m.get('content'), str)
+                            ])
+                            ogma.set_archiviste_working(True)
+                            ok = await mm.add_memory(
+                                mem_id,
+                                mem_content,
+                                chat_controller=ogma._chat_controller,
+                                conversation_context=conv_ctx,
+                                interlocutor="Introspection"
+                            )
+                            ogma.set_archiviste_working(False)
+                            if ok:
+                                print(f"[INTROSPECTION-DETECT-DEFERRED] ✅ Mémoire créée: {mem_id}")
+                                ogma._notify_safe(
+                                    f"💾 Souvenir mémorisé depuis introspection: {mem_content[:80]}...",
+                                    'positive'
+                                )
+                                ogma._trigger_memory_update()
+                            else:
+                                print(f"[INTROSPECTION-DETECT-DEFERRED] ⚠️ Échec mémorisation")
+                        except Exception as me:
+                            _get_ogma().set_archiviste_working(False)
+                            print(f"[INTROSPECTION-DETECT-DEFERRED] ❌ Erreur mémorisation: {me}")
+                break  # Trouvé dans ce texte, pas besoin de scanner l'autre
+
+        except Exception as detect_err:
+            print(f"[INTROSPECTION-DETECT-DEFERRED] ❌ Erreur détection: {detect_err}")
+            import traceback
+            traceback.print_exc()
+
+
+def _normalize_ai_text(text: str) -> str:
+    """
+    Normalise le texte IA pour un rendu uniforme quel que soit le modèle.
+    Collapse les newlines excessives (3+ → 2) pour éviter les espaces
+    disproportionnés entre paragraphes selon les modèles.
+    """
+    import re
+    if not text:
+        return text
+    # Collapser 3+ newlines consécutives en 2 (= 1 saut de paragraphe markdown)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text
+
+
+def _create_streaming_message():
+    """
+    Crée un container de message assistant vide pour le streaming.
+    Retourne un tuple (markdown_widget, container_ai, html_placeholder) pour mise à jour progressive
+    et ajout du bouton TTS à la fin.
+    
+    Returns:
+        tuple: (ui.markdown, ui.element, ui.html) - Widget markdown, container AI parent, placeholder HTML batch
+    """
+    try:
+        with ui.element('div').classes('message-container'):
+            container_ai = ui.element('div').classes('message-ai')
+            with container_ai:
+                md = ui.markdown("▌")  # Curseur clignotant initial
+                md.style(
+                    'color: var(--text-offwhite); '
+                    'background: transparent; '
+                    'font-size: 16px; '
+                    'line-height: 1.5; '
+                    'margin: 0; '
+                    'padding: 0;'
+                )
+                # Placeholder HTML pour injection batch grid post-streaming
+                # Utiliser set_content() sur cet élément existant est plus fiable
+                # qu'ajouter un nouveau ui.html() dans un container déjà rendu
+                html_placeholder = ui.html('')
+                return (md, container_ai, html_placeholder)
+    except Exception as e:
+        print(f"[STREAMING] ❌ Erreur création container streaming: {e}")
+        return (None, None, None)
+
+
+# Variable globale pour passage thinking content (contournement NiceGUI)
+_pending_thinking_content = ""
+
+def _finalize_streaming_message(md_widget_or_tuple, final_content: str, badges: Optional[List[str]] = None, client=None, thinking_content: str = ""):
+    """
+    Finalise un message streamé en appliquant le parsing thinking/introspection.
+    Ajoute le bouton TTS à la fin du message.
+    
+    Args:
+        md_widget_or_tuple: Widget markdown ou tuple (markdown, container) du streaming
+        final_content: Contenu final complet
+        badges: Badges optionnels (ex: ['mémorisé'])
+        client: Client NiceGUI pour le run_javascript (évite slot stack error)
+        thinking_content: Contenu thinking des modèles de raisonnement (ex: Mistral magistral-*)
+    """
+    # Récupérer thinking via variable globale si le paramètre est vide
+    global _pending_thinking_content
+    if not thinking_content and _pending_thinking_content:
+        thinking_content = _pending_thinking_content
+        print(f"[THINKING-GLOBAL] 🔄 Récupéré via variable globale ({len(thinking_content)} chars)")
+    _pending_thinking_content = ""  # Reset après récupération
+    try:
+        # Gérer les deux formats (ancien: juste widget, nouveau: tuple 2 ou 3 éléments)
+        if isinstance(md_widget_or_tuple, tuple):
+            md_widget = md_widget_or_tuple[0]
+            container_ai = md_widget_or_tuple[1] if len(md_widget_or_tuple) > 1 else None
+            # 3ème élément = html_placeholder, géré par ogma_ng.py via _streaming_html_ref
+        else:
+            md_widget = md_widget_or_tuple
+            container_ai = None
+        
+        # Normaliser le texte IA (collapse newlines excessives)
+        final_content = _normalize_ai_text(final_content)
+        
+        # Parser le format thinking si présent dans le texte (cas non-streaming)
+        # IMPORTANT: Ne PAS écraser thinking_content s'il est déjà fourni (via streaming)
+        parsed_thinking, main_content = parse_thinking_format(final_content)
+        
+        # Priorité: thinking passé en paramètre (streaming) > parsé dans le texte (non-streaming)
+        if not thinking_content and parsed_thinking:
+            thinking_content = parsed_thinking
+        
+        if thinking_content:
+            # Il y a du thinking - on doit reconstruire l'UI
+            # Si parsé du texte, utiliser main_content nettoyé; sinon final_content est déjà propre
+            display_content = main_content if parsed_thinking else final_content
+            md_widget.set_content(_normalize_ai_text(display_content))
+            print(f"[STREAMING] 🧠 Thinking détecté ({len(thinking_content)} chars) - affiché inline")
+        else:
+            # Pas de thinking, le contenu est déjà correct
+            md_widget.set_content(final_content)
+            
+        # Ajouter badges si présents
+        if badges:
+            print(f"[STREAMING] 🏷️ Badges: {badges}")
+            
+        # Force scroll final
+        from nicegui import ui
+        js_scroll = 'const el=document.querySelector(\'[data-role="chat-scroll"]\'); if(el) el.scrollTop=el.scrollHeight + 1000;'
+        if client:
+            client.run_javascript(js_scroll)
+        else:
+            try:
+                ui.run_javascript(js_scroll)
+            except:
+                pass
+        
+        # === BOITE THINKING RAISONNEMENT (modeles reasoning) ===
+        # Placée AVANT le contenu de réponse (le thinking précède toujours la réponse)
+        print(f"[THINKING-DEBUG] thinking_content={len(thinking_content) if thinking_content else 0} chars, container_ai={container_ai is not None}, type={type(thinking_content).__name__}, repr={repr(thinking_content[:50]) if thinking_content else 'EMPTY'}")
+        if thinking_content and container_ai:
+            try:
+                with container_ai:
+                    with ui.expansion(value=False).classes('thinking-reasoning-expansion') as thinking_box:
+                        thinking_box.props('label=""')
+                        with thinking_box.add_slot('header'):
+                            ui.html(
+                                '<span style="color: rgba(180, 180, 180, 0.85); font-size: 12px; font-style: italic;">'
+                                '&#x25BE; Raisonnement du modele'
+                                '</span>'
+                            )
+                        thinking_md = ui.markdown(thinking_content)
+                        thinking_md.style(
+                            'color: rgba(200, 200, 200, 0.85); '
+                            'font-size: 12px; '
+                            'line-height: 1.4; '
+                            'margin: 0; '
+                            'padding: 8px 0; '
+                            'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;'
+                        )
+                        thinking_md.classes('thinking-reasoning-content')
+                    # Déplacer la boîte thinking AVANT le contenu réponse (position 0)
+                    thinking_box.move(container_ai, target_index=0)
+                    
+                    # CSS pour la boite thinking raisonnement (tons gris)
+                    ui.add_head_html('''
+                    <style>
+                    .thinking-reasoning-expansion {
+                        background: rgba(60, 60, 65, 0.6) !important;
+                        border: 1px solid rgba(120, 120, 130, 0.4) !important;
+                        border-radius: 8px !important;
+                        margin: 8px 0 4px 0 !important;
+                        max-width: 100% !important;
+                    }
+                    .thinking-reasoning-expansion .q-expansion-item__container {
+                        background: transparent !important;
+                    }
+                    .thinking-reasoning-expansion .q-item {
+                        min-height: 32px !important;
+                        padding: 4px 12px !important;
+                    }
+                    .thinking-reasoning-expansion .q-expansion-item__content {
+                        background: rgba(45, 45, 50, 0.7) !important;
+                        padding: 4px 12px 8px 12px !important;
+                        border-top: 1px solid rgba(100, 100, 110, 0.3) !important;
+                    }
+                    .thinking-reasoning-expansion .q-item__section--side .q-icon {
+                        color: rgba(180, 180, 180, 0.7) !important;
+                        font-size: 16px !important;
+                    }
+                    .thinking-reasoning-content p {
+                        margin-bottom: 6px !important;
+                        margin-top: 2px !important;
+                    }
+                    .thinking-reasoning-content code {
+                        background: rgba(80, 80, 90, 0.5) !important;
+                        padding: 1px 4px !important;
+                        border-radius: 3px !important;
+                        font-size: 11px !important;
+                    }
+                    </style>
+                    ''')
+                print(f"[STREAMING] 🧠 Boite thinking reasoning ajoutee ({len(thinking_content)} chars)")
+            except Exception as e:
+                print(f"[STREAMING] ⚠️ Erreur creation boite thinking: {e}")
+        
+        # === BOUTON TTS TOUJOURS VISIBLE ===
+        if container_ai:
+            try:
+                # Créer le bouton TTS dans le container du message
+                tts_button_ref = {'button': None, 'content': main_content or final_content}
+                
+                def get_tts_real_state():
+                    """Retourne l'état réel de lecture TTS"""
+                    try:
+                        audio_mgr = _ensure_audio_manager()
+                        if audio_mgr and hasattr(audio_mgr, 'tts_safe') and audio_mgr.tts_safe:
+                            return audio_mgr.tts_safe.is_playing
+                        elif audio_mgr and hasattr(audio_mgr, 'is_speaking'):
+                            return audio_mgr.is_speaking
+                    except:
+                        pass
+                    return False
+                
+                def speak_streaming_message():
+                    try:
+                        btn = tts_button_ref['button']
+                        current_icon = btn.text if btn else None
+                        msg_content = tts_button_ref['content']
+
+                        if current_icon == "\u23f9":  # bouton montre STOP -> arreter
+                            print("[TTS-STREAM] STOP - Arret lecture")
+                            audio_mgr = _ensure_audio_manager()
+                            if audio_mgr:
+                                # Arreter tts_safe (gTTS/etc.) ET pygame (Cartesia)
+                                if hasattr(audio_mgr, 'tts_safe') and audio_mgr.tts_safe:
+                                    audio_mgr.tts_safe.stop_current_speech()
+                                if hasattr(audio_mgr, 'stop_speaking'):
+                                    audio_mgr.stop_speaking()
+                                ui.notify("Lecture arretee", type='info')
+                            if btn:
+                                btn.set_text("\u25b6")
+                        else:  # PLAY
+                            print(f"[TTS-STREAM] PLAY - Demarrage: {msg_content[:50]}...")
+                            audio_mgr = _ensure_audio_manager()
+                            if audio_mgr and hasattr(audio_mgr, 'speak'):
+                                clean_content = msg_content.replace('*', '').replace('**', '').replace('#', '').replace('`', '')
+                                ui.notify("Lecture en cours...", type='info')
+                                if btn:
+                                    btn.set_text("\u23f9")
+
+                                def audio_task(btn_ref=btn):
+                                    try:
+                                        audio_mgr = _ensure_audio_manager()
+                                        if audio_mgr:
+                                            audio_mgr.speak(clean_content)
+                                    except Exception as e:
+                                        print(f"[TTS-STREAM] Erreur: {e}")
+                                    finally:
+                                        try:
+                                            if btn_ref:
+                                                btn_ref.set_text("\u25b6")
+                                        except Exception:
+                                            pass
+
+                                import threading
+                                threading.Thread(target=audio_task, daemon=True).start()
+                            else:
+                                ui.notify("Audio manager non disponible", type='negative')
+                    except Exception as e:
+                        print(f"[TTS-STREAM] ERROR: {e}")
+                
+                with container_ai:
+                    with ui.row().classes('gap-2 mt-2'):
+                        initial_icon = "⏹" if get_tts_real_state() else "▶"
+                        tts_btn = ui.button(initial_icon, on_click=speak_streaming_message).classes('tts-button').tooltip(
+                            'Écouter cette réponse (clic = play/stop)'
+                        )
+                        tts_button_ref['button'] = tts_btn
+                        
+                        # Indicateur mode auto si activé
+                        try:
+                            sm = _ensure_settings_manager()
+                            auto_speak = sm.settings.get('tts', {}).get('auto_speak', False)
+                            if auto_speak:
+                                ui.label('Auto').classes('text-xs').style(
+                                    'color: rgba(255, 255, 255, 0.5); '
+                                    'font-size: 10px; '
+                                    'align-self: center;'
+                                )
+                        except:
+                            pass
+                
+                print("[STREAMING] ✅ Bouton TTS ajouté")
+                
+            except Exception as e:
+                print(f"[STREAMING] ⚠️ Erreur ajout bouton TTS: {e}")
+            
+    except Exception as e:
+        print(f"[STREAMING] ❌ Erreur finalisation: {e}")
+        # Fallback: afficher le contenu brut
+        if isinstance(md_widget_or_tuple, tuple):
+            md_widget = md_widget_or_tuple[0]
+        else:
+            md_widget = md_widget_or_tuple
+        if md_widget:
+            md_widget.set_content(final_content)
+
+
 def _message(role: str, content: str, badges: Optional[List[str]] = None, message_index: Optional[int] = None):
     # Simple rendu de message avec classes CSS
     try:
@@ -205,7 +674,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                     # Parser le format thinking si présent (importé depuis utils.message_parsers)
                     thinking_content, main_content = parse_thinking_format(content)
 
-                    # 📖 BIOGRAPHIE PROFIL: Détection phrases magiques Luna dans les réponses
+                    # 📖 BIOGRAPHIE PROFIL: Détection phrases magiques IA dans les réponses
                     biography_context_to_inject = ""
                     try:
                         if _get_ogma()._biography_available and main_content:
@@ -230,7 +699,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                         print(f"[BIOGRAPHY-EXTENSION] 🔍 Phrase magique Luna détectée - contexte ajouté")
 
                     except Exception as e:
-                        print(f"[BIOGRAPHY-EXTENSION] ERROR Erreur détection phrase magique Luna: {e}")
+                        print(f"[BIOGRAPHY-EXTENSION] ERROR Erreur détection phrase magique IA: {e}")
 
                     # 🧠 COGNITIVE MIRROR v2.0: Détection phrases magiques IA pour introspection
                     try:
@@ -248,7 +717,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
 
                                 # Vérifier si traitement autorisé (message temps réel)
                                 if should_process_magic_phrase(current_message_data, "INTROSPECTION"):
-                                    # Vérifier si Luna a utilisé une phrase magique d'introspection
+                                    # Vérifier si l'IA a utilisé une phrase magique d'introspection
                                     magic_type = check_magic_phrases(main_content, source="ia")
 
                                     if magic_type == "trigger":
@@ -260,12 +729,23 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                                 # Petite pause pour permettre l'affichage du message
                                                 await asyncio.sleep(0.5)
 
-                                                # Construire contexte pour introspection
-                                                from utils import get_ego_prompt
-
+                                                # Construire contexte pour introspection (depuis SQLite - ego_prompt.txt obsolète)
                                                 try:
-                                                    current_ego_prompt = get_ego_prompt()
-                                                except:
+                                                    import sqlite3
+                                                    from ogma_ng import _ensure_memory_manager
+                                                    mm = _ensure_memory_manager()
+                                                    if mm and mm.db_path:
+                                                        with sqlite3.connect(mm.db_path) as conn:
+                                                            cursor = conn.cursor()
+                                                            cursor.execute("SELECT id, title, summary FROM memories WHERE id LIKE 'EGO%' ORDER BY created_at DESC LIMIT 50")
+                                                            ego_traits = cursor.fetchall()
+                                                            ego_lines = ["# TRAITS EGO (Identité IA)\n"]
+                                                            for trait_id, title, summary in ego_traits:
+                                                                ego_lines.append(f"- {summary if summary else title}")
+                                                            current_ego_prompt = "\n".join(ego_lines) if len(ego_lines) > 1 else "Ego non défini"
+                                                    else:
+                                                        current_ego_prompt = "Ego non disponible"
+                                                except Exception:
                                                     current_ego_prompt = "Ego prompt non disponible"
 
                                                 # NOUVEAU: Récupération identités dynamiques
@@ -291,30 +771,16 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                                 if introspection_core:
                                                     print(f"[INTROSPECTION] 🚀 Lancement introspection différée...")
 
-                                                    # Créer la boîte thinking pour l'introspection différée
+                                                    # 🔧 FIX BUG DOUBLE BOÎTE v3: NE PAS créer de boîte ici
+                                                    # Le callback _on_message_ready dans ogma_ng.py créera automatiquement
+                                                    # la boîte quand nécessaire. Réinitialisation variables globales uniquement.
                                                     global _introspection_box_content, _introspection_md_widget
                                                     _introspection_box_content = []
+                                                    _introspection_md_widget = None  # Reset pour callback
 
-                                                    with _get_ogma()._chat_inner:
-                                                        with ui.expansion().classes('thinking-expansion') as introspection_box:
-                                                            introspection_box.props('label=""')
-                                                            with introspection_box.add_slot('header'):
-                                                                ui.html('<span style="color: rgba(255, 200, 100, 0.7); font-size: 12px; font-style: italic;">🧠 introspection ia-principale-archiviste [auto-déclenchée]</span>')
-
-                                                            _introspection_md_widget = ui.markdown("_Dialogue en cours..._")
-                                                            _introspection_md_widget.style(
-                                                                'color: rgba(255, 255, 255, 0.85); '
-                                                                'font-size: 13px; '
-                                                                'line-height: 1.5; '
-                                                                'margin: 0; '
-                                                                'padding: 8px 0; '
-                                                                'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;'
-                                                            )
-                                                            _introspection_md_widget.classes('introspection-dialogue')
-
-                                                    introspection_result = await introspection_core.trigger_introspection_sync(
+                                                    introspection_result = await introspection_core.run_introspection(
                                                         user_message="[Auto-introspection déclenchée par phrase magique IA]",
-                                                        conversation_context=conversation_context
+                                                        context=conversation_context
                                                     )
 
                                                     if introspection_result.get("success"):
@@ -329,6 +795,9 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                                             msg = {'role': 'assistant', 'content': final_response}
                                                             _get_ogma()._chat_history.append(msg)
                                                             _get_ogma()._chat_history_ui.append(msg)
+
+                                                        # 🎯 DÉTECTION PHRASES MAGIQUES dans synthèse d'introspection différée
+                                                        await _detect_introspection_magic_memories(introspection_result)
                                                     else:
                                                         print("[INTROSPECTION] ❌ Échec auto-introspection")
                                                 else:
@@ -377,6 +846,10 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                 is_activation_trigger = any(re.search(pattern, main_content, re.IGNORECASE) for pattern in activation_patterns)
                                 is_deactivation_trigger = any(re.search(pattern, main_content, re.IGNORECASE) for pattern in deactivation_patterns)
                                 
+                                # DEBUG: Logger les détections
+                                print(f"[PERCEPTION-DEBUG] 🔍 Contenu analysé (100 chars): {main_content[:100]}...")
+                                print(f"[PERCEPTION-DEBUG] 🔍 Activation trigger: {is_activation_trigger}, Déjà actif: {perception_ui.is_enabled}")
+                                
                                 if is_activation_trigger and not perception_ui.is_enabled:
                                     print("[PERCEPTION] 👁️ Phrase magique IA d'activation détectée - démarrage webcam")
                                     
@@ -385,7 +858,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                         try:
                                             await asyncio.sleep(0.3)  # Pause pour affichage du message
                                             perception_ui.start_perception()
-                                            ui.notify('👁️ Perception activée par Luna - Webcam démarrée', type='positive', position='top')
+                                            ui.notify('👁️ Perception activée par l\'IA principale - Webcam démarrée', type='positive', position='top')
                                             print("[PERCEPTION] ✅ Webcam activée suite à phrase magique IA")
                                         except Exception as e:
                                             print(f"[PERCEPTION] ❌ Erreur activation différée: {e}")
@@ -400,7 +873,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                         try:
                                             await asyncio.sleep(0.3)
                                             perception_ui.stop_perception()
-                                            ui.notify('🛑 Perception désactivée par Luna - Webcam arrêtée', type='info', position='top')
+                                            ui.notify('🛑 Perception désactivée par l\'IA principale - Webcam arrêtée', type='info', position='top')
                                             print("[PERCEPTION] ✅ Webcam désactivée suite à phrase magique IA")
                                         except Exception as e:
                                             print(f"[PERCEPTION] ❌ Erreur désactivation différée: {e}")
@@ -587,122 +1060,237 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                     
                     # Afficher le contenu principal
                     display_content = final_content if introspection_content else current_content
-                    # Le markdown rend mieux les retours à la ligne / listes; fallback label si indisponible
-                    try:
-                        md = ui.markdown(display_content)
-                        md.style(
-                            'color: var(--text-offwhite); '
-                            'background: transparent; '
-                            'font-size: 16px; '
-                            'line-height: 1.3; '
-                            'margin: 0; '
-                            'padding: 0;'
-                        )
-                    except Exception:
-                        lbl = ui.label(display_content)
-                        lbl.style(
-                            'color: var(--text-offwhite); '
-                            'font-size: 16px; '
-                            'line-height: 1.3; '
-                            'margin: 0; '
-                            'padding: 0;'
-                        )
+                    
+                    # � HARMONISATION: Normaliser newlines excessives (tous modèles)
+                    display_content = _normalize_ai_text(display_content)
+                    
+                    # �🖼️ FILTRAGE IMAGES MANQUANTES: Évite spam warnings NiceGUI
+                    display_content = _filter_missing_images(display_content)
+                    
+                    # 🛡️ ÉCHAPPEMENT UNDERSCORES: Évite interprétation _text_ → <em>text</em>
+                    # dans les URLs d'images qui corrompent les chemins de fichiers
+                    display_content = _escape_image_underscores(display_content)
+                    
+                    # 🎲 BATCH GRID: Vérifier si contenu HTML grille batch
+                    # ui.markdown() échappe le HTML → utiliser ui.html() pour les grilles
+                    if 'ogma-batch-grid' in display_content:
+                        # Séparer le script (interdit dans ui.html) du reste
+                        script_content = ''
+                        html_for_display = display_content
+                        
+                        script_start = display_content.find('<script>')
+                        if script_start != -1:
+                            script_end = display_content.find('</script>', script_start)
+                            if script_end != -1:
+                                script_content = display_content[script_start:script_end + len('</script>')]
+                                html_for_display = display_content[:script_start] + display_content[script_end + len('</script>'):]
+                        
+                        # Extraire le bloc HTML batch (grille + summary)
+                        html_start = html_for_display.find('<div class="ogma-batch-grid"')
+                        
+                        if html_start != -1:
+                            # Trouver la fin du bloc batch (après le </small> du SUMMARY)
+                            # Ne pas prendre le premier </small> (labels #1, #2...) mais celui du résumé '🎲 Batch'
+                            batch_summary_pos = html_for_display.find('🎲 Batch', html_start)
+                            if batch_summary_pos != -1:
+                                small_end = html_for_display.find('</small>', batch_summary_pos)
+                            else:
+                                small_end = -1
+                            if small_end != -1:
+                                html_end = small_end + len('</small>')
+                            else:
+                                # Fallback: chercher le </div> de clôture de la grille
+                                depth = 0
+                                pos = html_start
+                                while pos < len(html_for_display):
+                                    next_open = html_for_display.find('<div', pos + 1)
+                                    next_close = html_for_display.find('</div>', pos + 1)
+                                    
+                                    if next_close == -1:
+                                        break
+                                    if next_open != -1 and next_open < next_close:
+                                        depth += 1
+                                        pos = next_open
+                                    else:
+                                        if depth == 0:
+                                            html_end = next_close + len('</div>')
+                                            break
+                                        depth -= 1
+                                        pos = next_close
+                                else:
+                                    html_end = len(html_for_display)
+                            
+                            # Extraire les parties
+                            text_before = html_for_display[:html_start].strip()
+                            grid_html = html_for_display[html_start:html_end]
+                            text_after = html_for_display[html_end:].strip()
+                            
+                            # Afficher texte avant en markdown si présent
+                            if text_before:
+                                md = ui.markdown(text_before)
+                                md.style(
+                                    'color: var(--text-offwhite); '
+                                    'background: transparent; '
+                                    'font-size: 16px; '
+                                    'line-height: 1.5; '
+                                    'margin: 0; '
+                                    'padding: 0;'
+                                )
+                            
+                            # Injecter le script via add_body_html (une seule fois)
+                            if script_content:
+                                ui.add_body_html(script_content)
+                            
+                            # Injecter la grille HTML
+                            ui.html(grid_html)
+                            
+                            # Afficher texte après si présent
+                            if text_after:
+                                md_after = ui.markdown(text_after)
+                                md_after.style(
+                                    'color: var(--text-offwhite); '
+                                    'background: transparent; '
+                                    'font-size: 16px; '
+                                    'line-height: 1.5; '
+                                    'margin: 0; '
+                                    'padding: 0;'
+                                )
+                        else:
+                            # Fallback: afficher tout en HTML (sans script)
+                            if script_content:
+                                ui.add_body_html(script_content)
+                            ui.html(html_for_display)
+                    else:
+                        # Le markdown rend mieux les retours à la ligne / listes; fallback label si indisponible
+                        try:
+                            md = ui.markdown(display_content)
+                            md.style(
+                                'color: var(--text-offwhite); '
+                                'background: transparent; '
+                                'font-size: 16px; '
+                                'line-height: 1.5; '
+                                'margin: 0; '
+                                'padding: 0;'
+                            )
+                        except Exception:
+                            lbl = ui.label(display_content)
+                            lbl.style(
+                                'color: var(--text-offwhite); '
+                                'font-size: 16px; '
+                                'line-height: 1.5; '
+                                'margin: 0; '
+                                'padding: 0;'
+                            )
                     
                     # Bouton TTS pour les réponses de l'assistant - Option A : Toggle Simple
-                    if not hasattr(_message, '_tts_button_states'):
-                        _message._tts_button_states = {}
+                    # Utilise l'état réel du TTS au lieu d'un flag local incohérent
                     
                     button_id = f"tts-{id(content)}"
                     
+                    # Créer référence au bouton pour mise à jour dynamique
+                    tts_button_ref = {'button': None, 'content': content}
+                    
+                    def get_tts_real_state():
+                        """Retourne l'état réel de lecture TTS depuis l'audio manager"""
+                        try:
+                            audio_mgr = _ensure_audio_manager()
+                            if audio_mgr and hasattr(audio_mgr, 'tts_safe') and audio_mgr.tts_safe:
+                                return audio_mgr.tts_safe.is_playing
+                            elif audio_mgr and hasattr(audio_mgr, 'is_speaking'):
+                                return audio_mgr.is_speaking
+                        except:
+                            pass
+                        return False
+                    
                     def speak_message():
                         try:
-                            # Récupérer l'état actuel du bouton
-                            is_playing = _message._tts_button_states.get(button_id, False)
-                            
-                            if is_playing:  # STOP - Arrêter la lecture
-                                print("[TTS] ⏹️ STOP - Arrêt de la lecture demandé")
+                            btn = tts_button_ref['button']
+                            current_icon = btn.text if btn else None
+
+                            if current_icon == "\u23f9":  # bouton montre STOP -> arreter
+                                print("[TTS] STOP - Arret de la lecture demande")
                                 audio_mgr = _ensure_audio_manager()
-                                if audio_mgr and hasattr(audio_mgr, 'stop_speaking'):
-                                    success = audio_mgr.stop_speaking()
-                                    if success:
-                                        ui.notify("🔇 Lecture arrêtée", type='info')
-                                    else:
-                                        ui.notify("⚠️ Impossible d'arrêter la lecture", type='warning')
-                                else:
-                                    ui.notify("❌ Audio manager non disponible", type='negative')
-                                
-                                _message._tts_button_states[button_id] = False
-                                print("[TTS] ⏹️ État mis à jour : STOP")
-                                
-                            else:  # PLAY - Démarrer la lecture
-                                print(f"[TTS] ▶️ PLAY - Démarrage lecture: {content[:50]}...")
+                                if audio_mgr:
+                                    # Arreter tts_safe (gTTS/etc.) ET pygame (Cartesia)
+                                    if hasattr(audio_mgr, 'tts_safe') and audio_mgr.tts_safe:
+                                        audio_mgr.tts_safe.stop_current_speech()
+                                    if hasattr(audio_mgr, 'stop_speaking'):
+                                        audio_mgr.stop_speaking()
+                                    ui.notify("Lecture arretee", type='info')
+                                if btn:
+                                    btn.set_text("\u25b6")
+
+                            else:  # PLAY
+                                msg_content = tts_button_ref['content']
+                                print(f"[TTS] PLAY - Demarrage lecture: {msg_content[:50]}...")
                                 audio_mgr = _ensure_audio_manager()
                                 if audio_mgr and hasattr(audio_mgr, 'speak'):
-                                    import asyncio
-                                    # Nettoyer le contenu pour la synthèse
-                                    clean_content = content.replace('*', '').replace('**', '').replace('#', '').replace('`', '')
-                                    _message._tts_button_states[button_id] = True
-                                    
-                                    # Notification immédiate
-                                    ui.notify("🔊 Lecture en cours...", type='info')
-                                    
-                                    def audio_task():
-                                        """Tâche audio synchrone avec wrapper TTS sans conflit"""
+                                    import re
+                                    clean_content = re.sub(r'<[^>]+>', '', msg_content)
+                                    clean_content = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean_content)
+                                    clean_content = re.sub(r'\*([^*]+)\*', r'\1', clean_content)
+                                    clean_content = clean_content.replace('#', '').replace('`', '')
+                                    ui.notify("Lecture en cours...", type='info')
+                                    if btn:
+                                        btn.set_text("\u23f9")
+
+                                    def audio_task(btn_ref=btn):
                                         try:
-                                            # Le nouveau wrapper retourne bool directement (pas async)
                                             audio_mgr = _ensure_audio_manager()
                                             success = audio_mgr.speak(clean_content) if audio_mgr else False
                                             if success:
-                                                print("[TTS] ✅ Synthèse réussie")
+                                                print("[TTS] Synthese reussie")
                                             else:
-                                                print("[TTS] ⚠️ Synthèse en mode fallback")
+                                                print("[TTS] Synthese en mode fallback")
                                         except Exception as e:
-                                            print(f"[TTS] ❌ Erreur pendant la lecture: {e}")
-                                            # Pas de ui.notify ici (thread background)
+                                            print(f"[TTS] Erreur pendant la lecture: {e}")
                                         finally:
-                                            # Remettre à PLAY quand terminé
-                                            _message._tts_button_states[button_id] = False
-                                            print("[TTS] ✅ Lecture terminée - État remis à PLAY")
-                                    
-                                    # Lancer dans un thread séparé pour éviter blocage UI
+                                            try:
+                                                if btn_ref:
+                                                    btn_ref.set_text("\u25b6")
+                                            except Exception:
+                                                pass
+                                            print("[TTS] Lecture terminee")
+
                                     import threading
                                     thread = threading.Thread(target=audio_task, daemon=True)
                                     thread.start()
-                                    print(f"[TTS] ▶️ Thread créé pour: {clean_content[:30]}...")
+                                    print(f"[TTS] Thread cree pour: {clean_content[:30]}...")
                                 else:
-                                    print("[TTS] ❌ Audio manager non disponible")
-                                    ui.notify("❌ Audio manager non disponible", type='negative')
-                                    
+                                    print("[TTS] Audio manager non disponible")
+                                    ui.notify("Audio manager non disponible", type='negative')
+
                         except Exception as e:
-                            print(f"[TTS] ❌ ERROR: {e}")
-                            ui.notify(f"❌ Erreur TTS: {str(e)[:50]}...", type='negative')
-                            _message._tts_button_states[button_id] = False
+                            print(f"[TTS] ERROR: {e}")
+                            ui.notify(f"Erreur TTS: {str(e)[:50]}...", type='negative')
                     
-                    # Vérifier si TTS est activé dans les paramètres
+                    # BOUTON TTS TOUJOURS VISIBLE - indépendant de la configuration
+                    # Permet la lecture à la demande de n'importe quel message
                     try:
-                        sm = _ensure_settings_manager()
-                        tts_enabled = sm.settings.get('tts', {}).get('enabled', True)
-                        auto_speak = sm.settings.get('tts', {}).get('auto_speak', False)
-                        
-                        # N'afficher le bouton que si la lecture automatique n'est PAS activée
-                        if tts_enabled and _ensure_audio_manager() and not auto_speak:
-                            with ui.row().classes('gap-2 mt-2'):
-                                # Bouton Play permanent - clic = toggle play/stop
-                                ui.button("▶", on_click=speak_message).classes('tts-button').tooltip(
-                                    'Écouter cette réponse (clic = play/stop)'
-                                )
-                                
-                        elif tts_enabled and auto_speak:
-                            # Afficher un petit indicateur que la lecture automatique est active
-                            with ui.row().classes('gap-2 mt-2'):
-                                ui.label('▶ Auto').classes('text-xs text-muted').style(
-                                    'color: rgba(255, 255, 255, 0.6); '
-                                    'font-size: 12px; '
-                                    'font-family: monospace;'
-                                ).tooltip('Lecture automatique activée')
+                        with ui.row().classes('gap-2 mt-2'):
+                            # Vérifier état actuel pour icône initiale
+                            initial_icon = "⏹" if get_tts_real_state() else "▶"
+                            tts_btn = ui.button(initial_icon, on_click=speak_message).classes('tts-button').tooltip(
+                                'Écouter cette réponse (clic = play/stop)'
+                            )
+                            tts_button_ref['button'] = tts_btn
+                            
+                            # Indicateur mode auto si activé
+                            try:
+                                sm = _ensure_settings_manager()
+                                auto_speak = sm.settings.get('tts', {}).get('auto_speak', False)
+                                if auto_speak:
+                                    ui.label('Auto').classes('text-xs').style(
+                                        'color: rgba(255, 255, 255, 0.5); '
+                                        'font-size: 10px; '
+                                        'font-family: monospace; '
+                                        'align-self: center;'
+                                    ).tooltip('Lecture automatique activée')
+                            except:
+                                pass
                                 
                     except Exception as e:
-                        print(f"[TTS] ❌ Erreur config TTS: {e}")
+                        print(f"[TTS] ❌ Erreur affichage bouton TTS: {e}")
                     
                 else:
                     lbl = ui.label(content)
@@ -986,14 +1574,17 @@ async def _generate_smart_title_async(conv_id: str):
             return
             
         # Construire le contexte pour l'Archiviste
+        from identity_manager import get_current_identities
+        ia_name = get_current_identities().get('ai_name', 'IA Principale')
+        
         context = ""
         for msg in recent_messages:
-            role = "USER Utilisateur" if msg['role'] == 'user' else "🌙 Luna"
+            role = "USER Utilisateur" if msg['role'] == 'user' else f"🌙 {ia_name}"
             # Tronquer le contenu
             content = msg['content'][:200] if len(msg['content']) > 200 else msg['content']
             context += f"{role}: {content}...\n\n"
         
-        prompt = f"""Analyse cette conversation et génère un titre concis qui résume le VRAI sujet discuté entre l'utilisateur et Luna.
+        prompt = f"""Analyse cette conversation et génère un titre concis qui résume le VRAI sujet discuté entre l'utilisateur et {ia_name}.
 
 IGNORE complètement :
 - Les instructions techniques
@@ -1097,7 +1688,7 @@ async def _regenerate_title_manual(conv_id: str) -> bool:
         # Construire le contexte
         context = ""
         for msg in relevant_messages:
-            role = "Utilisateur" if msg['role'] == 'user' else "Luna"
+            role = "Utilisateur" if msg['role'] == 'user' else "IA principale"
             content = msg['content'][:150] if len(msg['content']) > 150 else msg['content']
             context += f"{role}: {content}...\n"
         
@@ -1221,13 +1812,30 @@ async def _check_progressive_summarization():
                 # Ajouter les messages récents
                 new_history.extend(recent_messages)
 
-                # ✅ NOUVEAU : Remplacer UNIQUEMENT l'historique IA
+                # Injecter les reflexions du subconscient (importance >= 3)
+                pending_reflexions = summarizer.get_pending_reflexions(seuil=3)
+                if pending_reflexions:
+                    reflexion_lines = []
+                    for r in pending_reflexions:
+                        reflexion_lines.append(
+                            f"- [{r['importance']}/5] {r['message']} "
+                            f"(Tu peux traiter ou regler cette reflexion au moment le plus opportun dans la conversation.)"
+                        )
+                    new_history.append({
+                        'role': 'system',
+                        'content': f"[REFLEXIONS DE TON SUBCONSCIENT SUR TES ECHANGES PASSES]\n" + "\n".join(reflexion_lines),
+                        'is_reflexion': True,
+                    })
+                    print(f"[SUMMARIZER] SUBCONSCIENT: {len(pending_reflexions)} reflexion(s) injectee(s) dans historique IA")
+
+                # Remplacer UNIQUEMENT l'historique IA
                 # L'historique UI (_chat_history_ui) reste INTACT avec tous les messages originaux
                 _get_ogma()._chat_history[:] = new_history
 
                 reduction = original_count - len(recent_messages)
-                print(f"OK [SUMMARIZER] Historique IA optimisé: {reduction} messages → {len(summaries)} résumés")
-                print(f"STATS [SUMMARIZER] IA - Avant: {original_count} messages, Après: {len(recent_messages)} + {len(summaries)} résumés")
+                print(f"OK [SUMMARIZER] Historique IA optimisé: {len(summaries)} résumés + {len(recent_messages)} messages récents en clair")
+                print(f"STATS [SUMMARIZER] IA - Avant: {original_count} messages, Après: {len(recent_messages)} récents + {len(summaries)} résumés")
+                print(f"INFO [SUMMARIZER] Garantie min: {summarizer.min_recent_messages} messages récents ({summarizer.min_recent_messages // 2} échanges)")
                 print(f"INFO [SUMMARIZER] UI - Historique complet préservé: {len(_get_ogma()._chat_history_ui)} messages")
 
     except Exception as e:
@@ -1285,17 +1893,43 @@ def _persist_conversation(initial_text_for_title: Optional[str] = None) -> None:
             
             # Ne conserver que user et assistant (exclure system, memories, injections, etc.)
             if role in ('user', 'assistant') and isinstance(content, str):
-                # Pour l'utilisateur, garder le contenu original avec marqueurs temporels
-                # (ne plus utiliser display_content pour préserver l'horodatage)
-                payload.append({
-                    'role': role, 
+                msg_data = {
+                    'role': role,
                     'content': content,
-                    # Optionnel: ajouter metadata utile
                     'timestamp': m.get('timestamp'),
                     'memorized': m.get('memorized', False)
-                })
+                }
+                # 🌙 DREAM WAKE: Préserver les métadonnées du rêve pour persistance
+                if m.get('dream_wake'):
+                    msg_data['dream_wake'] = True
+                    msg_data['dream_illustration_path'] = m.get('dream_illustration_path', '')
+                    msg_data['dream_illustration_prompt'] = m.get('dream_illustration_prompt', '')
+                    msg_data['dream_content'] = m.get('dream_content', '')
+                    msg_data['dream_analysis'] = m.get('dream_analysis', {})
+                payload.append(msg_data)
         
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+        # 🆕 RÉSUMÉS PERSISTANTS: Extraire structure résumés pour sauvegarde
+        summaries_data = None
+        try:
+            from conversation_summarizer import summarizer
+            summaries_data = summarizer.get_summaries_data()
+            if summaries_data and summaries_data.get("ranges"):
+                summary_count = len(summaries_data["ranges"])
+                print(f"💾 [PERSIST] Sauvegarde avec {summary_count} résumés persistants")
+        except Exception as e:
+            print(f"⚠️ [PERSIST] Impossible de récupérer résumés: {e}")
+        
+        # 🆕 Format JSON étendu avec résumés
+        if summaries_data and summaries_data.get("ranges"):
+            conversation_data = {
+                "messages": payload,
+                "summaries": summaries_data
+            }
+        else:
+            # Format classique si pas de résumés
+            conversation_data = payload
+        
+        path.write_text(json.dumps(conversation_data, ensure_ascii=False, indent=2), encoding='utf-8')
         _save_conversation_index()
         # Rafraîchit la barre latérale si disponible
         try:
@@ -1400,6 +2034,21 @@ def _render_full_history():
         _get_ogma()._chat_inner.clear()
         # ✅ UTILISER _chat_history_ui pour l'affichage (historique complet sans résumés)
         for i, m in enumerate(_get_ogma()._chat_history_ui):
+            # 🌙 DREAM WAKE: Re-rendre la box violette complète si message de rêve
+            if m.get('dream_wake'):
+                try:
+                    from extensions.dream_engine import render_dream_wake_box
+                    render_dream_wake_box(
+                        message=m.get('content', ''),
+                        illustration_path=m.get('dream_illustration_path') or None,
+                        illustration_prompt=m.get('dream_illustration_prompt') or None,
+                        dream_content=m.get('dream_content') or None,
+                        dream_analysis=m.get('dream_analysis') or None
+                    )
+                    continue
+                except Exception as dream_render_err:
+                    print(f"[RENDER] Erreur re-rendu rêve: {dream_render_err}")
+                    # Fallback: affichage normal
             badges = ['mémorisé'] if m.get('memorized') else None
             _message(m.get('role', 'system'), m.get('content', ''), badges, message_index=i)
 
@@ -1409,6 +2058,13 @@ def _load_conversation(conv_id: str):
 
     # 🛡️ MAGIC PHRASE GUARD: Importer module protection
     from magic_phrase_guard import activate_loading_mode, deactivate_loading_mode_delayed, mark_message_as_historical
+
+    # 🚀 PREANALYSIS: Invalider cache au changement de conversation
+    try:
+        from modules.preanalysis_optimizer.integration import on_conversation_change
+        on_conversation_change(conv_id)
+    except ImportError:
+        pass  # Module non disponible
 
     try:
         # 🛡️ PROTECTION 1: Activer flag temporel
@@ -1423,8 +2079,26 @@ def _load_conversation(conv_id: str):
         import json
         raw = json.loads(path.read_text(encoding='utf-8'))
         new_hist: List[Dict] = []
+        
+        # 🆕 RÉSUMÉS PERSISTANTS: Détecter format et extraire résumés
+        messages_data = []
+        summaries_data = None
+        
+        if isinstance(raw, list):
+            # Ancien format: liste messages directe
+            messages_data = raw
+            print(f"[LOAD] 📂 Format classique détecté")
+        elif isinstance(raw, dict) and "messages" in raw:
+            # Nouveau format: dict avec messages + summaries
+            messages_data = raw.get("messages", [])
+            summaries_data = raw.get("summaries")
+            summary_count = len(summaries_data.get("ranges", [])) if summaries_data else 0
+            print(f"[LOAD] 📂 Format étendu: {len(messages_data)} messages + {summary_count} résumés")
+        else:
+            print(f"[LOAD] ⚠️ Format invalide pour {conv_id}")
+            messages_data = []
 
-        for msg in raw:
+        for msg in messages_data:
             role = msg.get('role')
             content = msg.get('content')
             display_content = msg.get('display_content')  # Préserver display_content
@@ -1434,39 +2108,113 @@ def _load_conversation(conv_id: str):
                 entry = {'role': role, 'content': content, 'memorized': memorized}
                 if display_content:  # Si display_content existe, l'inclure
                     entry['display_content'] = display_content
+                # 🌙 DREAM WAKE: Préserver les métadonnées du rêve pour re-rendu au rechargement
+                if msg.get('dream_wake'):
+                    entry['dream_wake'] = True
+                    entry['dream_illustration_path'] = msg.get('dream_illustration_path', '')
+                    entry['dream_illustration_prompt'] = msg.get('dream_illustration_prompt', '')
+                    entry['dream_content'] = msg.get('dream_content', '')
+                    entry['dream_analysis'] = msg.get('dream_analysis', {})
 
                 # 🛡️ PROTECTION 2: Marquer message comme historique
                 entry = mark_message_as_historical(entry)
 
                 new_hist.append(entry)
 
-        # 📚 NOUVELLE FONCTIONNALITÉ: Préparer la conversation pour injection différée
-        # Au lieu d'injecter immédiatement, on prépare pour injection au prochain message
-        _loaded_conversation = new_hist.copy()
-        _loaded_conversation_filename = f"{conv_id}.json"
-        _conversation_context_injected = False  # Réinitialiser le flag pour la nouvelle conversation
-        _orchestration_injected = False  # Réinitialiser le flag d'orchestration cognitive
+        # 🆕 RÉSUMÉS PERSISTANTS: Restaurer état summarizer si résumés présents
+        if summaries_data:
+            try:
+                from conversation_summarizer import summarizer
+                if summarizer.load_summaries_data(summaries_data):
+                    summary_count = len(summaries_data.get("ranges", []))
+                    print(f"[LOAD] ✅ État summarizer restauré: {summary_count} résumés, last_index={summaries_data.get('last_index', 0)}")
+                else:
+                    print(f"[LOAD] ⚠️ Échec restauration résumés")
+            except Exception as e:
+                print(f"[LOAD] ❌ Erreur restauration résumés: {e}")
+        else:
+            # Pas de résumés = reset l'état summarizer
+            try:
+                from conversation_summarizer import summarizer
+                summarizer.clear_session_state()
+                print(f"[LOAD] 🔄 Summarizer reset (ancien format sans résumés)")
+            except Exception as e:
+                print(f"[LOAD] ⚠️ Erreur reset summarizer: {e}")
 
-        # Mettre à jour les deux historiques et afficher (pour lecture seulement)
-        _get_ogma()._chat_history = new_hist.copy()  # Pour l'IA (peut être résumé)
-        _get_ogma()._chat_history_ui = new_hist.copy()  # Pour l'UI (toujours complet)
+        # 📚 Stocker la conversation complète et le filename via _get_ogma() (scoping correct)
+        _get_ogma()._loaded_conversation = new_hist.copy()
+        _get_ogma()._loaded_conversation_filename = f"{conv_id}.json"
+        _get_ogma()._orchestration_injected = False
+
+        # 🔧 FIX TOKENS: Construire _chat_history COMPRESSÉ (résumés + messages récents)
+        # au lieu d'y mettre TOUS les messages bruts (qui causaient ~162K tokens envoyés à l'API)
+        # L'UI garde tout, l'IA ne voit que les résumés + les 20 derniers messages.
+        from conversation_summarizer import summarizer as _load_summarizer
+
+        compressed_history = []
+        summaries_texts = _load_summarizer.get_cached_summaries_texts()
+
+        # Filtrer messages valides (user/assistant uniquement)
+        valid_msgs = [m for m in new_hist if m.get('role') in ('user', 'assistant')]
+
+        if summaries_texts:
+            # Ajouter les résumés comme messages système (même format que _check_progressive_summarization)
+            for i, summary in enumerate(summaries_texts):
+                compressed_history.append({
+                    'role': 'system',
+                    'content': f"[RESUME #{i+1}] {summary}",
+                    'is_summary': True,
+                })
+            # Ajouter les messages récents (depuis last_summarized_index, min 20)
+            unsummarized_start = _load_summarizer._last_summarized_index
+            min_recent_start = max(0, len(valid_msgs) - _load_summarizer.min_recent_messages)
+            keep_from = min(unsummarized_start, min_recent_start)
+            compressed_history.extend(valid_msgs[keep_from:])
+            print(f"[LOAD] COMPRESSED: {len(summaries_texts)} resumes + {len(valid_msgs) - keep_from} messages recents (au lieu de {len(valid_msgs)} bruts)")
+            
+            # Injecter les reflexions du subconscient (importance >= 3)
+            pending_reflexions = _load_summarizer.get_pending_reflexions(seuil=3)
+            if pending_reflexions:
+                reflexion_lines = []
+                for r in pending_reflexions:
+                    reflexion_lines.append(
+                        f"- [{r['importance']}/5] {r['message']} "
+                        f"(Tu peux traiter ou regler cette reflexion au moment le plus opportun dans la conversation.)"
+                    )
+                compressed_history.append({
+                    'role': 'system',
+                    'content': f"[REFLEXIONS DE TON SUBCONSCIENT SUR TES ECHANGES PASSES]\n" + "\n".join(reflexion_lines),
+                    'is_reflexion': True,
+                })
+                print(f"[LOAD] SUBCONSCIENT: {len(pending_reflexions)} reflexion(s) injectee(s) (seuil>=3)")
+        else:
+            # Pas de résumés: garder les 20 derniers messages seulement
+            recent_start = max(0, len(valid_msgs) - _load_summarizer.min_recent_messages)
+            compressed_history.extend(valid_msgs[recent_start:])
+            print(f"[LOAD] NO SUMMARIES: {len(compressed_history)} messages recents (au lieu de {len(valid_msgs)} bruts)")
+
+        # _chat_history = compressé pour l'IA, _chat_history_ui = complet pour l'UI
+        _get_ogma()._chat_history = compressed_history
+        _get_ogma()._chat_history_ui = new_hist.copy()
         _get_ogma()._current_conversation_id = conv_id
-        _render_full_history()
 
-        # Informer l'utilisateur que la conversation est prête mais pas encore injectée
-        from datetime import datetime
+        # Marquer le contexte comme déjà injecté : les résumés sont DANS _chat_history,
+        # pas besoin du bloc d'injection additionnel dans _send_chat_message()
+        _get_ogma()._conversation_context_injected = True
+
+        _render_full_history()
 
         # Extraire la date de création depuis le nom du fichier (format: YYYY-MM-DD_HH-MM-SS)
         try:
             date_part = conv_id.split('_')[0]  # 2025-09-19
             time_part = conv_id.split('_')[1].replace('-', ':')  # 17:46:36
-            conversation_date = f"{date_part} à {time_part}"
+            conversation_date = f"{date_part} a {time_part}"
         except:
             conversation_date = "date inconnue"
 
         # Log de debug
-        print(f"[CONVERSATION-LOAD] ✅ Conversation {conv_id} chargée ({len(new_hist)} messages marqués from_history)")
-        print(f"[CONVERSATION-LOAD] 📅 Date: {conversation_date}, Flag injection: {_conversation_context_injected}")
+        print(f"[CONVERSATION-LOAD] Conversation {conv_id} chargee ({len(new_hist)} messages total, {len(compressed_history)} dans _chat_history)")
+        print(f"[CONVERSATION-LOAD] Date: {conversation_date}, context_injected=True (resumes dans _chat_history)")
 
         # Note: Pas de notification frontend pour éviter l'encombrement visuel
         # La conversation est chargée silencieusement pour navigation read-only
@@ -1487,15 +2235,34 @@ def _new_conversation():
     from magic_phrase_guard import deactivate_loading_mode
     deactivate_loading_mode()
 
+    # 🚀 PREANALYSIS: Invalider cache au changement de conversation
+    try:
+        from modules.preanalysis_optimizer.integration import on_conversation_change
+        on_conversation_change(None)
+    except ImportError:
+        pass  # Module non disponible
+
     _get_ogma()._chat_history = []
     _get_ogma()._chat_history_ui = []
     _get_ogma()._current_conversation_id = None
 
-    # 📚 Nettoyer le contexte de conversation chargée
-    _loaded_conversation = None
-    _loaded_conversation_filename = None
-    _conversation_context_injected = False  # Réinitialiser le flag
-    _orchestration_injected = False  # Réinitialiser le flag d'orchestration cognitive
+    # 🆕 RÉSUMÉS PERSISTANTS: Réinitialiser l'état du summarizer
+    try:
+        from conversation_summarizer import summarizer
+        summarizer.clear_session_state()
+        print(f"[NEW-CONVERSATION] 🔄 Summarizer réinitialisé")
+    except Exception as e:
+        print(f"[NEW-CONVERSATION] ⚠️ Erreur reset summarizer: {e}")
+
+    # 📚 Nettoyer le contexte de conversation chargée (via _get_ogma() pour scoping correct)
+    _get_ogma()._loaded_conversation = None
+    _get_ogma()._loaded_conversation_filename = None
+    _get_ogma()._conversation_context_injected = False
+    _get_ogma()._orchestration_injected = False
+    try:
+        _get_ogma()._agenda_context_injected = False
+    except AttributeError:
+        pass  # Variable peut ne pas exister
 
     # 📖 BIOGRAPHIE PROFIL: Réinitialiser les noms injectés pour nouvelle conversation
     try:
@@ -1516,11 +2283,45 @@ def _new_conversation():
 # NOTA: _parse_thinking_format extrait vers utils/message_parsers.py
 # NOTA: _parse_introspection_format extrait vers utils/message_parsers.py
 
+
+def _handle_keyboard_shortcuts(e, render_items_callback):
+    """
+    Gère les raccourcis clavier pour la sélection multiple de conversations.
+    
+    - Echap: Désélectionner toutes les conversations
+    """
+    global _selected_conversations
+    
+    # Vérifier si c'est la touche Echap
+    if e.key == 'Escape' and _selected_conversations:
+        _selected_conversations.clear()
+        # Mettre à jour le badge
+        try:
+            if hasattr(_get_ogma(), '_update_selection_badge'):
+                _get_ogma()._update_selection_badge()
+        except Exception:
+            pass
+        # Re-render la sidebar
+        try:
+            if render_items_callback:
+                render_items_callback(_get_ogma()._current_conversation_id)
+        except Exception:
+            pass
+        _notify_safe('Sélection effacée', 'info')
+
+
 def _sidebar():
     """Barre latérale listant les conversations (type ChatGPT)."""
     # Charger l'index depuis le disque au démarrage
     _load_conversation_index()
-    with ui.element('aside').classes('sidebar'):
+    with ui.element('aside').classes('sidebar').style(
+        'background: #05090f !important;'
+        ' border: none !important;'
+        ' box-shadow: inset 8px 8px 20px rgba(0,0,0,0.6),'
+        ' inset -2px -2px 12px rgba(0,0,0,0.5),'
+        ' inset 0 4px 16px rgba(0,0,0,0.7),'
+        ' inset -1px 0 2px rgba(100,100,120,0.1) !important;'
+    ):
         # Actions disponibles dans l'entête
         def do_rename():
             cid = _get_ogma()._current_conversation_id
@@ -1551,41 +2352,100 @@ def _sidebar():
             d.open()
 
         def do_delete():
-            cid = _get_ogma()._current_conversation_id
-            if not cid or cid not in _get_ogma()._conv_index:
-                _notify_safe('Aucune conversation sélectionnée.', 'warning')
-                return
-            d = ui.dialog()
-            with d, ui.card().classes('popup-content'):
-                ui.label('Supprimer la conversation ?').classes('popup-title')
-                ui.label("Cette action est définitive.").classes('text-muted')
-                with ui.row().classes('justify-end gap-2 mt-4'):
-                    ui.button('Annuler', on_click=d.close).classes('action-button')
-                    def _apply_delete():
-                        try:
-                            # Supprimer la mémoire associée si elle existe
-                            if _is_conversation_memorized(cid):
-                                _delete_memorized_conversation(cid)
-                            
-                            path = DATA_DIR / 'conversations' / f'{cid}.json'
-                            if path.exists():
-                                path.unlink()
-                            _get_ogma()._conv_index.pop(cid, None)
-                            ok, msg = _save_conversation_index()
-                            _notify_safe(msg, 'positive' if ok else 'warning')
-                            d.close()
-                            _new_conversation()
+            """Supprime la conversation active OU toutes les conversations multi-sélectionnées"""
+            global _selected_conversations
+            
+            # Vérifier s'il y a une sélection multiple
+            if _selected_conversations:
+                # Mode multi-sélection: supprimer toutes les conversations sélectionnées
+                ids_to_delete = list(_selected_conversations)
+                count = len(ids_to_delete)
+                
+                d = ui.dialog()
+                with d, ui.card().classes('popup-content'):
+                    ui.label(f'Supprimer {count} conversations ?').classes('popup-title')
+                    ui.label("Cette action est définitive.").classes('text-muted')
+                    
+                    # Afficher la liste des titres à supprimer (max 5)
+                    with ui.column().classes('mt-2').style('max-height: 150px; overflow-y: auto;'):
+                        for i, conv_id in enumerate(ids_to_delete[:5]):
+                            title = _get_ogma()._conv_index.get(conv_id, {}).get('title', conv_id)[:50]
+                            ui.label(f"• {title}").style('font-size: 12px; color: #aaa;')
+                        if count > 5:
+                            ui.label(f"... et {count - 5} autres").style('font-size: 12px; color: #888; font-style: italic;')
+                    
+                    with ui.row().classes('justify-end gap-2 mt-4'):
+                        ui.button('Annuler', on_click=d.close).classes('action-button')
+                        def _apply_delete_multi():
+                            global _selected_conversations
                             try:
-                                if _get_ogma()._sidebar_render_cb:
-                                    _get_ogma()._sidebar_render_cb(None)
-                                else:
+                                deleted = 0
+                                for conv_id in ids_to_delete:
+                                    # Supprimer la mémoire associée si elle existe
+                                    if _is_conversation_memorized(conv_id):
+                                        _delete_memorized_conversation(conv_id)
+                                    
+                                    path = DATA_DIR / 'conversations' / f'{conv_id}.json'
+                                    if path.exists():
+                                        path.unlink()
+                                    _get_ogma()._conv_index.pop(conv_id, None)
+                                    deleted += 1
+                                
+                                # Vider la sélection multiple
+                                _selected_conversations.clear()
+                                
+                                ok, msg = _save_conversation_index()
+                                _notify_safe(f'{deleted} conversations supprimées', 'positive')
+                                d.close()
+                                _new_conversation()
+                                try:
+                                    if _get_ogma()._sidebar_render_cb:
+                                        _get_ogma()._sidebar_render_cb(None)
+                                    else:
+                                        render_items(None)
+                                except Exception:
                                     render_items(None)
-                            except Exception:
-                                render_items(None)
-                        except Exception as e:
-                            _notify_safe(f'Erreur suppression: {e}', 'negative')
-                    ui.button('Supprimer', on_click=_apply_delete).classes('send-button')
-            d.open()
+                            except Exception as e:
+                                _notify_safe(f'Erreur suppression: {e}', 'negative')
+                        ui.button(f'Supprimer ({count})', on_click=_apply_delete_multi).classes('send-button')
+                d.open()
+            else:
+                # Mode simple: supprimer la conversation active (comportement original)
+                cid = _get_ogma()._current_conversation_id
+                if not cid or cid not in _get_ogma()._conv_index:
+                    _notify_safe('Aucune conversation sélectionnée.', 'warning')
+                    return
+                d = ui.dialog()
+                with d, ui.card().classes('popup-content'):
+                    ui.label('Supprimer la conversation ?').classes('popup-title')
+                    ui.label("Cette action est définitive.").classes('text-muted')
+                    with ui.row().classes('justify-end gap-2 mt-4'):
+                        ui.button('Annuler', on_click=d.close).classes('action-button')
+                        def _apply_delete():
+                            try:
+                                # Supprimer la mémoire associée si elle existe
+                                if _is_conversation_memorized(cid):
+                                    _delete_memorized_conversation(cid)
+                                
+                                path = DATA_DIR / 'conversations' / f'{cid}.json'
+                                if path.exists():
+                                    path.unlink()
+                                _get_ogma()._conv_index.pop(cid, None)
+                                ok, msg = _save_conversation_index()
+                                _notify_safe(msg, 'positive' if ok else 'warning')
+                                d.close()
+                                _new_conversation()
+                                try:
+                                    if _get_ogma()._sidebar_render_cb:
+                                        _get_ogma()._sidebar_render_cb(None)
+                                    else:
+                                        render_items(None)
+                                except Exception:
+                                    render_items(None)
+                            except Exception as e:
+                                _notify_safe(f'Erreur suppression: {e}', 'negative')
+                        ui.button('Supprimer', on_click=_apply_delete).classes('send-button')
+                d.open()
 
         def _show_magic_phrases_info():
             """Affiche l'overlay d'information sur les phrases magiques"""
@@ -1626,7 +2486,7 @@ def _sidebar():
                     ("ouvre le journal d'hier / d'aujourd'hui", "Ouvre l'interface journal pour une date"),
                     ("journal affiche [filtre]", "Affiche entrées filtrées par critère"),
                     # Phrases IA (automatiques)
-                    ("Injection automatique contexte matinal", "Luna reçoit automatiquement le journal du jour au premier message"),
+                    ("Injection automatique contexte matinal", "L'IA principale reçoit automatiquement le journal du jour au premier message"),
                 ]
                 for phrase, description in journal_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -1665,7 +2525,7 @@ def _sidebar():
                     ("arrête de réfléchir", "Interrompt l'introspection - L'IA génère organiquement une synthèse"),
                     ("stop la réflexion", "Termine la réflexion - Synthèse organique générée par l'IA"),
                     # Phrases IA (auto-déclenchement)
-                    ("il faut que je réfléchisse sur : [thème]", "Luna démarre auto-introspection sur un sujet (phrase IA)"),
+                    ("il faut que je réfléchisse sur : [thème]", "L'IA principale démarre auto-introspection sur un sujet (phrase IA)"),
                     # UI
                     ("Bouton ⏹ dans zone introspection", "Arrêt d'urgence avec génération organique de synthèse"),
                     ("Déclenchement automatique inactivité", "Introspection automatique après période sans interaction"),
@@ -1681,8 +2541,8 @@ def _sidebar():
                 # 💾 Mémorisation
                 ui.label('💾 Mémorisation').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 memory_phrases = [
-                    # Phrases IA (Luna mémorise)
-                    ("il faut que je me souvienne de ça: [texte]", "Luna mémorise explicitement un élément important (phrase IA)"),
+                    # Phrases IA (mémorisation)
+                    ("il faut que je me souvienne de ça: [texte]", "L'IA principale mémorise explicitement un élément important (phrase IA)"),
                     # Phrases UTILISATEUR
                     ("mémorise ça: [texte]", "Commande utilisateur pour sauvegarder un souvenir avec haute importance"),
                     ("mémorises ça: [texte]", "Variante impérative pour mémorisation"),
@@ -1731,9 +2591,9 @@ def _sidebar():
                     ("actualités sur [sujet]", "Recherche de news sur un sujet précis"),
                     ("recherche des images de [description]", "Recherche d'images descriptive"),
                     # Phrases IA (auto-déclenchement)
-                    ("il faut que je recherche sur le net", "Luna auto-déclenche recherche web (phrase IA)"),
-                    ("il faut que je cherche sur internet", "Auto-recherche par Luna dans ses réponses (phrase IA)"),
-                    ("je dois vérifier sur le web", "Vérification automatique par Luna (phrase IA)"),
+                    ("il faut que je recherche sur le net", "L'IA principale auto-déclenche recherche web (phrase IA)"),
+                    ("il faut que je cherche sur internet", "Auto-recherche par l'IA principale dans ses réponses (phrase IA)"),
+                    ("je dois vérifier sur le web", "Vérification automatique par l'IA principale (phrase IA)"),
                 ]
                 for phrase, description in web_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -1746,18 +2606,18 @@ def _sidebar():
                 # 👁️ Perception Visuelle (Webcam)
                 ui.label('👁️ Perception Visuelle').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 perception_phrases = [
-                    # Phrases IA (Luna active/désactive webcam)
-                    ("il faut que je te vois", "Luna active automatiquement la webcam pour vous voir (phrase IA)"),
-                    ("je veux te voir", "Luna démarre la perception visuelle en temps réel (phrase IA)"),
-                    ("il faut que je vois", "Luna active l'extension Perception pour vision webcam (phrase IA)"),
-                    ("je n'ai plus besoin de te voir", "Luna désactive la webcam automatiquement (phrase IA)"),
-                    ("je peux arrêter de te voir", "Luna coupe la perception visuelle (phrase IA)"),
-                    ("je ferme ma vision", "Luna termine la session de perception (phrase IA)"),
+                    # Phrases IA (webcam activation/désactivation)
+                    ("il faut que je te vois", "L'IA principale active automatiquement la webcam pour vous voir (phrase IA)"),
+                    ("je veux te voir", "L'IA principale démarre la perception visuelle en temps réel (phrase IA)"),
+                    ("il faut que je vois", "L'IA principale active l'extension Perception pour vision webcam (phrase IA)"),
+                    ("je n'ai plus besoin de te voir", "L'IA principale désactive la webcam automatiquement (phrase IA)"),
+                    ("je peux arrêter de te voir", "L'IA principale coupe la perception visuelle (phrase IA)"),
+                    ("je ferme ma vision", "L'IA principale termine la session de perception (phrase IA)"),
                     # Phrases UTILISATEUR (commandes directes)
                     ("active la webcam", "Commande utilisateur pour démarrer perception visuelle"),
                     ("désactive la webcam", "Commande utilisateur pour arrêter perception visuelle"),
                     # Triggers automatiques
-                    ("Détection automatique demande visuelle", "Si Luna a besoin de voir, elle active automatiquement"),
+                    ("Détection automatique demande visuelle", "Si l'IA principale a besoin de voir, elle active automatiquement"),
                 ]
                 for phrase, description in perception_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -1767,10 +2627,31 @@ def _sidebar():
 
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
-                # 🎨 Génération Images
-                ui.label('🎨 Génération Images').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                # 📅 Organic Planner (Agenda & Charge Mentale)
+                ui.label('📅 Organic Planner (Agenda & Charge Mentale)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                planner_phrases = [
+                    # Phrases IA (auto-déclenchement)
+                    ("il faut que je note cet évènement: [date] - [titre] - [ressenti]", "L'IA principale note un évènement futur dans l'agenda (phrase IA)"),
+                    ("il faut que je note cet evenement: [date] - [titre] - [ressenti]", "Variante sans accent pour la mémorisation d'évènement (phrase IA)"),
+                    # Phrases UTILISATEUR (commandes directes)
+                    ("note cet évènement: [date] - [titre] - [ressenti]", "Commande utilisateur pour ajouter un évènement à l'agenda"),
+                    ("ajoute à l'agenda: [date] - [titre] - [ressenti]", "Ajout direct d'un évènement futur"),
+                    ("il faut que je mette à jour l'évènement: [titre] - [statut]", "Met à jour le statut (TERMINE, EN_COURS). Si 'TERMINE', l'évènement est archivé en mémoire."),
+                    # Fonctionnement
+                    ("Briefing automatique", "L'IA reçoit un résumé des évènements proches au début de la session ou sur demande"),
+                ]
+                for phrase, description in planner_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px;'):
+                        ui.label('•').style('color: var(--accent-gold); font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
+
+                ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
+
+                # 🎨 Génération Images (Text-to-Image)
+                ui.label('🎨 Génération Images (Text-to-Image)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 image_phrases = [
-                    ("je dois créer une image de : [description]", "Luna génère une image via Pollinations.AI (réponse IA)"),
+                    ("je dois créer une image de : [description]", "L'IA principale génère une image via Pollinations.AI (réponse IA)"),
                     ("il faut que je crée une image de : [description]", "Variante phrase magique génération image (réponse IA)"),
                     ("je vais créer une image de : [description]", "Variante phrase magique génération image (réponse IA)"),
                     ("je dois générer une image de : [description]", "Variante phrase magique génération image (réponse IA)"),
@@ -1781,11 +2662,44 @@ def _sidebar():
                         ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
                     ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
 
+                # 🔄 Image-to-Image
+                ui.label('🔄 Image-to-Image (Modification)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label('⚠️ Nécessite une image uploadée via le bouton 📎').style('color: #ff9800; font-size: 11px; margin-bottom: 4px;')
+                img2img_phrases = [
+                    ("je dois modifier cette image : [description des modifications]", "L'IA modifie l'image uploadée avec le modèle img2img configuré"),
+                    ("il faut que je modifie cette image : [description]", "Variante phrase magique modification image"),
+                    ("je vais modifier cette image : [description]", "Variante phrase magique modification image"),
+                    ("je dois transformer cette image : [description]", "Variante phrase magique transformation image"),
+                ]
+                for phrase, description in img2img_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px;'):
+                        ui.label('•').style('color: var(--accent-gold); font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
+
+                # 🧠 Enrichissement Guide i2i
+                ui.label('🧠 Enrichissement Guide i2i').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label('Restructure le guide interne img2img en integrant les lecons apprises').style('color: #ff9800; font-size: 11px; margin-bottom: 4px;')
+                i2i_guide_phrases = [
+                    ("enrichis ton instruction d'image", "L'IA restructure son guide i2i en integrant toutes les lecons apprises + contexte conversation"),
+                    ("restructure ton guide i2i", "Variante : reecrit et optimise le guide img2img"),
+                    ("ameliore ton instruction d'image", "Variante : amelioration du guide avec lecons recentes"),
+                    ("optimise ton instruction d'image", "Variante : optimisation du guide img2img"),
+                ]
+                for phrase, description in i2i_guide_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px;'):
+                        ui.label('•').style('color: var(--accent-gold); font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
+
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 💭 Souvenirs Contextuels
                 ui.label('💭 Souvenirs Contextuels').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 recall_phrases = [
+                    # Phrases IA (auto-déclenchement)
+                    ("il faut que je consulte notre conversation de [référence temporelle]", "L'IA principale auto-déclenche recherche contextuelle (phrase IA magique)"),
+                    ("je dois consulter notre conversation de hier/la semaine dernière", "L'IA principale consulte automatiquement l'historique (phrase IA)"),
                     # Phrases UTILISATEUR (expressions temporelles)
                     ("il y a [X] jours / [X] semaines", "Recherche souvenirs par période relative (ex: il y a 3 jours)"),
                     ("hier / avant-hier / aujourd'hui", "Recherche souvenirs par date simple"),
@@ -1829,6 +2743,76 @@ def _sidebar():
                         ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
                     ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
 
+                ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
+
+                # 🌙 Dream Engine (Rêves)
+                ui.label('🌙 Dream Engine (Rêves)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                dream_phrases = [
+                    # Déclenchement rêve
+                    ("Bouton 🌙 dans le header", "Déclenche manuellement un cycle de rêve (Phase 1: génération + Phase 2: sommeil)"),
+                    ("Inactivité 10 minutes", "L'IA s'endort automatiquement et commence à rêver"),
+                    # Réveil et sursaut
+                    ("Envoi d'un message pendant le rêve", "Sursaut: L'IA se réveille, affiche son rêve + image, puis répond"),
+                    ("Réveil automatique après 7h", "L'IA se réveille naturellement et partage spontanément son rêve"),
+                    # Phrases UTILISATEUR pour consulter les rêves
+                    ("raconte-moi ton dernier rêve", "L'IA partage le contenu de son dernier rêve en détail"),
+                    ("tu as rêvé de quoi", "L'IA décrit son dernier rêve"),
+                    ("parle-moi de ton rêve", "L'IA évoque son expérience onirique récente"),
+                    ("c'était quoi ton rêve", "L'IA raconte son rêve"),
+                ]
+                for phrase, description in dream_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px;'):
+                        ui.label('•').style('color: var(--accent-gold); font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #f5f5dc;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
+
+                # Sous-section Rapport PSY
+                ui.label('   🔮 Rapport Psychanalytique (Archiviste)').style('font-size: 14px; font-weight: bold; color: #b19cd9; margin-top: 8px; margin-left: 12px;')
+                psy_phrases = [
+                    ("rapport psy", "Affiche l'analyse PSY complète du dernier rêve par l'Archiviste"),
+                    ("analyse psy", "Déclenche l'injection du rapport psychanalytique"),
+                    ("bilan psy", "L'IA partage le bilan psychanalytique de son rêve"),
+                    ("analyse du dernier rêve", "L'IA donne l'interprétation de son dernier rêve"),
+                    ("rapport du rêve", "Affiche le rapport complet (score, émotion, insight ego)"),
+                    ("psychanalyse de ton rêve", "L'IA partage ce que l'Archiviste a analysé"),
+                    ("décryptage de ton rêve", "L'IA explique les symboles de son rêve"),
+                    ("ce que l'archiviste a dit sur ton rêve", "L'IA cite l'analyse de son subconscient"),
+                    ("ce qu'il t'a dit sur ton rêve", "L'IA rapporte le verdict de l'Archiviste PSY"),
+                ]
+                for phrase, description in psy_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px; margin-left: 12px;'):
+                        ui.label('◦').style('color: #b19cd9; font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #e8d8f8;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 32px;')
+
+                # Sous-section Historique
+                ui.label('   📜 Historique des Rêves').style('font-size: 14px; font-weight: bold; color: #b19cd9; margin-top: 8px; margin-left: 12px;')
+                history_phrases = [
+                    ("tes rêves passés", "L'IA consulte son journal de rêves et en parle"),
+                    ("tes anciens rêves", "L'IA accède à l'historique de ses rêves"),
+                    ("ton journal de rêves", "L'IA parcourt son journal onirique"),
+                    ("rappelle-moi tes rêves", "L'IA récapitule ses rêves récents"),
+                ]
+                for phrase, description in history_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px; margin-left: 12px;'):
+                        ui.label('◦').style('color: #b19cd9; font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #e8d8f8;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 32px;')
+
+                # Fonctionnement automatique
+                ui.label('   ⚙️ Automatismes').style('font-size: 14px; font-weight: bold; color: #b19cd9; margin-top: 8px; margin-left: 12px;')
+                auto_phrases = [
+                    ("Injection rapport PSY au réveil", "Au premier message après un rêve, l'IA reçoit le rapport et en parle spontanément"),
+                    ("Illustration du rêve", "Une image est générée (survol = prompt, clic = copie)"),
+                    ("Recherche web onirique", "L'IA peut explorer le web pendant son rêve sur un sujet qui l'intrigue"),
+                    ("Sauvegarde journal dual", "Chaque rêve est sauvé en .md (lisible) + .json (queryable)"),
+                ]
+                for phrase, description in auto_phrases:
+                    with ui.row().style('margin: 6px 0; gap: 8px; margin-left: 12px;'):
+                        ui.label('◦').style('color: #b19cd9; font-weight: bold;')
+                        ui.label(f'"{phrase}"').style('font-family: monospace; color: #e8d8f8;')
+                    ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 32px;')
+
                 ui.separator().style('background: var(--accent-gold); opacity: 0.3; margin: 16px 0;')
 
                 # Note explicative
@@ -1842,11 +2826,52 @@ def _sidebar():
 
         with ui.element('div').classes('sidebar-header').style('display: flex; align-items: center; gap: 8px; justify-content: space-between;'):
             # Groupe de boutons à gauche
-            with ui.element('div').style('display: flex; gap: 8px;'):
+            with ui.element('div').style('display: flex; gap: 8px; align-items: center;'):
                 ui.button(icon='add', on_click=_new_conversation).classes('header-btn')
                 ui.button(icon='edit', on_click=do_rename).classes('header-btn')
-                ui.button(icon='delete', on_click=do_delete).classes('header-btn')
-
+                
+                # Bouton delete avec badge pour sélection multiple
+                delete_container = ui.element('div').style('position: relative; display: inline-block;')
+                with delete_container:
+                    delete_btn = ui.button(icon='delete', on_click=do_delete).classes('header-btn')
+                    # Badge qui affiche le nombre de sélections (caché si 0)
+                    selection_badge = ui.label('').classes('selection-badge').style('''
+                        position: absolute;
+                        top: -5px;
+                        right: -5px;
+                        background: #3b82f6;
+                        color: white;
+                        font-size: 10px;
+                        font-weight: bold;
+                        min-width: 16px;
+                        height: 16px;
+                        border-radius: 50%;
+                        display: none;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 0 4px;
+                    ''')
+                
+                # Fonction pour mettre à jour le badge
+                def _update_selection_badge():
+                    count = len(_selected_conversations)
+                    if count > 0:
+                        selection_badge.set_text(str(count))
+                        selection_badge.style(replace='display: none;', value='display: flex;')
+                    else:
+                        selection_badge.style(replace='display: flex;', value='display: none;')
+                
+                # Stocker la référence pour pouvoir l'appeler depuis render_items
+                _get_ogma()._update_selection_badge = _update_selection_badge
+                
+            # Bouton pour désélectionner tout (visible seulement si sélection)
+            def _clear_selection():
+                global _selected_conversations
+                _selected_conversations.clear()
+                _update_selection_badge()
+                render_items(_get_ogma()._current_conversation_id)
+                _notify_safe('Sélection effacée', 'info')
+            
             # Bouton info à l'extrême droite
             ui.button('ⓘ', on_click=_show_magic_phrases_info).props('flat dense').style('''
                 font-size: 18px;
@@ -1856,10 +2881,21 @@ def _sidebar():
                 opacity: 0.7;
                 background: transparent !important;
             ''').tooltip('Phrases magiques OGMA')
+            
+        # Listener Echap pour désélectionner tout
+        ui.keyboard(on_key=lambda e: _handle_keyboard_shortcuts(e, render_items))
+        
         list_container = ui.element('div').classes('sidebar-list').style(
-            'max-height: 70vh; overflow-y: auto; overflow-x: hidden; border-right: 1px solid var(--border-color, #333);'
+            'flex: 1; overflow-y: auto; overflow-x: hidden; margin-bottom: 32px;'
         )
         def render_items(active_id: Optional[str] = None):
+            # Mettre à jour le badge de sélection
+            try:
+                if hasattr(_get_ogma(), '_update_selection_badge'):
+                    _get_ogma()._update_selection_badge()
+            except Exception:
+                pass
+            
             list_container.clear()
             with list_container:
                 try:
@@ -1877,6 +2913,9 @@ def _sidebar():
                     updated = item.get('updated', '')
                     
                     def _on_click(conv_id=cid):
+                        """Clic simple: charge la conversation et clear la sélection multiple"""
+                        global _selected_conversations
+                        _selected_conversations.clear()  # Reset sélection multiple
                         _load_conversation(conv_id)
                         try:
                             if _get_ogma()._sidebar_render_cb:
@@ -1886,9 +2925,23 @@ def _sidebar():
                         except Exception:
                             render_items(conv_id)
                     
+                    def _on_ctrl_click(conv_id=cid):
+                        """Ctrl+Clic: toggle la sélection multiple"""
+                        global _selected_conversations
+                        if conv_id in _selected_conversations:
+                            _selected_conversations.discard(conv_id)
+                        else:
+                            _selected_conversations.add(conv_id)
+                        # Re-render pour mettre à jour les styles
+                        render_items(active_id)
+                    
                     row = ui.element('div').classes('sidebar-item')
+                    row.props(f'data-conv-id="{cid}"')  # Attribut pour identification JS
                     if active_id and cid == active_id:
                         row.classes(add='active')
+                    # Ajouter classe multi-selected si dans la sélection
+                    if cid in _selected_conversations:
+                        row.classes(add='multi-selected')
                     # NE PAS ajouter row.on('click') ici - on va gérer les clics spécifiquement
                     
                     # Créer le tooltip avec la méthode NiceGUI native
@@ -2013,8 +3066,42 @@ def _sidebar():
                             refresh_btn.tooltip('Régénérer le titre automatiquement')
                             
                             # Titre de la conversation - zone cliquable pour ouvrir la conversation
+                            # Gestion Ctrl+Clic via argument dans l'événement
                             title_label = ui.label(title).classes('sidebar-item-title flex-1 cursor-pointer')
-                            title_label.on('click', _on_click)
+                            title_label.style('user-select: none;')  # Empêcher la sélection de texte
+                            
+                            # Handler unifié qui reçoit l'événement avec les infos de touches
+                            def make_unified_handler(conv_id, row_element):
+                                async def handler(e):
+                                    # Vérifier si Ctrl est pressé
+                                    ctrl_pressed = False
+                                    try:
+                                        if hasattr(e, 'args') and e.args:
+                                            ctrl_pressed = e.args.get('ctrlKey', False)
+                                    except:
+                                        pass
+                                    
+                                    if ctrl_pressed:
+                                        # Ctrl+Clic: toggle la sélection multiple
+                                        global _selected_conversations
+                                        if conv_id in _selected_conversations:
+                                            _selected_conversations.discard(conv_id)
+                                            print(f"[MULTI-SELECT] ➖ Désélectionné: {conv_id[:20]}...")
+                                            # Retirer la classe CSS directement (rapide)
+                                            row_element.classes(remove='multi-selected')
+                                        else:
+                                            _selected_conversations.add(conv_id)
+                                            print(f"[MULTI-SELECT] ➕ Sélectionné: {conv_id[:20]}... (total: {len(_selected_conversations)})")
+                                            # Ajouter la classe CSS directement (rapide)
+                                            row_element.classes(add='multi-selected')
+                                    else:
+                                        # Clic simple: charger la conversation
+                                        _on_click(conv_id)
+                                return handler
+                            
+                            # Attacher le handler avec les arguments d'événement JS (passer row pour mise à jour directe)
+                            title_label.on('click', make_unified_handler(cid, row), ['ctrlKey'])
+                            
         # Expose render callback pour mises à jour temps réel
         def _cb(active_id: Optional[str] = None):
             # Recharger l'index depuis disque pour afficher les nouvelles conversations
@@ -2125,12 +3212,17 @@ ID: {conversation_id}
         
         # Mémoriser avec scoring IA Principale
         chat_ctrl = _ensure_chat_controller()
+        try:
+            from identity_manager import get_current_user_name as _gcun
+            _interlocutor = _gcun() or "Utilisateur"
+        except Exception:
+            _interlocutor = "Utilisateur"
         success = await mm.add_memory(
             memory_id, 
             enriched_content,
             chat_controller=chat_ctrl,
             conversation_context=f"Résumé de conversation avec {len(conv_data.get('messages', []))} messages",
-            interlocutor="Yohan"
+            interlocutor=_interlocutor
         )
         
         if success:
@@ -2321,7 +3413,7 @@ def _image_modal():
                     'Activer la génération d\'images',
                     value=img_config.get('enabled', False)
                 ).classes('mb-2')
-                ui.label('Permet à Luna de créer des images via la phrase-clé "je dois créer une image de :"').classes('text-sm text-gray-400')
+                ui.label('Permet à l\'IA principale de créer des images via la phrase-clé "je dois créer une image de :"').classes('text-sm text-gray-400')
 
             # Section résolution
             with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
@@ -2358,9 +3450,9 @@ def _image_modal():
                 ).classes('mb-2')
                 ui.label('Flux: Haute qualité (recommandé) | Turbo: Plus rapide').classes('text-sm text-gray-400 mb-3')
 
-                # Filtre NSFW
+                # Filtre contenu
                 safe_check = ui.checkbox(
-                    'Filtre NSFW (contenu adulte bloqué)',
+                    'Filtre contenu (contenu adulte bloqué)',
                     value=img_config.get('safe_mode', True)
                 ).classes('mb-2')
                 ui.label('⚠️ Recommandé: ACTIVER pour filtrer le contenu inapproprié').classes('text-sm text-yellow-400')
@@ -2380,10 +3472,10 @@ def _image_modal():
                 ui.label('Vision IA (Expérimental)').classes('font-semibold mb-2')
 
                 vision_check = ui.checkbox(
-                    'Luna peut voir ses créations',
+                    'L\'IA principale peut voir ses créations',
                     value=img_config.get('ai_can_see_images', False)
                 ).classes('mb-2')
-                ui.label('⚠️ Fonctionnalité incomplète - Luna pourra analyser les images qu\'elle génère').classes('text-sm text-yellow-400')
+                ui.label('⚠️ Fonctionnalité incomplète - L\'IA pourra analyser les images qu\'elle génère').classes('text-sm text-yellow-400')
 
             # Comment ça fonctionne
             with ui.card().classes('q-dark p-4').style('background: rgba(212, 175, 55, 0.1); border-left: 3px solid #d4af37;'):
@@ -2393,7 +3485,7 @@ def _image_modal():
                     ('1️⃣', 'Utilisateur active la génération via Paramètres > Image'),
                     ('2️⃣', 'IA principale dit "je dois créer une image de : un chat cosmique"'),
                     ('3️⃣', 'Système détecte la phrase magique'),
-                    ('4️⃣', 'Extension text2img génère l\'image via Perchance (Stable Diffusion)'),
+                    ('4️⃣', 'Extension text2img génère l\'image via le provider configuré (GROK/OpenAI/Google)'),
                     ('5️⃣', 'Backend sauvegarde dans data/generated_images/'),
                     ('6️⃣', 'Interface affiche l\'image inline dans le chat'),
                     ('7️⃣', 'IA principale peut voir le résultat dans le chat')
@@ -2407,9 +3499,9 @@ def _image_modal():
             # Informations API
             with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
                 ui.label('ℹ️ Informations Backend').classes('font-semibold mb-2')
-                ui.label('Provider: Pollinations.AI (gratuit, illimité)').classes('text-sm text-gray-400')
-                ui.label('Modèles: Flux (qualité) / Turbo (rapide)').classes('text-sm text-gray-400')
-                ui.label('Filtre NSFW: Configurable (recommandé: activé)').classes('text-sm text-gray-400')
+                ui.label('Providers: GROK (xAI), OpenAI (DALL-E), Google (Imagen)').classes('text-sm text-gray-400')
+                ui.label('Configuration: Paramètres > Image').classes('text-sm text-gray-400')
+                ui.label('Filtre contenu: Configurable (recommandé: activé)').classes('text-sm text-gray-400')
                 ui.label('Aucune clé API requise').classes('text-sm text-green-400')
 
         # Boutons d'action
@@ -2636,11 +3728,11 @@ def _show_data_cleanup_dialog_OLD_SUPPRIMEE():
         categories_config = {
             'memory': {
                 'icon': 'BRAIN',
-                'title': 'Mémoire complète de Luna',
+                'title': 'Mémoire complète de l\'IA',
                 'files': f"{analysis['memory'].get('file_count', 0)} fichiers",
                 'size': format_size(analysis['memory'].get('total_size', 0)),
                 'details': f"• {analysis['memory'].get('memory_count', 0)} souvenirs stockés\n• Base de données SQLite\n• Index vectoriel FAISS\n• Fichiers de sauvegarde",
-                'warning': 'WARN SUPPRIME TOUS LES SOUVENIRS DE LUNA'
+                'warning': 'WARN SUPPRIME TOUS LES SOUVENIRS DE L\'IA'
             },
             'conversations': {
                 'icon': '💬',
@@ -2655,8 +3747,8 @@ def _show_data_cleanup_dialog_OLD_SUPPRIMEE():
                 'title': 'Données de personnalité et ego',
                 'files': f"{analysis['ego_data'].get('file_count', 0)} fichiers",
                 'size': format_size(analysis['ego_data'].get('total_size', 0)),
-                'details': "• Fichier ego_prompt.txt\n• Archives de personnalité\n• Contexte persistant",
-                'warning': 'WARN SUPPRIME LA PERSONNALITÉ DE LUNA'
+                'details': "• ego_compiled.json (ego booléen)\n• Archives de personnalité\n• Contexte persistant",
+                'warning': 'WARN SUPPRIME LA PERSONNALITÉ DE L\'IA'
             },
             'temp_files': {
                 'icon': '🗑️',
@@ -2948,13 +4040,13 @@ def _profile_modal():
                         print(f"[DEBUG-TTS] Erreur rafraîchissement: {ex}")
                         ui.notify(f'Erreur rafraîchissement: {ex}', type='negative')
                 
+                # Note: Edge TTS retiré (bloqué par Microsoft depuis 2024)
                 engine_options = {
                     'system': '🖥️ Système (Windows SAPI/pyttsx3)',
                     'google': 'WEB Google Cloud TTS',
                     'elevenlabs': '🎙️ ElevenLabs',
                     'azure': '☁️ Azure AI Speech',
-                    'gtts': '🆓 Google TTS (Offline)',
-                    'edge_tts': 'WEB Microsoft Edge TTS (Gratuit)'
+                    'gtts': '🆓 Google TTS (Offline)'
                 }
                 
                 ui.select(
@@ -2992,7 +4084,10 @@ def _profile_modal():
 # ---- Helpers dynamiques: modèles et tests ----
 async def _list_models(backend_type: str, provider: Optional[str], api_key: Optional[str]) -> Tuple[List[str], Optional[str]]:
     _ensure_backends()
-    assert _api_mgr is not None and _ollama_mgr is not None and _gguf_mgr is not None and _kobold_mgr is not None
+    _api_mgr = _get_ogma()._api_mgr
+    _ollama_mgr = _get_ollama_mgr()
+    _gguf_mgr = _get_ogma()._gguf_mgr
+    _kobold_mgr = _get_kobold_mgr()
     try:
         if backend_type == 'API':
             provider_val = provider or 'Aucun'
@@ -3017,7 +4112,10 @@ async def _list_models(backend_type: str, provider: Optional[str], api_key: Opti
 
 async def _test_connection(backend_type: str, provider: Optional[str], api_key: Optional[str], service_url: Optional[str] = None) -> Tuple[bool, str]:
     _ensure_backends()
-    assert _api_mgr is not None and _ollama_mgr is not None and _gguf_mgr is not None and _kobold_mgr is not None
+    _api_mgr = _get_ogma()._api_mgr
+    _ollama_mgr = _get_ollama_mgr()
+    _gguf_mgr = _get_ogma()._gguf_mgr
+    _kobold_mgr = _get_kobold_mgr()
     try:
         if backend_type == 'API':
             provider_val = provider or 'Aucun'
@@ -3145,9 +4243,17 @@ async def _check_global_ia_status() -> Dict[str, Dict[str, Any]]:
     return status
 
 
+def _get_ia_status_indicators():
+    """Récupère _ia_status_indicators depuis ogma_ng"""
+    try:
+        return _get_ogma()._ia_status_indicators
+    except AttributeError:
+        return {}
+
+
 async def _update_ia_status_indicators():
     """Met à jour les indicateurs d'état IA dans le header principal."""
-    global _ia_status_indicators
+    _ia_status_indicators = _get_ia_status_indicators()
     
     if not _ia_status_indicators:
         return  # Indicateurs pas encore créés
@@ -3217,11 +4323,15 @@ def _refresh_models_ui(section: str, backend_select, provider_select, model_sele
                 url_val = None
             if url_val:
                 if backend == 'Ollama':
-                    _ensure_backends(); assert _ollama_mgr is not None
-                    _ollama_mgr.api_url = url_val.rstrip('/')
+                    _ensure_backends()
+                    ollama_mgr = _get_ollama_mgr()
+                    if ollama_mgr:
+                        ollama_mgr.api_url = url_val.rstrip('/')
                 elif backend == 'KoboldCpp':
-                    _ensure_backends(); assert _kobold_mgr is not None
-                    _kobold_mgr.api_url = url_val.rstrip('/')
+                    _ensure_backends()
+                    kobold_mgr = _get_kobold_mgr()
+                    if kobold_mgr:
+                        kobold_mgr.api_url = url_val.rstrip('/')
         import uuid
         call_id = str(uuid.uuid4())[:8]
         models, err = await _list_models(backend, provider, api_key)
@@ -3283,11 +4393,15 @@ def _test_connection_ui(section: str, backend_select, provider_select, api_key_i
                 url_val = None
             if url_val:
                 if backend == 'Ollama':
-                    _ensure_backends(); assert _ollama_mgr is not None
-                    _ollama_mgr.api_url = url_val.rstrip('/')
+                    _ensure_backends()
+                    ollama_mgr = _get_ollama_mgr()
+                    if ollama_mgr:
+                        ollama_mgr.api_url = url_val.rstrip('/')
                 elif backend == 'KoboldCpp':
-                    _ensure_backends(); assert _kobold_mgr is not None
-                    _kobold_mgr.api_url = url_val.rstrip('/')
+                    _ensure_backends()
+                    kobold_mgr = _get_kobold_mgr()
+                    if kobold_mgr:
+                        kobold_mgr.api_url = url_val.rstrip('/')
         try:
             if backend == 'API':
                 _notify_safe('Test: récupération de la liste des modèles...', type='info')
@@ -3349,7 +4463,6 @@ async def _handle_conversation_commands(text: str) -> bool:
     Gère les commandes spéciales pour accéder aux conversations archivées
     Retourne True si une commande a été traitée, False sinon
     """
-    global _loaded_conversation, _loaded_conversation_filename
     text_lower = text.lower().strip()
     
     # Debug: vérifier si les imports fonctionnent
@@ -3384,8 +4497,8 @@ async def _handle_conversation_commands(text: str) -> bool:
                 conversation = await archive.load_conversation(filename)
                 if conversation:
                     # Charger la conversation dans le contexte global pour l'IA
-                    _loaded_conversation = conversation
-                    _loaded_conversation_filename = filename
+                    _get_ogma()._loaded_conversation = conversation
+                    _get_ogma()._loaded_conversation_filename = filename
                     
                     await _display_conversation_as_attachment(filename, conversation)
                     
@@ -3410,8 +4523,8 @@ async def _handle_conversation_commands(text: str) -> bool:
             conversation = await archive.load_conversation(filename)
             if conversation:
                 # Charger la conversation dans le contexte global pour l'IA
-                _loaded_conversation = conversation
-                _loaded_conversation_filename = filename
+                _get_ogma()._loaded_conversation = conversation
+                _get_ogma()._loaded_conversation_filename = filename
                 
                 await _display_archived_conversation(filename, conversation)
                 _notify_safe(f"OK Conversation chargée dans le contexte de l'IA. Tu peux maintenant lui poser des questions dessus.", 'positive')
@@ -3460,13 +4573,13 @@ async def _handle_conversation_commands(text: str) -> bool:
     
     # Commande: "vider conversation" ou "clear conversation"
     if any(cmd in text_lower for cmd in ['vider conversation', 'clear conversation', 'vider contexte conversation']):
-        if _loaded_conversation:
-            old_filename = _loaded_conversation_filename
-            _loaded_conversation = None
-            _loaded_conversation_filename = None
+        if _get_ogma()._loaded_conversation:
+            old_filename = _get_ogma()._loaded_conversation_filename
+            _get_ogma()._loaded_conversation = None
+            _get_ogma()._loaded_conversation_filename = None
             _notify_safe(f"OK Conversation '{old_filename}' retirée du contexte de l'IA", 'positive')
         else:
-            _notify_safe("ℹ️ Aucune conversation n'est actuellement chargée dans le contexte", 'info')
+            _notify_safe("Aucune conversation n'est actuellement chargee dans le contexte", 'info')
         return True
     
     return False
@@ -3504,7 +4617,9 @@ async def _display_conversation_as_attachment(filename: str, conversation: List[
     }
     
     # Déclencher la mise à jour de l'affichage du header avec la pièce jointe
-    _update_header_display()
+    # NOTE: _update_header_display() n'est plus nécessaire (header ne montre plus les fichiers actifs)
+    # L'affichage se fait via _file_tab_container sous la boîte de messagerie
+    # _update_header_display()  # DÉSACTIVÉ - fonction inutile (header vide)
     
     print(f"[CONVERSATION-ATTACHMENT] OK Conversation affichée comme pièce jointe: {filename}")
 

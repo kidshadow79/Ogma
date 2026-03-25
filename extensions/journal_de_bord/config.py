@@ -32,6 +32,25 @@ class JournalConfig:
         "auto_tag_generation": True,            # Génération automatique de tags
         "importance_detection": True,           # Détection automatique d'importance
         
+        # Auto-archivage (NOUVEAU)
+        "auto_archive_enabled": True,           # Activer l'auto-archivage
+        "auto_archive_frequency": 20,           # Archiver tous les N messages
+        "auto_archive_min_tokens": 50,          # Tokens minimum pour micro-entrée
+        "update_same_conversation": True,       # Mettre à jour si même conversation
+        "same_conversation_window_hours": 2,    # Fenêtre temporelle pour détection (heures)
+        
+        # États actifs (NOUVEAU)
+        "enable_active_states": True,           # Activer le système d'états actifs
+        "max_active_states": 10,                # Nombre max d'états actifs simultanés
+        "auto_resolve_states": True,            # Résoudre automatiquement les états anciens
+        "state_auto_resolve_days": 30,          # Jours avant résolution auto
+        
+        # Rotation et purge (NOUVEAU)
+        "archive_retention_months": 3,          # Rétention avant compression (mois)
+        "faiss_transfer_months": 6,             # Transfert vers FAISS après (mois)
+        "enable_progressive_purge": True,       # Activer purge progressive
+        "purge_check_frequency": "weekly",      # Fréquence: "daily", "weekly", "monthly"
+        
         # Interface utilisateur
         "button_position": "header",            # Position bouton: "header", "sidebar", "floating"
         "modal_size": "large",                  # Taille modal: "small", "medium", "large"

@@ -18,7 +18,7 @@ def confirm_deletion() -> bool:
     print("="*60)
     print()
     print("Cette action va supprimer DÉFINITIVEMENT:")
-    print("• 🧠 Toute la mémoire de Luna (souvenirs, index FAISS)")
+    print("• 🧠 Toute la mémoire de l'IA (souvenirs, index FAISS)")
     print("• 💬 Toutes les conversations")
     print("• 🎭 Les données de personnalité (ego)")
     print("• 🗑️ Les fichiers temporaires")

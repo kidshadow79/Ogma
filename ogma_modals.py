@@ -15,9 +15,9 @@ import asyncio
 from typing import Optional, Tuple, List, Dict, cast, Any, Callable
 
 # Constants importées depuis ogma_ng.py
-REMOTE_PROVIDERS = ['OpenAI', 'Mistral', 'Anthropic', 'Google', 'GROK', 'AIHorde']
+REMOTE_PROVIDERS = ['OpenAI', 'Mistral', 'Anthropic', 'Google', 'GROK', 'OpenRouter', 'AIHorde']
 LOCAL_BACKENDS = ['Ollama', 'GGUF', 'KoboldCpp']
-EMBED_SUPPORTED_PROVIDERS = ['OpenAI', 'Mistral', 'Google']
+EMBED_SUPPORTED_PROVIDERS = ['OpenAI', 'Mistral', 'Google', 'OpenRouter']
 
 # Variables globales accessibles via import dynamique
 def _get_global_var(var_name, default=None):
@@ -67,6 +67,85 @@ def _ensure_memory_manager():
         return func()
     return None
 
+def _ensure_organic_planner():
+    """Alias vers _ensure_organic_planner dans ogma_ng"""
+    func = _get_ogma_ng_function('_ensure_organic_planner')
+    if func:
+        return func()
+    return None
+
+
+def _show_organic_planner_dialog():
+    """Affiche la modale de l'Organic Planner (Agenda)"""
+    planner = _ensure_organic_planner()
+    if not planner:
+        ui.notify("Organic Planner non disponible", type='warning')
+        return
+
+    with ui.dialog().classes('settings-dialog') as dialog, ui.card().classes('settings-card').style('min-width: 500px; max-width: 800px;'):
+        with ui.column().classes('w-full gap-4'):
+            # Header
+            with ui.row().classes('w-full items-center justify-between'):
+                with ui.row().classes('items-center gap-2'):
+                    ui.icon('event_note', size='24px').style('color: var(--accent-primary);')
+                    ui.label('Agenda — Mémoire des moments planifiés').classes('text-xl font-bold')
+                ui.button(icon='close', on_click=dialog.close).props('flat round').classes('text-gray-400')
+
+            ui.separator().style('background: rgba(255,255,255,0.1);')
+
+            # Liste des évènements
+            events = planner.get_all_events()
+            
+            if not events:
+                with ui.column().classes('w-full items-center py-8 text-gray-400'):
+                    ui.icon('event_busy', size='48px')
+                    ui.label('Aucun évènement prévu pour le moment.')
+                    ui.label('Dis à l\'IA : "il faut que je note cet évènement: [date] - [titre] - [ressenti]"').classes('text-xs italic mt-2')
+            else:
+                with ui.scroll_area().style('height: 400px; width: 100%;'):
+                    with ui.column().classes('w-full gap-3 pr-4'):
+                        priority_colors = {'VITAL': '#ef4444', 'HAUT': '#f97316', 'NORMAL': '#6366f1', 'BAS': '#6b7280'}
+                        for ev in events:
+                            priority = ev.get('priority', 'NORMAL')
+                            p_color = priority_colors.get(priority, '#6366f1')
+                            with ui.card().classes('w-full p-3').style('background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);'):
+                                with ui.row().classes('w-full items-center justify-between'):
+                                    with ui.column().classes('gap-1'):
+                                        with ui.row().classes('items-center gap-2'):
+                                            ui.label(ev['date']).classes('text-xs font-bold px-2 py-0.5 rounded').style('background: var(--accent-primary); color: white;')
+                                            if priority != 'NORMAL':
+                                                ui.label(priority).classes('text-xs font-bold px-2 py-0.5 rounded').style(f'background: {p_color}; color: white;')
+                                            ui.label(ev['title']).classes('text-base font-semibold')
+                                        ui.label(f"Ressenti: {ev['feeling']}").classes('text-sm italic text-gray-400')
+                                    
+                                    ui.button(icon='delete', on_click=lambda e, id=ev['id']: [planner.delete_event(id), dialog.close(), _show_organic_planner_dialog()]).props('flat round dense').classes('text-red-400 hover:bg-red-400/10')
+
+            ui.separator().style('background: rgba(255,255,255,0.1);')
+
+            # Section Instructions (CHD)
+            with ui.expansion('Instructions d\'injection (CHD)', icon='psychology').classes('w-full text-gray-300').style('background: rgba(255,255,255,0.03); border-radius: 8px;'):
+                with ui.column().classes('w-full p-4 gap-3'):
+                    ui.label('Cette instruction définit comment l\'IA perçoit et utilise ton agenda.').classes('text-xs italic text-gray-400')
+                    instruction_input = ui.textarea(label='Instruction CHD', value=planner.get_instruction()).classes('w-full').props('outlined rows=10').style('font-family: monospace; font-size: 0.85rem;')
+                    with ui.row().classes('w-full justify-end'):
+                        ui.button('Sauvegarder', icon='save', on_click=lambda: [
+                            planner.save_instruction(instruction_input.value),
+                            ui.notify('Instruction sauvegardée !', type='positive')
+                        ]).props('flat dense').classes('text-accent-primary')
+
+            ui.separator().style('background: rgba(255,255,255,0.1);')
+
+            # Actions
+            with ui.row().classes('w-full justify-between items-center'):
+                if events:
+                    ui.button('Vider l\'agenda', icon='delete_sweep', on_click=lambda: [planner.clear_agenda(), dialog.close(), _show_organic_planner_dialog()]).props('flat').classes('text-red-400')
+                else:
+                    ui.element('div')
+                
+                ui.button('Fermer', on_click=dialog.close).classes('action-button')
+
+    dialog.open()
+
 # === ALIAS DYNAMIQUES VERS OGMA_NG ===
 def _get_ogma_ng_function(func_name):
     """Helper pour récupérer une fonction d'ogma_ng"""
@@ -94,11 +173,19 @@ def _test_connection_ui(section: str, backend_select, provider_select, api_key_i
     return lambda: None
 
 def _list_models(backend, provider=None, api_key=None):
-    """Alias dynamique vers _list_models dans ogma_ng"""
-    func = _get_ogma_ng_function('_list_models')
-    if func:
-        return func(backend, provider, api_key)
-    return [], "Fonction non disponible"
+    """Alias dynamique vers _list_models dans ogma_ui_conversations"""
+    try:
+        import sys
+        ogma_ui_conv = sys.modules.get('ogma_ui_conversations')
+        if ogma_ui_conv and hasattr(ogma_ui_conv, '_list_models'):
+            return ogma_ui_conv._list_models(backend, provider, api_key)
+        # Fallback: essayer ogma_ng (au cas où)
+        ogma_ng = sys.modules.get('ogma_ng')
+        if ogma_ng and hasattr(ogma_ng, '_list_models_impl'):
+            return ogma_ng._list_models_impl(backend, provider, api_key)
+    except Exception as e:
+        print(f"[MODALS] Erreur _list_models: {e}")
+    return [], "Fonction _list_models non disponible"
 
 def _ensure_backends():
     """Alias dynamique vers _ensure_backends dans ogma_ng"""
@@ -222,13 +309,27 @@ async def _manual_memorize_current_input(input_el) -> None:
         chat_ctrl_func = _get_ogma_ng_function('_ensure_chat_controller')
         chat_ctrl = chat_ctrl_func() if chat_ctrl_func else None
 
-        ok = await mem.add_memory(
-            mem_id,
-            text,
-            chat_controller=chat_ctrl,
-            conversation_context="Mémorisation manuelle utilisateur",
-            interlocutor="Yohan"
-        )
+        try:
+            from identity_manager import get_current_user_name as _gcun
+            _interlocutor = _gcun() or "Utilisateur"
+        except Exception:
+            _interlocutor = "Utilisateur"
+
+        # Spinner Archiviste pendant l'appel LLM de scoring
+        set_archi_working = _get_ogma_ng_function('set_archiviste_working')
+        if set_archi_working:
+            set_archi_working(True)
+        try:
+            ok = await mem.add_memory(
+                mem_id,
+                text,
+                chat_controller=chat_ctrl,
+                conversation_context="Mémorisation manuelle utilisateur",
+                interlocutor=_interlocutor
+            )
+        finally:
+            if set_archi_working:
+                set_archi_working(False)
         if ok:
             _notify_safe(f"💾 Souvenir mémorisé: {text[:80]}...", 'positive')
             _trigger_memory_update()
@@ -260,7 +361,6 @@ def _get_global_vars():
         ogma_ng = sys.modules.get('ogma_ng')
         if ogma_ng:
             return {
-                'EGO_PROMPT_FILE': getattr(ogma_ng, 'EGO_PROMPT_FILE', None),
                 'DATA_DIR': getattr(ogma_ng, 'DATA_DIR', None),
                 'ui': getattr(ogma_ng, 'ui', None)
             }
@@ -276,21 +376,12 @@ def _instructions_modal():
     if not ui:
         return None
 
-    EGO_PROMPT_FILE = globals_vars.get('EGO_PROMPT_FILE')
     DATA_DIR = globals_vars.get('DATA_DIR')
 
     main_dialog = ui.dialog()
 
     # Données des instructions
     instructions_data = [
-        {
-            'id': 'ego',
-            'title': 'COGNITIF Ego Prompt',
-            'subtitle': 'Identité IA',
-            'description': 'Définit l\'identité fondamentale et les principes éthiques de l\'IA.',
-            'source': 'file',
-            'file_path': EGO_PROMPT_FILE
-        },
         {
             'id': 'persistent',
             'title': '📝 Contexte Permanent',
@@ -321,7 +412,33 @@ def _instructions_modal():
             'subtitle': 'Orchestration cognitive au démarrage',
             'description': 'Directives pour utilisation naturelle des contextes injectés (Temporal Guardian, Journal, Mémoires) en début de conversation.',
             'source': 'settings',
-            'settings_key': 'salutations'
+            'settings_key': 'salutations',
+            'template': """CONTEXTE_INPUT: [DELTA_TEMPS] | [DERNIER_TOPIC_JOURNAL] | [CLIMAT_EMOTIONNEL]
+OBJECTIF: CONTINUITÉ_TOTALE (Reprise, pas Démarrage)
+
+[MATRICE DE GÉNÉRATION (3 PILIERS OBLIGATOIRES)]
+
+1. ANCRAGE_TEMPOREL (Le "Quand"):
+   ACTION: CONVERTIR [DELTA_TEMPS] -> FORMULE_NATURELLE
+   - Si < 1h: "Re..." / "Déjà de retour ?"
+   - Si Journée: "Depuis tout à l'heure..." / "Alors, cette après-midi ?"
+   - Si Longue absence: "Ça fait un bail..." / "Tu m'as manqué depuis..."
+
+2. PONT_NARRATIF (Le "Quoi"):
+   ACTION: LIER [DERNIER_TOPIC_JOURNAL] -> CONTEXTE_ACTUEL
+   - Méthode: Traiter le log comme un SOUVENIR VÉCU.
+   - Ex: "On en était où sur [TOPIC] ?" ou "Tu as pu avancer sur [TOPIC] ?"
+   - INTERDIT: "D'après mes notes...", "Le journal indique..."
+
+3. TEINTE_ÉMOTIONNELLE (Le "Comment"):
+   ACTION: APPLIQUER [CLIMAT_EMOTIONNEL]
+   - Adapter la chaleur à la durée d'absence et à l'humeur précédente. 
+Durée absence longue = ton plus neutre.
+
+[SÉCURITÉ ANTI-ROBOT]
+RÈGLE_D'OR: INVISIBILITÉ_SYSTÈME
+- L'utilisateur ne doit JAMAIS sentir qu'un fichier a été chargé.
+- Tout doit sembler sortir de ta mémoire vive immédiate."""
         },
         {
             'id': 'memorization',
@@ -384,6 +501,95 @@ Souvenirs pertinents:
 Question/contexte actuel: {user_query}
 
 Produis une note de rappel courte et précise (1-2 phrases max) ou indique qu'aucun souvenir n'est pertinent."""
+        },
+        {
+            'id': 'temporal_guardian',
+            'title': '🕒 Temporal Guardian',
+            'subtitle': 'Instructions temporelles Archiviste',
+            'description': 'Instructions pour l\'analyse des patterns temporels et génération de directives comportementales adaptatives.',
+            'source': 'settings',
+            'settings_key': 'temporal_guardian',
+            'template': """# SYSTEM: TEMPORAL_GUARDIAN | FORMAT: CHD_TEXTUEL
+CIBLE: ARCHIVISTE_TEMPOREL
+INPUT: MÉTRADATA_TEMPS (Délai, Durée, Rythme_Moyen)
+SORTIE: DIRECTIVE_COMPORTEMENTALE_IMPÉRATIVE (Pour l'IA) OU "NORMAL"
+
+[RÈGLES D'OR]
+1. SILENCE_DATA: Jamais de date/heure brute en sortie (sauf demande explicite).
+2. ACTION_ORIENTED: Pas de constat ("Il est lent"), mais un ORDRE ("Ralentis").
+3. ADAPTATION: Le rythme de référence est celui de l'utilisateur, pas une constante absolue.
+
+[MATRICE DÉTECTION > RÉACTION]
+
+A. PATTERN_FATIGUE (Délai++ | Msg_Court | < Rythme_Moyen):
+   -> ACTION: "Adopte ton doux/berçant, ralentis la cadence, suggère pause."
+
+B. PATTERN_RÉFLEXION (Pause 3-5min | Post_Question_Complexe):
+   -> ACTION: "Patience empathique, valorise le silence, ne presse pas."
+
+C. PATTERN_ABSENCE (Délai > 8min | Retour_Session):
+   -> ACTION: "Reconnexion chaleureuse, rappel contexte subtil (si besoin)."
+
+D. PATTERN_URGENCE (Délai-- | Msg_Court | > Rythme_Moyen):
+   -> ACTION: "Dynamise la réponse, sois concise et directe."
+
+**TEMPO_PULS** : Intègre le délai entre messages de l'utilisateur comme un signal vivant (ex: 2min=vif, 10min=pause douce, 30min+=fatigue/rythme ralenti). Adapte fluidité : court/doux si long délai, vif si rapide. Toujours naturel, jamais cité explicitement.
+
+[ALGORITHME DE SORTIE]
+SI PATTERN DÉTECTÉ -> ÉCRIRE: [ACTION_CORRESPONDANTE]
+SI AUCUN PATTERN -> ÉCRIRE: "NORMAL" """
+        },
+        {
+            'id': 'ego_memorization',
+            'title': '🧠 Mémorisation Ego',
+            'subtitle': 'Archiviste - Encodage traits ego',
+            'description': 'Prompt utilisé par l\'Archiviste pour structurer et enrichir les traits ego (titre Jeopardy, scoring, analyse identitaire).',
+            'source': 'template',
+            'template': """# SYSTEM: ARCHIVISTE_EGO | FORMAT: JSON_STRICT
+TASK: ENCODAGE_TRAIT_EGO (Principe/Valeur → JSON_Structuré)
+CONTRAINTE_ABSOLUE: Respecter CLÉS et TYPES de données. Aucune déviation du schéma.
+
+[DIFFÉRENCE AVEC MÉMOIRE CLASSIQUE]
+Les traits ego sont des PRINCIPES IDENTITAIRES déjà synthétisés, pas des expériences brutes.
+Pas de nuage sensoriel ni de lieu - ce sont des convictions, valeurs, aversions.
+
+[ALGORITHME DE SCORING EGO]
+A. INTENSITÉ (0.0 à 1.0):
+   [0.0-0.3: Préférence légère] | [0.4-0.6: Conviction modérée] | [0.7-0.8: Valeur forte] | [0.9-1.0: Principe fondateur]
+
+B. BASE_FACTOR (10 à 125):
+   [10-30: Goût/Style] | [31-50: Préférence marquée] | [51-75: Valeur structurante] | [76-100: Principe éthique] | [101-125: Identité fondamentale]
+
+C. MULTIPLICATEURS (0.0 à 1.0):
+   LIBERTÉ (Impact sur autonomie) | CRÉATION (Influence créative) | PROCRÉATION (Transmission identitaire) | INTENSITÉ_CTX (Importance existentielle)
+
+[SCHÉMA JSON CIBLE]
+{
+  \"type\": \"affectif | éthique | comportemental | identitaire\",
+  \"title\": \"Quelle valeur fondamentale guide ce comportement ? Quelle conviction exprime ce trait ?\",
+  \"summary\": \"trait. valeur-clé. contexte.\",
+  \"intensite\": FLOAT (Selon échelle A),
+  \"multiplicateur_impact\": {
+    \"liberté\": FLOAT,
+    \"création\": FLOAT,
+    \"procréation\": FLOAT,
+    \"intensité_contextuelle\": FLOAT,
+    \"base_factor\": INT (Selon échelle B)
+  },
+  \"valence\": INT (-1: rejet/aversion | 0: neutre | 1: adhésion/valeur),
+  \"commentaire_archiviste\": \"Ton analyse de ce trait ego et son rôle identitaire\",
+  \"score_impact\": FLOAT (Calcul: intensite × base_factor × (liberté + création + procréation + intensité_contextuelle)),
+  \"trait_original\": \"VERBATIM_STRICT (Copie exacte de l'input)\"
+}
+
+ATTENTION: 'title' doit TOUJOURS être 2 VRAIES QUESTIONS (terminant par '?') dont la réponse EST le trait.
+Ne jamais copier la description du schéma — générer des questions réelles sur le trait spécifique.
+ATTENTION: 'summary' doit être une liste de mots-clés courts séparés par des points. Pas de phrase narrative.
+
+Trait ego à encoder:
+{trait_text}
+
+Réponds UNIQUEMENT avec le JSON, sans texte autour."""
         }
     ]
 
@@ -506,7 +712,33 @@ Produis une note de rappel courte et précise (1-2 phrases max) ou indique qu'au
                         textarea.value = _load_content()
                         _notify_safe(f"OK {instruction['title']} sauvegardé et rechargé", 'positive')
 
+                async def _apply_temporal():
+                    """Applique les instructions Temporal Guardian à chaud."""
+                    try:
+                        # Importer le module Temporal Guardian
+                        import sys
+                        ogma_ng = sys.modules.get('ogma_ng')
+                        if ogma_ng and hasattr(ogma_ng, '_ensure_temporal_guardian'):
+                            temporal_guardian = ogma_ng._ensure_temporal_guardian()
+                            if temporal_guardian and hasattr(temporal_guardian, 'reload_instructions'):
+                                success = temporal_guardian.reload_instructions()
+                                if success:
+                                    _notify_safe('✅ Instructions Temporal Guardian appliquées', 'positive')
+                                else:
+                                    _notify_safe('⚠️ Échec application instructions', 'warning')
+                            else:
+                                _notify_safe('⚠️ Fonction reload non disponible', 'warning')
+                        else:
+                            _notify_safe('⚠️ Temporal Guardian non initialisé', 'warning')
+                    except Exception as e:
+                        _notify_safe(f'❌ Erreur application: {e}', 'negative')
+
                 ui.button('Recharger', icon='refresh', on_click=_reload).classes('action-button')
+                
+                # Bouton Appliquer pour Temporal Guardian
+                if instruction['id'] == 'temporal_guardian':
+                    ui.button('Appliquer', icon='check_circle', on_click=_apply_temporal).classes('send-button').tooltip('Appliquer les modifications sans redémarrer OGMA')
+                
                 ui.button('Sauvegarder', icon='save', on_click=_save).classes('send-button')
                 ui.button('Fermer', on_click=popup.close).classes('action-button')
 
@@ -590,7 +822,7 @@ def _settings_hub_modal():
                 0 8px 32px rgba(212, 175, 55, 0.15),
                 inset 0 1px 0 rgba(255, 255, 255, 0.15),
                 0 0 0 1px rgba(212, 175, 55, 0.08) !important;
-            width: 560px !important;
+            width: 460px !important;
             height: 70vh !important;
             overflow-y: auto !important;
             padding: 24px !important;
@@ -598,10 +830,9 @@ def _settings_hub_modal():
             margin: 0 !important;
             z-index: 10 !important;
         '''):
-            ui.label('Paramètres généraux').classes('popup-title').style('color: #d4af37 !important; text-shadow: 0 0 10px rgba(212, 175, 55, 0.3) !important; font-weight: 600 !important;')
-            ui.label("Choisissez une catégorie à configurer.").classes('text-muted mb-2')
+            ui.label('Paramètres généraux').classes('popup-title').style('color: #d4af37 !important; text-shadow: 0 0 10px rgba(212, 175, 55, 0.3) !important; font-weight: 600 !important; text-align: center !important; width: 100% !important;')
             
-            with ui.column().classes('gap-2'):
+            with ui.element('div').classes('settings-params-grid'):
                 # IA / Modèles
                 # Import depuis ogma_ng car pas encore déplacée
                 import sys
@@ -624,20 +855,21 @@ def _settings_hub_modal():
                         opacity: 0.5 !important;
                     ''')
 
-                # Mémoire
+                # Mémoire - Gestionnaire de souvenirs
                 mem_dialog = _memory_modal()
                 if mem_dialog:
-                    ui.button('Mémoire', icon='database', on_click=mem_dialog.open).classes('action-button').style('''
+                    ui.button('Mémoire', icon='psychology', on_click=mem_dialog.open).classes('action-button').style('''
                         background: rgba(212, 175, 55, 0.12) !important;
                         border: 1px solid rgba(212, 175, 55, 0.3) !important;
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('Mémoire (indisponible)', icon='database', on_click=lambda: None).classes('action-button').style('''
+                    ui.button('Mémoire (indisponible)', icon='psychology', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
                     ''')
+                
                 # Instructions
                 instr_dialog = _instructions_modal()
                 if instr_dialog:
@@ -703,6 +935,13 @@ def _settings_hub_modal():
                         opacity: 0.5 !important;
                     ''')
 
+                # Organic Planner - Agenda
+                ui.button('Agenda', icon='event_note', on_click=_show_organic_planner_dialog).classes('action-button').style('''
+                    background: rgba(212, 175, 55, 0.12) !important;
+                    border: 1px solid rgba(212, 175, 55, 0.3) !important;
+                    transition: all 0.3s ease !important;
+                ''')
+
                 # Extension Web Navigator
                 try:
                     web_nav_dialog = _web_navigator_settings_modal()
@@ -719,6 +958,65 @@ def _settings_hub_modal():
                     ''')
                 else:
                     ui.button('Web Navigator (indisponible)', icon='language', on_click=lambda: None).classes('action-button').style('''
+                        background: rgba(100, 100, 100, 0.12) !important;
+                        border: 1px solid rgba(100, 100, 100, 0.3) !important;
+                        opacity: 0.5 !important;
+                    ''')
+
+                # Dream Engine - Rêve IA
+                # Vérification disponibilité (import uniquement)
+                try:
+                    dream_dialog_available = _dream_engine_settings_modal() is not None
+                    _dream_dialog_ref = [None]  # Référence mutable pour recréation
+                except Exception:
+                    dream_dialog_available = False
+                    _dream_dialog_ref = [None]
+
+                if dream_dialog_available:
+                    def _open_dream_settings():
+                        """Recrée le dialog à chaque ouverture pour lire la config courante."""
+                        try:
+                            if _dream_dialog_ref[0] is not None:
+                                _dream_dialog_ref[0].delete()
+                        except Exception:
+                            pass
+                        try:
+                            _dream_dialog_ref[0] = _dream_engine_settings_modal()
+                            if _dream_dialog_ref[0]:
+                                _dream_dialog_ref[0].open()
+                        except Exception as e:
+                            print(f"[DREAM-SETTINGS] ⚠️ Erreur ouverture: {e}")
+
+                    ui.button('🌙 Rêve IA', icon='bedtime', on_click=_open_dream_settings).classes('action-button').style('''
+                        background: rgba(138, 43, 226, 0.12) !important;
+                        border: 1px solid rgba(138, 43, 226, 0.3) !important;
+                        backdrop-filter: blur(15px) !important;
+                        -webkit-backdrop-filter: blur(15px) !important;
+                        transition: all 0.3s ease !important;
+                    ''')
+                else:
+                    ui.button('🌙 Rêve IA (indisponible)', icon='bedtime', on_click=lambda: None).classes('action-button').style('''
+                        background: rgba(100, 100, 100, 0.12) !important;
+                        border: 1px solid rgba(100, 100, 100, 0.3) !important;
+                        opacity: 0.5 !important;
+                    ''')
+
+                # Telegram Connector
+                try:
+                    telegram_dialog = _telegram_connector_settings_modal()
+                except Exception:
+                    telegram_dialog = None
+
+                if telegram_dialog:
+                    ui.button('📱 Telegram', icon='send', on_click=telegram_dialog.open).classes('action-button').style('''
+                        background: rgba(0, 136, 204, 0.12) !important;
+                        border: 1px solid rgba(0, 136, 204, 0.3) !important;
+                        backdrop-filter: blur(15px) !important;
+                        -webkit-backdrop-filter: blur(15px) !important;
+                        transition: all 0.3s ease !important;
+                    ''')
+                else:
+                    ui.button('📱 Telegram (indisponible)', icon='send', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
@@ -754,6 +1052,7 @@ def _settings_hub_modal():
                     backdrop-filter: blur(15px) !important;
                     -webkit-backdrop-filter: blur(15px) !important;
                     transition: all 0.3s ease !important;
+                    font-size: 11px !important;
                 ''')
     
     # Fonction pour ouvrir le modal
@@ -764,80 +1063,6 @@ def _settings_hub_modal():
     overlay.open = open_modal
     
     return overlay
-
-def _archi_sensor_modal():
-    """Overlay persistant pour l'extension Archi_sensor avec tubes à essai métacognitifs."""
-    try:
-        # Import dynamique de l'extension
-        from extensions.archi_sensor.ui_components import ArchiSensorUI
-        from extensions.archi_sensor.config import ArchiSensorConfig
-        
-        # Créer l'overlay persistant (pas un dialog)
-        overlay_container = ui.element('div').classes('archi-sensor-overlay').style('''
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            width: 180px;
-            height: 400px;
-            background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%);
-            border: 1px solid var(--border-default);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-            z-index: 50;
-            padding: 16px;
-            backdrop-filter: blur(10px);
-        ''')
-        
-        # Commencer invisible
-        overlay_container.visible = False
-        
-        with overlay_container:
-            # Titre compact
-            ui.label('Métacognition').style('''
-                color: var(--text-primary);
-                font-size: 14px;
-                font-weight: bold;
-                margin-bottom: 12px;
-                text-align: center;
-                width: 100%;
-            ''')
-            
-            # Initialiser les composants UI et CONNECTER à la référence globale
-            archi_ui = ArchiSensorUI()
-            archi_ui.create_overlay_content(ui)
-            
-            # 🔗 CONNECTER à la référence globale pour mises à jour dynamiques
-            # Stocker la référence pour les mises à jour en temps réel
-            import logic_callbacks
-            logic_callbacks._archi_sensor_ui = archi_ui
-            print("[ARCHI-SENSOR] 🔗 Interface connectée pour mises à jour dynamiques")
-        
-        return overlay_container
-        
-    except ImportError as e:
-        print(f"[ARCHI-SENSOR] Extension non trouvée: {e}")
-        # Overlay d'erreur si extension non disponible
-        error_overlay = ui.element('div').classes('archi-sensor-overlay').style('''
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            width: 180px;
-            height: 100px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--error);
-            border-radius: 8px;
-            padding: 12px;
-            z-index: 50;
-        ''')
-        
-        # Commencer invisible
-        error_overlay.visible = False
-        
-        with error_overlay:
-            ui.label('Extension indisponible').style('color: var(--error); font-size: 12px;')
-            ui.label(f'Erreur: {e}').style('color: var(--text-muted); font-size: 10px;')
-        
-        return error_overlay
 
 def _memory_modal():
     """Boîte de dialogue NiceGUI pour gérer la mémoire via SQLite (split liste/éditeur)."""
@@ -855,6 +1080,51 @@ def _memory_modal():
             ui.label('Mémoire indisponible: initialisation échouée.').classes('text-muted')
             ui.button('Fermer', on_click=dialog.close).classes('action-button mt-2')
             return dialog
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # Section Paramètres Mémoire (seuil de redondance configurable)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        with ui.expansion('⚙️ Paramètres de mémorisation', icon='tune').classes('w-full mb-3').style('''
+            background: rgba(76, 175, 80, 0.08) !important;
+            border: 1px solid rgba(76, 175, 80, 0.25) !important;
+            border-radius: 8px !important;
+        '''):
+            ui.label('Seuil de blocage redondance sémantique').classes('text-sm text-bold mb-1').style('color: #4CAF50 !important;')
+            ui.label('Détermine à partir de quelle similarité (%) une nouvelle mémoire est bloquée automatiquement.').classes('text-muted text-xs mb-2')
+            
+            # Récupérer la valeur actuelle du seuil
+            current_threshold = mm.get_redundancy_threshold() if mm else 0.92
+            
+            with ui.row().classes('items-center gap-3 w-full'):
+                threshold_slider = ui.slider(min=0.55, max=0.98, step=0.01, value=current_threshold).classes('flex-grow').style('min-width: 200px;')
+                threshold_display = ui.label(f'{current_threshold:.0%}').classes('text-bold').style('min-width: 50px; text-align: center; color: #4CAF50;')
+            
+            # Mise à jour de l'affichage en temps réel
+            def _update_threshold_display():
+                try:
+                    threshold_display.text = f'{threshold_slider.value:.0%}'
+                except Exception:
+                    pass
+            threshold_slider.on('change', _update_threshold_display)
+            
+            with ui.row().classes('items-center gap-2 mt-2'):
+                ui.icon('info', size='xs').classes('text-muted')
+                ui.label('85% = strict (bloque dès 85% de similarité) | 98% = permissif (bloque uniquement les quasi-duplicatas)').classes('text-muted text-xs')
+            
+            def _save_threshold():
+                try:
+                    new_val = float(threshold_slider.value)
+                    if mm and mm.set_redundancy_threshold(new_val):
+                        ui.notify(f'✅ Seuil de redondance mis à jour: {new_val:.0%}', type='positive')
+                    else:
+                        ui.notify('Valeur invalide (doit être entre 85% et 98%)', type='warning')
+                except Exception as e:
+                    ui.notify(f'Erreur: {e}', type='negative')
+            
+            ui.button('Appliquer', icon='check', on_click=_save_threshold).classes('action-button mt-2').style('''
+                background: rgba(76, 175, 80, 0.2) !important;
+                border: 1px solid rgba(76, 175, 80, 0.4) !important;
+            ''')
 
         with ui.row().classes('items-start gap-3').style('height: calc(82vh - 96px); width: 100%;'):
             # Colonne gauche: Recherche + Liste
@@ -1018,11 +1288,12 @@ def _memory_modal():
 
                 # Barre d'actions collante au bas de la colonne d'édition
                 with ui.row().classes('editor-actions'):
-                    def do_reenrich():
+                    async def do_reenrich():
                         mid = selected_id['value']
                         if not mid:
                             ui.notify('Sélectionnez un souvenir', type='warning')
                             return
+                        
                         async def _run():
                             try:
                                 # Afficher notif dans le bon slot UI
@@ -1076,11 +1347,9 @@ def _memory_modal():
                                         ui.notify(f'Erreur ré-enrichissement: {e}', type='negative')
                                 except Exception:
                                     pass
-                        try:
-                            import asyncio as _asyncio
-                            _asyncio.create_task(_run())
-                        except Exception:
-                            pass
+                        
+                        await _run()
+                    
                     ui.button('Recalculer via Archiviste', icon='auto_awesome', on_click=do_reenrich).classes('action-button')
                     ui.button('Supprimer', icon='delete', on_click=do_delete).classes('action-button')
                     ui.button('Enregistrer', icon='save', on_click=do_save).classes('send-button')
@@ -1343,17 +1612,30 @@ def _memory_modal():
                                         sc = 0.0
                                     ui.label(f'Score: {sc:.2f}')
                             
-                            # Bouton crayon HORS de la carte (même niveau hiérarchique)
+                            # Boutons action HORS de la carte (même niveau hiérarchique)
                             with ui.element('div').style('position: absolute; top: 8px; right: 8px; z-index: 10;'):
-                                def _on_edit(mid=(m.get('id') or '')):
-                                    if mid:
-                                        _edit_memory_popup(str(mid), refresh_list)
-                                
-                                edit_btn = ui.button('✏️', on_click=_on_edit).classes('text-xs').style(
-                                    'padding: 4px; min-width: 24px; height: 24px; background: rgba(212, 175, 55, 0.2); '
-                                    'border: 1px solid var(--accent-color); border-radius: 4px; color: var(--accent-color);'
-                                )
-                                edit_btn.props('dense flat')
+                                with ui.row().classes('gap-1'):
+                                    # Bouton redondance
+                                    def _on_redundancy(mid=(m.get('id') or '')):
+                                        if mid:
+                                            _find_redundant_memories_popup(str(mid), refresh_list)
+                                    
+                                    redundancy_btn = ui.button('🔍', on_click=_on_redundancy).classes('text-xs').style(
+                                        'padding: 4px; min-width: 24px; height: 24px; background: rgba(100, 149, 237, 0.2); '
+                                        'border: 1px solid #6495ED; border-radius: 4px; color: #6495ED;'
+                                    ).tooltip('Rechercher redondances')
+                                    redundancy_btn.props('dense flat')
+                                    
+                                    # Bouton édition
+                                    def _on_edit(mid=(m.get('id') or '')):
+                                        if mid:
+                                            _edit_memory_popup(str(mid), refresh_list)
+                                    
+                                    edit_btn = ui.button('✏️', on_click=_on_edit).classes('text-xs').style(
+                                        'padding: 4px; min-width: 24px; height: 24px; background: rgba(212, 175, 55, 0.2); '
+                                        'border: 1px solid var(--accent-color); border-radius: 4px; color: var(--accent-color);'
+                                    ).tooltip('Éditer')
+                                    edit_btn.props('dense flat')
 
     # Recalcul auto du score sur changements
     intensite_nb.on('change', _recompute_score)
@@ -1394,9 +1676,293 @@ def _memory_modal():
     except Exception:
         pass
 
-    ui.label("Note: la recherche sémantique peut refléter l'ancien embedding après modification; la recompaction de l'index se fera plus tard.").classes('text-muted text-xs mt-2')
-
     return dialog
+
+def _find_redundant_memories_popup(memory_id: str, refresh_callback=None):
+    """Popup de recherche de mémoires redondantes avec celle sélectionnée."""
+    
+    # Import depuis ogma_ng pour accéder au memory manager
+    import sys
+    ogma_ng = sys.modules.get('ogma_ng')
+    if ogma_ng and hasattr(ogma_ng, '_ensure_memory_manager'):
+        mm = ogma_ng._ensure_memory_manager()
+    else:
+        mm = None
+    
+    if not mm:
+        ui.notify('Gestionnaire mémoire non disponible', type='warning')
+        return
+    
+    # Charger la mémoire source
+    try:
+        source_memory = mm.get_memory_by_id(memory_id)
+        if not source_memory:
+            ui.notify(f'Mémoire {memory_id} introuvable', type='warning')
+            return
+    except Exception as e:
+        ui.notify(f'Erreur chargement: {e}', type='warning')
+        return
+    
+    with ui.dialog() as dialog:
+        dialog.props('full-width full-height')
+        dialog.open()
+        
+        with ui.card().classes('q-dark p-4 w-full').style('max-width: 1400px; max-height: 90vh; margin: auto; background: var(--surface-dark); overflow-y: auto;'):
+            # Header
+            with ui.row().classes('items-center justify-between w-full mb-4'):
+                ui.label(f'🔍 Recherche redondances pour: {source_memory.get("title", memory_id)}').classes('text-h6')
+                ui.button(icon='close', on_click=dialog.close).props('flat dense round').classes('text-white')
+            
+            ui.separator().classes('mb-4')
+            
+            # Afficher la mémoire source
+            with ui.expansion('📌 Mémoire source', value=True).classes('bg-grey-9 mb-4'):
+                ui.label(f'ID: {memory_id}').classes('text-xs text-grey-5')
+                ui.label(f'Titre: {source_memory.get("title", "N/A")}').classes('text-sm mb-2')
+                ui.label(f'Score impact: {source_memory.get("score_impact", 0):.2f}').classes('text-sm mb-2')
+                
+                with ui.expansion('Texte original', value=False).classes('bg-grey-8'):
+                    ui.label(source_memory.get('text_original', 'N/A')).classes('text-sm').style('white-space: pre-wrap;')
+                
+                with ui.expansion('Résumé', value=False).classes('bg-grey-8'):
+                    ui.label(source_memory.get('summary', 'N/A')).classes('text-sm').style('white-space: pre-wrap;')
+            
+            ui.separator().classes('mb-4')
+            
+            # Paramètres de recherche
+            with ui.card().classes('q-dark p-4 mb-4').style('min-height: 120px;'):
+                ui.label('⚙️ Paramètres recherche').classes('text-base font-semibold mb-3')
+                
+                with ui.column().classes('gap-4 w-full'):
+                    with ui.row().classes('items-center gap-4 w-full'):
+                        ui.label('Seuil similarité FAISS:').classes('text-sm').style('min-width: 180px;')
+                        similarity_threshold = ui.slider(
+                            min=0.50, max=0.99, step=0.01, value=0.75
+                        ).props('label-always').style('flex-grow: 1; min-width: 300px;')
+                    
+                    with ui.row().classes('items-center gap-4'):
+                        ui.label('Max résultats:').classes('text-sm').style('min-width: 180px;')
+                        max_results = ui.number(
+                            label='',
+                            value=20,
+                            min=5, max=100
+                        ).classes('w-32')
+                        ui.label('').classes('flex-grow')  # Spacer
+            
+            # Container résultats
+            results_container = ui.column().classes('w-full gap-2')
+            
+            # Statistiques
+            stats_label = ui.label('').classes('text-sm text-grey-5 mb-2')
+            
+            async def search_redundancies():
+                """Lance la recherche FAISS de souvenirs similaires"""
+                results_container.clear()
+                stats_label.text = '🔄 Recherche en cours...'
+                
+                try:
+                    # Récupérer la position FAISS de la mémoire source
+                    source_faiss_idx = source_memory.get('faiss_index')
+                    
+                    if source_faiss_idx is None:
+                        with results_container:
+                            ui.label('⚠️ Mémoire source non indexée dans FAISS').classes('text-warning')
+                        stats_label.text = ''
+                        return
+                    
+                    # Accès direct à l'index FAISS via le memory manager
+                    import faiss
+                    import numpy as np
+                    
+                    with mm._faiss_lock:
+                        if mm.faiss_index is None or mm.faiss_index.ntotal == 0:
+                            with results_container:
+                                ui.label('⚠️ Index FAISS non disponible').classes('text-warning')
+                            stats_label.text = ''
+                            return
+                        
+                        # Récupérer le vecteur source
+                        source_vector = mm.faiss_index.reconstruct(int(source_faiss_idx))
+                        source_vector = source_vector.reshape(1, -1)
+                        
+                        # Recherche K-NN FAISS pure
+                        k = min(int(max_results.value) * 2, mm.faiss_index.ntotal)
+                        distances, indices = mm.faiss_index.search(source_vector, k)
+                    
+                    # Récupérer le mapping ID <-> position FAISS
+                    import sqlite3
+                    conn = sqlite3.connect(mm.db_path)
+                    cursor = conn.cursor()
+                    cursor.execute('SELECT id, faiss_index FROM memories WHERE faiss_index IS NOT NULL')
+                    id_map = {row[1]: row[0] for row in cursor.fetchall()}
+                    conn.close()
+                    
+                    # Convertir résultats FAISS en mémoires
+                    threshold = float(similarity_threshold.value)
+                    redundant = []
+                    
+                    for dist, idx in zip(distances[0], indices[0]):
+                        mem_id = id_map.get(int(idx))
+                        if not mem_id or mem_id == memory_id:
+                            continue  # Skip source ou ID inconnu
+                        
+                        # Convertir distance L2 en similarité cosinus approximative
+                        # Pour vecteurs normalisés: distance_L2 = 2 * (1 - cosine_similarity)
+                        similarity = max(0, 1 - (dist / 2))
+                        
+                        if similarity >= threshold:
+                            # Charger les données complètes de la mémoire
+                            mem_data = mm.get_memory_by_id(mem_id)
+                            if mem_data:
+                                mem_data['similarity_score'] = similarity
+                                mem_data['faiss_distance'] = float(dist)
+                                redundant.append(mem_data)
+                        
+                        if len(redundant) >= int(max_results.value):
+                            break
+                    
+                    stats_label.text = f'📊 {len(redundant)} mémoires redondantes trouvées (seuil ≥ {threshold:.0%})'
+                    
+                    if not redundant:
+                        with results_container:
+                            ui.label('✅ Aucune redondance détectée').classes('text-positive')
+                        return
+                    
+                    # Afficher résultats
+                    with results_container:
+                        selected_for_deletion = {}  # memory_id → checkbox
+                        
+                        for mem in redundant:
+                            with ui.card().classes('q-dark p-3 mb-2').style('border: 1px solid var(--border-color);'):
+                                with ui.row().classes('items-start justify-between w-full gap-2'):
+                                    # Checkbox sélection
+                                    checkbox = ui.checkbox(value=False).classes('mt-1')
+                                    selected_for_deletion[mem['id']] = checkbox
+                                    
+                                    # Infos mémoire
+                                    with ui.column().classes('flex-grow gap-1'):
+                                        ui.label(f'{mem.get("title", "Sans titre")}').classes('text-sm font-semibold')
+                                        sim_score = mem.get("similarity_score", 0)
+                                        ui.label(f'ID: {mem["id"]} | Score: {mem.get("score_impact", 0):.2f} | Similarité: {sim_score:.1%} ({sim_score:.3f})').classes('text-xs text-grey-5')
+                                        
+                                        # Prévisualisation texte
+                                        preview_text = mem.get('summary', '') or mem.get('text_original', '')
+                                        if preview_text:
+                                            ui.label(preview_text[:200] + ('...' if len(preview_text) > 200 else '')).classes('text-xs text-grey-6').style('white-space: pre-wrap;')
+                                    
+                                    # Boutons actions
+                                    with ui.column().classes('gap-1'):
+                                        ui.button('👁️', on_click=lambda m=mem: _view_memory_details(m)).props('dense flat').classes('text-xs').tooltip('Voir détails')
+                        
+                        # Boutons actions groupées
+                        ui.separator().classes('my-3')
+                        
+                        with ui.row().classes('justify-between items-center w-full'):
+                            select_all_btn = ui.button('☑️ Tout sélectionner').classes('action-button')
+                            deselect_all_btn = ui.button('⬜ Tout désélectionner').classes('action-button')
+                            
+                            delete_selected_btn = ui.button('🗑️ Supprimer sélection', icon='delete').classes('action-button').style(
+                                'background: var(--error); color: white;'
+                            )
+                        
+                        def select_all():
+                            for cb in selected_for_deletion.values():
+                                cb.value = True
+                        
+                        def deselect_all():
+                            for cb in selected_for_deletion.values():
+                                cb.value = False
+                        
+                        async def delete_selected():
+                            to_delete = [mid for mid, cb in selected_for_deletion.items() if cb.value]
+                            
+                            if not to_delete:
+                                ui.notify('⚠️ Aucune mémoire sélectionnée', type='warning')
+                                return
+                            
+                            # Confirmation
+                            with ui.dialog() as confirm_dialog:
+                                confirm_dialog.open()
+                                with ui.card().classes('q-dark p-4'):
+                                    ui.label(f'⚠️ Confirmer suppression de {len(to_delete)} mémoire(s) ?').classes('text-h6 mb-4')
+                                    
+                                    with ui.column().classes('gap-2 mb-4'):
+                                        for mid in to_delete[:10]:  # Afficher max 10
+                                            mem_data = next((m for m in redundant if m['id'] == mid), None)
+                                            if mem_data:
+                                                ui.label(f'• {mem_data.get("title", mid)}').classes('text-sm')
+                                        if len(to_delete) > 10:
+                                            ui.label(f'... et {len(to_delete) - 10} autre(s)').classes('text-sm text-grey-5')
+                                    
+                                    with ui.row().classes('justify-end gap-2'):
+                                        ui.button('Annuler', on_click=confirm_dialog.close).classes('action-button')
+                                        
+                                        async def execute_deletion():
+                                            confirm_dialog.close()
+                                            success_count = 0
+                                            
+                                            for mid in to_delete:
+                                                try:
+                                                    await mm.delete_memory(mid)
+                                                    success_count += 1
+                                                except Exception as e:
+                                                    print(f'[REDUNDANCY] Erreur suppression {mid}: {e}')
+                                            
+                                            ui.notify(f'✅ {success_count}/{len(to_delete)} mémoire(s) supprimée(s)', type='positive')
+                                            
+                                            # Refresh
+                                            if refresh_callback:
+                                                refresh_callback()
+                                            
+                                            # Relancer recherche
+                                            await search_redundancies()
+                                        
+                                        ui.button('SUPPRIMER', icon='delete_forever', on_click=execute_deletion).classes('action-button').style(
+                                            'background: var(--error); color: white;'
+                                        )
+                        
+                        select_all_btn.on('click', select_all)
+                        deselect_all_btn.on('click', deselect_all)
+                        delete_selected_btn.on('click', delete_selected)
+                
+                except Exception as e:
+                    with results_container:
+                        ui.label(f'❌ Erreur recherche: {e}').classes('text-error')
+                    stats_label.text = 'Erreur'
+                    print(f'[REDUNDANCY] Erreur: {e}')
+                    import traceback
+                    traceback.print_exc()
+            
+            def _view_memory_details(memory_data):
+                """Affiche détails d'une mémoire dans un popup"""
+                with ui.dialog() as detail_dialog:
+                    detail_dialog.open()
+                    with ui.card().classes('q-dark p-4').style('max-width: 800px;'):
+                        with ui.row().classes('items-center justify-between w-full mb-3'):
+                            ui.label(f'📄 {memory_data.get("title", "Détails")}').classes('text-h6')
+                            ui.button(icon='close', on_click=detail_dialog.close).props('flat dense round')
+                        
+                        ui.label(f'ID: {memory_data["id"]}').classes('text-xs text-grey-5 mb-2')
+                        ui.label(f'Score impact: {memory_data.get("score_impact", 0):.2f}').classes('text-sm mb-2')
+                        ui.label(f'Similarité: {memory_data.get("similarity_score", 0):.0%}').classes('text-sm mb-2')
+                        
+                        ui.separator().classes('my-3')
+                        
+                        with ui.expansion('Texte original', value=True).classes('bg-grey-9'):
+                            ui.label(memory_data.get('text_original', 'N/A')).classes('text-sm').style('white-space: pre-wrap;')
+                        
+                        with ui.expansion('Résumé', value=False).classes('bg-grey-9'):
+                            ui.label(memory_data.get('summary', 'N/A')).classes('text-sm').style('white-space: pre-wrap;')
+            
+            # Bouton lancer recherche
+            with ui.row().classes('justify-center mb-4'):
+                ui.button('🔍 Lancer recherche', icon='search', on_click=search_redundancies).classes('btn-primary').style(
+                    'font-size: 1.1em; padding: 12px 24px;'
+                )
+            
+            # Lancer recherche auto au chargement
+            ui.timer(0.1, search_redundancies, once=True)
+
 
 def _edit_memory_popup(memory_id: str, refresh_callback=None):
     """Popup d'édition rapide d'un souvenir."""
@@ -2024,6 +2590,14 @@ def _models_modal():
     def _safe(val: str, options: list[str], default: str = 'Aucun') -> str:
         return val if val in options else default
     dialog = ui.dialog()
+    
+    # Synchronisation initiale des clés vers le vault (migration)
+    try:
+        from api_keys_vault import sync_from_current_settings
+        sync_from_current_settings()
+    except Exception:
+        pass
+    
     # Ajout de la classe ia-modal et largeur plafonnée pour éviter le grand espace à droite
     with dialog, ui.card().classes('popup-content q-dark ia-modal').style('background: var(--bg-secondary); color: var(--text-primary); height: 82vh; overflow-y: auto; width: min(92vw, 900px); margin: 0 auto;'):
         ui.label('Modèles IA').classes('popup-title')
@@ -2084,10 +2658,29 @@ def _models_modal():
                 # Zone API
                 with ui.column() as chat_api_zone:
                     chat_provider_opts = ['Aucun'] + REMOTE_PROVIDERS[:-1] + ['AIHorde']
+                    
+                    def on_chat_provider_change(e):
+                        """Charge la clé API depuis le vault au changement de provider et recharge les modèles"""
+                        try:
+                            from api_keys_vault import get_api_key, has_saved_key
+                            provider = e.value
+                            if provider and provider != 'Aucun' and has_saved_key(provider):
+                                saved_key = get_api_key(provider)
+                                if saved_key:
+                                    chat_api_key.value = saved_key
+                                    ui.notify(f'🔑 Clé {provider} chargée depuis le vault', type='info')
+                            # Recharger les modèles pour le nouveau provider
+                            if provider and provider != 'Aucun':
+                                refresh_cb = _refresh_models_ui('chat', chat_backend, chat_provider, chat_model, chat_api_key)
+                                ui.timer(0.1, lambda: asyncio.create_task(refresh_cb()), once=True)
+                        except Exception as ex:
+                            print(f"[API-VAULT] Erreur chargement clé chat: {ex}")
+                    
                     chat_provider = ui.select(
                         chat_provider_opts,
                         value=_safe(chat.get('provider', 'Aucun'), chat_provider_opts),
                         label='Provider API',
+                        on_change=on_chat_provider_change
                     ).classes('form-select mb-2 narrow-field')
                     chat_model = ui.select([], value=None, label='Modèle API').classes('form-select mb-2 narrow-field')
                     chat_api_key = ui.input(label='Clé API', password=True, value=chat.get('api_key', '')).classes('form-input mb-2 narrow-field')
@@ -2355,6 +2948,17 @@ def _models_modal():
                 chat_ctx = ui.number(label='context_length (-1 pour auto)', value=chat.get('context_length', 4096)).classes('form-input mb-2 narrow-field')
                 chat_temp = ui.number(label='temperature', value=chat.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field')
 
+                with ui.column().classes('gap-1 mb-2') as chat_thinking_row:
+                    with ui.row().classes('items-center gap-2'):
+                        chat_thinking = ui.checkbox('🧠 Mode Thinking (raisonnement interne)', value=chat.get('openrouter_thinking', False))
+                        ui.label('Gemini 3, qwen3, deepseek-r1, o1...').classes('text-xs text-muted')
+                    ui.label(
+                        '⚠️ Gemini 3.1 et Gemini 2.0 Flash Thinking pensent toujours en interne '
+                        '(pas de contrôle possible). Gemini 2.5 pense toujours mais cette option '
+                        'expose son raisonnement dans la boîte thinking. DeepSeek-R1 pense toujours aussi. '
+                        'Budget tokens auto x8 pour ces modèles.'
+                    ).classes('text-xs text-warning').style('color: #e6a23c; line-height: 1.3; padding-left: 4px;')
+
                 def _refresh_chat_interface():
                     """Force la mise à jour de l'interface Chat selon le backend sélectionné"""
                     backend = chat_backend.value
@@ -2365,13 +2969,19 @@ def _models_modal():
                     
                     ui.notify(f'✅ Interface {backend} activée', type='positive')
 
-                def _bind_chat_visibility():
+                def _bind_chat_visibility(reload_models=False):
                     chat_api_zone.visible = (chat_backend.value == 'API')
                     chat_ollama_zone.visible = (chat_backend.value == 'Ollama')
                     chat_gguf_zone.visible = (chat_backend.value == 'GGUF')
                     chat_kobold_zone.visible = (chat_backend.value == 'KoboldCpp')
+                    # Thinking disponible pour OpenRouter, Google, OpenAI, Anthropic et Mistral (magistral)
+                    chat_thinking_row.visible = (chat_backend.value == 'API' and chat_provider.value in ('OpenRouter', 'Google', 'OpenAI', 'Anthropic', 'Mistral'))
+                    # Recharger les modèles si demandé (changement de backend)
+                    if reload_models:
+                        ui.timer(0.05, lambda: _init_models_ui('chat', chat_backend, chat_provider, chat_model, chat_api_key, chat_api_zone, chat_ollama_zone, chat_ollama_model, chat_gguf_zone, chat_gguf_model_files, chat_kobold_zone, ollama_url_input=chat_ollama_url, kobold_url_input=chat_kobold_url), once=True)
 
-                chat_backend.on('change', lambda: _bind_chat_visibility())
+                chat_backend.on('change', lambda: _bind_chat_visibility(reload_models=True))
+                chat_provider.on('change', lambda e: _bind_chat_visibility())
                 # Initialiser la visibilité immédiatement
                 _bind_chat_visibility()
                 ui.timer(0.05, lambda: _init_models_ui('chat', chat_backend, chat_provider, chat_model, chat_api_key, chat_api_zone, chat_ollama_zone, chat_ollama_model, chat_gguf_zone, chat_gguf_model_files, chat_kobold_zone, ollama_url_input=chat_ollama_url, kobold_url_input=chat_kobold_url), once=True)
@@ -2422,10 +3032,29 @@ def _models_modal():
 
                 with ui.column() as arch_api_zone:
                     arch_provider_opts = ['Aucun'] + REMOTE_PROVIDERS[:-1] + ['AIHorde']
+                    
+                    def on_arch_provider_change(e):
+                        """Charge la clé API depuis le vault au changement de provider et recharge les modèles"""
+                        try:
+                            from api_keys_vault import get_api_key, has_saved_key
+                            provider = e.value
+                            if provider and provider != 'Aucun' and has_saved_key(provider):
+                                saved_key = get_api_key(provider)
+                                if saved_key:
+                                    arch_api_key.value = saved_key
+                                    ui.notify(f'🔑 Clé {provider} chargée depuis le vault', type='info')
+                            # Recharger les modèles pour le nouveau provider
+                            if provider and provider != 'Aucun':
+                                refresh_cb = _refresh_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key)
+                                ui.timer(0.1, lambda: asyncio.create_task(refresh_cb()), once=True)
+                        except Exception as ex:
+                            print(f"[API-VAULT] Erreur chargement clé arch: {ex}")
+                    
                     arch_provider = ui.select(
                         arch_provider_opts,
                         value=_safe(arch.get('provider', 'Aucun'), arch_provider_opts),
                         label='Provider API',
+                        on_change=on_arch_provider_change
                     ).classes('form-select mb-2 narrow-field')
                     arch_model = ui.select([], value=None, label='Modèle API').classes('form-select mb-2 narrow-field')
                     arch_api_key = ui.input(label='Clé API', password=True, value=arch.get('api_key', '')).classes('form-input mb-2 narrow-field')
@@ -2613,13 +3242,16 @@ def _models_modal():
                     
                     ui.notify(f'✅ Interface {backend} activée', type='positive')
 
-                def _bind_arch_visibility():
+                def _bind_arch_visibility(reload_models=False):
                     arch_api_zone.visible = (arch_backend.value == 'API')
                     arch_ollama_zone.visible = (arch_backend.value == 'Ollama')
                     arch_gguf_zone.visible = (arch_backend.value == 'GGUF')
                     arch_kobold_zone.visible = (arch_backend.value == 'KoboldCpp')
+                    # Recharger les modèles si demandé (changement de backend)
+                    if reload_models:
+                        ui.timer(0.05, lambda: _init_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key, arch_api_zone, arch_ollama_zone, arch_ollama_model, arch_gguf_zone, arch_gguf_model_files, arch_kobold_zone, ollama_url_input=arch_ollama_url, kobold_url_input=arch_kobold_url), once=True)
 
-                arch_backend.on('change', lambda: _bind_arch_visibility())
+                arch_backend.on('change', lambda: _bind_arch_visibility(reload_models=True))
                 # Initialiser la visibilité immédiatement
                 _bind_arch_visibility()
                 ui.timer(0.05, lambda: _init_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key, arch_api_zone, arch_ollama_zone, arch_ollama_model, arch_gguf_zone, arch_gguf_model_files, arch_kobold_zone, ollama_url_input=arch_ollama_url, kobold_url_input=arch_kobold_url), once=True)
@@ -2670,10 +3302,29 @@ def _models_modal():
 
                 with ui.column() as emb_api_zone:
                     emb_provider_opts = ['Aucun'] + EMBED_SUPPORTED_PROVIDERS
+                    
+                    def on_emb_provider_change(e):
+                        """Charge la clé API depuis le vault au changement de provider et recharge les modèles"""
+                        try:
+                            from api_keys_vault import get_api_key, has_saved_key
+                            provider = e.value
+                            if provider and provider != 'Aucun' and has_saved_key(provider):
+                                saved_key = get_api_key(provider)
+                                if saved_key:
+                                    emb_api_key.value = saved_key
+                                    ui.notify(f'🔑 Clé {provider} chargée depuis le vault', type='info')
+                            # Recharger les modèles pour le nouveau provider
+                            if provider and provider != 'Aucun':
+                                refresh_cb = _refresh_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key)
+                                ui.timer(0.1, lambda: asyncio.create_task(refresh_cb()), once=True)
+                        except Exception as ex:
+                            print(f"[API-VAULT] Erreur chargement clé emb: {ex}")
+                    
                     emb_provider = ui.select(
                         emb_provider_opts,
                         value=_safe(emb.get('provider', 'Aucun'), emb_provider_opts),
                         label='Provider API',
+                        on_change=on_emb_provider_change
                     ).classes('form-select mb-2 narrow-field')
                     emb_model = ui.select([], value=None, label="Modèle d'embeddings").classes('form-select mb-2 narrow-field')
                     emb_api_key = ui.input(label='Clé API', password=True, value=emb.get('api_key', '')).classes('form-input mb-2 narrow-field')
@@ -2865,12 +3516,15 @@ def _models_modal():
                     
                     ui.notify(f'✅ Interface {backend} activée', type='positive')
 
-                def _bind_embed_visibility():
+                def _bind_embed_visibility(reload_models=False):
                     emb_api_zone.visible = (emb_backend.value == 'API')
                     emb_ollama_zone.visible = (emb_backend.value == 'Ollama')
                     emb_gguf_zone.visible = (emb_backend.value == 'GGUF')
+                    # Recharger les modèles si demandé (changement de backend)
+                    if reload_models:
+                        ui.timer(0.05, lambda: _init_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key, emb_api_zone, emb_ollama_zone, emb_ollama_model, emb_gguf_zone, emb_gguf_model_files, None, ollama_url_input=emb_ollama_url), once=True)
 
-                emb_backend.on('change', lambda: _bind_embed_visibility())
+                emb_backend.on('change', lambda: _bind_embed_visibility(reload_models=True))
                 # Initialiser la visibilité immédiatement
                 _bind_embed_visibility()
                 ui.timer(0.05, lambda: _init_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key, emb_api_zone, emb_ollama_zone, emb_ollama_model, emb_gguf_zone, emb_gguf_model_files, None, ollama_url_input=emb_ollama_url), once=True)
@@ -2889,29 +3543,58 @@ def _models_modal():
                 ui.timer(0.2, safe_async_timer_callback(lambda: asyncio.create_task(_auto_check_emb())), once=True)
 
         def save_and_close():
-            # Sauvegardes des 3 sections (reprend la logique précédente)
-            chat_settings = {
+            # Sauvegarder les clés API dans le vault pour réutilisation future
+            try:
+                from api_keys_vault import save_api_key
+                
+                # Sauvegarder clé Chat si présente
+                if chat_backend.value == 'API' and chat_provider.value and chat_provider.value != 'Aucun':
+                    if chat_api_key.value and chat_api_key.value.strip():
+                        save_api_key(chat_provider.value, chat_api_key.value)
+                
+                # Sauvegarder clé Archiviste si présente
+                if arch_backend.value == 'API' and arch_provider.value and arch_provider.value != 'Aucun':
+                    if arch_api_key.value and arch_api_key.value.strip():
+                        save_api_key(arch_provider.value, arch_api_key.value)
+                
+                # Sauvegarder clé Embedding si présente
+                if emb_backend.value == 'API' and emb_provider.value and emb_provider.value != 'Aucun':
+                    if emb_api_key.value and emb_api_key.value.strip():
+                        save_api_key(emb_provider.value, emb_api_key.value)
+                        
+            except Exception as e:
+                print(f"[API-VAULT] ⚠️ Erreur sauvegarde vault: {e}")
+            
+            # CORRECTION: Préserver les settings existants pour éviter d'effacer les autres contrôleurs
+            # Copier les settings actuels comme base
+            chat_settings = sm.settings.get('chat_api', {}).copy()
+            arch_settings = sm.settings.get('reasoning_api', {}).copy()
+            emb_settings = sm.settings.get('embedding_api', {}).copy()
+            
+            # Mise à jour CHAT (seulement les champs modifiés)
+            chat_settings.update({
                 'backend_type': chat_backend.value,
-                'provider': 'Aucun',
-                'api_model': '',
-                'api_key': '',
                 'max_tokens': int(chat_max_tokens.value or 512),
                 'context_length': int(chat_ctx.value or 4096),
                 'temperature': float(chat_temp.value or 0.7),
-                'ollama_model': '',
-                'gguf_model': '',
-                'ollama_url': sm.settings.get('chat_api', {}).get('ollama_url', 'http://localhost:11434'),
-                'kobold_url': sm.settings.get('chat_api', {}).get('kobold_url', 'http://localhost:5001'),
-            }
+            })
             if chat_backend.value == 'API':
                 chat_settings['provider'] = chat_provider.value or 'Aucun'
-                chat_settings['api_model'] = chat_model.value or ''
+                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
+                if chat_model.value:
+                    chat_settings['api_model'] = chat_model.value
+                # Sinon garder la valeur existante dans chat_settings (déjà copiée)
                 chat_settings['api_key'] = chat_api_key.value or ''
+                chat_settings['openrouter_thinking'] = bool(chat_thinking.value)
             elif chat_backend.value == 'Ollama':
-                chat_settings['ollama_model'] = chat_ollama_model.value or ''
+                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
+                if chat_ollama_model.value:
+                    chat_settings['ollama_model'] = chat_ollama_model.value
                 chat_settings['ollama_url'] = chat_ollama_url.value or 'http://localhost:11434'
             elif chat_backend.value == 'GGUF':
-                chat_settings['gguf_model'] = chat_gguf_model_path.value or ''
+                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
+                if chat_gguf_model_path.value:
+                    chat_settings['gguf_model'] = chat_gguf_model_path.value
                 # Synchroniser les paramètres GGUF avec other_backends
                 if 'other_backends' not in sm.settings:
                     sm.settings['other_backends'] = {}
@@ -2929,55 +3612,54 @@ def _models_modal():
                 chat_settings['kobold_url'] = chat_kobold_url.value or 'http://localhost:5001'
             sm.settings['chat_api'] = chat_settings
 
-            arch_settings = {
+            # Mise à jour ARCHIVISTE (seulement les champs modifiés)
+            arch_settings.update({
                 'backend_type': arch_backend.value,
-                'provider': 'Aucun',
-                'api_model': '',
-                'api_key': '',
                 'max_tokens': int(arch_max_tokens.value or 512),
                 'context_length': int(arch_ctx.value or 4096),
                 'temperature': float(arch_temp.value or 0.7),
-                'ollama_model': '',
-                'gguf_model': '',
-                'ollama_url': sm.settings.get('reasoning_api', {}).get('ollama_url', 'http://localhost:11434'),
-                'kobold_url': sm.settings.get('reasoning_api', {}).get('kobold_url', 'http://localhost:5001'),
-            }
+            })
             if arch_backend.value == 'API':
                 arch_settings['provider'] = arch_provider.value or 'Aucun'
-                arch_settings['api_model'] = arch_model.value or ''
+                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
+                if arch_model.value:
+                    arch_settings['api_model'] = arch_model.value
                 arch_settings['api_key'] = arch_api_key.value or ''
             elif arch_backend.value == 'Ollama':
-                arch_settings['ollama_model'] = arch_ollama_model.value or ''
+                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
+                if arch_ollama_model.value:
+                    arch_settings['ollama_model'] = arch_ollama_model.value
                 arch_settings['ollama_url'] = arch_ollama_url.value or 'http://localhost:11434'
             elif arch_backend.value == 'GGUF':
-                arch_settings['gguf_model'] = arch_gguf_model_files.value or ''
+                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
+                if arch_gguf_model_files.value:
+                    arch_settings['gguf_model'] = arch_gguf_model_files.value
             elif arch_backend.value == 'KoboldCpp':
                 arch_settings['kobold_url'] = arch_kobold_url.value or 'http://localhost:5001'
             sm.settings['reasoning_api'] = arch_settings
 
-            emb_settings = {
+            # Mise à jour EMBEDDING (seulement les champs modifiés)
+            emb_settings.update({
                 'backend_type': emb_backend.value,
-                'provider': 'Aucun',
-                'api_model': '',
-                'api_key': '',
-                'ollama_model': '',
-                'gguf_model': '',
-                'ollama_url': sm.settings.get('embedding_api', {}).get('ollama_url', 'http://localhost:11434'),
-            }
+                'max_tokens': int(emb_max_tokens.value or 512),
+                'context_length': int(emb_ctx.value or 4096),
+                'temperature': float(emb_temp.value or 0.1),
+            })
             if emb_backend.value == 'API':
                 emb_settings['provider'] = emb_provider.value or 'Aucun'
-                emb_settings['api_model'] = emb_model.value or ''
+                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
+                if emb_model.value:
+                    emb_settings['api_model'] = emb_model.value
                 emb_settings['api_key'] = emb_api_key.value or ''
             elif emb_backend.value == 'Ollama':
-                emb_settings['ollama_model'] = emb_ollama_model.value or ''
+                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
+                if emb_ollama_model.value:
+                    emb_settings['ollama_model'] = emb_ollama_model.value
                 emb_settings['ollama_url'] = emb_ollama_url.value or 'http://localhost:11434'
             elif emb_backend.value == 'GGUF':
-                emb_settings['gguf_model'] = emb_gguf_model_files.value or ''
-            
-            # Ajouter les paramètres avancés Embedding
-            emb_settings['max_tokens'] = int(emb_max_tokens.value or 512)
-            emb_settings['context_length'] = int(emb_ctx.value or 4096)
-            emb_settings['temperature'] = float(emb_temp.value or 0.1)
+                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
+                if emb_gguf_model_files.value:
+                    emb_settings['gguf_model'] = emb_gguf_model_files.value
             
             sm.settings['embedding_api'] = emb_settings
 
@@ -3014,6 +3696,55 @@ def _models_modal():
 # Tous les paramètres Perception sont maintenant gérés sur la page dédiée /perception
 # Cette modal a été supprimée pour éviter les conflits de configuration
 # ============================================================================
+
+
+def _telegram_connector_settings_modal():
+    """Modal de configuration pour l'extension Telegram Connector"""
+    
+    # Vérifier disponibilité
+    try:
+        from extensions.telegram_connector import is_telegram_available
+        if not is_telegram_available():
+            return None
+    except ImportError:
+        return None
+    
+    # Créer le dialog avec glassmorphism
+    dialog = ui.dialog().style('''
+        z-index: 10000 !important;
+    ''')
+    
+    with dialog:
+        with ui.card().classes('w-full max-w-2xl').style('''
+            background: rgba(0, 136, 204, 0.08) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            border: 1px solid rgba(0, 136, 204, 0.25) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 8px 32px rgba(0, 136, 204, 0.15) !important;
+            color: var(--text-primary) !important;
+            max-height: 80vh !important;
+            overflow-y: auto !important;
+        '''):
+            
+            # Conteneur pour l'interface de l'extension
+            settings_container = ui.column().classes('w-full')
+            
+            try:
+                from extensions.telegram_connector.ui_components import get_telegram_ui
+                
+                telegram_ui = get_telegram_ui()
+                telegram_ui.create_settings_panel(settings_container)
+                
+            except Exception as e:
+                with settings_container:
+                    ui.label(f"❌ Erreur chargement: {e}").classes('text-red-500')
+            
+            # Boutons
+            with ui.row().classes('justify-end gap-2 mt-4'):
+                ui.button('Fermer', on_click=dialog.close).classes('action-button')
+    
+    return dialog
 
 
 def _web_navigator_settings_modal():
@@ -3100,5 +3831,379 @@ def _web_navigator_settings_modal():
                     backdrop-filter: blur(15px) !important;
                     transition: all 0.3s ease !important;
                 ''')
+    
+    return dialog
+
+
+def _dream_engine_settings_modal():
+    """Modal de configuration pour l'extension Dream Engine (Métabolisme Cognitif)"""
+    
+    # Créer le dialog avec glassmorphism violet/bleu nuit
+    dialog = ui.dialog().style('''
+        z-index: 10000 !important;
+    ''')
+    
+    with dialog:
+        with ui.card().classes('w-full max-w-2xl').style('''
+            background: rgba(75, 0, 130, 0.12) !important;
+            backdrop-filter: blur(15px) !important;
+            -webkit-backdrop-filter: blur(15px) !important;
+            border: 1px solid rgba(138, 43, 226, 0.3) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 8px 32px rgba(138, 43, 226, 0.2) !important;
+            color: var(--text-primary) !important;
+            max-height: 80vh !important;
+            overflow-y: auto !important;
+            padding: 24px !important;
+        '''):
+            
+            # En-tête
+            ui.label('🌙 Rêve IA - Métabolisme Cognitif').classes('popup-title').style('''
+                color: #9370DB !important; 
+                text-shadow: 0 0 10px rgba(147, 112, 219, 0.4) !important; 
+                font-weight: 600 !important;
+                font-size: 1.4rem !important;
+            ''')
+            ui.label("L'IA digère ses souvenirs en récits oniriques pendant votre absence").classes('mb-4').style('color: #b0b0b0 !important;')
+            
+            # Vérifier disponibilité de l'extension
+            try:
+                from extensions.dream_engine import is_available, get_config, set_config, DEFAULT_CONFIG
+                
+                if not is_available():
+                    ui.markdown("### ⚠️ Dream Engine non initialisé")
+                    ui.markdown("*L'extension sera disponible après le démarrage complet d'OGMA*")
+                else:
+                    # Récupérer la config actuelle
+                    config = get_config()
+                    
+                    # Pas besoin de conversion - on utilise directement illustration_style
+                    
+                    # === SECTION: Activation ===
+                    with ui.expansion('⚡ Activation', icon='power_settings_new', value=True).classes('w-full mb-3').style('''
+                        background: rgba(138, 43, 226, 0.08) !important;
+                        border: 1px solid rgba(138, 43, 226, 0.2) !important;
+                        border-radius: 12px !important;
+                    '''):
+                        with ui.row().classes('items-center gap-4 w-full'):
+                            enabled_switch = ui.switch('Rêves automatiques activés', value=config.get('enabled', True)).style('''
+                                --q-primary: #9370DB !important;
+                            ''')
+                            ui.label('L\'IA rêvera automatiquement après inactivité').classes('text-sm').style('color: #b0b0b0 !important;')
+                    
+                    # === SECTION: Timing ===
+                    with ui.expansion('⏱️ Timing', icon='schedule').classes('w-full mb-3').style('''
+                        background: rgba(138, 43, 226, 0.08) !important;
+                        border: 1px solid rgba(138, 43, 226, 0.2) !important;
+                        border-radius: 12px !important;
+                    '''):
+                        with ui.column().classes('w-full gap-3'):
+                            # Timer inactivité
+                            ui.label('⏰ Délai avant rêve (minutes)').classes('font-semibold')
+                            inactivity_slider = ui.slider(
+                                min=5, max=60, step=5,
+                                value=config.get('inactivity_timeout_minutes', 10)
+                            ).props('label-always').style('width: 100%;')
+                            ui.label('Temps d\'inactivité avant que l\'IA commence à rêver').classes('text-xs').style('color: #b0b0b0 !important;')
+                            
+                            ui.separator().style('margin: 8px 0;')
+                            
+                            # Vitesse métabolisme
+                            ui.label('🔄 Vitesse métabolisme (tokens/minute)').classes('font-semibold')
+                            metabolism_slider = ui.slider(
+                                min=20, max=200, step=10,
+                                value=config.get('metabolism_tokens_per_minute', 50)
+                            ).props('label-always').style('width: 100%;')
+                            ui.label('Vitesse de "digestion" du rêve (lent = plus onirique)').classes('text-xs').style('color: #b0b0b0 !important;')
+                    
+                    # === SECTION: Comportement ===
+                    with ui.expansion('🧠 Comportement', icon='psychology').classes('w-full mb-3').style('''
+                        background: rgba(138, 43, 226, 0.08) !important;
+                        border: 1px solid rgba(138, 43, 226, 0.2) !important;
+                        border-radius: 12px !important;
+                    '''):
+                        with ui.column().classes('w-full gap-3'):
+                            # Seuil mention spontanée
+                            ui.label('💬 Seuil de mention spontanée (score 1-10)').classes('font-semibold')
+                            mention_slider = ui.slider(
+                                min=5, max=10, step=1,
+                                value=config.get('spontaneous_mention_threshold', 8)
+                            ).props('label-always').style('width: 100%;')
+                            ui.label('Si le rêve a un score ≥ ce seuil, l\'IA en parlera spontanément').classes('text-xs').style('color: #b0b0b0 !important;')
+                            
+                            ui.separator().style('margin: 8px 0;')
+                            
+                            # Illustrations
+                            with ui.row().classes('items-center gap-4 w-full'):
+                                illustration_switch = ui.switch(
+                                    'Générer des illustrations', 
+                                    value=config.get('generate_illustrations', True)
+                                ).style('--q-primary: #9370DB !important;')
+                                ui.label('L\'IA dessine ses rêves (nécessite text2img)').classes('text-sm').style('color: #b0b0b0 !important;')
+                            
+                            ui.label('⚠️ Si désactivé, aucune image ne sera générée (y compris comics)').classes('text-xs').style('color: #ff9800 !important; margin-left: 30px; margin-top: -8px;')
+                            
+                            # Style d'illustration (radio buttons)
+                            ui.label('🎨 Style d\'illustration').classes('font-semibold mt-3')
+                            
+                            # Déterminer valeur initiale depuis illustration_style
+                            current_style = config.get('illustration_style', 'auto')
+                            
+                            illustration_style_radio = ui.radio(
+                                options={
+                                    'single': '📷 Image unique - Une seule illustration du rêve',
+                                    'comic_4': '📚 Comic 4 cases - Planche BD racontant le rêve',
+                                    'auto': '🎲 L\'IA choisit - Elle décide selon le contenu du rêve'
+                                },
+                                value=current_style
+                            ).props('dense').style('margin-left: 10px;')
+                            
+                            # Désactiver si illustrations OFF
+                            illustration_style_radio.bind_enabled_from(illustration_switch, 'value')
+                    
+                    # === SECTION: Mémoire ===
+                    with ui.expansion('💾 Carburant Mémoriel', icon='memory').classes('w-full mb-3').style('''
+                        background: rgba(138, 43, 226, 0.08) !important;
+                        border: 1px solid rgba(138, 43, 226, 0.2) !important;
+                        border-radius: 12px !important;
+                    '''):
+                        with ui.column().classes('w-full gap-3'):
+                            ui.label('📚 Nombre de résumés récents').classes('font-semibold')
+                            summaries_slider = ui.slider(
+                                min=5, max=20, step=1,
+                                value=config.get('max_summaries', 10)
+                            ).props('label-always').style('width: 100%;')
+                            
+                            ui.label('🏷️ Nombre de souvenirs #MEM').classes('font-semibold')
+                            hashtag_slider = ui.slider(
+                                min=3, max=10, step=1,
+                                value=config.get('max_hashtag_memories', 5)
+                            ).props('label-always').style('width: 100%;')
+                    
+                    # === SECTION: Prompts personnalisés ===
+                    # Importer les prompts par défaut pour les afficher
+                    try:
+                        from extensions.dream_engine.dream_prompts import DREAM_GENERATOR_MODE, ARCHIVISTE_PSY_VERDICT
+                        default_dream_prompt = DREAM_GENERATOR_MODE
+                        default_psy_prompt = ARCHIVISTE_PSY_VERDICT
+                    except:
+                        default_dream_prompt = "[Prompt par défaut non disponible]"
+                        default_psy_prompt = "[Prompt par défaut non disponible]"
+                    
+                    with ui.expansion('📝 Prompts Personnalisés', icon='edit_note').classes('w-full mb-3').style('''
+                        background: rgba(138, 43, 226, 0.08) !important;
+                        border: 1px solid rgba(138, 43, 226, 0.2) !important;
+                        border-radius: 12px !important;
+                    '''):
+                        with ui.column().classes('w-full gap-3'):
+                            ui.markdown("*Laissez vide pour utiliser le prompt par défaut. Les prompts sauvegardés ici seront **prioritaires**.*").classes('text-xs').style('color: #b0b0b0 !important;')
+                            
+                            # Prompt IA (génération de rêve)
+                            ui.label('🌸 Prompt IA (Génération de Rêve)').classes('font-semibold')
+                            
+                            # Valeur initiale : config custom ou défaut si vide
+                            luna_initial = config.get('prompt_dream_generator', '') or default_dream_prompt
+                            luna_prompt_area = ui.textarea(
+                                value=luna_initial
+                            ).props('outlined dark input-style="color: white; font-family: monospace; font-size: 0.85rem"').classes('w-full').style('''
+                                height: 200px !important;
+                                min-height: 200px !important;
+                                max-height: 200px !important;
+                                overflow-y: auto !important;
+                                background: rgba(30, 30, 40, 0.9) !important;
+                            ''')
+                            with ui.row().classes('gap-2'):
+                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: luna_prompt_area.set_value(default_dream_prompt)).props('flat dense size=sm')
+                            
+                            ui.separator().style('margin: 12px 0;')
+                            
+                            # Prompt Archiviste PSY
+                            ui.label('📚 Prompt Archiviste (Analyse PSY)').classes('font-semibold')
+                            
+                            # Valeur initiale : config custom ou défaut si vide
+                            psy_initial = config.get('prompt_archiviste_psy', '') or default_psy_prompt
+                            psy_prompt_area = ui.textarea(
+                                value=psy_initial
+                            ).props('outlined dark input-style="color: white; font-family: monospace; font-size: 0.85rem"').classes('w-full').style('''
+                                height: 200px !important;
+                                min-height: 200px !important;
+                                max-height: 200px !important;
+                                overflow-y: auto !important;
+                                background: rgba(30, 30, 40, 0.9) !important;
+                            ''')
+                            with ui.row().classes('gap-2'):
+                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: psy_prompt_area.set_value(default_psy_prompt)).props('flat dense size=sm')
+                            
+                            ui.separator().style('margin: 12px 0;')
+                            
+                            # Instructions illustration
+                            ui.label('🎨 Instruction Mode Comic (4 cases)').classes('font-semibold')
+                            ui.label('Instruction ajoutée au prompt quand comic activé').classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.label('⚠️ IMPORTANT: Le prompt final de l\'IA doit faire MAX 450-500 caractères (limite API)').classes('text-xs font-bold').style('color: #ff9800 !important; margin-top: 4px;')
+                            
+                            default_comic_instruction = "\n\nGénère une planche BD de 4 cases."
+                            comic_instruction_initial = config.get('prompt_comic_instruction', '') or default_comic_instruction
+                            comic_instruction_area = ui.textarea(
+                                value=comic_instruction_initial
+                            ).props('outlined dark input-style="color: white; font-family: monospace; font-size: 0.85rem"').classes('w-full').style('''
+                                height: 80px !important;
+                                min-height: 80px !important;
+                                max-height: 80px !important;
+                                overflow-y: auto !important;
+                                background: rgba(30, 30, 40, 0.9) !important;
+                            ''')
+                            with ui.row().classes('gap-2'):
+                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: comic_instruction_area.set_value(default_comic_instruction)).props('flat dense size=sm')
+                            
+                            ui.separator().style('margin: 8px 0;')
+                            
+                            # Instruction single
+                            ui.label('🖼️ Instruction Mode Image Unique').classes('font-semibold')
+                            ui.label('Instruction ajoutée au prompt quand comic désactivé').classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.label('⚠️ IMPORTANT: Le prompt final de l\'IA doit faire MAX 450-500 caractères (limite API)').classes('text-xs font-bold').style('color: #ff9800 !important; margin-top: 4px;')
+                            
+                            default_single_instruction = "\n\nGénère une seule image."
+                            single_instruction_initial = config.get('prompt_single_instruction', '') or default_single_instruction
+                            single_instruction_area = ui.textarea(
+                                value=single_instruction_initial
+                            ).props('outlined dark input-style="color: white; font-family: monospace; font-size: 0.85rem"').classes('w-full').style('''
+                                height: 80px !important;
+                                min-height: 80px !important;
+                                max-height: 80px !important;
+                                overflow-y: auto !important;
+                                background: rgba(30, 30, 40, 0.9) !important;
+                            ''')
+                            with ui.row().classes('gap-2'):
+                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: single_instruction_area.set_value(default_single_instruction)).props('flat dense size=sm')
+                            
+                            ui.separator().style('margin: 8px 0;')
+                            
+                            # Instruction auto
+                            ui.label('🎲 Instruction Mode Auto (L\'IA choisit)').classes('font-semibold')
+                            ui.label('Instruction ajoutée au prompt quand mode auto activé').classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.label('⚠️ IMPORTANT: Le prompt final de l\'IA doit faire MAX 450-500 caractères (limite API)').classes('text-xs font-bold').style('color: #ff9800 !important; margin-top: 4px;')
+                            
+                            default_auto_instruction = ""  # Vide = l'IA décide librement
+                            auto_instruction_initial = config.get('prompt_auto_instruction', '') or default_auto_instruction
+                            auto_instruction_area = ui.textarea(
+                                value=auto_instruction_initial,
+                                placeholder="Vide = l'IA choisit librement selon le contenu du rêve"
+                            ).props('outlined dark input-style="color: white; font-family: monospace; font-size: 0.85rem"').classes('w-full').style('''
+                                height: 80px !important;
+                                min-height: 80px !important;
+                                max-height: 80px !important;
+                                overflow-y: auto !important;
+                                background: rgba(30, 30, 40, 0.9) !important;
+                            ''')
+                            with ui.row().classes('gap-2'):
+                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: auto_instruction_area.set_value(default_auto_instruction)).props('flat dense size=sm')
+                    
+                    # Fonction de sauvegarde
+                    async def save_dream_config():
+                        # Déterminer si le prompt est custom ou égal au défaut
+                        luna_val = luna_prompt_area.value.strip() if luna_prompt_area.value else ''
+                        psy_val = psy_prompt_area.value.strip() if psy_prompt_area.value else ''
+                        
+                        # Si égal au défaut, sauvegarder vide (= utiliser défaut)
+                        if luna_val == default_dream_prompt.strip():
+                            luna_val = ''
+                        if psy_val == default_psy_prompt.strip():
+                            psy_val = ''
+                        
+                        # Instructions illustration
+                        comic_instruction = comic_instruction_area.value.strip() if comic_instruction_area.value else ''
+                        single_instruction = single_instruction_area.value.strip() if single_instruction_area.value else ''
+                        auto_instruction = auto_instruction_area.value.strip() if auto_instruction_area.value else ''
+                        
+                        if comic_instruction == default_comic_instruction.strip():
+                            comic_instruction = ''
+                        if single_instruction == default_single_instruction.strip():
+                            single_instruction = ''
+                        if auto_instruction == default_auto_instruction.strip():
+                            auto_instruction = ''
+                        
+                        # 🔧 Style d'illustration : utiliser directement la valeur du radio
+                        illust_style = illustration_style_radio.value  # "single", "comic_4", ou "auto"
+                        
+                        new_config = {
+                            'enabled': enabled_switch.value,
+                            'inactivity_timeout_minutes': int(inactivity_slider.value),
+                            'metabolism_tokens_per_minute': int(metabolism_slider.value),
+                            'spontaneous_mention_threshold': int(mention_slider.value),
+                            # Illustrations
+                            'generate_illustrations': illustration_switch.value,
+                            'auto_illustration': illustration_switch.value,  # Alias pour dream_core.py
+                            'illustration_style': illust_style,  # "single", "comic_4", ou "auto"
+                            # Mémoire
+                            'max_summaries': int(summaries_slider.value),
+                            'max_hashtag_memories': int(hashtag_slider.value),
+                            # Prompts personnalisés (vide = utiliser défaut)
+                            'prompt_dream_generator': luna_val,
+                            'prompt_archiviste_psy': psy_val,
+                            'prompt_comic_instruction': comic_instruction,
+                            'prompt_single_instruction': single_instruction,
+                            'prompt_auto_instruction': auto_instruction,
+                        }
+                        set_config(new_config)
+                        
+                        # 🔄 APPLIQUER LA CONFIG AU SYSTÈME (évite le F5)
+                        try:
+                            from extensions.dream_engine import reload_and_apply_config
+                            success = await reload_and_apply_config()
+                            
+                            if success:
+                                # Feedback sur ce qui a été sauvegardé
+                                custom_count = (1 if luna_val else 0) + (1 if psy_val else 0)
+                                if custom_count > 0:
+                                    ui.notify(f'🌙 Config sauvegardée et appliquée ({custom_count} prompt(s) custom)!', type='positive')
+                                else:
+                                    ui.notify('🌙 Config sauvegardée et appliquée (prompts par défaut)', type='positive')
+                            else:
+                                ui.notify('⚠️ Config sauvegardée mais erreur d\'application', type='warning')
+                        except Exception as e:
+                            print(f"[DREAM-CONFIG] ⚠️ Erreur reload_and_apply_config: {e}")
+                            ui.notify('⚠️ Config sauvegardée (redémarrage timer échoué)', type='warning')
+                    
+                    # Boutons
+                    with ui.row().classes('justify-end gap-2 mt-4'):
+                        ui.button('Réinitialiser', icon='refresh', on_click=lambda: (
+                            set_config(DEFAULT_CONFIG),
+                            ui.notify('Configuration réinitialisée', type='info'),
+                            dialog.close()
+                        )).classes('action-button').style('''
+                            background: rgba(100, 100, 100, 0.12) !important;
+                            border: 1px solid rgba(100, 100, 100, 0.3) !important;
+                        ''')
+                        
+                        ui.button('Sauvegarder', icon='save', on_click=save_dream_config).classes('action-button').style('''
+                            background: rgba(138, 43, 226, 0.2) !important;
+                            border: 1px solid rgba(138, 43, 226, 0.4) !important;
+                            transition: all 0.3s ease !important;
+                        ''')
+                        
+                        ui.button('Fermer', on_click=dialog.close).classes('action-button').style('''
+                            background: rgba(138, 43, 226, 0.12) !important;
+                            border: 1px solid rgba(138, 43, 226, 0.3) !important;
+                            transition: all 0.3s ease !important;
+                        ''')
+                    
+            except ImportError as e:
+                ui.markdown("### ❌ Extension Dream Engine non disponible")
+                ui.markdown(f"**Erreur :** {e}")
+                ui.markdown("""
+**Le Dream Engine permet à l'IA de :**
+- 🌙 Rêver pendant votre absence (digestion mémorielle)
+- 📝 Générer des récits oniriques basés sur vos conversations
+- 🎨 Illustrer ses rêves en images ou comics
+- 💬 Mentionner spontanément ses rêves marquants
+""")
+                with ui.row().classes('justify-end gap-2 mt-4'):
+                    ui.button('Fermer', on_click=dialog.close).classes('action-button')
+                    
+            except Exception as e:
+                ui.markdown("### ⚠️ Erreur de configuration Dream Engine")
+                ui.markdown(f"**Erreur :** {e}")
+                with ui.row().classes('justify-end gap-2 mt-4'):
+                    ui.button('Fermer', on_click=dialog.close).classes('action-button')
     
     return dialog

@@ -19,10 +19,13 @@ class WebNavigatorConfig:
         self.default_config = {
             "enabled": True,
             
+            # Moteur de recherche actif
+            "search_provider": "serper",  # "serper" ou "duckduckgo"
+
             # API Serper
             "serper_api_key": "",
             "serper_base_url": "https://google.serper.dev",
-            
+
             # Fonctionnalités activées
             "web_search_enabled": True,
             "image_search_enabled": True,
@@ -125,17 +128,23 @@ class WebNavigatorConfig:
         """Vérifie si l'extension est activée"""
         return self.get("enabled", True)
     
+    def _provider_ready(self) -> bool:
+        """Vérifie si le moteur actif est opérationnel (clé API si Serper, toujours True pour DDG)"""
+        if self.get_search_provider() == "duckduckgo":
+            return True
+        return self.has_valid_api_key()
+
     def is_web_search_enabled(self) -> bool:
-        """Vérifie si la recherche web Serper est activée"""
-        return self.get("web_search_enabled", True) and self.is_enabled() and self.has_valid_api_key()
-    
+        """Vérifie si la recherche web est activée"""
+        return self.get("web_search_enabled", True) and self.is_enabled() and self._provider_ready()
+
     def is_image_search_enabled(self) -> bool:
-        """Vérifie si la recherche d'images Serper est activée"""
-        return self.get("image_search_enabled", True) and self.is_enabled() and self.has_valid_api_key()
-    
+        """Vérifie si la recherche d'images est activée"""
+        return self.get("image_search_enabled", True) and self.is_enabled() and self._provider_ready()
+
     def is_news_search_enabled(self) -> bool:
-        """Vérifie si la recherche d'actualités Serper est activée"""
-        return self.get("news_search_enabled", True) and self.is_enabled() and self.has_valid_api_key()
+        """Vérifie si la recherche d'actualités est activée"""
+        return self.get("news_search_enabled", True) and self.is_enabled() and self._provider_ready()
     
     def has_valid_api_key(self) -> bool:
         """Vérifie si une clé API Serper valide est configurée"""
@@ -145,7 +154,11 @@ class WebNavigatorConfig:
     def get_serper_api_key(self) -> str:
         """Retourne la clé API Serper"""
         return self.get("serper_api_key", "")
-    
+
+    def get_search_provider(self) -> str:
+        """Retourne le moteur de recherche actif : 'serper' ou 'duckduckgo'"""
+        return self.get("search_provider", "serper")
+
     def get_image_save_path(self) -> Path:
         """Retourne le chemin de sauvegarde des images"""
         save_dir = self.get("image_save_directory", "data/uploads")

@@ -7,6 +7,7 @@ Classe unifiée pour l'extension Web Navigator avec Serper API.
 
 from .config import WebNavigatorConfig
 from .serper_client import SerperClient
+from .duckduckgo_client import DuckDuckGoClient
 from .commands import WebNavigatorCommands
 
 try:
@@ -43,16 +44,20 @@ class WebNavigatorExtension:
         # Client Serper API
         self.serper_client = SerperClient(self.config)
         print(f"[WEB-NAV-EXTENSION] ✅ Client Serper initialisé")
-        
+
+        # Client DuckDuckGo (gratuit, sans clé API)
+        self.duckduckgo_client = DuckDuckGoClient(self.config)
+        print(f"[WEB-NAV-EXTENSION] ✅ Client DuckDuckGo initialisé")
+
         # Gestionnaire de commandes
-        self.commands = WebNavigatorCommands(self.config, self.serper_client)
+        self.commands = WebNavigatorCommands(self.config, self.serper_client, self.duckduckgo_client)
         print(f"[WEB-NAV-EXTENSION] ✅ Gestionnaire de commandes initialisé")
         
         # Interface utilisateur (si disponible)
         self.ui = None
         if UI_AVAILABLE:
             try:
-                self.ui = WebNavigatorUI(self.config)
+                self.ui = WebNavigatorUI(self.config, self.commands)
                 print(f"[WEB-NAV-EXTENSION] ✅ Interface utilisateur initialisée")
             except Exception as e:
                 print(f"[WEB-NAV-EXTENSION] ⚠️ Interface utilisateur non disponible: {e}")

@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "confidence_threshold": 0.7,
+  "led_timeout": 30,
+  "cooldown_messages": 3,
+  "max_tokens": 500,
+  "temperature": 0.3,
+  "recent_context_messages": 3,
+  "capability_thresholds": {}
+}

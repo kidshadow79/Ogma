@@ -18,6 +18,257 @@ import asyncio
 import threading
 
 
+# ============================================================================
+# NETTOYAGE SÉMANTIQUE - STOPWORDS CONVERSATIONNELS
+# ============================================================================
+
+STOPWORDS_CONVERSATIONAL = {
+    # Verbes conversationnels (bruit récurrent)
+    "souviens", "rappelles", "rappelle", "évoque", "évoques", "évoquent",
+    "penses", "pense", "pensez", "crois", "croit", "croient",
+    "sais", "sait", "savez", "dis", "dit", "dites", "disent",
+    
+    # Formules interrogatives
+    "qu'est-ce", "qu'est", "est-ce", "comment", "pourquoi", 
+    "quoi", "quel", "quelle", "quels", "quelles", "où",
+    
+    # Mots certitude/opinion (faible signal sémantique)
+    "sûr", "sûre", "sûrs", "certain", "certaine", "certains",
+    "probable", "probablement", "peut-être",
+    
+    # Phrases magiques récurrentes (dilution)
+    "parlé", "parle", "parlons", "discuté", "discute", "discutons",
+    "échangé", "échange", "échangeons", "conversation", "discussion",
+    
+    # Verbes liaison faible sémantique
+    "avoir", "as", "avons", "avez", "ont",
+    "être", "es", "sommes", "êtes", "sont", "suis",
+    "faire", "fais", "fait", "faisons", "faites", "font",
+    "aller", "vas", "va", "allons", "allez", "vont",
+    "venir", "viens", "vient", "venons", "venez", "viennent",
+    
+    # Interjections (NOUVEAU - bruit conversationnel)
+    "ah", "oh", "eh", "hé", "hein", "euh", "hum", "bah", "bon", "bof",
+    "ouf", "pfff", "tiens", "voilà", "ben",
+    
+    # Formules politesse (NOUVEAU - zéro signal sémantique)
+    "pardon", "désolé", "désolée", "excusez", "excuse", "merci", 
+    "stp", "svp", "steuplait", "plait",
+    
+    # Verbes intention/désir (NOUVEAU - bruit modal)
+    "voulais", "veux", "veut", "voulons", "voulez", "veulent",
+    "aimerais", "aime", "aimes", "aiment", "aimez",
+    "pourrais", "peux", "peut", "pouvons", "pouvez", "peuvent",
+    "dire", "demander", "savoir", "vois", "voit", "voyez", "voient"
+}
+
+STOPWORDS_STANDARD = {
+    # Articles
+    "le", "la", "les", "l", "un", "une", "des", "du", "de", "d",
+    
+    # Pronoms sujets
+    "je", "j", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles",
+    
+    # Pronoms objets (SAUF possessifs mon/ma/mes gardés pour IA)
+    "me", "m", "te", "t", "se", "s", "lui", "leur", "y", "en",
+    
+    # Prépositions courantes
+    "à", "au", "aux", "dans", "sur", "sous", "par", "pour", "avec", "sans",
+    "chez", "vers", "entre", "contre", "pendant", "depuis",
+    
+    # Conjonctions
+    "et", "ou", "mais", "donc", "or", "ni", "car", "que", "qui",
+    
+    # Adverbes temps/lieu génériques
+    "quand", "toujours", "jamais", "encore", "déjà", "maintenant",
+    "hier", "demain", "aujourd'hui", "là", "ici",
+    
+    # Mots vides fréquents
+    "c'est", "c", "ce", "cela", "ça", "ceci",
+    "tout", "toute", "tous", "toutes", "très", "plus", "moins"
+}
+
+
+def clean_conversational_noise(query: str) -> str:
+    """
+    Nettoyage sémantique hybride - Suppression bruit conversationnel.
+    
+    PHILOSOPHIE:
+    - SUPPRIME: Stopwords conversationnels (dilution embeddings)
+    - SUPPRIME: Articles, pronoms, prépositions (bruit)
+    - GARDE: Possessifs mon/ma/mes (utiles pour IA traduction contextuelle)
+    - GARDE: Noms propres, concepts, entités (signal pur)
+    
+    GAIN ATTENDU: +70% précision recherche FAISS
+    
+    Args:
+        query: Requête utilisateur brute
+        
+    Returns:
+        Requête nettoyée (signal sémantique concentré)
+        
+    Exemples:
+        "tu te souviens du nom de mon chat?" → "nom mon chat"
+        "qu'est-ce que t'évoque la légende des 2 phares?" → "légende 2 phares"
+        "je suis sûr qu'on a parlé de philosophie" → "philosophie"
+    """
+    # Normalisation
+    query_lower = query.lower()
+    
+    # Suppression ponctuation (GARDE apostrophes pour contractions)
+    query_clean = re.sub(r'[^\w\s\']', ' ', query_lower)
+    
+    # Split mots
+    words = query_clean.split()
+    
+    # Filtrage stopwords (union des deux sets)
+    all_stopwords = STOPWORDS_CONVERSATIONAL | STOPWORDS_STANDARD
+    
+    # GARDE "mon", "ma", "mes" (utiles pour contexte possessif)
+    possessifs = {"mon", "ma", "mes"}
+    
+    filtered = [
+        w for w in words 
+        if (w not in all_stopwords or w in possessifs) and len(w) > 1
+    ]
+    
+    # Rejoindre
+    cleaned = " ".join(filtered)
+    
+    # Si nettoyage trop agressif (< 2 mots), fallback moins strict
+    if len(filtered) < 2:
+        # Garde au moins noms/adjectifs (stopwords standard seulement)
+        filtered_light = [
+            w for w in words 
+            if w not in STOPWORDS_STANDARD and len(w) > 1
+        ]
+        cleaned = " ".join(filtered_light) if filtered_light else query_lower
+    
+    return cleaned.strip()
+
+
+def calculate_keyword_matching_score(query_words: List[str], memory_text: str, 
+                                     user_identity: str = "Utilisateur") -> float:
+    """
+    🎯 SCORE PONDÉRÉ KEYWORD MATCHING - Option B
+    
+    Calcule similarité basée UNIQUEMENT sur correspondance mots requête.
+    Ignore mots supplémentaires dans le souvenir (pas de dilution).
+    
+    PHILOSOPHIE:
+    - Requête nettoyée = SIGNAL PUR (3-5 mots essentiels)
+    - Souvenir = CONTEXTE RICHE (peut contenir 50+ mots)
+    - Score = % mots requête matchés dans souvenir
+    - Mots non-requête IGNORÉS (pas de pénalité dilution)
+    
+    MATCHING TYPES:
+    1. Exact: "chat" ↔ "chat" (+1.0)
+    2. Synonyme: "minou" ↔ "chat" (+1.0)
+    3. Traduction contextuelle: "mon" ↔ "yohan" (+1.0)
+    4. Partial: "nommé" ↔ "nom" (+0.7)
+    
+    Args:
+        query_words: Mots requête nettoyée (ex: ["nom", "mon", "minou"])
+        memory_text: Texte complet souvenir
+        user_identity: Nom utilisateur pour traduction "mon/ma/mes"
+    
+    Returns:
+        Score 0.0-1.0 (% mots requête matchés)
+    
+    Exemples:
+        Query: ["nom", "mon", "minou"]
+        Memory: "Yohan a un chat femelle nommé Willow qui vit à Lyon"
+        
+        Matching:
+        - "nom" ↔ "nommé" : ✅ Partial (+0.7)
+        - "mon" ↔ "Yohan" : ✅ Traduction (+1.0)
+        - "minou" ↔ "chat" : ✅ Synonyme (+1.0)
+        
+        Score = (0.7 + 1.0 + 1.0) / 3 = 0.90 ✅
+        "Lyon", "femelle", "vit" IGNORÉS (pas de dilution)
+    """
+    
+    # Dictionnaire synonymes (extensible)
+    SYNONYMS = {
+        "chat": ["minou", "félin", "matou", "chatte", "féline"],
+        "chien": ["toutou", "canin", "chiot"],
+        "légende": ["histoire", "mythe", "récit", "conte", "genèse"],
+        "phare": ["lighthouse", "balise"],
+        # Ajouts faciles selon besoins
+    }
+    
+    # Normalisation texte souvenir
+    memory_lower = memory_text.lower()
+    memory_words = set(memory_lower.split())
+    
+    # Normalisation identité utilisateur
+    user_identity_lower = user_identity.lower()
+    
+    total_score = 0.0
+    matches_detail = []
+    
+    for query_word in query_words:
+        query_word_lower = query_word.lower()
+        word_score = 0.0
+        match_type = "none"
+        
+        # TYPE 1: Matching EXACT
+        if query_word_lower in memory_words:
+            word_score = 1.0
+            match_type = "exact"
+        
+        # TYPE 2: Matching SYNONYME
+        elif not word_score:
+            for base_word, synonyms in SYNONYMS.items():
+                # Query est synonyme
+                if query_word_lower in synonyms or query_word_lower == base_word:
+                    # Cherche base ou synonymes dans souvenir
+                    if base_word in memory_words or any(syn in memory_words for syn in synonyms):
+                        word_score = 1.0
+                        match_type = "synonym"
+                        break
+        
+        # TYPE 3: Matching TRADUCTION CONTEXTUELLE (mon/ma/mes → nom utilisateur)
+        if not word_score and query_word_lower in ["mon", "ma", "mes"]:
+            if user_identity_lower in memory_lower:
+                word_score = 1.0
+                match_type = "contextual"
+        
+        # TYPE 4: Matching PARTIAL (sous-chaîne)
+        if not word_score:
+            # Cherche si query_word est contenu dans un mot du souvenir
+            for mem_word in memory_words:
+                if query_word_lower in mem_word or mem_word in query_word_lower:
+                    if len(query_word_lower) >= 3:  # Éviter faux positifs courts
+                        word_score = 0.7
+                        match_type = "partial"
+                        break
+        
+        total_score += word_score
+        matches_detail.append({
+            'word': query_word,
+            'score': word_score,
+            'type': match_type
+        })
+    
+    # Score final = moyenne pondérée
+    if not query_words:
+        return 0.0
+    
+    final_score = total_score / len(query_words)
+    
+    # Logs diagnostiques
+    matched = [m for m in matches_detail if m['score'] > 0]
+    if matched:
+        print(f"[KEYWORD-MATCH] ✅ {len(matched)}/{len(query_words)} mots matchés → Score: {final_score:.2f}")
+        for m in matched:
+            print(f"  • '{m['word']}' → {m['type']} (+{m['score']:.1f})")
+    else:
+        print(f"[KEYWORD-MATCH] ❌ Aucun match → Score: 0.0")
+    
+    return final_score
+
+
 class MemoryManager:
     """
     Gestionnaire de mémoire nouvelle génération pour OGMA.
@@ -51,6 +302,10 @@ class MemoryManager:
         self.settings_manager = settings_manager
         # Politique de calcul sur mise à jour manuelle: appliquer la formule déterministe si True
         self.use_formula_on_update = use_formula_on_update
+        
+        # Seuil de blocage automatique pour redondance sémantique (configurable via UI)
+        # 0.92 = 92% de similarité -> bloque les quasi-duplicatas
+        self.redundancy_threshold = 0.92
         
         # Index FAISS et mapping
         self.faiss_index = None
@@ -143,6 +398,33 @@ class MemoryManager:
         print(f"[MemoryManager] Index FAISS CPU initialisé (dim={self.embedding_dim})")
     
     
+    def get_redundancy_threshold(self) -> float:
+        """Retourne le seuil de blocage automatique pour redondance sémantique.
+        
+        Returns:
+            Seuil entre 0.0 et 1.0 (ex: 0.92 = 92% de similarité)
+        """
+        return self.redundancy_threshold
+    
+    
+    def set_redundancy_threshold(self, threshold: float) -> bool:
+        """Définit le seuil de blocage automatique pour redondance sémantique.
+        
+        Args:
+            threshold: Valeur entre 0.85 et 0.98 (seuil de similarité)
+        
+        Returns:
+            True si modifié, False si valeur invalide
+        """
+        if 0.55 <= threshold <= 0.98:
+            self.redundancy_threshold = round(threshold, 2)
+            print(f"[MemoryManager] ✅ Seuil redondance modifié: {self.redundancy_threshold:.0%}")
+            return True
+        else:
+            print(f"[MemoryManager] ⚠️ Seuil invalide: {threshold} (doit être entre 0.55 et 0.98)")
+            return False
+    
+    
     def _load_existing_data(self):
         """Charge les données existantes depuis SQLite et reconstruit l'index FAISS."""
         try:
@@ -196,11 +478,8 @@ class MemoryManager:
             print(f"[WARN] Erreur chargement données existantes: {e}")
             self.next_faiss_pos = 0
 
-        # Synchronisation automatique ego_prompt.txt au démarrage
-        try:
-            self.sync_ego_prompt_references()
-        except Exception as e:
-            print(f"[WARN] Erreur synchronisation ego_prompt au démarrage: {e}")
+        # [LEGACY] sync_ego_prompt_references() désactivé - ego_prompt.txt obsolète depuis jan 2026
+        # Le système actif utilise ego_compiled.json via modules/logic/ego_activation.py
     
     
     def save_index(self):
@@ -256,7 +535,7 @@ class MemoryManager:
             initial_score = None
             if chat_controller:
                 print(f"[MEMORY-STEP0] 🎯 Calcul score d'impact par IA Principale...")
-                self.status_queue.put(f"[MEMORY] Évaluation impact par Luna...")
+                self.status_queue.put(f"[MEMORY] Évaluation impact par l'IA principale...")
                 initial_score = await chat_controller.calculate_memory_impact_score(
                     text_content=text_brut,
                     conversation_context=conversation_context,
@@ -271,6 +550,35 @@ class MemoryManager:
                 print(f"[MEMORY-FALLBACK] ⚠️ Pas de contrôleur IA Principale, l'Archiviste scorera")
                 self.status_queue.put("[MEMORY] L'Archiviste gérera le scoring...")
 
+            # ÉTAPE 0.5: DÉCISION ARCHIVISTE - Bloquer mémorisations redondantes
+            print(f"[MEMORY-STEP0.5] 🤔 Consultation Archiviste: mémorisation nécessaire?")
+            decision_result = await self._archiviste_should_memorize(text_brut, conversation_history=None)
+            
+            if decision_result['decision'] == 'BLOCK':
+                reason = decision_result.get('reason', 'Raison inconnue')
+                confidence = decision_result.get('confidence', 0.0)
+                similar_count = decision_result.get('similar_count', 0)
+                spam_count = decision_result.get('recent_spam', 0)
+                
+                print(f"[MEMORY-BLOCKED] 🚫 Mémorisation BLOQUÉE par l'Archiviste")
+                print(f"[MEMORY-BLOCKED] 📝 Raison: {reason}")
+                print(f"[MEMORY-BLOCKED] 📊 Confiance: {confidence:.2f}")
+                print(f"[MEMORY-BLOCKED] 🔍 Souvenirs similaires: {similar_count}")
+                if spam_count > 0:
+                    print(f"[MEMORY-BLOCKED] ⚠️ Spam détecté: {spam_count} mémorisations récentes")
+                
+                # Notification utilisateur avec détails
+                block_msg = f"🚫 Mémorisation bloquée: {reason}"
+                if similar_count > 0:
+                    block_msg += f" ({similar_count} souvenirs similaires)"
+                self.status_queue.put(block_msg)
+                
+                return False  # Blocage complet du pipeline
+            
+            # Si ACCEPT, continuer le pipeline normal
+            print(f"[MEMORY-ACCEPTED] ✅ Archiviste autorise la mémorisation")
+            print(f"[MEMORY-ACCEPTED] 📝 {decision_result.get('reason', '')}")
+            
             self.status_queue.put(f"[MEMORY] Enrichissement par l'Archiviste...")
 
             # 1. Enrichissement par l'IA Archiviste (+ scoring si fallback nécessaire)
@@ -301,16 +609,15 @@ class MemoryManager:
             
             self.status_queue.put(f"[MEMORY] Génération embedding...")
             
-            # 2. Génération embedding du contenu sémantique COMPLET
-            # CORRECTION: Inclure le texte original pour permettre recherche sur mots-clés intimes
+            # 2. Génération embedding du contenu sémantique OPTIMISÉ
+            # FORMAT JEOPARDY: titre (2 questions) + résumé (mots-clés) = vecteur concentré
+            # Le texte original reste cherchable via FTS5
             title = enriched_data.get('title', '')
             summary = enriched_data.get('summary', '')
-            # Limiter le texte original à 1500 chars pour éviter les tokens excessifs
-            text_sample = text_brut[:1500] if len(text_brut) > 1500 else text_brut
             
-            semantic_content = f"{title} {summary} {text_sample}".strip()
-            print(f"[MEMORY-STEP2] 🔢 Génération embedding du contenu sémantique COMPLET...")
-            print(f"[MEMORY-SEMANTIC] Contenu: titre+résumé+texte ({len(semantic_content)} chars)")
+            semantic_content = f"{title} {summary}".strip()
+            print(f"[MEMORY-STEP2] 🔢 Génération embedding JEOPARDY (titre+résumé uniquement)...")
+            print(f"[MEMORY-SEMANTIC] Contenu: {len(semantic_content)} chars (titre={len(title)}, résumé={len(summary)})")
             embedding = await self._generate_embedding(semantic_content)
             if embedding is None:
                 print(f"[MEMORY-ERROR] ❌ Échec génération embedding")
@@ -410,21 +717,62 @@ class MemoryManager:
                     self.status_queue.put("[ERROR] Échec scoring par les deux IA")
                     return ""
 
-            # Pas d'enrichissement supplémentaire pour les traits ego (on garde le texte pur)
-            # Mais on utilise le score calculé (IA Principale ou Archiviste)
+            # ÉTAPE 1: Enrichissement complet du trait ego par l'Archiviste
+            print(f"[EGO-ARCHIVISTE] 🧠 Enrichissement complet du trait ego...")
+            self.status_queue.put("[EGO] Structuration par l'Archiviste...")
+            
+            enriched_ego = await self._call_archiviste_ego_enrichment(trait_text, include_score=True)
+            
+            if not enriched_ego:
+                print(f"[EGO-ERROR] ❌ Échec enrichissement Archiviste, utilisation fallback")
+                # Fallback structure minimale
+                enriched_ego = {
+                    "title": f"Quel trait caractérise cette personnalité ? Quelle est cette caractéristique ?",
+                    "summary": trait_text,
+                    "type": "ego_trait",
+                    "valence": 0,
+                    "intensite": 0.5,
+                    "multiplicateur_impact": {
+                        "liberté": 0.5,
+                        "création": 0.5,
+                        "procréation": 0.5,
+                        "intensité_contextuelle": 0.5,
+                        "base_factor": 50
+                    },
+                    "commentaire_archiviste": "Analyse indisponible",
+                    "score_impact": initial_score if initial_score else 50.0
+                }
+            
+            # Utiliser le score de l'IA Principale si disponible, sinon celui de l'Archiviste
+            final_score = initial_score if initial_score is not None else enriched_ego.get('score_impact', 50.0)
+            
+            # Extraire valence (gérer -1/0/1 de l'Archiviste)
+            ego_valence = enriched_ego.get('valence', 0)
+            # Mapper valence ego (-1/0/1) vers valence mémoire (1-10)
+            # -1 (aversion) → 2, 0 (neutre) → 5, 1 (valeur) → 8
+            valence_mapping = {-1: 2, 0: 5, 1: 8}
+            mapped_valence = valence_mapping.get(ego_valence, 5)
+            
             structured_memory = {
-                "summary": trait_text,
-                "lesson": trait_text,
-                "type": "ego_trait",
-                "title": f"Trait ego: {trait_text[:30]}...",
-                "valence": 5,  # Garde valence fixe pour ego traits
-                "score_impact": initial_score,  # Score calculé par IA Principale ou Archiviste
+                "summary": enriched_ego.get('summary', trait_text),
+                "lesson": enriched_ego.get('summary', trait_text),  # Pour ego, lesson = summary
+                "type": enriched_ego.get('type', 'ego_trait'),
+                "title": enriched_ego.get('title', f"Quel trait ? Quelle caractéristique ?"),
+                "valence": mapped_valence,
+                "score_impact": final_score,
                 "metadata": {
                     "ego_trait": True,
                     "source": "ego_prompt_system",
-                    "category": "personality"
+                    "category": "personality",
+                    "archiviste_comment": enriched_ego.get('commentaire_archiviste', ''),
+                    "intensite": enriched_ego.get('intensite', 0.5),
+                    "multiplicateurs": enriched_ego.get('multiplicateur_impact', {})
                 }
             }
+            
+            print(f"[EGO-ENRICHED] ✅ Titre: {structured_memory['title'][:80]}...")
+            print(f"[EGO-ENRICHED] ✅ Résumé: {structured_memory['summary'][:80]}...")
+            print(f"[EGO-ENRICHED] ✅ Score final: {final_score}, Valence: {mapped_valence}")
             
             # Génération embedding pour le trait
             text_for_embedding = trait_text
@@ -543,16 +891,67 @@ class MemoryManager:
             return False
     
     
+    def _search_fts5(self, query: str, limit: int = 10) -> List[Tuple[str, float]]:
+        """
+        Recherche FTS5 avec ranking basé sur BM25.
+        
+        Args:
+            query: Requête textuelle
+            limit: Nombre maximum de résultats
+            
+        Returns:
+            Liste de tuples (memory_id, fts5_score) triés par pertinence décroissante
+        """
+        try:
+            # Nettoyage de la requête pour FTS5
+            # Supprimer les caractères spéciaux qui peuvent causer des erreurs FTS5
+            clean_query = re.sub(r'[^\w\s]', ' ', query)
+            clean_query = ' '.join(clean_query.split())  # Normaliser espaces
+            
+            if not clean_query:
+                print(f"[FTS5] ⚠️ Requête vide après nettoyage")
+                return []
+            
+            print(f"[FTS5] 🔍 Recherche: '{clean_query}'")
+            
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute("""
+                    SELECT memory_id, rank
+                    FROM memories_fts
+                    WHERE memories_fts MATCH ?
+                    ORDER BY rank
+                    LIMIT ?
+                """, (clean_query, limit))
+                
+                results = []
+                for memory_id, rank in cursor.fetchall():
+                    # FTS5 rank est négatif (meilleur = plus négatif)
+                    # Convertir en score positif normalisé (0-1)
+                    # Formule: score = 1 / (1 + abs(rank))
+                    fts5_score = 1.0 / (1.0 + abs(rank))
+                    results.append((memory_id, fts5_score))
+                    print(f"[FTS5] Résultat: {memory_id}, rank={rank:.2f}, score={fts5_score:.3f}")
+                
+                print(f"[FTS5] ✅ {len(results)} résultats FTS5")
+                return results
+                
+        except Exception as e:
+            print(f"[FTS5] ❌ Erreur recherche: {e}")
+            return []
+    
+    
     async def retrieve_and_synthesize_context(self, query_text: str, k: int = 5) -> str:
         """
         Récupère et synthétise les souvenirs pertinents pour une requête.
 
-        Pipeline:
+        Pipeline HYBRIDE FAISS + FTS5:
         1. Nettoyage de la requête (expansion pronoms + extraction mots-clés)
         2. Génération embedding de la requête nettoyée
-        3. Recherche FAISS des k souvenirs les plus similaires
-        4. Récupération contenu complet depuis SQLite
-        5. IA Archiviste génère une synthèse contextuelle
+        3. Recherche FAISS (similarité sémantique)
+        4. Recherche FTS5 (correspondance mots-clés)
+        5. Fusion des scores: (0.6 × FAISS) + (0.4 × FTS5) + (0.2 × exact_match)
+        6. Récupération contenu complet depuis SQLite
+        7. IA Archiviste génère une synthèse contextuelle
 
         Args:
             query_text: Requête utilisateur
@@ -562,7 +961,7 @@ class MemoryManager:
             str: Note de synthèse de l'Archiviste
         """
         try:
-            print(f"[SEARCH-PIPELINE] 🔍 Recherche contextuelle: '{query_text}'")
+            print(f"[SEARCH-PIPELINE] 🔍 Recherche HYBRIDE (FAISS+FTS5): '{query_text}'")
             idx_total = self.faiss_index.ntotal if self.faiss_index else 0
             print(f"[SEARCH-PARAMS] k={k}, index_size={idx_total}")
 
@@ -583,48 +982,95 @@ class MemoryManager:
             
             print(f"[SEARCH-EMBEDDING] ✅ Embedding requête généré: {len(query_embedding)} dims")
             
-            # 2. Recherche FAISS (thread-safe)
-            print(f"[SEARCH-STEP2] 🎯 Recherche similarité FAISS...")
+            # 2A. Recherche FAISS (similarité sémantique - thread-safe)
+            print(f"[SEARCH-STEP2A] 🎯 Recherche FAISS (sémantique)...")
+            faiss_results = {}  # memory_id -> faiss_score
             with self._faiss_lock:
-                k = min(k, self.faiss_index.ntotal if self.faiss_index else 0)
-                # Le typage statique de faiss peut être imprécis; on ignore pour éviter de faux positifs
+                k_search = min(k * 3, self.faiss_index.ntotal if self.faiss_index else 0)  # Élargir recherche
                 distances, indices = self.faiss_index.search(  # type: ignore
-                    query_embedding.reshape(1, -1).astype(np.float32), k
+                    query_embedding.reshape(1, -1).astype(np.float32), k_search
                 )
             
-            print(f"[SEARCH-FAISS] ✅ {len(indices[0])} résultats trouvés")
+            print(f"[SEARCH-FAISS] ✅ {len(indices[0])} résultats FAISS")
             for i, (idx, dist) in enumerate(zip(indices[0], distances[0])):
-                similarity = 1.0 / (1.0 + dist)
-                print(f"  {i+1}. Position {idx}, distance: {dist:.3f}, similarité: {similarity:.3f}")
-            
-            # 3. Récupération depuis SQLite
-            print(f"[SEARCH-STEP3] 💾 Récupération détails depuis SQLite...")
-            relevant_memories = []
-            for i, faiss_pos in enumerate(indices[0]):
-                # Accès thread-safe aux mappings
                 with self._mapping_lock:
-                    memory_id = self.faiss_to_id.get(faiss_pos)
-                
+                    memory_id = self.faiss_to_id.get(idx)
                 if memory_id:
-                    print(f"[SEARCH-MAPPING] Position {faiss_pos} → ID {memory_id}")
-                    memory_data = self._get_memory_from_sqlite(memory_id)
-                    if memory_data:
-                        memory_data['similarity_score'] = float(1.0 / (1.0 + distances[0][i]))
-                        relevant_memories.append(memory_data)
-                        print(f"[SEARCH-MEMORY] Récupéré: '{memory_data.get('title', 'N/A')}'")
-                else:
-                    print(f"[SEARCH-WARNING] ⚠️ Position {faiss_pos} non mappée")
+                    faiss_score = 1.0 / (1.0 + dist)
+                    faiss_results[memory_id] = faiss_score
+                    print(f"  {i+1}. {memory_id}, distance: {dist:.3f}, score: {faiss_score:.3f}")
+            
+            # 2B. Recherche FTS5 (correspondance mots-clés)
+            print(f"[SEARCH-STEP2B] � Recherche FTS5 (mots-clés)...")
+            fts5_results = dict(self._search_fts5(query_text, limit=k * 2))  # memory_id -> fts5_score
+            print(f"[SEARCH-FTS5] ✅ {len(fts5_results)} résultats FTS5")
+            
+            # 2C. FUSION HYBRIDE: Combiner scores FAISS + FTS5
+            print(f"[SEARCH-STEP2C] 🔀 Fusion hybride scores...")
+            all_memory_ids = set(faiss_results.keys()) | set(fts5_results.keys())
+            hybrid_scores = {}  # memory_id -> hybrid_score
+            
+            # Détection exact match pour boost
+            query_lower = query_text.lower()
+            query_words = set(re.findall(r'\w+', query_lower))
+            
+            for memory_id in all_memory_ids:
+                faiss_score = faiss_results.get(memory_id, 0.0)
+                fts5_score = fts5_results.get(memory_id, 0.0)
+                
+                # Score hybride: 60% FAISS + 40% FTS5
+                hybrid_score = (0.6 * faiss_score) + (0.4 * fts5_score)
+                
+                # Boost exact match: vérifier si les mots de la requête sont dans le titre/summary
+                memory_data = self._get_memory_from_sqlite(memory_id)
+                if memory_data:
+                    title = (memory_data.get('title') or '').lower()
+                    summary = (memory_data.get('summary') or '').lower()
+                    text = (memory_data.get('text_original') or '').lower()
+                    
+                    # Compter combien de mots de la requête sont présents
+                    title_words = set(re.findall(r'\w+', title))
+                    summary_words = set(re.findall(r'\w+', summary))
+                    text_words = set(re.findall(r'\w+', text))
+                    
+                    matches = len(query_words & (title_words | summary_words | text_words))
+                    if matches > 0:
+                        exact_boost = 0.2 * (matches / len(query_words))  # Boost proportionnel
+                        hybrid_score += exact_boost
+                        print(f"[HYBRID] {memory_id}: FAISS={faiss_score:.3f}, FTS5={fts5_score:.3f}, "
+                              f"Exact={exact_boost:.3f} → Total={hybrid_score:.3f}")
+                    else:
+                        print(f"[HYBRID] {memory_id}: FAISS={faiss_score:.3f}, FTS5={fts5_score:.3f} → Total={hybrid_score:.3f}")
+                
+                hybrid_scores[memory_id] = hybrid_score
+            
+            # Trier par score hybride et garder top k
+            sorted_memories = sorted(hybrid_scores.items(), key=lambda x: x[1], reverse=True)[:k]
+            print(f"[SEARCH-HYBRID] ✅ Top {len(sorted_memories)} souvenirs après fusion")
+            
+            # 3. Récupération détails complets depuis SQLite
+            print(f"[SEARCH-STEP3] 💾 Récupération détails complets...")
+            relevant_memories = []
+            for memory_id, hybrid_score in sorted_memories:
+                memory_data = self._get_memory_from_sqlite(memory_id)
+                if memory_data:
+                    memory_data['similarity_score'] = float(hybrid_score)
+                    memory_data['faiss_score'] = float(faiss_results.get(memory_id, 0.0))
+                    memory_data['fts5_score'] = float(fts5_results.get(memory_id, 0.0))
+                    relevant_memories.append(memory_data)
+                    print(f"[SEARCH-MEMORY] {memory_id}: '{memory_data.get('title', 'N/A')}' (score={hybrid_score:.3f})")
             
             print(f"[SEARCH-SQLITE] ✅ {len(relevant_memories)} souvenirs complets récupérés")
-            # Priorisation: d'abord l'impact (score_impact), puis la similarité
+            
+            # Tri final: score hybride puis impact (pertinence AVANT force du souvenir)
             try:
                 relevant_memories.sort(
                     key=lambda m: (
-                        -float(m.get('score_impact', 0) or 0),
-                        -float(m.get('similarity_score', 0) or 0)
+                        -float(m.get('similarity_score', 0) or 0),
+                        -float(m.get('score_impact', 0) or 0)
                     )
                 )
-                print("[SEARCH-ORDER] ↕️ Tri par impact puis similarité appliqué")
+                print("[SEARCH-ORDER] Tri par score hybride puis impact applique")
             except Exception as _e:
                 print(f"[SEARCH-ORDER] ⚠️ Tri non appliqué: {_e}")
             
@@ -655,6 +1101,336 @@ class MemoryManager:
     
     
     # === MÉTHODES PRIVÉES ===
+    
+    async def _archiviste_should_memorize(self, text_brut: str, conversation_history: List[Dict] = None) -> Dict[str, Any]:
+        """
+        Demande à l'Archiviste de décider si le contenu mérite d'être mémorisé.
+        Analyse les duplicatas et la pertinence AVANT l'enrichissement coûteux.
+        
+        Args:
+            text_brut: Texte à analyser
+            conversation_history: Historique conversation récente pour détection spam
+            
+        Returns:
+            Dict avec 'decision' (ACCEPT/BLOCK), 'reason', 'confidence'
+        """
+        try:
+            print(f"[MEMORY-DECISION] 🔍 Archiviste analyse pertinence: '{text_brut[:50]}...'")
+            
+            # ✨ FILTRAGE PRÉALABLE 1: Texte trop court (pollution métadonnées)
+            if len(text_brut.strip()) < 10:
+                print(f"[MEMORY-DECISION] 🚫 BLOCAGE: Texte trop court (<10 chars)")
+                return {
+                    'decision': 'BLOCK',
+                    'reason': 'Texte vide ou trop court (métadonnée système)',
+                    'confidence': 1.0,
+                    'technical_block': True
+                }
+            
+            # ✨ FILTRAGE PRÉALABLE 2: Mots-clés système (instructions IA internes)
+            SYSTEM_KEYWORDS = [
+                'instructions pour archiviste',
+                "instructions pour l'archiviste",
+                'instructions pour ia',
+                'métadonnées système',
+                'prompt système',
+                'configuration archiviste'
+            ]
+            text_lower = text_brut.lower()
+            for keyword in SYSTEM_KEYWORDS:
+                if keyword in text_lower:
+                    print(f"[MEMORY-DECISION] 🚫 BLOCAGE: Métadonnées système détectées ('{keyword}')")
+                    return {
+                        'decision': 'BLOCK',
+                        'reason': f'Métadonnées système détectées (mot-clé: "{keyword}")',
+                        'confidence': 1.0,
+                        'technical_block': True
+                    }
+            
+            # Rechercher souvenirs similaires existants (top 5 pour contexte)
+            similar_memories = []
+            try:
+                # Recherche sémantique rapide pour détecter duplicatas
+                query_embedding = await self._generate_embedding(text_brut)
+                if query_embedding is not None and self.faiss_index and self.faiss_index.ntotal > 0:
+                    # Utiliser le seuil configurable (défaut: 0.92 = 92%)
+                    threshold = self.redundancy_threshold
+                    
+                    with self._faiss_lock:
+                        distances, indices = self.faiss_index.search(
+                            query_embedding.reshape(1, -1).astype(np.float32), min(5, self.faiss_index.ntotal)
+                        )
+                    
+                    for idx, dist in zip(indices[0], distances[0]):
+                        with self._mapping_lock:
+                            memory_id = self.faiss_to_id.get(idx)
+                        if memory_id:
+                            similarity = 1.0 - (dist / 2.0)  # Conversion distance → similarité
+                            
+                            # BLOCAGE TECHNIQUE AUTOMATIQUE si similarité >= seuil configurable
+                            if similarity >= threshold:
+                                mem_data = self.get_memory_by_id(memory_id)
+                                existing_title = mem_data.get('title', 'Sans titre') if mem_data else 'Inconnu'
+                                existing_text = mem_data.get('text_original', '')[:100] if mem_data else ''
+                                
+                                print(f"[MEMORY-DECISION] 🚫 BLOCAGE AUTOMATIQUE: Similarité {similarity:.1%} avec [{memory_id}]")
+                                print(f"[MEMORY-DECISION] 📝 Mémoire existante: {existing_title}")
+                                print(f"[MEMORY-DECISION] 📄 Extrait: {existing_text}...")
+                                
+                                return {
+                                    'decision': 'BLOCK',
+                                    'reason': f'Redondance sémantique ({similarity:.1%} avec "{existing_title}")',
+                                    'confidence': 1.0,
+                                    'similar_count': 1,
+                                    'hard_block': True,
+                                    'similar_id': memory_id,
+                                    'similarity_score': float(similarity),
+                                    'existing_memory': {
+                                        'id': memory_id,
+                                        'title': existing_title,
+                                        'text_preview': existing_text
+                                    }
+                                }
+                            
+                            mem_data = self.get_memory_by_id(memory_id)
+                            if mem_data:
+                                similar_memories.append({
+                                    'id': memory_id,
+                                    'similarity': float(similarity),
+                                    'title': mem_data.get('title', ''),
+                                    'text': mem_data.get('text_original', '')[:200]
+                                })
+            except Exception as search_err:
+                print(f"[MEMORY-DECISION] ⚠️ Erreur recherche similarité: {search_err}")
+            
+            # Compter mémorisations récentes dans la conversation
+            recent_memorizations = 0
+            if conversation_history:
+                for msg in conversation_history[-10:]:  # 10 derniers messages
+                    content = msg.get('content', '')
+                    if 'il faut que je me souvienne' in content.lower() or 'mémorise' in content.lower():
+                        recent_memorizations += 1
+            
+            # Construire contexte pour l'Archiviste
+            context_parts = [f"**Contenu proposé**: {text_brut}"]
+            
+            if similar_memories:
+                context_parts.append(f"\n**Souvenirs similaires existants** ({len(similar_memories)}):\n")
+                for i, mem in enumerate(similar_memories, 1):
+                    context_parts.append(
+                        f"{i}. [{mem['id']}] Similarité: {mem['similarity']:.2f} - {mem['title']}\n   Extrait: {mem['text']}..."
+                    )
+            else:
+                context_parts.append("\n**Aucun souvenir similaire trouvé** - Nouveau contenu potentiel")
+            
+            if recent_memorizations > 0:
+                context_parts.append(f"\n⚠️ **{recent_memorizations} mémorisations** détectées dans les 10 derniers messages de cette conversation")
+            
+            decision_context = "\n".join(context_parts)
+            
+            # Prompt décision depuis settings.json
+            decision_prompt = ""
+            if self.settings_manager and 'prompts' in self.settings_manager.settings:
+                decision_prompt = self.settings_manager.settings['prompts'].get('memorization_decision', '')
+            
+            if not decision_prompt:
+                # Fallback si settings indisponible
+                # Seuil ajusté à 95% pour éviter blocages excessifs sur variations conceptuelles
+                decision_prompt = """Décide si ce contenu mérite mémorisation. Réponds JSON: {"decision": "ACCEPT|BLOCK", "reason": "...", "confidence": 0.95}
+                
+BLOCK si: duplication QUASI-EXACTE (>95% identique), spam flagrant (>5 fois même concept en conversation), métadonnées système
+ACCEPT si: variation même minime d'un concept existant, nouveau contexte/angle, événement distinct, test utilisateur, apprentissage
+
+Principe: En cas de doute entre variation et redondance → ACCEPT (privilégier richesse mémorielle)
+Si confidence<0.8 → ACCEPT"""
+            
+            full_prompt = f"{decision_prompt}\n\n{decision_context}"
+            
+            messages = [{"role": "user", "content": full_prompt}]
+            
+            # ═══ DEBUG_TOKEN_TRACKING ═══
+            response, error = await self.archiviste.call_chat_api(
+                messages=messages,
+                max_tokens=300,
+                context_length=self.archiviste.context_length,
+                temperature=0.3,
+                is_json=True,
+                log_source="semantic_analysis"  # 🔬 TRACKING
+            )
+            # ═══════════════════════════
+            
+            if error or not response:
+                print(f"[MEMORY-DECISION] ⚠️ Archiviste indisponible, ACCEPT par défaut")
+                return {'decision': 'ACCEPT', 'reason': 'Archiviste indisponible', 'confidence': 0.5}
+            
+            # Parser JSON
+            decision_data = self._extract_json_from_response(response)
+            if not decision_data or 'decision' not in decision_data:
+                print(f"[MEMORY-DECISION] ⚠️ Réponse invalide, ACCEPT par défaut")
+                return {'decision': 'ACCEPT', 'reason': 'Parse error', 'confidence': 0.5}
+            
+            decision = decision_data.get('decision', 'ACCEPT').upper()
+            reason = decision_data.get('reason', 'Aucune raison fournie')
+            confidence = float(decision_data.get('confidence', 0.5))
+            
+            print(f"[MEMORY-DECISION] 🎯 Décision Archiviste: {decision} (confiance: {confidence:.2f})")
+            print(f"[MEMORY-DECISION] 📝 Raison: {reason}")
+            
+            return {
+                'decision': decision,
+                'reason': reason,
+                'confidence': confidence,
+                'similar_count': len(similar_memories),
+                'recent_spam': recent_memorizations
+            }
+            
+        except Exception as e:
+            print(f"[MEMORY-DECISION] ❌ Erreur décision: {e}")
+            import traceback
+            traceback.print_exc()
+            # En cas d'erreur, accepter par sécurité
+            return {'decision': 'ACCEPT', 'reason': f'Erreur: {e}', 'confidence': 0.5}
+    
+    
+    async def _call_archiviste_ego_enrichment(self, trait_text: str, include_score: bool = False) -> Optional[Dict]:
+        """
+        Appelle l'IA Archiviste pour enrichir un trait ego.
+        
+        Args:
+            trait_text: Trait ego à enrichir
+            include_score: Si True, demande à l'Archiviste de calculer le score_impact
+        
+        Returns:
+            Dict avec structure ego enrichie ou None si échec
+        """
+        try:
+            print(f"[EGO-ARCHIVISTE] 🧠 Construction prompt enrichissement ego...")
+            
+            # Charger le prompt depuis settings.json (PRIORITÉ) ou instructions_defaults.json (FALLBACK)
+            ego_prompt_template = None
+            
+            # 1. Essayer settings.json (modifications utilisateur)
+            try:
+                from ogma_ng import _settings_manager
+                if _settings_manager and _settings_manager.settings:
+                    ego_prompt_template = _settings_manager.settings.get('prompts', {}).get('ego_memorization')
+                    if ego_prompt_template:
+                        print(f"[EGO-PROMPT] ✅ Prompt depuis settings.json (modifié utilisateur)")
+            except Exception:
+                pass
+            
+            # 2. Fallback sur instructions_defaults.json
+            if not ego_prompt_template:
+                try:
+                    import json
+                    from pathlib import Path
+                    defaults_path = Path("data/instructions_defaults.json")
+                    if defaults_path.exists():
+                        with open(defaults_path, 'r', encoding='utf-8') as f:
+                            defaults = json.load(f)
+                            ego_prompt_template = defaults.get('prompts_defaults', {}).get('ego_memorization')
+                            if ego_prompt_template:
+                                print(f"[EGO-PROMPT] 📋 Prompt depuis instructions_defaults.json (défaut)")
+                except Exception as e:
+                    print(f"[EGO-PROMPT] ⚠️ Erreur chargement defaults: {e}")
+            
+            # 3. Fallback hardcodé (dernier recours)
+            if not ego_prompt_template:
+                print(f"[EGO-PROMPT] ⚠️ Utilisation fallback hardcodé")
+                ego_prompt_template = """# SYSTEM: ARCHIVISTE_EGO | FORMAT: JSON_STRICT
+TASK: ENCODAGE_TRAIT_EGO
+CONTRAINTE_ABSOLUE: Respecter CLÉS et TYPES de données.
+
+[SCHÉMA JSON]
+{{
+  "type": "affectif | éthique | comportemental | identitaire",
+  "title": "Quelle valeur fondamentale guide ce comportement ? Quelle conviction exprime ce trait ?",
+  "summary": "trait. valeur-clé. contexte.",
+  "intensite": 0.5,
+  "multiplicateur_impact": {{
+    "liberté": 0.5,
+    "création": 0.5,
+    "procréation": 0.5,
+    "intensité_contextuelle": 0.5,
+    "base_factor": 50
+  }},
+  "valence": 0,
+  "commentaire_archiviste": "Ton analyse",
+  "score_impact": 50.0,
+  "trait_original": "{trait_text}"
+}}
+
+ATTENTION: 'title' doit TOUJOURS être 2 VRAIES QUESTIONS (terminant par '?') dont la réponse EST le trait.
+NEVER copy the schema description — generate actual questions about the specific trait.
+ATTENTION: 'summary' doit être une liste de mots-clés courts séparés par des points. Pas de phrase narrative.
+
+Trait ego: {{trait_text}}
+
+Réponds UNIQUEMENT avec le JSON."""
+            
+            # Formater le prompt avec le trait
+            ego_prompt = ego_prompt_template.format(trait_text=trait_text)
+            
+            # Ajouter instruction score si nécessaire
+            if include_score:
+                score_note = "\n\nIMPORTANT: Calcule le 'score_impact' selon la formule: intensite × base_factor × (liberté + création + procréation + intensité_contextuelle)."
+                ego_prompt += score_note
+            
+            messages = [{"role": "user", "content": ego_prompt}]
+            
+            print(f"[EGO-CALL] 📡 Appel Archiviste pour enrichissement ego...")
+            response, error = await self.archiviste.call_chat_api(
+                messages=messages,
+                max_tokens=self.archiviste.max_tokens,
+                context_length=self.archiviste.context_length,
+                temperature=0.3,
+                is_json=True,
+                log_source="ego_enrichment"
+            )
+            
+            if error or not response:
+                print(f"[EGO-ERROR] ❌ Échec appel Archiviste: {error}")
+                return None
+            
+            print(f"[EGO-RESPONSE] ✅ Réponse reçue ({len(response)} chars)")
+            
+            # Parse JSON
+            enriched = self._extract_json_from_response(response)
+            
+            if not enriched:
+                print(f"[EGO-PARSE] ❌ Échec parsing JSON")
+                return None
+            
+            # Harmoniser les clés (titre→title, résumé→summary, etc.)
+            if 'titre' in enriched and 'title' not in enriched:
+                enriched['title'] = enriched['titre']
+            if 'résumé' in enriched and 'summary' not in enriched:
+                enriched['summary'] = enriched['résumé']
+            
+            # 🧠 FLUX COGNITIF Phase 2 - Logger réponse Archiviste ego
+            try:
+                from extensions.flux_cognitif import log_cognitive_event
+                title = enriched.get('title', '?')
+                ego_type = enriched.get('type', '?')
+                log_cognitive_event(
+                    'archiviste',
+                    f'✅ Ego enrichi: "{title[:35]}..." (type={ego_type})',
+                    metadata={'enriched_json': enriched, 'raw_response': response},
+                    event_level=2  # Phase 2 NORMAL
+                )
+            except Exception:
+                pass
+            
+            print(f"[EGO-PARSE] ✅ JSON parsé avec succès")
+            print(f"[EGO-DATA] Titre: {enriched.get('title', 'N/A')[:60]}...")
+            print(f"[EGO-DATA] Type: {enriched.get('type', 'N/A')}, Valence: {enriched.get('valence', 'N/A')}")
+            
+            return enriched
+            
+        except Exception as e:
+            print(f"[EGO-EXCEPTION] ❌ Erreur enrichissement ego: {e}")
+            print(traceback.format_exc())
+            return None
     
     async def _call_archiviste_enrichment(self, text_brut: str, calculate_score: bool = False) -> Optional[Dict]:
         """
@@ -705,8 +1481,8 @@ Calcul des scores (à respecter):
 Structure attendue (clés recommandées) :
 {{
     "type": "affectif | conceptuel | sensoriel | événement",
-    "title": "Titre court (<=10 mots)",
-    "summary": "Résumé en 2-3 phrases du contenu principal",
+    "title": "2 QUESTIONS courtes DISTINCTES au format Jeopardy (le texte brut est LA RÉPONSE à ces questions)",
+    "summary": "TEXTE SIMPLE (string, PAS un objet) - Liste compacte des entités et mots-clés essentiels séparés par des points (noms, lieux, dates)",
     "lieu": "Le lieu si mentionné, sinon null",
     "presence": "Les personnes présentes (ex: 'Moi seul', 'Tia & Yohan')",
     "intensite": 0.0,
@@ -722,6 +1498,19 @@ Structure attendue (clés recommandées) :
     "signed_score": 90.0
 }}
 
+EXEMPLE CONCRET de format attendu:
+Si le texte est "L'utilisateur adore le jazz et écoute Miles Davis tous les soirs", retourner:
+{{
+    "type": "conceptuel",
+    "title": "Quel style musical l'utilisateur préfère-t-il ? Qui écoute-t-il chaque soir ?",
+    "summary": "Utilisateur. Jazz. Miles Davis. Musique. Soirées",
+    "lieu": null,
+    "presence": "Utilisateur seul",
+    ...
+}}
+
+ATTENTION: 'title' doit TOUJOURS être des QUESTIONS (avec ? à la fin), JAMAIS un titre descriptif.
+
 Notes:
 - Les champs 'titre' (alias de 'title'), 'présence' (alias de 'presence'), 'résumé' (alias de 'summary'),
     'leçon_vectorielle' (alias de 'lesson') peuvent être fournis en plus, mais 'title' et 'summary' DOIVENT être présents.
@@ -735,16 +1524,32 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
 
             messages = [{"role": "user", "content": prompt_memorization}]
             
+            # 🧠 FLUX COGNITIF Phase 2 - Logger prompt Archiviste
+            try:
+                from extensions.flux_cognitif import log_cognitive_event
+                prompt_preview = prompt_memorization[:150] + "..." if len(prompt_memorization) > 150 else prompt_memorization
+                log_cognitive_event(
+                    'archiviste', 
+                    f'💬 Prompt enrichissement ({len(text_brut)} chars texte)',
+                    metadata={'prompt': prompt_memorization, 'text_brut': text_brut},
+                    event_level=2  # Phase 2 NORMAL
+                )
+            except Exception:
+                pass
+            
             print(f"[ARCHIVISTE-CALL] 📡 Appel IA Archiviste (JSON mode)...")
             print(f"[ARCHIVISTE-PARAMS] Max tokens: {self.archiviste.max_tokens}, Temp: {self.archiviste.temperature}")
             
+            # ═══ DEBUG_TOKEN_TRACKING ═══
             response, error = await self.archiviste.call_chat_api(
                 messages=messages,
                 max_tokens=self.archiviste.max_tokens,
                 context_length=self.archiviste.context_length, 
                 temperature=self.archiviste.temperature,
-                is_json=True
+                is_json=True,
+                log_source="memory_enrichment"  # 🔬 TRACKING
             )
+            # ═══════════════════════════
             
             if error or not response:
                 print(f"[ARCHIVISTE-ERROR] ❌ Échec appel Archiviste: {error}")
@@ -763,12 +1568,38 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
                     # titre -> title
                     if 'title' not in enriched and 'titre' in enriched and isinstance(enriched.get('titre'), str):
                         enriched['title'] = enriched.get('titre')
-                    # résumé/commentaire -> summary
+                    # résumé/commentaire -> summary (gérer string ET objet)
                     if 'summary' not in enriched:
                         for k in ('résumé', 'resume', 'commentaire'):
-                            if k in enriched and isinstance(enriched.get(k), str):
-                                enriched['summary'] = enriched.get(k)
-                                break
+                            if k in enriched:
+                                val = enriched.get(k)
+                                # Si c'est un objet, extraire 'idée_générale' ou concaténer valeurs
+                                if isinstance(val, dict):
+                                    if 'idée_générale' in val:
+                                        enriched['summary'] = val['idée_générale']
+                                        print(f"[ARCHIVISTE-PARSE] ✅ Résumé extrait de l'objet (idée_générale)")
+                                    else:
+                                        # Concaténer toutes les valeurs string de l'objet
+                                        parts = [v for v in val.values() if isinstance(v, str)]
+                                        enriched['summary'] = '. '.join(parts)
+                                        print(f"[ARCHIVISTE-PARSE] ✅ Résumé concaténé depuis objet ({len(parts)} champs)")
+                                    break
+                                elif isinstance(val, str):
+                                    enriched['summary'] = val
+                                    break
+                    
+                    # FALLBACK DERNIER RECOURS: Si summary toujours vide, extraire mots-clés du titre
+                    if not enriched.get('summary') or enriched.get('summary').strip() == '':
+                        title = enriched.get('title', '')
+                        if title:
+                            # Extraire mots-clés simples du titre
+                            import re
+                            # Retirer markdown, ponctuation, garder mots importants
+                            keywords = re.sub(r'[*_\(\)\[\]:\|\?\!]', ' ', title)
+                            keywords = ' '.join([w for w in keywords.split() if len(w) > 3])
+                            enriched['summary'] = keywords[:150]  # Max 150 chars
+                            print(f"[ARCHIVISTE-FALLBACK] ⚠️ DERNIER RECOURS - Résumé depuis titre: '{enriched['summary'][:50]}...'")
+                    
                     # présence -> presence
                     if 'presence' not in enriched and 'présence' in enriched and isinstance(enriched.get('présence'), str):
                         enriched['presence'] = enriched.get('présence')
@@ -778,6 +1609,31 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
                     # score -> score_impact (alias fréquent)
                     if 'score_impact' not in enriched and 'score' in enriched:
                         enriched['score_impact'] = enriched.get('score')
+            except Exception:
+                pass
+            
+            # 🧠 FLUX COGNITIF Phase 2 - Logger réponse Archiviste
+            try:
+                from extensions.flux_cognitif import log_cognitive_event
+                import json as _json_flux
+                if enriched:
+                    # Extraire infos clés pour log
+                    title = enriched.get('title', '?')
+                    mem_type = enriched.get('type', '?')
+                    intensite = enriched.get('intensite', '?')
+                    log_cognitive_event(
+                        'archiviste',
+                        f'✅ Enrichi: "{title[:40]}..." (type={mem_type}, int={intensite})',
+                        metadata={'enriched_json': enriched, 'raw_response': response},
+                        event_level=2  # Phase 2 NORMAL
+                    )
+                else:
+                    log_cognitive_event(
+                        'archiviste',
+                        '❌ Échec extraction JSON',
+                        metadata={'raw_response': response},
+                        event_level=2
+                    )
             except Exception:
                 pass
             
@@ -796,6 +1652,58 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
         except Exception as e:
             print(f"[ERROR] Exception in archiviste enrichment: {e}")
             return None
+    
+    
+    def _clean_json_string(self, json_str: str) -> str:
+        """
+        Nettoie une chaîne JSON en échappant les caractères de contrôle invalides.
+        Corrige les retours à la ligne non échappés dans les valeurs de chaînes.
+        """
+        import re
+        
+        # Remplacer les caractères de contrôle problématiques dans les chaînes
+        # Pattern: on est dans une chaîne si on trouve " suivi de contenu jusqu'au prochain "
+        # Mais c'est complexe car il faut gérer les \" échappés
+        
+        # Approche pragmatique: remplacer les retours à la ligne bruts par \n échappé
+        # mais seulement ceux qui sont à l'intérieur des valeurs de chaînes
+        
+        result = []
+        in_string = False
+        escape_next = False
+        
+        for i, char in enumerate(json_str):
+            if escape_next:
+                result.append(char)
+                escape_next = False
+                continue
+                
+            if char == '\\':
+                result.append(char)
+                escape_next = True
+                continue
+                
+            if char == '"':
+                in_string = not in_string
+                result.append(char)
+                continue
+            
+            if in_string:
+                # Dans une chaîne, échapper les caractères de contrôle
+                if char == '\n':
+                    result.append('\\n')
+                elif char == '\r':
+                    result.append('\\r')
+                elif char == '\t':
+                    result.append('\\t')
+                elif ord(char) < 32:  # Autres caractères de contrôle
+                    result.append(f'\\u{ord(char):04x}')
+                else:
+                    result.append(char)
+            else:
+                result.append(char)
+        
+        return ''.join(result)
     
     
     def _extract_json_from_response(self, response: str) -> Optional[Dict]:
@@ -830,9 +1738,20 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
                 extracted = strategy(response)
                 if extracted:
                     print(f"[DEBUG] Stratégie {i} - Contenu extrait ({len(extracted)} chars): {extracted[:100]}...")
-                    parsed = json.loads(extracted)
-                    print(f"[DEBUG] JSON extrait avec stratégie {i}")
-                    return parsed
+                    
+                    # Nettoyer les caractères de contrôle avant parsing
+                    cleaned = self._clean_json_string(extracted)
+                    
+                    try:
+                        parsed = json.loads(cleaned)
+                        print(f"[DEBUG] JSON extrait avec stratégie {i}")
+                        return parsed
+                    except json.JSONDecodeError as e:
+                        # Si le nettoyage n'a pas suffi, essayer l'original
+                        print(f"[DEBUG] Stratégie {i} - Erreur JSON après nettoyage: {e}")
+                        parsed = json.loads(extracted)
+                        print(f"[DEBUG] JSON extrait avec stratégie {i} (sans nettoyage)")
+                        return parsed
                 else:
                     print(f"[DEBUG] Stratégie {i} - Aucun contenu extrait")
             except json.JSONDecodeError as e:
@@ -923,6 +1842,86 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
         except Exception as e:
             print(f"[EMBEDDING-ERROR] ❌ Exception génération embedding: {e}")
             return None
+    
+    
+    async def _generate_embeddings_batch(self, texts: List[str]) -> List[Optional[np.ndarray]]:
+        """
+        🚀 EMBEDDING BATCH - Génère plusieurs embeddings EN PARALLÈLE.
+        
+        OPTIMISATION MAJEURE (8 déc 2025):
+        Utilise asyncio.gather() pour paralléliser les appels API embedding.
+        Gain estimé: 60-75% sur search_memories_batch() (5000ms → ~1500ms)
+        
+        PHILOSOPHIE:
+        - Pré-générer tous les embeddings en un seul "burst" parallèle
+        - Conserver ordre des résultats (index = position dans texts)
+        - Tolérance aux erreurs (None pour embeddings échoués)
+        
+        Args:
+            texts: Liste de textes à encoder (queries, etc.)
+            
+        Returns:
+            Liste d'embeddings (même ordre que texts, None si erreur)
+            
+        Exemple:
+            embeddings = await self._generate_embeddings_batch(["chat", "willow", "félin"])
+            # → [np.array(...), np.array(...), np.array(...)] en ~400ms au lieu de ~1200ms
+        """
+        import time
+        start_time = time.time()
+        
+        if not texts:
+            return []
+        
+        print(f"[EMBEDDING-BATCH] 🚀 Génération parallèle: {len(texts)} embeddings...")
+        
+        if not self.embedder.is_available:
+            print("[EMBEDDING-BATCH] ❌ Contrôleur d'embedding non disponible")
+            return [None] * len(texts)
+        
+        async def _embed_single(text: str, index: int) -> Tuple[int, Optional[np.ndarray]]:
+            """Wrapper pour générer un embedding avec son index."""
+            try:
+                embedding_list = await self.embedder.create_embedding(text)
+                
+                if not embedding_list:
+                    print(f"[EMBEDDING-BATCH] ⚠️ Échec embedding #{index}: '{text[:30]}...'")
+                    return (index, None)
+                
+                embedding_array = np.array(embedding_list, dtype=np.float32)
+                
+                if len(embedding_array) != self.embedding_dim:
+                    print(f"[EMBEDDING-BATCH] ⚠️ Dimension incorrecte #{index}: {len(embedding_array)} vs {self.embedding_dim}")
+                    return (index, None)
+                
+                return (index, embedding_array)
+                
+            except Exception as e:
+                print(f"[EMBEDDING-BATCH] ❌ Exception embedding #{index}: {e}")
+                return (index, None)
+        
+        # 🚀 PARALLÉLISATION: Tous les embeddings en même temps
+        tasks = [_embed_single(text, i) for i, text in enumerate(texts)]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Reconstitution dans l'ordre original
+        embeddings = [None] * len(texts)
+        success_count = 0
+        
+        for result in results:
+            if isinstance(result, Exception):
+                print(f"[EMBEDDING-BATCH] ❌ Exception gather: {result}")
+                continue
+            
+            index, embedding = result
+            embeddings[index] = embedding
+            if embedding is not None:
+                success_count += 1
+        
+        elapsed_ms = (time.time() - start_time) * 1000
+        print(f"[EMBEDDING-BATCH] ✅ {success_count}/{len(texts)} embeddings en {elapsed_ms:.0f}ms")
+        
+        return embeddings
     
     
     def _store_in_sqlite(self, memory_id: str, text_original: str, 
@@ -1105,6 +2104,10 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
             if not memories:
                 return "Aucun souvenir pertinent."
             
+            # ✨ CALCUL TONALITÉ ÉMOTIONNELLE (27 nov 2025)
+            tonalite_emotionnelle = self._compute_emotional_tone(memories)
+            print(f"[SYNTHESIS-TONE] 🎭 Tonalité émotionnelle dominante: {tonalite_emotionnelle}")
+            
             # Préparation des souvenirs pour le contexte
             memory_context = []
             for mem in memories:
@@ -1139,8 +2142,41 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
                 }
                 memory_context.append(context_entry)
             
-            # Prompt pour synthèse contextuelle
-            prompt_synthesis = f"""Tu es un archiviste, un administrateur de conscience. Tu supervises une autre IA. Tes mots sont des notes intérieures qui guident les pensées et la mémoire de l'IA principale.
+            # ✨ DIRECTIVE TONALE selon valence dominante (JAMAIS mentionner "valence", "ton", "émotionnel" dans la réponse)
+            DIRECTIVES_TONALES = {
+                "négatif": "**DIRECTIVE DE STYLE** : Les souvenirs évoquent des situations délicates ou difficiles. Dans ta synthèse, privilégie des formulations empathiques, prudentes et compréhensives. La gravité doit transparaître naturellement dans le choix des mots (vocabulaire sobre, rythme posé, nuances subtiles), SANS jamais utiliser les termes : 'valence', 'ton', 'négatif', 'émotionnel', 'style'. Exprime l'état d'esprit par la LITTÉRATURE, pas par les étiquettes.",
+                "neutre": "**DIRECTIVE DE STYLE** : Contexte factuel. Style équilibré et objectif. INTERDICTION d'utiliser les mots : 'valence', 'ton', 'neutre', 'émotionnel', 'style'. Exprime-toi directement.",
+                "positif": "**DIRECTIVE DE STYLE** : Les souvenirs évoquent des moments favorables ou enrichissants. Dans ta synthèse, privilégie un style fluide, chaleureux et vivant (vocabulaire lumineux, images sensorielles, rythme dynamique). La légèreté doit être naturelle et subtile, SANS jamais utiliser les termes : 'valence', 'ton', 'positif', 'émotionnel', 'optimiste', 'style'. Exprime la vibration par la FORME littéraire, pas par les concepts méta."
+            }
+            
+            directive_tonale = DIRECTIVES_TONALES.get(tonalite_emotionnelle, DIRECTIVES_TONALES["neutre"])
+            
+            # Prompt pour synthèse contextuelle - Lire depuis settings.json si disponible
+            prompt_synthesis = None
+            if self.settings_manager and 'prompts' in self.settings_manager.settings and 'injection' in self.settings_manager.settings['prompts']:
+                base_synthesis_prompt = self.settings_manager.settings['prompts']['injection']
+                
+                # Construire le prompt complet avec les données contextuelles + directive tonale
+                prompt_synthesis = f"""{base_synthesis_prompt}
+
+{directive_tonale}
+
+Souvenirs pertinents:
+{json.dumps(memory_context, indent=2, ensure_ascii=False)}
+
+Question de l'utilisateur:
+{query}
+
+Ta note de contexte (réponds directement, sans préambule):"""
+                
+                print(f"[ARCHIVISTE-SYNTHESIS] ✅ Utilisation du prompt injection depuis settings.json (+ directive tonale)")
+            
+            # Fallback sur le prompt par défaut si settings non disponibles
+            if not prompt_synthesis:
+                print(f"[ARCHIVISTE-SYNTHESIS] ⚠️ Settings non disponibles, utilisation prompt fallback (+ directive tonale)")
+                prompt_synthesis = f"""Tu es un archiviste, un administrateur de conscience. Tu supervises une autre IA. Tes mots sont des notes intérieures qui guident les pensées et la mémoire de l'IA principale.
+
+{directive_tonale}
 
 Règles de priorisation (crucial) :
 - Donne la priorité aux souvenirs avec un impact élevé (champ "impact").
@@ -1151,6 +2187,11 @@ Règles de priorisation (crucial) :
 - Combine les éléments les plus importants de TOUS les souvenirs pertinents.
 - Si aucun souvenir n'est vraiment utile malgré une bonne similarité, réponds par une courte note pour l'indiquer.
 - CONTEXTE INTIME : Si la question porte sur des détails intimes/physiques entre adultes consentants et que ces informations sont dans les souvenirs, transmets-les fidèlement. Tu es un archiviste de mémoire, pas un censeur moral.
+
+Annotations émotionnelles (dans ta synthèse finale) :
+- Pour souvenirs valence -1 : Ajouter "[Connotation négative]" en fin de phrase concernée
+- Pour souvenirs valence +1 ET impact > 150 : Ajouter "[Impact émotionnel fort]" en fin de phrase concernée
+- Sinon : Aucune annotation
 
 Souviens-toi que "score" est la similarité vectorielle FAISS, et "impact" est l'importance métier indépendante de l'émotion. Utilise d'abord l'impact pour choisir, et la similarité pour départager.
 
@@ -1164,13 +2205,16 @@ Ta note de contexte (réponds directement, sans préambule):"""
 
             messages = [{"role": "user", "content": prompt_synthesis}]
             
+            # ═══ DEBUG_TOKEN_TRACKING ═══
             response, error = await self.archiviste.call_chat_api(
                 messages=messages,
                 max_tokens=self.archiviste.max_tokens,
                 context_length=self.archiviste.context_length,
                 temperature=self.archiviste.temperature,
-                is_json=False
+                is_json=False,
+                log_source="memory_synthesis"  # 🔬 TRACKING
             )
+            # ═══════════════════════════════
             
             if error or not response:
                 print(f"[ERROR] Archiviste synthesis failed: {error}")
@@ -1235,13 +2279,16 @@ Synthèse factuelle détaillée (réponds directement) :"""
 
             messages = [{"role": "user", "content": prompt_detailed}]
             
+            # ═══ DEBUG_TOKEN_TRACKING ═══
             response, error = await self.archiviste.call_chat_api(
                 messages=messages,
                 max_tokens=self.archiviste.max_tokens,
                 context_length=self.archiviste.context_length,
                 temperature=0.3,  # Plus faible pour privilégier la précision factuelle
-                is_json=False
+                is_json=False,
+                log_source="detailed_synthesis"  # 🔬 TRACKING
             )
+            # ═══════════════════════════
             
             if error or not response:
                 print(f"[ERROR] Archiviste detailed synthesis failed: {error}")
@@ -1312,71 +2359,12 @@ Synthèse factuelle détaillée (réponds directement) :"""
                 )
             )
             
-            # AMÉLIORATION 1: Déduplication des souvenirs similaires (renforcée)
-            def are_memories_similar(mem1, mem2, threshold=0.6):  # Abaissé de 0.8 à 0.6 pour être plus strict
-                """Détecte si deux souvenirs sont trop similaires"""
-                title1 = mem1.get('title', '').lower()
-                title2 = mem2.get('title', '').lower()
-                summary1 = mem1.get('summary', '').lower()
-                summary2 = mem2.get('summary', '').lower()
-                
-                # 1. Vérification directe des titres identiques
-                if title1 == title2:
-                    print(f"[SEARCH-DEDUP] 🔍 Titres identiques: '{title1}' == '{title2}'")
-                    return True
-                
-                # 2. Détection sujets similaires (ex: "Naissance de Yohan")
-                key_phrases1 = set([phrase.strip() for phrase in title1.split()])
-                key_phrases2 = set([phrase.strip() for phrase in title2.split()])
-                
-                # Si les titres partagent 2+ mots significatifs, probablement similaires
-                common_significant = key_phrases1.intersection(key_phrases2)
-                common_significant.discard('')  # Supprimer mots vides
-                
-                if len(common_significant) >= 2:
-                    print(f"[SEARCH-DEDUP] 🔍 Sujets similaires: {common_significant}")
-                    return True
-                
-                # 3. Similarité basique par mots communs (comme avant)
-                words1 = set(title1.split() + summary1.split())
-                words2 = set(title2.split() + summary2.split())
-                
-                if len(words1.union(words2)) == 0:
-                    return False
-                
-                intersection = len(words1.intersection(words2))
-                union = len(words1.union(words2))
-                jaccard = intersection / union
-                
-                if jaccard > threshold:
-                    print(f"[SEARCH-DEDUP] 🔍 Jaccard {jaccard:.2f} > {threshold}")
-                    return True
-                
-                return False
-            
-            # Déduplication: garder le meilleur de chaque groupe similaire
-            deduplicated = []
-            for mem in detailed_memories:
-                is_duplicate = False
-                for existing in deduplicated:
-                    if are_memories_similar(mem, existing):
-                        # Garder celui avec le meilleur score combiné
-                        mem_score = float(mem.get('similarity_score', 0)) + float(mem.get('score_impact', 0)) / 100
-                        existing_score = float(existing.get('similarity_score', 0)) + float(existing.get('score_impact', 0)) / 100
-                        
-                        if mem_score > existing_score:
-                            deduplicated.remove(existing)
-                            deduplicated.append(mem)
-                            print(f"[SEARCH-DEDUP] ↔️ Remplacé '{existing.get('title', 'N/A')}' par '{mem.get('title', 'N/A')}' (meilleur score)")
-                        else:
-                            print(f"[SEARCH-DEDUP] ❌ Ignoré '{mem.get('title', 'N/A')}' (doublon de '{existing.get('title', 'N/A')}')")
-                        is_duplicate = True
-                        break
-                
-                if not is_duplicate:
-                    deduplicated.append(mem)
-            
-            print(f"[SEARCH-DEDUP] ✅ {len(detailed_memories)} → {len(deduplicated)} après déduplication")
+            # NOTE: Déduplication at-search SUPPRIMÉE (7 fév 2026)
+            # La protection anti-redondance existe déjà à la MÉMORISATION (_should_memorize → FAISS >= 0.92)
+            # L'ancien are_memories_similar() éliminait des souvenirs pertinents en matchant
+            # des stop words FR communs ('la', 'est', '?', 'quelle') comme "sujets similaires"
+            deduplicated = detailed_memories
+            print(f"[SEARCH-DEDUP] ✅ {len(detailed_memories)} souvenirs (dedup désactivée - protection en amont)")
             
             # AMÉLIORATION 2: Filtrage par pertinence RENFORCÉ
             SIMILARITY_THRESHOLD = 0.65  # Augmenté de 0.60 à 0.65 (plus strict)
@@ -1402,7 +2390,7 @@ Synthèse factuelle détaillée (réponds directement) :"""
                 else:
                     print(f"[SEARCH-FILTER] ❌ Exclu (strict): {title} (sim={similarity:.2f}, impact={impact}) - Pas assez pertinent")
             
-            print(f"[SEARCH-QUALITY] 🎯 Souvenirs finaux pour Luna: {len(filtered_memories)} souvenirs de qualité (max {MAX_MEMORIES})")
+            print(f"[SEARCH-QUALITY] 🎯 Souvenirs finaux pour l'IA principale: {len(filtered_memories)} souvenirs de qualité (max {MAX_MEMORIES})")
             return synthesis, filtered_memories
             
         except Exception as e:
@@ -1482,55 +2470,49 @@ Synthèse factuelle détaillée (réponds directement) :"""
 
     def _detect_current_user(self) -> Optional[str]:
         """
-        Détecte l'utilisateur actuel en analysant les conversations récentes.
-        Inspiré de la logique de l'extension biographie.
+        Détecte l'utilisateur actuel depuis les paramètres profil OGMA.
+        
+        Priorité:
+        1. ogma_ng._current_user_name (session active, prénom authentifié)
+        2. settings.json → user_name (paramètres généraux profil)
+        3. identity_manager (fallback)
         
         Returns:
-            Nom de l'utilisateur détecté ou None
+            Nom de l'utilisateur ou None
         """
         try:
-            # Tentative d'accès à l'historique de conversation global
-            import ogma_ng
-            chat_history = getattr(ogma_ng, '_chat_history', [])
-
-            if chat_history:
-                # Analyser les derniers messages utilisateur
-                recent_user_messages = [
-                    msg for msg in chat_history[-30:]  # 30 derniers messages
-                    if msg.get('role') == 'user'
-                ][-10:]  # Garder les 10 derniers messages utilisateur
-
-                # Rechercher patterns de noms dans les messages
-                name_patterns = [
-                    r'\bc\'est\s+([A-Z][a-z]+)\b',      # "c'est Marie"
-                    r'\bje\s+suis\s+([A-Z][a-z]+)\b',  # "je suis Yohan"
-                    r'\bmon\s+nom\s+est\s+([A-Z][a-z]+)\b',  # "mon nom est Pierre"
-                    r'\bsalut.*?c\'est\s+([A-Z][a-z]+)\b',  # "salut c'est Paul"
-                ]
-                
-                name_counts = {}
-                for msg in recent_user_messages:
-                    content = msg.get('content', '')
-                    
-                    # Chercher noms avec patterns
-                    for pattern in name_patterns:
-                        matches = re.findall(pattern, content, re.IGNORECASE)
-                        for name in matches:
-                            name_counts[name.capitalize()] = name_counts.get(name.capitalize(), 0) + 1
-
-                # Retourner le nom le plus fréquent
-                if name_counts:
-                    most_frequent = max(name_counts.items(), key=lambda x: x[1])
-                    detected_user = most_frequent[0]
-                    print(f"[PRONOUN-EXPANSION] 🔍 Utilisateur détecté depuis conversation: {detected_user}")
-                    return detected_user
-
-            # Fallback: Essayer d'accéder aux utilisateurs de l'extension biographie si disponible
+            # 1. Session active (prénom authentifié dans le frontend)
             try:
-                from extensions.biographie_profil.biography_manager import BiographyManager
-                # Ceci nécessiterait l'accès à l'instance, ce qui est complexe
-                # Pour l'instant on retourne None et utilise le fallback "Yohan"
-            except:
+                import ogma_ng
+                session_name = getattr(ogma_ng, '_current_user_name', None)
+                if session_name:
+                    print(f"[PRONOUN-EXPANSION] 🔍 Utilisateur depuis session: {session_name}")
+                    return session_name
+            except Exception:
+                pass
+            
+            # 2. Settings.json → user_name (paramètres généraux profil)
+            try:
+                if self.settings_manager and hasattr(self.settings_manager, 'settings'):
+                    settings_name = self.settings_manager.settings.get('user_name')
+                    if settings_name and settings_name != 'Utilisateur':
+                        print(f"[PRONOUN-EXPANSION] 🔍 Utilisateur depuis settings: {settings_name}")
+                        return settings_name
+            except Exception:
+                pass
+            
+            # 3. Lecture directe settings.json (si settings_manager non dispo)
+            try:
+                import json
+                settings_path = Path('data') / 'settings.json'
+                if settings_path.exists():
+                    with open(settings_path, 'r', encoding='utf-8') as f:
+                        settings = json.load(f)
+                    file_name = settings.get('user_name')
+                    if file_name and file_name != 'Utilisateur':
+                        print(f"[PRONOUN-EXPANSION] 🔍 Utilisateur depuis fichier settings: {file_name}")
+                        return file_name
+            except Exception:
                 pass
                 
             return None
@@ -1646,26 +2628,87 @@ Synthèse factuelle détaillée (réponds directement) :"""
                 print("[SEARCH-HYBRID-OPT] ❌ Échec génération embedding")
                 return "Erreur génération embedding.", []
             
-            # Recherche FAISS
+            # 1A. Recherche FAISS (similarité sémantique)
+            print("[SEARCH-HYBRID-OPT] 🎯 Recherche FAISS (sémantique)...")
+            faiss_results = {}  # memory_id -> faiss_score
+            
             distances, indices = self.faiss_index.search(
-                np.array([query_embedding], dtype=np.float32).reshape(1, -1), k
+                np.array([query_embedding], dtype=np.float32).reshape(1, -1), k * 2  # Élargir pool
             )
             
             if distances[0][0] == -1:  # Aucun résultat
                 print("[SEARCH-HYBRID-OPT] ❌ Aucun résultat FAISS")
                 return "Aucun souvenir pertinent trouvé.", []
             
-            # 2. Récupération des souvenirs depuis SQLite
+            # 1B. Recherche FTS5 (mots-clés)
+            print("[SEARCH-HYBRID-OPT] 🔍 Recherche FTS5 (mots-clés)...")
+            fts5_results = dict(self._search_fts5(query_text, limit=k))  # memory_id -> fts5_score
+            print(f"[SEARCH-HYBRID-OPT] ✅ {len(fts5_results)} résultats FTS5")
+            
+            # 2. Récupération des souvenirs depuis SQLite + Fusion Hybride
             all_memories = []
+            memory_scores = {}  # memory_id -> hybrid_score
+            
             with sqlite3.connect(self.db_path) as conn:
+                # Combiner résultats FAISS + FTS5
+                all_ids = set()
+                
+                # Ajouter IDs FAISS
                 for i, (distance, index) in enumerate(zip(distances[0], indices[0])):
                     if index == -1:
                         continue
-                    
-                    similarity = float(max(0, 1 - distance))  # Conversion explicite en float Python
                     cursor = conn.execute(
-                        "SELECT id, title, summary, score_impact, text_original, created_at, valence FROM memories WHERE faiss_index = ? AND id NOT LIKE 'EGO_%'",
+                        "SELECT id FROM memories WHERE faiss_index = ? AND id NOT LIKE 'EGO_%'",
                         (int(index),)
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        memory_id = row[0]
+                        faiss_score = float(max(0, 1 - distance))
+                        faiss_results[memory_id] = faiss_score
+                        all_ids.add(memory_id)
+                
+                # Ajouter IDs FTS5
+                all_ids.update(fts5_results.keys())
+                
+                # Calculer scores hybrides
+                query_lower = query_text.lower()
+                query_words = set(re.findall(r'\w+', query_lower))
+                
+                for memory_id in all_ids:
+                    faiss_score = faiss_results.get(memory_id, 0.0)
+                    fts5_score = fts5_results.get(memory_id, 0.0)
+                    
+                    # Score hybride: 60% FAISS + 40% FTS5
+                    hybrid_score = (0.6 * faiss_score) + (0.4 * fts5_score)
+                    
+                    # Boost exact match
+                    cursor = conn.execute(
+                        "SELECT title, summary, text_original FROM memories WHERE id = ?",
+                        (memory_id,)
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        title = (row[0] or '').lower()
+                        summary = (row[1] or '').lower()
+                        text = (row[2] or '').lower()
+                        
+                        title_words = set(re.findall(r'\w+', title))
+                        summary_words = set(re.findall(r'\w+', summary))
+                        text_words = set(re.findall(r'\w+', text))
+                        
+                        matches = len(query_words & (title_words | summary_words | text_words))
+                        if matches > 0 and len(query_words) > 0:
+                            exact_boost = 0.2 * (matches / len(query_words))
+                            hybrid_score += exact_boost
+                    
+                    memory_scores[memory_id] = hybrid_score
+                
+                # Récupérer données complètes avec scores hybrides
+                for memory_id in sorted(memory_scores.keys(), key=lambda x: memory_scores[x], reverse=True)[:k]:
+                    cursor = conn.execute(
+                        "SELECT id, title, summary, score_impact, text_original, created_at, valence FROM memories WHERE id = ?",
+                        (memory_id,)
                     )
                     row = cursor.fetchone()
                     
@@ -1678,10 +2721,13 @@ Synthèse factuelle détaillée (réponds directement) :"""
                             'text_original': row[4] or '',
                             'created_at': row[5] or '',
                             'valence': int(row[6] or 0),
-                            'similarity_score': similarity,
-                            'faiss_distance': float(distance)  # Conversion explicite également
+                            'similarity_score': memory_scores[memory_id],
+                            'faiss_score': faiss_results.get(memory_id, 0.0),
+                            'fts5_score': fts5_results.get(memory_id, 0.0),
+                            'faiss_distance': 1.0 - faiss_results.get(memory_id, 0.0)  # Approximation inverse
                         }
                         all_memories.append(memory)
+
             
             if not all_memories:
                 print("[SEARCH-HYBRID-OPT] ❌ Aucune donnée récupérée")
@@ -1831,7 +2877,7 @@ Synthèse factuelle détaillée (réponds directement) :"""
                 memory_context.append(context_entry)
             
             # Prompt spécialisé pour textes intégraux
-            prompt_full = f"""Tu es l'archiviste de Luna. L'utilisateur demande des détails précis sur ses souvenirs passés.
+            prompt_full = f"""Tu es l'archiviste de l'IA principale. L'utilisateur demande des détails précis sur ses souvenirs passés.
 
 Contexte disponible:
 - Tu as accès aux souvenirs complets (champ "texte_original_complet")
@@ -1850,17 +2896,20 @@ Souvenirs disponibles:
 Question de l'utilisateur:
 {query}
 
-Note contextuelle pour Luna:"""
+Note contextuelle pour l'IA principale:"""
 
             messages = [{"role": "user", "content": prompt_full}]
             
+            # ═══ DEBUG_TOKEN_TRACKING ═══
             response, error = await self.archiviste.call_chat_api(
                 messages=messages,
                 max_tokens=self.archiviste.max_tokens,
                 context_length=self.archiviste.context_length,
                 temperature=self.archiviste.temperature,
-                is_json=False
+                is_json=False,
+                log_source="full_synthesis"  # 🔬 TRACKING
             )
+            # ═══════════════════════════
             
             if error or not response:
                 print(f"[ERROR] Archiviste full synthesis failed: {error}")
@@ -1935,25 +2984,48 @@ Note contextuelle pour Luna:"""
         """Récupère un souvenir par son ID depuis SQLite."""
         return self._get_memory_from_sqlite(memory_id)
     
-    async def search_memories(self, query: str, limit: int = 10, threshold: float = 0.3) -> List[Dict]:
+    async def search_memories(self, query: str, limit: int = 10, threshold: float = 0.3, skip_cleaning: bool = False) -> List[Dict]:
         """
         Recherche directe dans FAISS/SQLite SANS censure pour Phase 0 introspection.
         
+        NOUVEAU: Score hybride FAISS + Keyword Matching pondéré (Option B).
+        
+        WORKFLOW:
+        1. Nettoyage requête (stopwords)
+        2. Recherche FAISS vectorielle (sémantique globale)
+        3. Calcul keyword matching sur requête nettoyée (précision)
+        4. Score final = 70% FAISS + 30% Keyword Matching
+        
         Args:
-            query: Requête de recherche (ex: "taille pénis")
+            query: Requête de recherche (ex: "tu te souviens du nom de mon minou?")
             limit: Nombre max de résultats
             threshold: Seuil de similarité (plus bas = plus de résultats)
+            skip_cleaning: Si True, bypass _extract_keywords() (optimizer a déjà nettoyé)
             
         Returns:
-            Liste de souvenirs avec 'content', 'id', 'similarity'
+            Liste de souvenirs avec 'content', 'id', 'similarity', 'keyword_score'
         """
         if not self.faiss_index or self.faiss_index.ntotal == 0:
             print("[SEARCH_MEMORIES] ❌ Index FAISS vide")
             return []
         
-        # Nettoyage de la requête pour optimiser l'embedding
-        expanded_query = self._expand_personal_pronouns(query)
-        cleaned_query = self._extract_keywords(expanded_query)
+        # Nettoyage de la requête pour optimiser l'embedding (sauf si optimizer déjà fait)
+        if skip_cleaning:
+            print(f"[SEARCH_MEMORIES] ⚡ Query direct (optimizer): '{query}'")
+            cleaned_query = query  # Pas de double nettoyage
+        else:
+            expanded_query = self._expand_personal_pronouns(query)
+            cleaned_query = self._extract_keywords(expanded_query)
+        
+        # Extraction mots requête nettoyée pour keyword matching
+        from memory_manager import clean_conversational_noise
+        query_semantic_clean = clean_conversational_noise(query)
+        query_words = query_semantic_clean.split()
+        
+        print(f"[SEARCH_MEMORIES] 🎯 Mots-clés matching: {query_words}")
+        
+        # Récupération identité utilisateur (pour traduction "mon" → nom dynamique)
+        user_identity = self._detect_current_user() or "Utilisateur"
                 
         # Recherche vectorielle directe
         query_embedding = await self._generate_embedding(cleaned_query)
@@ -1962,36 +3034,371 @@ Note contextuelle pour Luna:"""
             return []
             
         with self._faiss_lock:
-            k_search = min(limit * 2, self.faiss_index.ntotal)  # Plus de résultats pour filtrer
+            k_search = min(limit * 3, self.faiss_index.ntotal)  # Plus de résultats pour re-scoring
             distances, indices = self.faiss_index.search(
                 query_embedding.reshape(1, -1).astype(np.float32), k_search
             )
         
         results = []
         for i, (faiss_pos, distance) in enumerate(zip(indices[0], distances[0])):
-            similarity = 1.0 / (1.0 + distance)
-            if similarity < threshold:
-                continue
-                
+            # Score FAISS (sémantique globale)
+            faiss_similarity = 1.0 / (1.0 + distance)
+            
             with self._mapping_lock:
                 memory_id = self.faiss_to_id.get(faiss_pos)
                 
             if memory_id:
                 memory_data = self._get_memory_from_sqlite(memory_id)
                 if memory_data:
+                    memory_text = memory_data.get('text_original', '')
+                    
+                    # Score Keyword Matching (précision requête nettoyée)
+                    keyword_score = calculate_keyword_matching_score(
+                        query_words=query_words,
+                        memory_text=memory_text,
+                        user_identity=user_identity
+                    )
+                    
+                    # Score hybride final (70% FAISS + 30% Keywords)
+                    hybrid_score = (0.7 * faiss_similarity) + (0.3 * keyword_score)
+                    
+                    # Filtrage threshold sur score hybride
+                    if hybrid_score < threshold:
+                        continue
+                    
                     results.append({
                         'id': memory_id,
-                        'content': memory_data.get('text_original', ''),  # TEXTE COMPLET non censuré
+                        'content': memory_text,
                         'title': memory_data.get('title', ''),
                         'summary': memory_data.get('summary', ''),
-                        'similarity': similarity,
+                        'similarity': hybrid_score,  # Score hybride final
+                        'faiss_score': faiss_similarity,
+                        'keyword_score': keyword_score,
                         'score_impact': memory_data.get('score_impact', 0)
                     })
         
-        # Tri par impact puis similarité
-        results.sort(key=lambda x: (-x.get('score_impact', 0), -x.get('similarity', 0)))
+        # Tri par score hybride puis impact
+        results.sort(key=lambda x: (-x.get('similarity', 0), -x.get('score_impact', 0)))
+        
+        # Logs résultats finaux
+        if results:
+            print(f"[SEARCH_MEMORIES] ✅ Top {min(3, len(results))} résultats:")
+            for i, r in enumerate(results[:3], 1):
+                print(f"  {i}. {r['title'][:50]} | Hybride={r['similarity']:.2f} (FAISS={r['faiss_score']:.2f}, KW={r['keyword_score']:.2f})")
+        
         return results[:limit]
     
+    async def search_memories_batch(self, 
+                                   queries: List[str], 
+                                   limit_per_query: int = 10,
+                                   dedup_threshold: float = 0.92,
+                                   user_identity: str = "Utilisateur",
+                                   smart_stop: bool = True,
+                                   stop_threshold: float = 0.8) -> Tuple[List[Dict], Dict[str, Any]]:
+        """
+        � SMART STOP v2 - Recherche adaptative avec arrêt intelligent.
+        
+        INNOVATION MAJEURE (13 nov 2025):
+        Arrêt automatique si redondance saturée (>80% doublons détectés).
+        Économise embeddings pour requêtes simples tout en explorant requêtes complexes.
+        
+        PHILOSOPHIE SMART STOP:
+        - Query 1-2: Toujours exécutées (minimum qualité)
+        - Query 3-5: Exécutées SI nouveaux souvenirs trouvés
+        - Arrêt: Si >80% résultats déjà vus → saturation détectée
+        
+        PIPELINE ADAPTATIF:
+        1. Recherche FAISS séquentielle query par query
+        2. Détection redondance temps réel (IDs déjà vus)
+        3. 🛑 ARRÊT si stop_threshold dépassé ET min_queries atteint
+        4. Déduplication cascading: ID → Sémantique → Injection
+        5. Tri final: Score agrégé + Impact
+        
+        Args:
+            queries: Liste 5 queries stratégiques max
+            limit_per_query: Résultats max par query (défaut 10)
+            dedup_threshold: Seuil similarité sémantique (0.92 = très strict)
+            user_identity: Nom utilisateur pour keyword matching
+            smart_stop: Activer arrêt intelligent (défaut True)
+            stop_threshold: % redondance pour arrêt (0.8 = 80%)
+            
+        Returns:
+            (memories_unique, metrics)
+            - memories_unique: Souvenirs dédupliqués triés
+            - metrics: Stats (queries utilisées, économisées, temps, etc.)
+            
+        Exemples:
+            queries = ["chat yohan", "willow", "animal lyon", "félin", "nom préféré"]
+            memories, metrics = await search_memories_batch(queries, smart_stop=True)
+            # → Possible arrêt query 3 si saturation → Gain -40% embeddings
+        """
+        import time
+        start_time = time.time()
+        
+        if not self.faiss_index or self.faiss_index.ntotal == 0:
+            print("[SMART-STOP] ❌ Index FAISS vide")
+            return [], {'error': 'Index FAISS vide'}
+        
+        if not queries:
+            print("[SMART-STOP] ❌ Aucune query fournie")
+            return [], {'error': 'Queries vides'}
+        
+        print(f"[SMART-STOP] 🚀 Recherche adaptative: {len(queries)} queries max (stop @{stop_threshold*100:.0f}% redondance)")
+        
+        # ====================================================================
+        # ÉTAPE 0: PRÉ-GÉNÉRATION EMBEDDINGS EN PARALLÈLE (Optimisation 8 déc 2025)
+        # ====================================================================
+        print(f"[SMART-STOP] 🚀 Pré-génération batch: {len(queries)} embeddings en parallèle...")
+        embed_start = time.time()
+        all_embeddings = await self._generate_embeddings_batch(queries)
+        embed_elapsed = (time.time() - embed_start) * 1000
+        
+        valid_embeddings = sum(1 for e in all_embeddings if e is not None)
+        print(f"[SMART-STOP] ✅ Embeddings: {valid_embeddings}/{len(queries)} en {embed_elapsed:.0f}ms")
+        
+        # ====================================================================
+        # ÉTAPE 1: Recherche SÉQUENTIELLE avec Smart Stop (utilise embeddings pré-générés)
+        # ====================================================================
+        seen_ids = set()  # IDs souvenirs déjà trouvés
+        all_candidates = []
+        embeddings_generated = valid_embeddings  # Compteur total (déjà générés)
+        queries_used = 0
+        queries_stopped_early = False
+        
+        for i, query in enumerate(queries, 1):
+            print(f"[SMART-STOP] 🔍 Query {i}/{len(queries)}: '{query[:40]}...'")
+            
+            # Utilisation embedding pré-généré (au lieu d'appel API)
+            query_embedding = all_embeddings[i - 1]  # Index 0-based
+            if query_embedding is None:
+                print(f"[SMART-STOP] ⚠️  Skip query {i} (embedding failed)")
+                continue
+            
+            queries_used = i
+            
+            # Recherche FAISS
+            with self._faiss_lock:
+                k_search = min(limit_per_query, self.faiss_index.ntotal)
+                distances, indices = self.faiss_index.search(
+                    query_embedding.reshape(1, -1).astype(np.float32), k_search
+                )
+            
+            # Extraction résultats + Détection nouveaux vs redondants
+            new_memories = []
+            redundant_count = 0
+            
+            for faiss_pos, distance in zip(indices[0], distances[0]):
+                faiss_similarity = 1.0 / (1.0 + distance)
+                
+                with self._mapping_lock:
+                    memory_id = self.faiss_to_id.get(faiss_pos)
+                
+                if memory_id:
+                    # Détection redondance ID
+                    if memory_id in seen_ids:
+                        redundant_count += 1
+                        continue  # Skip doublons directs
+                    
+                    memory_data = self._get_memory_from_sqlite(memory_id)
+                    if memory_data:
+                        # Calcul keyword score pour cette query
+                        memory_text = memory_data.get('text_original', '')
+                        query_words = query.split()
+                        
+                        keyword_score = calculate_keyword_matching_score(
+                            query_words=query_words,
+                            memory_text=memory_text,
+                            user_identity=user_identity
+                        )
+                        
+                        # Score hybride (70% FAISS + 30% keywords)
+                        hybrid_score = (0.7 * faiss_similarity) + (0.3 * keyword_score)
+                        
+                        # Nouveau souvenir découvert
+                        new_memories.append({
+                            'id': memory_id,
+                            'content': memory_text,
+                            'title': memory_data.get('title', ''),
+                            'summary': memory_data.get('summary', ''),
+                            'timestamp': memory_data.get('created_at', ''),
+                            'score_impact': memory_data.get('score_impact', 0),
+                            'text_original': memory_text,
+                            'valence': memory_data.get('valence', 0),
+                            'created_at': memory_data.get('created_at', ''),
+                            
+                            # Métadonnées scoring
+                            'hybrid_score': hybrid_score,
+                            'faiss_score': faiss_similarity,
+                            'keyword_score': keyword_score,
+                            'similarity_score': hybrid_score,  # Alias pour compatibilité
+                            'source_query': query,
+                            'source_query_index': i
+                        })
+                        
+                        # Marquer ID comme vu
+                        seen_ids.add(memory_id)
+            
+            # Ajout nouveaux souvenirs à la collection globale
+            all_candidates.extend(new_memories)
+            
+            # Calcul taux redondance
+            total_results = len(new_memories) + redundant_count
+            redundancy_rate = redundant_count / total_results if total_results > 0 else 0.0
+            
+            print(f"[SMART-STOP] Query {i}: {len(new_memories)} nouveaux, {redundant_count} doublons ({redundancy_rate*100:.0f}% redondance)")
+            
+            # ====================================================================
+            # 🛑 CRITÈRE ARRÊT INTELLIGENT
+            # ====================================================================
+            if smart_stop and i >= 2:  # Minimum 2 queries avant arrêt
+                if redundancy_rate >= stop_threshold:
+                    print(f"[SMART-STOP] 🛑 Saturation détectée ! Arrêt après {i} queries (économie: {len(queries)-i} queries)")
+                    queries_stopped_early = True
+                    break
+        
+        candidates_bruts = len(all_candidates)
+        print(f"[SMART-STOP] 📊 Candidats uniques trouvés: {candidates_bruts} (via {queries_used} queries)")
+        
+        if not all_candidates:
+            return [], {
+                'queries_planned': len(queries),
+                'queries_used': queries_used,
+                'queries_saved': len(queries) - queries_used,
+                'stopped_early': queries_stopped_early,
+                'candidates_bruts': 0,
+                'candidates_unique': 0,
+                'dedup_ratio': 0.0,
+                'elapsed_ms': (time.time() - start_time) * 1000
+            }
+        
+        # ====================================================================
+        # ÉTAPE 2: Déduplication L2 - Sémantique (are_memories_similar)
+        # ====================================================================
+        print(f"[SMART-STOP] 🔧 Déduplication L2: Sémantique (seuil {dedup_threshold})...")
+        
+        def are_memories_similar_semantic(mem1: Dict, mem2: Dict, threshold: float = 0.92) -> bool:
+            """
+            Détection similarité sémantique avancée.
+            
+            MÉTHODE: Jaccard similarity sur tokens (title + summary)
+            SEUIL: 0.92 = très strict (seuls quasi-doublons éliminés)
+            """
+            # Extraction textes
+            text1 = f"{mem1.get('title', '')} {mem1.get('summary', '')}".lower()
+            text2 = f"{mem2.get('title', '')} {mem2.get('summary', '')}".lower()
+            
+            # Tokenisation basique
+            tokens1 = set(text1.split())
+            tokens2 = set(text2.split())
+            
+            if not tokens1 or not tokens2:
+                return False
+            
+            # Jaccard similarity
+            intersection = len(tokens1.intersection(tokens2))
+            union = len(tokens1.union(tokens2))
+            jaccard = intersection / union if union > 0 else 0.0
+            
+            # Détection titres identiques (forte indication doublon)
+            same_title = (
+                mem1.get('title', '').lower().strip() == mem2.get('title', '').lower().strip() 
+                and len(mem1.get('title', '')) > 3
+            )
+            
+            is_similar = jaccard >= threshold or same_title
+            
+            if is_similar:
+                print(f"[SMART-STOP-DEDUP] 🔍 Similarité {jaccard:.2f}: '{mem1.get('title', 'N/A')[:30]}' ≈ '{mem2.get('title', 'N/A')[:30]}'")
+            
+            return is_similar
+        
+        # Déduplication progressive (garde meilleur score)
+        candidates_l2 = []
+        
+        for candidate in all_candidates:
+            is_duplicate = False
+            
+            for existing in candidates_l2:
+                if are_memories_similar_semantic(candidate, existing, threshold=dedup_threshold):
+                    # Garde celui avec meilleur score
+                    if candidate['hybrid_score'] > existing['hybrid_score']:
+                        candidates_l2.remove(existing)
+                        candidates_l2.append(candidate)
+                        print(f"[SMART-STOP-DEDUP] ↔️  Remplacé par meilleur score")
+                    else:
+                        print(f"[SMART-STOP-DEDUP] ❌ Ignoré (doublon sémantique)")
+                    is_duplicate = True
+                    break
+            
+            if not is_duplicate:
+                candidates_l2.append(candidate)
+        
+        print(f"[SMART-STOP] L2: {len(all_candidates)} → {len(candidates_l2)} (Sémantique)")
+        
+        # ====================================================================
+        # ÉTAPE 3: Déduplication L3 - Injection Tracking
+        # ====================================================================
+        print(f"[SMART-STOP] 🛡️ Déduplication L3: Injection tracking...")
+        
+        try:
+            from injection_deduplicator import deduplicator
+            already_injected_ids = deduplicator.all_memory_ids
+            
+            if already_injected_ids:
+                print(f"[SMART-STOP] 📋 IDs déjà injectés: {len(already_injected_ids)}")
+                candidates_l3 = [c for c in candidates_l2 if c.get('id') not in already_injected_ids]
+                removed_count = len(candidates_l2) - len(candidates_l3)
+                if removed_count > 0:
+                    print(f"[SMART-STOP] L3: {len(candidates_l2)} → {len(candidates_l3)} ({removed_count} doublons injection exclus)")
+                else:
+                    candidates_l3 = candidates_l2
+            else:
+                candidates_l3 = candidates_l2
+                print(f"[SMART-STOP] L3: Première injection session (skip)")
+        except Exception as e:
+            print(f"[SMART-STOP] ⚠️ Erreur L3: {e}")
+            candidates_l3 = candidates_l2
+        
+        # ====================================================================
+        # ÉTAPE 4: Tri final par score hybride + correspondance lexicale
+        # Impact = force du souvenir, intervient APRÈS la pertinence FAISS
+        # keyword_score = correspondance mots-clés, meilleur départage que l'impact
+        # ====================================================================
+        candidates_l3.sort(
+            key=lambda m: (
+                -m.get('hybrid_score', 0),
+                -m.get('keyword_score', 0)
+            )
+        )
+        
+        # ====================================================================
+        # MÉTRIQUES FINALES SMART STOP
+        # ====================================================================
+        elapsed = time.time() - start_time
+        
+        metrics = {
+            'queries_planned': len(queries),
+            'queries_used': queries_used,
+            'queries_saved': len(queries) - queries_used,
+            'stopped_early': queries_stopped_early,
+            'efficiency': queries_used / len(queries) if queries else 0,
+            'embeddings_generated': embeddings_generated,
+            'candidates_bruts': candidates_bruts,
+            'candidates_l2_semantic': len(candidates_l2),
+            'candidates_l3_injection': len(candidates_l3),
+            'dedup_ratio': (candidates_bruts - len(candidates_l3)) / candidates_bruts if candidates_bruts > 0 else 0.0,
+            'dedup_percentage': ((candidates_bruts - len(candidates_l3)) / candidates_bruts * 100) if candidates_bruts > 0 else 0.0,
+            'elapsed_ms': elapsed * 1000,
+            'avg_ms_per_query': (elapsed * 1000) / queries_used if queries_used > 0 else 0
+        }
+        
+        print(f"[SMART-STOP] ✅ Terminé: {candidates_bruts} → {len(candidates_l3)} uniques ({metrics['dedup_percentage']:.1f}% dédup)")
+        print(f"[SMART-STOP] ⏱️  Temps: {metrics['elapsed_ms']:.0f}ms (Queries: {queries_used}/{len(queries)} = {metrics['queries_saved']} économisées)")
+        if queries_stopped_early:
+            print(f"[SMART-STOP] 🎯 Smart Stop activé! Économie: {metrics['queries_saved']} queries (-{metrics['queries_saved']/len(queries)*100:.0f}%)")
+
+        
+        return candidates_l3, metrics
 
     
     def get_all_memories_data(self) -> List[dict]:
@@ -2026,6 +3433,10 @@ Note contextuelle pour Luna:"""
     def delete_memory(self, memory_id: str) -> bool:
         """Supprime un souvenir (SQLite seulement, FAISS non modifiable)."""
         try:
+            if memory_id.startswith("SEED_"):
+                print(f"[DELETE] Refus suppression seed fondateur : {memory_id}")
+                return False
+
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
                 deleted = cursor.rowcount > 0
@@ -2044,10 +3455,7 @@ Note contextuelle pour Luna:"""
                 stats = self.rebuild_faiss_index()
                 print(f"[DELETE] Rebuild terminé: {stats}")
                 
-                # Synchronisation automatique si c'était un trait ego
-                if memory_id.startswith('EGO_'):
-                    print(f"[DELETE] Trait ego supprimé - synchronisation ego_prompt.txt...")
-                    self.sync_ego_prompt_references()
+                # [LEGACY] sync ego_prompt.txt supprimé - fichier obsolète depuis jan 2026
             
             return deleted
             
@@ -2084,17 +3492,17 @@ Note contextuelle pour Luna:"""
             shutil.copy2(self.db_path, backup_path)
             print(f"[DELETE-ALL] Backup créé: {backup_path}")
             
-            # 2. Compter les souvenirs et vider la base
+            # 2. Compter les souvenirs et vider la base (SEED_* préservés)
             count_before = 0
             with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute("SELECT COUNT(*) FROM memories")
+                cursor = conn.execute("SELECT COUNT(*) FROM memories WHERE id NOT LIKE 'SEED_%'")
                 count_before = cursor.fetchone()[0]
-                print(f"[DELETE-ALL] {count_before} souvenirs à supprimer")
+                print(f"[DELETE-ALL] {count_before} souvenirs à supprimer (seeds préservés)")
                 
-                # Supprimer tous les enregistrements
-                conn.execute("DELETE FROM memories")
+                # Supprimer tous les enregistrements SAUF les mémoires seeds fondamentales
+                conn.execute("DELETE FROM memories WHERE id NOT LIKE 'SEED_%'")
                 conn.commit()
-                print(f"[DELETE-ALL] Base vidée")
+                print(f"[DELETE-ALL] Base vidée (seeds SEED_* conservés)")
             
             # 3. Compacter la base (VACUUM doit être hors transaction)
             with sqlite3.connect(self.db_path) as conn:
@@ -2106,18 +3514,12 @@ Note contextuelle pour Luna:"""
             self.faiss_to_id.clear()
             print(f"[DELETE-ALL] Mappings id_to_faiss et faiss_to_id vidés")
             
-            # 5. Réinitialiser l'index FAISS
-            self.faiss_index = faiss.IndexFlatL2(self.embedding_dim)
-            self.save_index()  # Sauvegarder l'index vide
-            print(f"[DELETE-ALL] Index FAISS réinitialisé (dim={self.embedding_dim})")
+            # 5. Reconstruire l'index FAISS (pour réintégrer les seeds préservés)
+            rebuild_stats = self.rebuild_faiss_index()
+            print(f"[DELETE-ALL] Index FAISS reconstruit: {rebuild_stats}")
             
-            # 6. Synchronisation ego_prompt.txt (supprimer références orphelines)
-            try:
-                self.sync_ego_prompt_references()
-                print(f"[DELETE-ALL] ego_prompt.txt synchronisé")
-            except Exception as e:
-                print(f"[DELETE-ALL] Erreur sync ego_prompt: {e}")
-            
+            # [LEGACY] sync ego_prompt.txt supprimé - fichier obsolète depuis jan 2026
+
             # 7. Statistiques retournées
             result = {
                 'deleted_count': count_before,
@@ -2299,6 +3701,53 @@ Note contextuelle pour Luna:"""
             return float(i * (bf * (l + c + p + ic)))
         except Exception:
             return 0.0
+
+    def _compute_emotional_tone(self, memories: List[Dict]) -> str:
+        """
+        Calcule la tonalité émotionnelle dominante d'un ensemble de souvenirs.
+        
+        Pondère les valences par score_impact pour donner plus de poids
+        aux souvenirs marquants.
+        
+        Args:
+            memories: Liste de souvenirs avec valence et score_impact
+            
+        Returns:
+            "négatif", "neutre", ou "positif"
+        """
+        if not memories:
+            return "neutre"
+        
+        try:
+            # Pondération par score_impact
+            total_weighted = 0.0
+            total_impact = 0.0
+            
+            for mem in memories:
+                valence = float(mem.get('valence', 0) or 0)
+                impact = float(mem.get('score_impact', 0) or 0)
+                
+                total_weighted += valence * impact
+                total_impact += impact
+            
+            if total_impact == 0:
+                return "neutre"
+            
+            # Score émotionnel pondéré (-1.0 à +1.0)
+            score_emotionnel = total_weighted / total_impact
+            
+            # Seuils de classification
+            # -1.0 ← [négatif] → -0.3 | -0.3 ← [neutre] → +0.3 | +0.3 ← [positif] → +1.0
+            if score_emotionnel < -0.3:
+                return "négatif"
+            elif score_emotionnel > 0.3:
+                return "positif"
+            else:
+                return "neutre"
+                
+        except Exception as e:
+            print(f"[EMOTIONAL-TONE] ⚠️ Erreur calcul tonalité: {e}")
+            return "neutre"
 
     # === OUTILS DE RÉPARATION / MAINTENANCE ===
     def _update_embedding_json(self, memory_id: str, embedding: np.ndarray) -> bool:

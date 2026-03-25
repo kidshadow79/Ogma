@@ -69,15 +69,165 @@ class ContextProvider:
         try:
             start_time = time.time()
             
+            # ========================================================================
+            # ÉTATS ACTIFS v2.0 - Injection prioritaire en tête de contexte
+            # ========================================================================
+            active_states_context = ""
+            
+            if self.config.get("enable_active_states", False):
+                try:
+                    # Récupérer les états actifs via json_manager
+                    états_actifs = self.json_manager.get_active_states()
+                    all_states = états_actifs.get("states", [])
+                    unresolved_states = [s for s in all_states if not s.get("resolved", False)]
+                    
+                    # 🔧 FIX: Récupérer aussi les états RÉCEMMENT RÉSOLUS (dernières 48h)
+                    # Pour éviter que l'IA redemande après résolution
+                    resolved_states = [s for s in all_states if s.get("resolved", False)]
+                    recently_resolved = []
+                    
+                    if resolved_states:
+                        from datetime import datetime, timedelta
+                        now = datetime.now()
+                        
+                        # Categories ephemeres : pas de re-injection apres resolution
+                        # Elles sont contextuelles a la session, pas au suivi long terme
+                        ephemeral_categories = {"humeur", "personnel"}
+                        
+                        for état in resolved_states:
+                            # Filtrer les categories ephemeres
+                            cat = état.get("category", "").lower()
+                            if cat in ephemeral_categories:
+                                continue
+                            
+                            resolved_at = état.get("resolved_at")
+                            if resolved_at:
+                                try:
+                                    resolved_date = datetime.fromisoformat(resolved_at)
+                                    # Enlever timezone si présente
+                                    if resolved_date.tzinfo is not None:
+                                        resolved_date = resolved_date.replace(tzinfo=None)
+                                    
+                                    # Verifier si resolu dans les dernieres 48h
+                                    hours_since = (now - resolved_date).total_seconds() / 3600
+                                    if hours_since <= 48:
+                                        recently_resolved.append(état)
+                                        print(f"[CONTEXT-PROVIDER] Etat resolu recemment: {état.get('description', '')} ({hours_since:.1f}h)")
+                                except Exception:
+                                    pass
+                    
+                    if unresolved_states or recently_resolved:
+                        print(f"[CONTEXT-PROVIDER] 🎯 {len(unresolved_states)} états actifs + {len(recently_resolved)} résolus récemment")
+                        
+                        # Trier par importance (high → medium → low)
+                        importance_order = {"high": 0, "medium": 1, "low": 2}
+                        unresolved_states.sort(key=lambda s: (importance_order.get(s.get("importance", "medium"), 1), s.get("created_at", "")))
+                        
+                        # Formatage des états actifs
+                        active_states_context = "🎯 **ÉTATS ACTIFS (CONTEXTE)**\n\n"
+                        active_states_context += "*Ces éléments sont en cours. Garde-les en mémoire pour la cohérence de tes réponses, mais n'en parle que si le sujet s'y prête ou si l'utilisateur les mentionne.*\n\n"
+                        
+                        # Icône selon catégorie
+                        category_icons = {
+                            "santé": "🏥",
+                            "projet": "📋",
+                            "humeur": "💭",
+                            "apprentissage": "📚",
+                            "technique": "💻",
+                            "personnel": "🧑"
+                        }
+                        
+                        # États ACTIFS (non résolus)
+                        for état in unresolved_states:
+                            category = état.get("category", "général")
+                            description = état.get("description", "")
+                            importance = état.get("importance", "medium")
+                            icon = category_icons.get(category, "📌")
+                            
+                            # Badge importance
+                            importance_badge = {
+                                "high": " `IMPORTANT`",
+                                "medium": "",
+                                "low": " `info`"
+                            }.get(importance, "")
+                            
+                            active_states_context += f"{icon} **{category.capitalize()}**{importance_badge}: {description}\n"
+                            
+                            # Option B: Ajouter contexte source si disponible
+                            source_ctx = état.get("source_context", {})
+                            if source_ctx and source_ctx.get("user_message"):
+                                user_excerpt = source_ctx["user_message"][:100]
+                                active_states_context += f"   ↳ *Origine: \"{user_excerpt}...\"*\n"
+                            
+                            # Afficher historique de mise à jour (dernières 2 entrées)
+                            update_history = état.get("update_history", [])
+                            if update_history:
+                                # Filtrer uniquement les "updated" (pas "created")
+                                updates = [u for u in update_history if u.get("action") == "updated"]
+                                if updates:
+                                    # Afficher les 2 dernières mises à jour
+                                    for update in updates[-2:]:
+                                        timestamp = update.get("timestamp", "")
+                                        note = update.get("note", "")
+                                        if note:
+                                            # Format date lisible
+                                            try:
+                                                from datetime import datetime
+                                                dt = datetime.fromisoformat(timestamp)
+                                                date_str = dt.strftime("%d/%m %H:%M")
+                                            except:
+                                                date_str = timestamp[:16].replace("T", " ")
+                                            active_states_context += f"   ↳ 📝 *MàJ ({date_str}): {note}*\n"
+                        
+                        # États RÉSOLUS RÉCEMMENT (pour éviter confusion)
+                        if recently_resolved:
+                            active_states_context += "\n✅ **RÉCEMMENT RÉSOLUS** *(ne plus demander)*\n\n"
+                            for état in recently_resolved:
+                                category = état.get("category", "général")
+                                description = état.get("description", "")
+                                icon = category_icons.get(category, "📌")
+                                active_states_context += f"{icon} ~~{category.capitalize()}: {description}~~ `RÉSOLU`\n"
+                        
+                        active_states_context += "\n---\n\n"
+                        print(f"[CONTEXT-PROVIDER] ✅ Contexte états généré ({len(active_states_context)} chars)")
+                    else:
+                        print(f"[CONTEXT-PROVIDER] ℹ️ Aucun état actif ou récemment résolu")
+                
+                except Exception as e:
+                    print(f"[CONTEXT-PROVIDER] ⚠️ Erreur récupération états actifs: {e}")
+            
+            # ========================================================================
+            # CONTEXTE JOURNAL CLASSIQUE (historique conversations)
+            # MODE HYBRIDE (Option B) : Injection intelligente selon situation
+            # ========================================================================
+            
+            journal_context = ""
+            
             # Récupérer toutes les entrées triées
             all_entries = self.json_manager.get_all_entries_sorted()
             
             if not all_entries:
                 print("[CONTEXT-PROVIDER] JOURNAL Aucune entrée dans le journal")
-                return ""
+                # Retourner uniquement les états actifs s'il y en a
+                return active_states_context if active_states_context else ""
             
-            # Prendre les N dernières
-            recent_entries = all_entries[-max_entries:] if len(all_entries) > max_entries else all_entries
+            # LOGIQUE HYBRIDE OPTIMISÉE (Option B v2):
+            # - Les états actifs contiennent déjà les extraits conversations sources
+            # - 1 seule dernière conversation suffit pour continuité
+            # - Économie tokens: ~30-40%
+            
+            has_active_states = len(unresolved_states) > 0 if 'unresolved_states' in locals() else False
+            
+            # TOUJOURS 1 conversation max (les états ont leur contexte)
+            num_entries_to_inject = 1
+            
+            if has_active_states:
+                print(f"[CONTEXT-PROVIDER] MODE-HYBRIDE-V2 {len(unresolved_states)} états actifs → 1 conversation (contexte dans états)")
+            else:
+                print(f"[CONTEXT-PROVIDER] MODE-HYBRIDE-V2 Aucun état → 1 conversation (continuité)")
+            
+            # Prendre la dernière
+            recent_entries = all_entries[-num_entries_to_inject:] if len(all_entries) > num_entries_to_inject else all_entries
             
             # Calculer le délai depuis la plus récente
             last_entry = recent_entries[-1]
@@ -121,17 +271,19 @@ class ContextProvider:
             
             current_time_str = now.strftime("%Hh%M")
             
-            # Formatage du contexte
-            context = self._format_entries_context(recent_entries, header, days_since)
+            # Formatage du contexte journal
+            journal_context = self._format_entries_context(recent_entries, header, days_since)
             
             # Préfixer avec l'heure actuelle
             temporal_prefix = f"⏰ **CONTEXTE TEMPOREL ACTUEL**: Nous sommes le {now.strftime('%d/%m/%Y')}, il est {current_time_str} ({time_of_day}).\n\n"
-            context = temporal_prefix + context
+            
+            # FUSION: États actifs + Contexte temporel + Journal
+            final_context = active_states_context + temporal_prefix + journal_context
             
             duration = time.time() - start_time
-            print(f"[CONTEXT-PROVIDER] CASCADE Contexte récent généré: {len(recent_entries)} entrées ({header}) en {duration:.3f}s")
+            print(f"[CONTEXT-PROVIDER] CASCADE Contexte complet généré: {len(unresolved_states) if active_states_context else 0} états + {len(recent_entries)} entrées ({header}) en {duration:.3f}s")
             
-            return context
+            return final_context
             
         except Exception as e:
             print(f"[CONTEXT-PROVIDER] ERROR Erreur cascade contexte: {e}")
@@ -175,6 +327,110 @@ class ContextProvider:
                 
                 # Formatage selon le style configuré
                 context = self._format_entries_context(selected_entries, target_date)
+            
+            # 🌙 DREAM ENGINE: Ajouter le contexte du dernier rêve non mentionné
+            try:
+                from extensions.dream_engine import get_last_dream_context, is_available as dream_available
+                
+                if dream_available():
+                    dream_context = get_last_dream_context()
+                    
+                    if dream_context and not dream_context.get('mentioned', True):
+                        dream_section = f"""
+
+## 🌙 Dernier Rêve (à mentionner)
+**Date:** {dream_context.get('date', 'Récemment')}
+**Titre:** {dream_context.get('title', 'Sans titre')}
+**Émotion dominante:** {dream_context.get('emotion', 'inconnue')}
+**Score d'importance:** {dream_context.get('score', 0)}/10
+
+**Résumé:** {dream_context.get('summary', '')}
+
+**Insight:** {dream_context.get('insight', '')}
+
+_Tu peux mentionner naturellement ce rêve si la conversation s'y prête._
+"""
+                        context += dream_section
+                        print(f"[CONTEXT-PROVIDER] 🌙 Contexte rêve ajouté: {dream_context.get('title')}")
+            except ImportError:
+                pass  # Dream Engine non installé
+            except Exception as e:
+                print(f"[CONTEXT-PROVIDER] ⚠️ Erreur contexte rêve: {e}")
+            
+            # 📝 INTROSPECTION IA: Ajouter la dernière introspection non mentionnée
+            try:
+                from .introspection_ia import get_last_introspection_context
+                
+                intro_ctx = get_last_introspection_context()
+                if intro_ctx and not intro_ctx.get('mentioned', True):
+                    intro_section = f"""
+
+## 📝 Ta Dernière Réflexion Personnelle
+**Date:** {intro_ctx.get('timestamp', 'Récemment')[:16].replace('T', ' ')}
+**Titre:** {intro_ctx.get('titre', 'Sans titre')}
+**Émotion:** {intro_ctx.get('emotion_dominante', 'inconnue')}
+
+**Ce que tu as écrit dans ton journal intime:**
+{intro_ctx.get('contenu', '')[:500]}
+
+**Question que tu te posais:** {intro_ctx.get('question_ouverte', '')}
+
+_Tu peux faire référence à cette réflexion si la conversation s'y prête, de manière naturelle._
+"""
+                    context += intro_section
+                    print(f"[CONTEXT-PROVIDER] 📝 Contexte introspection ajouté: {intro_ctx.get('titre')}")
+            except ImportError:
+                pass  # Module introspection non disponible
+            except Exception as e:
+                print(f"[CONTEXT-PROVIDER] ⚠️ Erreur contexte introspection: {e}")
+            
+            # 🔍 CURIOSITÉ : Ajouter les explorations non partagées
+            try:
+                from .curiosity_engine import get_unshared_explorations
+                
+                unshared = get_unshared_explorations()
+                if unshared:
+                    # Prendre seulement la première (la plus ancienne)
+                    exploration = unshared[0]
+                    exploration_data = exploration.get("exploration", {})
+                    accroche = exploration_data.get("accroche", "")
+                    
+                    if accroche:
+                        curio_section = f"""
+
+## 🔍 Sujet Exploré Pendant Ton Sommeil
+**Sujet:** {exploration.get('sujet', '')}
+**Accroche naturelle:** {accroche}
+
+_Tu as exploré ce sujet pendant ton dernier rêve. Tu peux en parler naturellement si l'occasion se présente._
+"""
+                        context += curio_section
+                        print(f"[CONTEXT-PROVIDER] 🔍 Exploration curiosité ajoutée: {exploration.get('sujet', '?')[:40]}")
+            except ImportError:
+                pass
+            except Exception as e:
+                print(f"[CONTEXT-PROVIDER] ⚠️ Erreur contexte curiosité: {e}")
+            
+            # 📚 CORRECTIONS : Rappeler les corrections récentes
+            try:
+                from .correction_learner import get_recent_corrections
+                
+                corrections = get_recent_corrections(max_count=3)
+                if corrections:
+                    corr_section = "\n## 📚 Corrections Récentes (Leçons Apprises)\n"
+                    corr_section += "*Garde ces corrections en tête pour ne pas refaire les mêmes erreurs.*\n\n"
+                    for corr in corrections:
+                        lecon = corr.get("lecon", "")
+                        cat = corr.get("categorie", "")
+                        if lecon:
+                            corr_section += f"- **{cat}**: {lecon}\n"
+                    corr_section += "\n"
+                    context += corr_section
+                    print(f"[CONTEXT-PROVIDER] 📚 {len(corrections)} corrections récentes injectées")
+            except ImportError:
+                pass
+            except Exception as e:
+                print(f"[CONTEXT-PROVIDER] ⚠️ Erreur contexte corrections: {e}")
             
             # Mise en cache
             self._cache_context(cache_key, context)

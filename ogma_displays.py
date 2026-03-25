@@ -500,11 +500,116 @@ def _link_styles():
         print(f"[STYLES] Erreur accès app: {e}")
         # Continuer sans fichiers statiques si app non accessible
         pass
-    # Police Inter (poids 400 et 600) depuis Google Fonts
+# Polices cyber : Orbitron (HUD/titres) + Rajdhani (corps)
     ui.add_head_html('<link rel="preconnect" href="https://fonts.googleapis.com">')
     ui.add_head_html('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>')
-    ui.add_head_html('<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">')
+    ui.add_head_html('<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500&family=Inter:wght@400;600&display=swap" rel="stylesheet">')
     ui.add_head_html('<link rel="stylesheet" href="/static/ogma_styles.css" />')
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Sidebar : fond enfoncement profond Flux Cognitif — injection JS forcée
+    # ═══════════════════════════════════════════════════════════════════════════
+    ui.add_head_html('''<style>
+    /* Sidebar : fond sombre profond opaque — esthétique Flux Cognitif */
+    aside.sidebar,
+    .app-body > aside.sidebar,
+    .app-body > .sidebar,
+    .sidebar {
+        background: var(--bg-main) !important;
+        backdrop-filter: blur(12px) saturate(120%) !important;
+        -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+        border: none !important;
+        box-shadow:
+            inset 8px 8px 20px rgba(0, 0, 0, 0.6),
+            inset -2px -2px 12px rgba(0, 0, 0, 0.5),
+            inset 0 4px 16px rgba(0, 0, 0, 0.7),
+            inset -1px 0 2px rgba(100, 100, 120, 0.1) !important;
+    }
+    .sidebar::before {
+        display: none !important;
+    }
+    .sidebar[data-collapsed="true"] {
+        box-shadow: none !important;
+    }
+    </style>
+    <script>
+    // Force le style sidebar au chargement — bypass cache CSS
+    document.addEventListener('DOMContentLoaded', function() {
+        function forceSidebarStyle() {
+            var el = document.querySelector('.sidebar');
+            if (el) {
+                el.style.setProperty('background', '#05090f', 'important');
+                el.style.setProperty('border', 'none', 'important');
+                el.style.setProperty('box-shadow',
+                    'inset 8px 8px 20px rgba(0,0,0,0.6), inset -2px -2px 12px rgba(0,0,0,0.5), inset 0 4px 16px rgba(0,0,0,0.7)',
+                    'important');
+                console.log('[OGMA-SIDEBAR] Style force applique: background=#05090f, no border');
+            } else {
+                setTimeout(forceSidebarStyle, 500);
+            }
+        }
+        setTimeout(forceSidebarStyle, 300);
+    });
+    </script>''')
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 🔍 DEBUG: Monitoring WebSocket côté client pour diagnostiquer déconnexions
+    # ═══════════════════════════════════════════════════════════════════════════
+    ui.add_head_html('''
+    <script>
+    (function() {
+        const WS_DEBUG = true;  // Mettre à false pour désactiver les logs
+        let lastPing = Date.now();
+        let disconnectCount = 0;
+        
+        // Hook sur Socket.IO si disponible
+        const checkSocketIO = setInterval(() => {
+            if (window.io && window.socket) {
+                clearInterval(checkSocketIO);
+                
+                if (WS_DEBUG) console.log('[WS-CLIENT] 🔌 Socket.IO détecté, hooks installés');
+                
+                window.socket.on('connect', () => {
+                    if (WS_DEBUG) console.log('[WS-CLIENT] 🟢 Connecté à', new Date().toLocaleTimeString());
+                });
+                
+                window.socket.on('disconnect', (reason) => {
+                    disconnectCount++;
+                    console.warn('[WS-CLIENT] 🔴 Déconnecté:', reason, 'à', new Date().toLocaleTimeString());
+                    console.warn('[WS-CLIENT] 🔴 Déconnexions totales cette session:', disconnectCount);
+                });
+                
+                window.socket.on('connect_error', (error) => {
+                    console.error('[WS-CLIENT] ❌ Erreur connexion:', error.message);
+                });
+                
+                window.socket.on('ping', () => {
+                    lastPing = Date.now();
+                    if (WS_DEBUG) console.log('[WS-CLIENT] 📡 Ping reçu');
+                });
+                
+                // Monitoring périodique
+                setInterval(() => {
+                    const sincePing = Math.round((Date.now() - lastPing) / 1000);
+                    if (sincePing > 60 && WS_DEBUG) {
+                        console.warn('[WS-CLIENT] ⚠️ Pas de ping depuis', sincePing, 'secondes');
+                    }
+                }, 30000);
+            }
+        }, 1000);
+        
+        // Détecter refresh de page
+        window.addEventListener('beforeunload', (e) => {
+            console.log('[WS-CLIENT] 🔄 Page en cours de rechargement à', new Date().toLocaleTimeString());
+        });
+        
+        // Détecter erreurs JavaScript globales
+        window.addEventListener('error', (e) => {
+            console.error('[WS-CLIENT] 💥 Erreur JS globale:', e.message, 'at', e.filename, ':', e.lineno);
+        });
+    })();
+    </script>
+    ''')
     
     # CSS inline pour panneau métacognitif (contournement problème cache)
     ui.add_head_html('''
@@ -545,37 +650,36 @@ def _link_styles():
     /* Suppression de toute bordure de la sidebar + fond intermédiaire */
     .sidebar {
         border-right: none !important;
-        background-color: #242424 !important;
     }
     
     /* Animation supprimée - Sidebar en gris simple */
     
     /* Sidebar style overlay sophistiqué - Header */
     .sidebar-header {
-        background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+        background: transparent !important;
         /* border: 1px solid var(--border-default) !important; */
         border-radius: 12px 12px 0 0 !important;
         /* box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important; */
-        backdrop-filter: blur(10px) !important;
+        backdrop-filter: none !important;
         /* border-bottom: none !important; */
     }
     
     .sidebar-list {
-        background: linear-gradient(145deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+        background: transparent !important;
         /* border: 1px solid var(--border-default) !important; */
         border-radius: 12px !important;
         /* box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important; */
-        backdrop-filter: blur(10px) !important;
+        backdrop-filter: none !important;
     }
     
     /* Sélecteurs additionnels pour zone historique conversations */
     .conversation-list, .q-list, .conversations-container,
     .sidebar .q-list, .sidebar-content .q-list {
-        background: linear-gradient(145deg, #0f0f0f 0%, #1a1a1a 100%) !important;
+        background: transparent !important;
         /* border: 1px solid var(--border-default) !important; */
         border-radius: 12px !important;
         /* box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important; */
-        backdrop-filter: blur(10px) !important;
+        backdrop-filter: none !important;
     }
     
     /* Effet particules pour la sauvegarde mémoire - AMÉLIORE */
@@ -643,76 +747,29 @@ def _link_styles():
     
     /* Sidebar style overlay sophistiqué - Footer */
     .sidebar-footer {
-        background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+        background: transparent !important;
         /* border: 1px solid var(--border-default) !important; */
         border-radius: 0 0 12px 12px !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-        backdrop-filter: blur(10px) !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
         /* border-top: none !important; */
     }
     
     /* Sidebar style overlay sophistiqué - Aside */
-    aside.sidebar {
-        background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%) !important;
-        /* border: 1px solid var(--border-default) !important; */
-        border-radius: 12px !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-        backdrop-filter: blur(10px) !important;
-    }
+    /* aside.sidebar removed to avoid conflict with Flux Cognitif style */
     
     /* Quasar drawer style overlay sophistiqué */
     .q-drawer--left {
-        background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+        background: transparent !important;
         /* border: 1px solid var(--border-default) !important; */
         border-radius: 12px !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-        backdrop-filter: blur(10px) !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
     }
     
     .metacognition-toggle-btn {
         z-index: 2000 !important;
         position: fixed !important;
-    }
-    
-    /* Bouton Archi_sensor flottant */
-    .archi-sensor-floating-btn {
-        position: fixed !important;
-        top: 10px !important;
-        right: 70px !important;
-        z-index: 100 !important;
-        width: 40px !important;
-        height: 40px !important;
-        min-width: 40px !important;
-        border-radius: 8px !important;
-        background: transparent !important;
-        border: none !important;
-        color: var(--text-secondary) !important;
-        font-size: 16px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        cursor: pointer !important;
-        transition: var(--transition-fast) !important;
-        opacity: 0.9 !important;
-        padding: 0 !important;
-        box-shadow: 0 0 8px rgba(212, 175, 55, 0.3), 0 0 16px rgba(212, 175, 55, 0.2), 0 0 24px rgba(212, 175, 55, 0.1) !important;
-        animation: archisensor-glow 2.5s ease-in-out infinite alternate !important;
-    }
-    
-    @keyframes archisensor-glow {
-        0% { 
-            box-shadow: 0 0 6px rgba(212, 175, 55, 0.2), 0 0 12px rgba(212, 175, 55, 0.1), 0 0 18px rgba(212, 175, 55, 0.05);
-        }
-        100% { 
-            box-shadow: 0 0 40px rgba(212, 175, 55, 1), 0 0 80px rgba(212, 175, 55, 0.8), 0 0 120px rgba(212, 175, 55, 0.5), 0 0 160px rgba(212, 175, 55, 0.3);
-        }
-    }
-    
-    .archi-sensor-floating-btn:hover {
-        background: var(--bg-card) !important;
-        color: var(--accent-gold) !important;
-        opacity: 1 !important;
-        border-color: var(--accent-gold-thin) !important;
     }
     
     /* Cibler spécifiquement le drawer NiceGUI avec effet prism ROUGE */
@@ -730,13 +787,13 @@ def _link_styles():
     }
     
     /* SIDEBAR OVERLAY SOPHISTIQUÉ sur tous les éléments possibles */
-    .q-drawer, .q-drawer__content, .sidebar, .sidebar-content, 
+    .sidebar-content, 
     .nicegui-drawer, .drawer-container, .left-drawer {
-        background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+        background: transparent !important;
         /* border: 1px solid var(--border-default) !important; */
         border-radius: 12px !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
-        backdrop-filter: blur(10px) !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
     }
 
     /* Style pour le toggle de l'extension metacognitive */

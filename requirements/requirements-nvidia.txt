@@ -1,0 +1,36 @@
+# OGMA - GPU NVIDIA (CUDA)
+# =========================
+# À installer APRÈS requirements.txt pour remplacer PyTorch CPU par CUDA.
+# Testé sur RTX 4090 / RTX 5070ti avec CUDA 12.8.
+# Usage: pip install -r requirements/requirements-nvidia.txt
+
+# Index PyTorch CUDA 12.8 (obligatoire en premier)
+--extra-index-url https://download.pytorch.org/whl/cu128
+--extra-index-url https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu128
+
+# PyTorch GPU (remplace les versions CPU de requirements.txt)
+torch>=2.6.0
+torchvision>=0.17.0
+torchaudio>=2.1.0
+
+# llama-cpp-python avec accélération CUDA
+llama-cpp-python>=0.2.0
+
+# =============================================================================
+# PARAMÈTRES OPTIMAUX RTX 5070ti
+# =============================================================================
+# GPU Layers        : -1 (toutes les couches sur GPU)
+# Context Length    : 16384-32768 (exploite les 16GB VRAM)
+# Batch Size        : 1024+
+#
+# PARAMÈTRES RTX 4090 (24 GB VRAM)
+# GPU Layers        : -1
+# Context Length    : 8192-16384
+#
+# PARAMÈTRES RTX 4080/4070ti (12-16 GB VRAM)
+# GPU Layers        : 30-40
+# Context Length    : 4096-8192
+#
+# VARIABLES D'ENVIRONNEMENT RECOMMANDÉES :
+# set PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+# set CUDA_VISIBLE_DEVICES=0

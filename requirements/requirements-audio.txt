@@ -1,0 +1,20 @@
+# OGMA - Audio Avancé
+# ====================
+# Dépendances audio complémentaires au-delà du TTS basique inclus dans
+# requirements.txt (edge-tts, Fish Audio, pyttsx3).
+# Pour fonctionnalités vocales complètes : VAD, analyse audio, formats étendus.
+# Usage: pip install -r requirements/requirements-audio.txt
+
+# === SPEECH-TO-TEXT (LOCAL) ===
+openai-whisper>=20231117    # Whisper local (transcription offline)
+pyaudio>=0.2.11             # Capture audio en temps réel
+speechrecognition>=3.10.0   # Framework STT unifié
+
+# === AUDIO PROCESSING AVANCÉ ===
+librosa>=0.10.0             # Analyse audio avancée (pitch, tempo, spectre)
+soundfile>=0.12.0           # Lecture/écriture formats audio étendus (FLAC, OGG...)
+webrtcvad>=2.0.10           # Détection d'activité vocale (VAD) pour STT propre
+
+# === CLOUD TTS PREMIUM (optionnel) ===
+google-cloud-texttospeech>=2.29.0       # Google Cloud TTS (nécessite compte GCP)
+azure-cognitiveservices-speech>=1.45.0  # Azure AI Speech (nécessite compte Azure)

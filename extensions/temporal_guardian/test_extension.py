@@ -29,17 +29,14 @@ def test_basic_functionality():
     # Test premier message
     print("\n1️⃣ Premier message (pas de délai):")
     result1 = guardian.process_user_message("Bonjour Luna", archiviste_prompt)
-    print(f"   Alerte IA: {result1['should_alert_main_ai']}")
     print(f"   Résumé: {result1['temporal_summary']}")
     assert result1['temporal_data'].delay_since_last is None
-    assert result1['should_alert_main_ai'] is False
     
     # Test message rapide
     print("\n2️⃣ Message rapide (délai court):")
     time.sleep(1)
     result2 = guardian.process_user_message("Ça va ?", archiviste_prompt)
     print(f"   Délai mesuré: {result2['temporal_data'].delay_since_last:.1f}s")
-    print(f"   Alerte IA: {result2['should_alert_main_ai']}")
     assert result2['temporal_data'].delay_since_last is not None
     assert result2['temporal_data'].delay_since_last < 5  # Moins de 5s
     
@@ -49,7 +46,6 @@ def test_basic_functionality():
     result3 = guardian.process_user_message("Tu peux m'aider ?", archiviste_prompt)
     print(f"   Délai mesuré: {result3['temporal_data'].delay_since_last:.1f}s")
     print(f"   Messages session: {result3['temporal_data'].message_count}")
-    print(f"   Alerte IA: {result3['should_alert_main_ai']}")
     assert result3['temporal_data'].delay_since_last > 2  # Plus de 2s
     
     print("\n✅ Test fonctionnalités de base: RÉUSSI")
@@ -127,16 +123,13 @@ def test_alert_system():
     guardian.process_user_message("Message normal", "Prompt test")
     time.sleep(1)
     result_normal = guardian.process_user_message("Réponse rapide", "Prompt test")
-    print(f"   Délai normal ({result_normal['temporal_data'].delay_since_last:.1f}s): Alerte = {result_normal['should_alert_main_ai']}")
+    print(f"   Délai normal ({result_normal['temporal_data'].delay_since_last:.1f}s): Résumé = {result_normal['temporal_summary']}")
     
-    # Simuler délai long pour déclencher alerte
+    # Simuler délai long
     print("   Simulation délai long (6s)...")
     time.sleep(6)
     result_long = guardian.process_user_message("Après long délai", "Prompt test")
-    print(f"   Délai long ({result_long['temporal_data'].delay_since_last:.1f}s): Alerte = {result_long['should_alert_main_ai']}")
-    
-    # Note: Le seuil par défaut est 5 minutes, donc 6s ne déclenchera pas l'alerte
-    # Mais on peut voir le mécanisme fonctionner
+    print(f"   Délai long ({result_long['temporal_data'].delay_since_last:.1f}s): Résumé = {result_long['temporal_summary']}")
     
     print("\n✅ Test système d'alertes: RÉUSSI")
 

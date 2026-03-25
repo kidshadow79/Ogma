@@ -1,360 +1,165 @@
-# 🧠 Extension Cognitive Mirror
+﻿# 🧠 Extension Cognitive Mirror
 
-> **Extension de conversation authentique entre IA pour OGMA**  
-> *Déclenche une vraie conversation Luna-Archiviste pendant l'inactivité*
-
----
-
-## 🎯 ARCHITECTURE DÉFINITIVE
-
-### Principe de Fonctionnement
-
-L'extension crée une **authentique conversation** entre deux IA :
-- **Luna** : IA principale qui devient l'utilisateur dans la conversation interne
-- **Archiviste** : IA qui répond aux questions de Luna comme dans un chat classique
-
-### Déclenchement de la Conversation
-
-1. **Détection d'inactivité** (30s sans message)
-2. **Ouverture de l'overlay** UI
-3. **Envoi du contexte** à Luna avec :
-   - Contexte conversationnel en cours
-   - Instructions complètes (comme pour le chat classique)
-   - Message déclencheur : *"Réfléchis et poses les bonnes questions à l'archiviste qui est ton subconscient; tu peux envoyer jusqu'à 300 tokens par messages"*
-   - **Message déclencheur personnalisable** via zone paramètre dans l'overlay
-
-### Système de Timer Automatique
-
-- **Timer de 20 secondes** pour l'envoi automatique des messages
-- S'applique à **Luna** ET à l'**Archiviste**
-- Évite les blocages liés à la validation manuelle des messages
-- Assure la fluidité de la conversation
-
-### Flux de Conversation
-
-1. Luna reçoit le contexte et l'instruction de questionnement
-2. Luna pose des questions à l'Archiviste (max 300 tokens)
-3. Timer de 20s → envoi automatique
-4. Archiviste répond avec ses vraies capacités
-5. Timer de 20s → envoi automatique
-6. Conversation continue jusqu'au retour utilisateur
-7. Affichage en temps réel dans l'overlay
-
-### Authenticité
-
-- **Aucun contenu généré artificiellement**
-- **Vraies capacités des deux IA** utilisées
-- **Conversation naturelle** entre consciences
-- **Respect de la philosophie OGMA** d'authenticité
+> **Extension d'introspection transparente pour OGMA — v4**
+> *Joute visible IA Principale ↔ Archiviste déclenchée à la demande*
 
 ---
 
-## ⚙️ FONCTIONNALITÉS
+## 🎯 Principe de Fonctionnement
 
-### 🕐 Détection d'Inactivité Intelligente
-- **30 secondes** sans message utilisateur
-- **20 secondes** sans activité clavier (Windows)
-- **Monitoring adaptatif** avec optimisation performance
-- **Paramètres ajustables** par l'utilisateur
+L'extension déclenche une **joute interne visible** entre les deux cerveaux d'OGMA :
 
-### 💬 Configuration Message Déclencheur
-- **Zone paramètre** dans l'overlay de l'extension
-- **Personnalisation** du message initial envoyé à Luna
-- **Message par défaut** : *"Réfléchis et poses les bonnes questions à l'archiviste qui est ton subconscient; tu peux envoyer jusqu'à 300 tokens par messages"*
-- **Sauvegarde automatique** des paramètres utilisateur
+- **IA Principale** — formule sa position initiale, défend ou révise sous la pression de l'Archiviste
+- **Archiviste** — miroir exigeant : confronte, pointe les contradictions d'identité (ego), protège la cohérence historique. Il n'est pas une base de données — il challenge.
 
-### 🧠 Sessions de Conversation Authentiques
-- **Conversation IA ↔ Archiviste** affichée en temps réel
-- **Consultation mémoires** pour contexte enrichi
-- **Analyse comportementale** utilisateur
-- **Stratégies personnalisées** de réponse
+Ce dialogue se déroule en **3 phases** :
 
-### 💾 Mémoire Enrichie
-- **Souvenirs "REF"** avec préfixe spécial
-- **Contexte réflexions** intégré aux réponses
-- **Historique recherchable** des insights
-- **Sauvegarde automatique** configurable
+1. **Ouverture** — L'IA Principale formule le sujet et sa position initiale, avec les souvenirs FAISS pertinents injectés
+2. **Joute** — Échanges IA Principale ↔ Archiviste (min/max configurables). La recherche mémoire se refait à chaque tour en fonction de l'évolution du dialogue.
+3. **Synthèse** — L'IA Principale tire les vraies conclusions de la confrontation et rédige la réponse finale
 
-### 🎨 Interface Innovante
-- **Overlay 30%** hauteur sur zone conversation
-- **Homogénéité esthétique** avec OGMA
-- **Paramètres ajustables** en temps réel
-- **Bouton ON/OFF** intégré header
+La sauvegarde en mémoire est **décidée par l'IA elle-même** selon un seuil d'importance qu'elle évalue.
 
 ---
 
-## 🏗️ ARCHITECTURE TECHNIQUE
+## ⚡ Modes de Déclenchement
+
+| Mode | Comportement |
+|---|---|
+| ``on_demand`` | Déclenché par phrases magiques dans le message utilisateur |
+| ``always`` | Analyse systématique de chaque message |
+
+**Phrases magiques par défaut** : ``réfléchis``, ``introspection``, ``lance une introspection``, et autres.
+
+> **Note technique** : le déclenchement utilisateur réel passe par des regex hardcodées dans ``ogma_ng.py``. Le déclenchement auto-IA passe par ``ogma_ui_conversations.py``. La méthode ``check_magic_phrases()`` de ``introspection_core.py`` consulte la config mais n'est pas le chemin actif.
+
+---
+
+## 🏗️ Architecture des Fichiers
 
 ```
 extensions/cognitive_mirror/
-├── __init__.py                    # API publique + points d'entrée
-├── core_cognitive_mirror.py       # Moteur principal (singleton)
-├── inactivity_detector.py         # Détection inactivité utilisateur
-├── reflection_manager.py          # Gestion sessions réflexives
-├── ui_components.py               # Interface overlay + paramètres
-├── memory_integration.py          # Souvenirs "REF" + contexte
-├── config.py                      # Configuration centralisée
-└── README.md                      # Documentation (ce fichier)
+├── __init__.py                    # API publique, singleton, aliases rétrocompatibilité
+├── config_v2.py                   # Source de vérité — IntrospectionConfigV2
+├── introspection_core.py          # Moteur principal — IntrospectionCore
+├── introspection_orchestrator.py  # Orchestrateur joute IA Principale ↔ Archiviste
+├── memory_integration.py          # Sauvegarde souvenirs "REF"
+├── ui_components.py               # Interface principale (popup paramètres)
+├── ui_parameters_v2.py            # Popup paramètres v4
+├── ui_introspection_display.py    # Composants visuels (barre progression, dialogue coloré)
+└── _archive/                      # Documentation historique des versions précédentes
 ```
 
-### 🔌 Points d'Intégration OGMA
+### Rôle de chaque fichier
 
-#### **Pipeline Conversation**
-- Hook après `_send_chat_message()`
-- Enrichissement prompt avec contexte réflexion
-- Démarrage surveillance inactivité
+**``introspection_core.py``** — Moteur principal. Reçoit un message, décide si l'introspection est nécessaire, délègue à l'orchestrateur, retourne la réponse enrichie.
 
-#### **Interface Utilisateur**
-- Bouton toggle dans `ogma_headers.py`
-- Overlay dans zone conversation principale
-- Panneau paramètres extensible
+**``introspection_orchestrator.py``** — Gère la joute séquentielle avec callback temps réel. Construit les prompts par étape avec identité complète (ego + contexte permanent), injecte les souvenirs FAISS pertinents à chaque tour, extrait les métadonnées (décision de sauvegarde, importance).
 
-#### **Système Mémoire**
-- Extension `MemoryManager` pour souvenirs "REF"
-- Recherche contexte réflexions antérieures
-- Intégration embeddings vectoriels
+**``config_v2.py``** — Toute la configuration : instructions par étape, limites tokens, phrases magiques, paramètres de mémoire. Persistance JSON dans ``data/introspection_settings_v2.json``.
+
+**``memory_integration.py``** — Sauvegarde les réflexions importantes comme souvenirs préfixés ``[REF]`` dans la mémoire OGMA.
+
+**``ui_introspection_display.py``** — Composants visuels NiceGUI : barre de progression, affichage dialogue coloré.
 
 ---
 
-## 🚀 UTILISATION
-
-### Installation et Initialisation
+## 🔌 API Publique
 
 ```python
-# Dans ogma_ng.py - Après initialisation MemoryManager
-from extensions.cognitive_mirror import initialize_cognitive_mirror
-
-# Initialisation extension
-success = initialize_cognitive_mirror(
-    chat_controller=chat_ai,
-    archiviste_controller=archiviste_ai,
-    memory_manager=memory_mgr,
-    ui_container=main_ui_container
+from extensions.cognitive_mirror import (
+    initialize_introspection,    # Initialise l'extension
+    get_introspection,           # Retourne l'instance IntrospectionCore
+    is_available,                # Vérifie si initialisé
+    is_v21,                      # Vérifie si version v4 active (toujours True)
+    is_enabled,                  # Vérifie si activé (config)
+    toggle_enabled,              # Bascule ON/OFF
+    check_magic_phrases,         # Détection phrases magiques (source="user"|"ia")
+    stop_current_introspection,  # Arrêt de la session en cours
+    get_introspection_config,    # Accès direct à la config
 )
-
-if success:
-    print("✅ Cognitive Mirror initialisé")
 ```
 
-### Contrôle Extension
+### Initialisation (via ogma_ng.py)
 
 ```python
-from extensions.cognitive_mirror import get_cognitive_mirror
-
-mirror = get_cognitive_mirror()
-
-# Vérification état
-if mirror.is_enabled():
-    print("🧠 Cognitive Mirror actif")
-
-# Toggle manuel
-new_state = mirror.toggle_enabled()
-print(f"État: {'ON' if new_state else 'OFF'}")
-
-# Statut détaillé
-status = mirror.get_extension_status()
-print(f"Sessions actives: {status['active_reflection']}")
+success = initialize_introspection(
+    chat_controller=chat_ctrl,
+    archiviste_controller=archiviste_ctrl,
+    memory_manager=memory_mgr,
+    settings_manager=settings_mgr  # Optionnel — pour injection ego/instructions système
+)
 ```
 
-### Enrichissement Conversation
+### Point d'entrée session
 
 ```python
-# Dans pipeline conversation
-from extensions.cognitive_mirror import get_reflection_context, start_inactivity_monitoring
-
-def enhanced_send_message(user_message):
-    # Logique OGMA existante...
-    
-    # Enrichissement avec contexte réflexion
-    reflection_context = get_reflection_context()
-    if reflection_context:
-        enriched_prompt = f"{original_prompt}\n\n[Réflexion: {reflection_context}]"
-    
-    # Démarrage surveillance après envoi
-    start_inactivity_monitoring()
-    
-    return ai_response
+core = get_introspection()
+result = await core.run_introspection(
+    user_message=text,
+    context=conversation_context   # dict: chat_history, user_identity, main_ai_identity, ...
+)
+# result["success"], result["final_response"], result["synthesis"], result["dialogue_messages"]
 ```
 
----
+### Aliases de rétrocompatibilité
 
-## ⚙️ CONFIGURATION
-
-### Paramètres Utilisateur Ajustables
-
-```json
-{
-  "trigger_delay_no_message": 30,    // secondes sans message
-  "trigger_delay_no_typing": 20,     // secondes sans frappe
-  "max_reflection_duration": 300,    // timeout 5 minutes
-  "overlay_height_percent": 30,      // hauteur overlay
-  "auto_save_reflections": true,     // sauvegarde auto
-  "extension_enabled": false         // état initial OFF
-}
-```
-
-### Styles CSS Personnalisables
-
-Les styles sont définis dans `config.py` pour homogénéité avec OGMA :
-- Couleurs cohérentes theme sombre
-- Transitions fluides (300ms cubic-bezier)
-- Typographie Inter consistante
-- États hover/focus accessibles
+``initialize_cognitive_mirror()`` et ``get_cognitive_mirror()`` redirigent automatiquement vers l'API v4.
 
 ---
 
-## 🎭 EXPÉRIENCE UTILISATEUR
+## ⚙️ Configuration
 
-### Scénario Type d'Usage
+Fichier de configuration : ``data/introspection_settings_v2.json``
 
-1. **Conversation normale**
-   ```
-   Utilisateur: "J'ai un problème avec mon projet..."
-   IA: "Je comprends. Peux-tu détailler ?"
-   [Utilisateur arrête de taper...]
-   ```
+| Paramètre | Défaut | Description |
+|---|---|---|
+| ``extension_enabled`` | ``false`` | Activation/désactivation |
+| ``introspection_mode`` | ``on_demand`` | ``on_demand`` ou ``always`` |
+| ``min_dialogue_exchanges`` | ``4`` | Minimum d'allers-retours avant synthèse autorisée |
+| ``max_dialogue_exchanges`` | ``8`` | Maximum d'échanges dans la joute |
+| ``max_introspection_duration`` | ``300`` | Timeout global (secondes) |
+| ``step1_max_tokens`` | ``600`` | Tokens étape Ouverture |
+| ``step2_conscious_max_tokens`` | ``800`` | Tokens tours IA Principale |
+| ``step2_unconscious_max_tokens`` | ``900`` | Tokens tours Archiviste |
+| ``step3_max_tokens`` | ``3500`` | Tokens Synthèse finale |
+| ``auto_save_enabled`` | ``false`` | Sauvegarde auto souvenirs |
+| ``importance_threshold`` | ``6`` | Seuil importance pour sauvegarde (1-10) |
+| ``memory_search_threshold`` | ``0.5`` | Seuil similarité FAISS (recherche mémoire) |
 
-2. **Déclenchement automatique** (20s sans frappe)
-   ```
-   💭 Overlay apparaît avec fondu
-   ```
+> **Note tokens** : la limite API réelle est `max_tokens × 2` (filet anti-troncature). Pour la synthèse, le multiplicateur est `× 5`.
 
-3. **Session réflexive visible**
-   ```
-   IA: "Archiviste, l'utilisateur s'est arrêté après mentionner 
-        un problème. Que disent nos souvenirs ?"
-   
-   Archiviste: "Analysant... Il montre ces patterns quand il 
-               approche d'un deadline. Recommande approche 
-               structurée avec exemples concrets."
-   
-   IA: "Perfect ! Je vais adapter ma stratégie. Merci pour 
-        cette analyse contextuelle."
-   ```
-
-4. **Retour utilisateur**
-   ```
-   [Détection frappe] → Overlay se ferme
-   💾 Sauvegarde souvenir "REF#2847"
-   ```
-
-5. **Réponse enrichie**
-   ```
-   IA: "Basé sur notre analyse, je vois que tu approches 
-        d'un deadline. Voici une approche structurée 
-        étape par étape..."
-   ```
-
-### Avantages Utilisateur
-
-- **Transparence totale** : Comprend pourquoi l'IA répond ainsi
-- **Confiance renforcée** : Voit le processus de réflexion
-- **Apprentissage** : Découvre comment l'IA utilise la mémoire
-- **Personnalisation** : Témoin de l'adaptation comportementale
+Les **instructions de chaque étape** sont éditables directement via l'interface (onglet "Instructions").
 
 ---
 
-## 🔧 DÉVELOPPEMENT
+## 🎨 Interface Utilisateur
 
-### Prérequis
+Accessible via le bouton 🧠 dans le header d'OGMA.
 
-- OGMA v2.0+ avec architecture modulaire
-- NiceGUI 1.4.0+
-- Python 3.8+
-- MemoryManager fonctionnel
-
-### Extensions Futures
-
-#### Phase 2 : Détection Avancée
-- [ ] Monitoring clavier Linux/macOS
-- [ ] Détection patterns comportementaux
-- [ ] Analyse sentiment utilisateur en temps réel
-
-#### Phase 3 : IA Réflexive Avancée
-- [ ] Réflexions multi-agents (+ autres extensions)
-- [ ] Apprentissage from reflection patterns
-- [ ] Personnalisation dynamique réflexions
-
-#### Phase 4 : Analytics
-- [ ] Dashboard insights réflexions
-- [ ] Export données pour analyse
-- [ ] API REST pour intégrations externes
+Le popup contient 3 onglets :
+- **Général** — switch ON/OFF, mode de déclenchement, phrases magiques actives
+- **Instructions** — édition directe des prompts des 4 étapes (Ouverture, IA Principale, Archiviste, Synthèse) avec tokens configurables et bouton "Restaurer défaut"
+- **Avancé** — échanges min/max, timeout, seuil similarité mémoire, sauvegarde automatique, affichage
 
 ---
 
-## 🐛 DÉPANNAGE
+## 🧠 Philosophie v4 : La Joute
 
-### Problèmes Courants
+L'architecture v4 abandonne le modèle Conscient/Inconscient pour une joute plus directe :
 
-#### Extension ne démarre pas
-```bash
-# Vérification dépendances OGMA
-python -c "from core_logic import MemoryManager; print('✅ MemoryManager OK')"
-
-# Log initialisation
-tail -f debug.log | grep COGNITIVE-MIRROR
-```
-
-#### Overlay ne s'affiche pas
-- Vérifier NiceGUI 1.4.0+ installé
-- Container UI fourni lors initialisation
-- Styles CSS chargés correctement
-
-#### Détection clavier ne fonctionne pas
-- Windows uniquement supporté actuellement
-- Permissions administrateur possiblement requises
-- Fallback detection messages uniquement
-
-### Logs de Debug
-
-```python
-# Activation debug détaillé
-import logging
-logging.getLogger('cognitive_mirror').setLevel(logging.DEBUG)
-
-# Statut en temps réel
-mirror = get_cognitive_mirror()
-print(json.dumps(mirror.get_status(), indent=2))
-```
+- L'**IA Principale** est honnête — elle ne fabrique pas de souvenirs. Si elle n'en a pas, elle le dit.
+- L'**Archiviste** confronte et challenge — il n'est pas là pour valider ni pour servir de base de données.
+- Les souvenirs FAISS sont injectés **automatiquement** à chaque tour selon le fil du dialogue — pas de paramètre à régler.
+- Le dialogue est **visible** — l'utilisateur peut lire toute la joute dans la boîte de réflexion.
+- La sauvegarde est **optionnelle et décidée par l'IA** — jamais automatique sauf si l'option est activée.
+- L'ego complet (406 flags) est injecté dans le **système prompt de l'Archiviste** pour détecter les contradictions d'identité.
 
 ---
 
-## 🎯 ROADMAP
+## 🔧 Intégration OGMA
 
-### v1.0.0 - Core MVP ✅
-- [x] Détection inactivité basique
-- [x] Sessions réflexives IA-Archiviste
-- [x] Overlay interface 30% hauteur
-- [x] Souvenirs "REF" avec intégration mémoire
-- [x] Configuration utilisateur complète
-
-### v1.1.0 - Optimisations
-- [ ] Performance monitoring clavier
-- [ ] Animations UI perfectionnées
-- [ ] Statistiques usage avancées
-- [ ] Export/import réflexions
-
-### v1.2.0 - Intelligence
-- [ ] Réflexions context-aware améliorées
-- [ ] Patterns utilisateur machine learning
-- [ ] Intégration autres extensions OGMA
-
-### v2.0.0 - Écosystème
-- [ ] API ouverte pour développeurs
-- [ ] Plugins réflexion tierces
-- [ ] Multi-agents réflexion collaborative
-
----
-
-## 📞 SUPPORT
-
-- **Documentation complète** : `EXTENSION_COGNITIVE_MIRROR_SPECS.md`
-- **Architecture OGMA** : `AUDIT_ARCHITECTURE_OGMA.md`
-- **Issues GitHub** : [URL_REPO]/issues
-- **Discord communauté** : [DISCORD_LINK]
-
----
-
-*Extension Cognitive Mirror v1.0.0*  
-*OGMA v2.0 - Révolution transparence cognitive*  
-*© 2025 OGMA Team - Innovation Open Source*
+L'extension est initialisée dans ``ogma_ng.py`` via ``_ensure_cognitive_mirror()``.
+Le déclenchement utilisateur est détecté par regex dans ``ogma_ng.py`` (avant appel API principal).
+Le déclenchement auto-IA est géré dans ``ogma_ui_conversations.py`` (après affichage réponse IA).
+Le bouton header est géré dans ``ogma_headers.py``.

@@ -1132,3 +1132,310 @@ Analyse technique:"""
         except Exception as e:
             print(f"[ENTRY-GENERATOR] ERREUR Erreur création manuelle: {e}")
             return f"ERREUR Erreur création d'entrée: {e}"
+    
+    # =========================================================================
+    # DÉTECTION AUTOMATIQUE D'ÉTATS ACTIFS (v2.0)
+    # =========================================================================
+    
+    async def detect_active_states(self, conversation_context: str, entry_id: str, json_manager) -> List[Dict[str, Any]]:
+        """
+        Analyse le contexte de conversation pour détecter automatiquement des états actifs
+        
+        Args:
+            conversation_context: Texte de la conversation à analyser
+            entry_id: ID de l'entrée journal liée
+            json_manager: Instance JSONManager pour sauvegarder les états
+        
+        Returns:
+            list: Liste des états détectés et créés
+        """
+        try:
+            if not self.config.get("enable_active_states", False):
+                return []
+            
+            print("[ENTRY-GENERATOR] 🔍 Détection états actifs...")
+            
+            # Prompt pour l'Archiviste spécialisé détection d'états
+            detection_prompt = f"""Tu es l'Archiviste d'OGMA. Analyse cette conversation et identifie les ÉTATS ACTIFS importants qui doivent être suivis dans le temps.
+
+Contexte conversation:
+{conversation_context[:2000]}
+
+ÉTATS ACTIFS à identifier:
+1. **Santé**: Problèmes médicaux, symptômes, traitements en cours
+2. **Projets**: Travaux en cours, objectifs, deadlines
+3. **Humeur**: États émotionnels significatifs prolongés
+4. **Apprentissage**: Formations, compétences en acquisition
+5. **Technique**: Bugs à corriger, features à implémenter
+6. **Personnel**: Situations personnelles importantes
+
+Format de réponse (JSON strict):
+{{
+  "états_détectés": [
+    {{
+      "category": "santé|projet|humeur|apprentissage|technique|personnel",
+      "description": "Description concise de l'état (max 100 chars)",
+      "importance": "low|medium|high",
+      "confidence": 0.0-1.0
+    }}
+  ]
+}}
+
+RÈGLES STRICTES:
+- NE détecte que les états ACTUELS et SIGNIFICATIFS
+- Pas d'états résolus ou passés
+- Pas d'états triviaux (conversations normales)
+- Minimum confidence: 0.6
+- Maximum: 3 états par conversation
+
+Réponds UNIQUEMENT avec le JSON, sans texte additionnel."""
+
+            # Appel Archiviste
+            response = await self._call_archiviste(detection_prompt)
+            if not response:
+                print("[ENTRY-GENERATOR] ⚠️ Archiviste n'a pas répondu (détection états)")
+                return []
+            
+            # Parse JSON
+            import json
+            
+            # Nettoyer la réponse (supprimer markdown code blocks si présents)
+            cleaned_response = response.strip()
+            if cleaned_response.startswith("```"):
+                # Supprimer ```json et ```
+                lines = cleaned_response.split('\n')
+                cleaned_response = '\n'.join(lines[1:-1] if len(lines) > 2 else lines)
+            
+            try:
+                detection_data = json.loads(cleaned_response)
+            except json.JSONDecodeError as e:
+                print(f"[ENTRY-GENERATOR] ⚠️ Erreur parsing JSON détection: {e}")
+                print(f"[ENTRY-GENERATOR] DEBUG Response: {response[:200]}")
+                return []
+            
+            états_détectés = detection_data.get("états_détectés", [])
+            
+            if not états_détectés:
+                print("[ENTRY-GENERATOR] ℹ️ Aucun état actif détecté")
+                return []
+            
+            # Filtrer et créer les états
+            created_states = []
+            
+            for état in états_détectés:
+                confidence = état.get("confidence", 0.0)
+                
+                # Filtre confidence minimum
+                if confidence < 0.6:
+                    print(f"[ENTRY-GENERATOR] SKIP État rejeté (confidence {confidence} < 0.6)")
+                    continue
+                
+                # Créer l'état via json_manager
+                success = json_manager.update_active_state(
+                    category=état.get("category", "général"),
+                    new_state={
+                        "description": état.get("description", ""),
+                        "importance": état.get("importance", "medium"),
+                        "source_entry_id": entry_id
+                    }
+                )
+                
+                if success:
+                    created_states.append(état)
+                    print(f"[ENTRY-GENERATOR] ✅ État créé: {état.get('category')} - {état.get('description')[:50]}")
+            
+            print(f"[ENTRY-GENERATOR] ✅ {len(created_states)} états actifs créés")
+            return created_states
+        
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERROR detect_active_states: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    async def generate_micro_entry(self, conversation_id: str, conversation_history: List[Dict], json_manager, **metadata) -> Optional[Dict[str, Any]]:
+        """
+        Génère une micro-entrée automatique (résumé minimal)
+        
+        Args:
+            conversation_id: ID conversation
+            conversation_history: Historique messages
+            json_manager: Instance JSONManager
+            **metadata: Métadonnées additionnelles
+        
+        Returns:
+            dict: Micro-entrée créée ou None
+        """
+        try:
+            if not self.config.get("auto_archive_enabled", False):
+                return None
+            
+            print("[ENTRY-GENERATOR] 🤏 Génération micro-entrée auto...")
+            
+            # Vérifier minimum de tokens pour archivage
+            min_tokens = self.config.get("auto_archive_min_tokens", 50)
+            
+            # Estimer tokens de la conversation
+            conversation_text = " ".join([msg.get("content", "") for msg in conversation_history])
+            token_count = self._estimate_tokens(conversation_text)
+            
+            if token_count < min_tokens:
+                print(f"[ENTRY-GENERATOR] SKIP Conversation trop courte ({token_count} < {min_tokens} tokens)")
+                return None
+            
+            # Détection continuation de conversation (window 2h)
+            window_hours = self.config.get("same_conversation_window_hours", 2)
+            
+            if self.config.get("update_same_conversation", True):
+                # Vérifier si continuation
+                last_entries = json_manager.search_entries(
+                    start_date=(datetime.now() - timedelta(hours=window_hours)).strftime("%Y-%m-%d"),
+                    end_date=datetime.now().strftime("%Y-%m-%d"),
+                    limit=10
+                )
+                
+                # Chercher entrée même conversation_id
+                for entry in last_entries:
+                    if entry.get("conversation_id") == conversation_id:
+                        # Continuation détectée - mettre à jour l'entrée existante
+                        print(f"[ENTRY-GENERATOR] 🔄 Continuation détectée - MAJ entrée {entry.get('entry_id')}")
+                        
+                        # Générer nouveau résumé fusionné
+                        updated_entry = await self._update_existing_entry(
+                            entry, 
+                            conversation_history, 
+                            json_manager
+                        )
+                        
+                        return updated_entry
+            
+            # Nouvelle micro-entrée
+            prompt = f"""Tu es l'Archiviste d'OGMA. Génère un MICRO-RÉSUMÉ ultra-concis de cette conversation.
+
+Conversation ({len(conversation_history)} messages):
+{conversation_text[:1500]}
+
+RÈGLES MICRO-RÉSUMÉ:
+- Maximum 50 tokens (environ 1-2 phrases)
+- Capte UNIQUEMENT l'essentiel
+- Ton factuel et neutre
+- Pas de détails superflus
+
+Micro-résumé:"""
+
+            summary_response = await self._call_archiviste(prompt)
+            
+            if not summary_response:
+                print("[ENTRY-GENERATOR] ⚠️ Échec génération micro-résumé")
+                return None
+            
+            # Construction micro-entrée
+            entry_id = str(uuid.uuid4())[:8]
+            
+            micro_entry = {
+                "id": entry_id,  # Champ obligatoire pour json_manager
+                "timestamp": datetime.now().isoformat(),
+                "conversation_id": conversation_id,
+                "summary": summary_response.strip(),
+                "tokens": token_count,  # Champ obligatoire
+                "tags": ["auto-archived"],
+                "importance": "low",
+                "category": "général",
+                "participants": metadata.get("participants", ["user", "assistant"]),
+                "message_count": len(conversation_history),
+                "token_estimate": token_count,
+                "auto_generated": True,  # FLAG v2.0
+                "reading_time_seconds": 10,
+                "metadata": {
+                    "auto_archive": True,
+                    "generation_timestamp": datetime.now().isoformat()
+                }
+            }
+            
+            # Sauvegarde
+            success = json_manager.save_entry(micro_entry)
+            
+            if success:
+                print(f"[ENTRY-GENERATOR] ✅ Micro-entrée créée: {entry_id}")
+                
+                # Détection états actifs
+                if self.config.get("enable_active_states", False):
+                    await self.detect_active_states(
+                        conversation_context=conversation_text,
+                        entry_id=entry_id,
+                        json_manager=json_manager
+                    )
+                
+                return micro_entry
+            else:
+                print("[ENTRY-GENERATOR] ❌ Échec sauvegarde micro-entrée")
+                return None
+        
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERROR generate_micro_entry: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    async def _update_existing_entry(self, existing_entry: Dict, new_messages: List[Dict], json_manager) -> Optional[Dict]:
+        """
+        Met à jour une entrée existante avec nouveaux messages (continuation conversation)
+        
+        Args:
+            existing_entry: Entrée journal existante
+            new_messages: Nouveaux messages à intégrer
+            json_manager: Instance JSONManager
+        
+        Returns:
+            dict: Entrée mise à jour ou None
+        """
+        try:
+            print(f"[ENTRY-GENERATOR] 🔄 MAJ entrée existante {existing_entry.get('entry_id')}")
+            
+            # Fusion résumés
+            old_summary = existing_entry.get("summary", "")
+            new_context = " ".join([msg.get("content", "") for msg in new_messages])
+            
+            update_prompt = f"""Tu es l'Archiviste d'OGMA. Mets à jour ce résumé avec les nouveaux messages.
+
+RÉSUMÉ EXISTANT:
+{old_summary}
+
+NOUVEAUX MESSAGES:
+{new_context[:1000]}
+
+RÈGLES MAJ:
+- Fusionne intelligemment les informations
+- Garde la concision (max 100 tokens)
+- Préserve les infos importantes de l'ancien résumé
+- Intègre naturellement les nouvelles infos
+
+Résumé mis à jour:"""
+
+            updated_summary = await self._call_archiviste(update_prompt)
+            
+            if not updated_summary:
+                print("[ENTRY-GENERATOR] ⚠️ Échec MAJ résumé")
+                return None
+            
+            # Mise à jour entrée
+            existing_entry["summary"] = updated_summary.strip()
+            existing_entry["message_count"] = existing_entry.get("message_count", 0) + len(new_messages)
+            existing_entry["metadata"]["last_update"] = datetime.now().isoformat()
+            existing_entry["metadata"]["update_count"] = existing_entry["metadata"].get("update_count", 0) + 1
+            
+            # Sauvegarde (remplacer l'ancienne)
+            # TODO: json_manager.update_entry() method
+            # Pour l'instant on resauve avec même entry_id
+            success = json_manager.save_entry(existing_entry)
+            
+            if success:
+                print(f"[ENTRY-GENERATOR] ✅ Entrée {existing_entry.get('entry_id')} mise à jour")
+                return existing_entry
+            else:
+                print("[ENTRY-GENERATOR] ❌ Échec sauvegarde MAJ")
+                return None
+        
+        except Exception as e:
+            print(f"[ENTRY-GENERATOR] ERROR _update_existing_entry: {e}")
+            return None

@@ -102,9 +102,9 @@ def parse_thinking_format(content: str) -> Tuple[str, str]:
 
 def parse_introspection_format(content: str) -> Tuple[str, str]:
     """
-    Parse le format introspection pour les dialogues Subconscience Luna-Archiviste.
+    Parse le format introspection pour les dialogues Subconscience IA-Archiviste.
     
-    Format attendu: "<introspection>dialogue Luna-Archiviste</introspection>"
+    Format attendu: "<introspection>dialogue IA-Archiviste</introspection>"
     
     Args:
         content: Contenu complet du message avec balises introspection

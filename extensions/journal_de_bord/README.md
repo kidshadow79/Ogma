@@ -314,6 +314,397 @@ Navigation vers date/entrée
 ---
 
 **Auteur** : Équipe OGMA  
-**Version** : 1.0.0  
+**Version** : 2.0.0 (avec Option C - Maintenance Automatique)  
 **Licence** : MIT  
 **Contact** : Voir documentation principale OGMA
+
+---
+
+## 🧹 **Option C - Système de Purge et Auto-Résolution** (v2.0)
+
+### **Vue d'ensemble**
+
+L'Option C introduit un système de maintenance automatique pour gérer la croissance organique du journal et des états actifs. Elle permet de :
+- **Compresser** les entrées anciennes via résumé LLM
+- **Archiver** les entrées dans FAISS pour recherche sémantique
+- **Auto-résoudre** les états actifs inactifs avec validation intelligente
+- **Planifier** la maintenance hebdomadaire automatique
+
+---
+
+### **Composants Principaux**
+
+#### **1. PurgeManager (`purge_manager.py`)**
+
+Gestionnaire de compression et archivage des entrées anciennes.
+
+**Fonctionnalités** :
+- Détection entrées éligibles selon âge (défaut: 90+ jours)
+- Compression via résumé LLM (Archiviste) - cible ~500 caractères
+- Transfert vers FAISS avec métadonnées structurées
+- Backup automatique avant toute modification
+- Restauration possible des entrées compressées
+
+**Utilisation programmatique** :
+```python
+from extensions.journal_de_bord.purge_manager import initialize_purge_manager
+
+# Initialisation
+purge_mgr = initialize_purge_manager(
+    json_manager=json_manager,
+    memory_manager=memory_manager,
+    archiviste_controller=archiviste
+)
+
+# Détection entrées purgeable
+purgeable = purge_mgr.get_purgeable_entries(
+    age_days=90,
+    exclude_active_states=True
+)
+
+# Purge avec compression
+stats = purge_mgr.purge_old_entries(
+    age_days=90,
+    mode="compress",  # ou "archive" pour + FAISS
+    dry_run=False
+)
+# Résultat: {total: 45, compressed: 42, archived: 0, failed: 3}
+
+# Restauration si nécessaire
+success, msg = purge_mgr.restore_compressed_entry(entry_id=150)
+```
+
+**Modes de purge** :
+- `compress` : Résumé LLM uniquement (économie espace disque)
+- `archive` : Résumé + transfert FAISS (recherche sémantique conservée)
+
+---
+
+#### **2. Auto-Resolution (`auto_resolution.py`)**
+
+Système de résolution automatique des états actifs obsolètes.
+
+**Critères de détection** :
+- Inactivité > seuil (défaut: 30 jours)
+- État non résolu (`resolved: false`)
+- Importance != `high` (par défaut, configurable)
+
+**Validation LLM** :
+L'Archiviste analyse chaque état inactif avant résolution :
+```json
+{
+  "should_resolve": true,
+  "reason": "Aucune mise à jour depuis 45 jours. Historique suggère résolution naturelle."
+}
+```
+
+**Utilisation** :
+```python
+from extensions.journal_de_bord.auto_resolution import (
+    detect_inactive_states,
+    auto_resolve_states
+)
+
+# Détection
+inactive = detect_inactive_states(
+    json_manager=json_manager,
+    threshold_days=30,
+    exclude_high_importance=True
+)
+
+# Auto-résolution avec validation
+stats = auto_resolve_states(
+    json_manager=json_manager,
+    archiviste_controller=archiviste,
+    threshold_days=30,
+    dry_run=False,
+    require_llm_validation=True
+)
+# Résultat: {total: 8, validated: 6, resolved: 5, rejected: 1, failed: 2}
+```
+
+---
+
+#### **3. Scheduler (`scheduler.py`)**
+
+Planificateur de maintenance hebdomadaire avec `threading.Timer`.
+
+**Configuration** (`journal_settings.json`) :
+```json
+{
+  "maintenance": {
+    "auto_purge_enabled": false,
+    "purge_age_days": 90,
+    "purge_mode": "compress",
+    "auto_resolve_enabled": false,
+    "resolve_threshold_days": 30,
+    "require_llm_validation": true,
+    "maintenance_interval_days": 7,
+    "last_maintenance": "2025-12-21T02:00:00Z"
+  }
+}
+```
+
+**Utilisation** :
+```python
+from extensions.journal_de_bord.scheduler import initialize_scheduler
+
+# Initialisation
+scheduler = initialize_scheduler(
+    json_manager=json_manager,
+    purge_manager=purge_manager,
+    archiviste_controller=archiviste,
+    settings_path=Path("data/journal_settings.json"),
+    auto_start=True  # Démarre automatiquement
+)
+
+# Exécution manuelle immédiate
+stats = scheduler.run_maintenance_now(dry_run=False)
+
+# Modification config
+scheduler.update_config(
+    auto_purge_enabled=True,
+    purge_age_days=120,
+    auto_resolve_enabled=True
+)
+```
+
+**Job hebdomadaire automatique** :
+1. Détection et résolution états inactifs (si activé)
+2. Compression/archivage entrées anciennes (si activé)
+3. Logs détaillés et statistiques
+4. Reprogrammation automatique
+
+---
+
+### **Interface Utilisateur - Modal Maintenance**
+
+Accessible via bouton **🧹 Maintenance** dans le modal Journal principal.
+
+#### **Onglet 1 : Purge Manuelle**
+- **Configuration** : Âge minimum, mode (compress/archive), exclusion états actifs
+- **Preview** : Liste entrées détectées avec statistiques (nombre, taille, déjà compressées)
+- **Action** : Lancement purge avec confirmation
+- **Résultats** : Stats temps réel (X compressées, Y archivées)
+
+#### **Onglet 2 : Auto-Résolution**
+- **Configuration** : Seuil inactivité, exclusion HIGH, validation LLM
+- **Détection** : Liste états inactifs avec détails (catégorie, jours inactivité)
+- **Action** : Auto-résolution avec preview
+- **Résultats** : États résolus vs rejetés par LLM
+
+#### **Onglet 3 : Configuration Scheduler**
+- **Statut** : Actif/Inactif, dernière maintenance
+- **Paramètres** : Enable/disable purge et auto-résolution, seuils, intervalle
+- **Actions** : 
+  - Sauvegarder configuration
+  - Toggle scheduler (start/stop)
+  - Exécuter maintenance immédiatement
+
+---
+
+### **Migration et Activation**
+
+#### **Première Activation - Checklist**
+
+**⚠️ AVANT TOUTE ACTIVATION :**
+
+1. **Backup manuel complet** :
+   ```bash
+   # Sauvegarder le dossier journal
+   cp -r extensions/journal_de_bord/data/ backups/journal_backup_$(date +%Y%m%d)/
+   ```
+
+2. **Vérifier dépendances** :
+   - Archiviste configuré et fonctionnel
+   - MemoryManager FAISS disponible (pour mode `archive`)
+   - Espace disque suffisant (backups ~20% taille données)
+
+3. **Test en mode dry_run** :
+   ```python
+   # Via UI ou code
+   stats = purge_manager.purge_old_entries(age_days=90, dry_run=True)
+   print(f"Preview: {stats['total']} entrées seraient traitées")
+   ```
+
+4. **Configuration recommandée initiale** :
+   ```json
+   {
+     "maintenance": {
+       "auto_purge_enabled": false,        // Désactivé par défaut
+       "purge_age_days": 120,              // Conservateur (4 mois)
+       "purge_mode": "compress",           // Sans FAISS initialement
+       "auto_resolve_enabled": false,      // Désactivé par défaut
+       "resolve_threshold_days": 45,       // Conservateur (1.5 mois)
+       "require_llm_validation": true,     // Toujours activé
+       "maintenance_interval_days": 7
+     }
+   }
+   ```
+
+5. **Activation progressive** :
+   - Semaine 1 : Purge manuelle uniquement (via UI)
+   - Semaine 2 : Auto-résolution manuelle
+   - Semaine 3+ : Activation scheduler si satisfait
+
+---
+
+### **Seuils Recommandés par Profil**
+
+#### **Utilisateur Occasionnel** (5-10 entrées/mois)
+```json
+{
+  "purge_age_days": 180,           // 6 mois
+  "resolve_threshold_days": 60,    // 2 mois
+  "maintenance_interval_days": 14  // Bi-mensuel
+}
+```
+
+#### **Utilisateur Régulier** (20-40 entrées/mois - Yohan)
+```json
+{
+  "purge_age_days": 90,            // 3 mois (défaut)
+  "resolve_threshold_days": 30,    // 1 mois
+  "maintenance_interval_days": 7   // Hebdomadaire
+}
+```
+
+#### **Utilisateur Intensif** (100+ entrées/mois)
+```json
+{
+  "purge_age_days": 60,            // 2 mois
+  "resolve_threshold_days": 21,    // 3 semaines
+  "maintenance_interval_days": 3   // Tous les 3 jours
+}
+```
+
+---
+
+### **Sécurité et Récupération**
+
+#### **Backups Automatiques**
+
+Chaque opération critique crée un backup :
+- **Emplacement** : `data/purge_backups/`
+- **Format** : `entry_{id}_{type}_{timestamp}.json`
+- **Rotation** : Conservation 10 derniers backups par défaut
+
+#### **Restauration d'Urgence**
+
+**Restaurer une entrée compressée** :
+```python
+# Via UI : Bouton "Restaurer" sur entrée compressée
+# OU programmatique :
+success, msg = purge_manager.restore_compressed_entry(entry_id=150)
+```
+
+**Restaurer depuis backup** :
+```bash
+# Copier backup vers emplacement original
+cp data/purge_backups/entry_150_pre_compression_20251228.json \
+   data/2024/09/2024-09-15.json
+```
+
+**Rollback complet** :
+```bash
+# Restaurer backup complet pré-activation
+rm -rf extensions/journal_de_bord/data/
+cp -r backups/journal_backup_20251228/ extensions/journal_de_bord/data/
+```
+
+---
+
+### **Monitoring et Logs**
+
+#### **Logs Console**
+
+Tous les événements sont loggés :
+```
+[PURGE-MANAGER] Recherche entrées >90j
+[PURGE-MANAGER] ✅ Trouvé 45 entrées purgeable
+[PURGE-MANAGER] 🗜️ Compression entrée #150
+[PURGE-MANAGER] ✅ Compression réussie : 2500→480 chars (ratio: 0.19)
+[PURGE-MANAGER] 📦 Transfert FAISS entrée #150
+[PURGE-MANAGER] ✅ Transfert FAISS réussi
+
+[AUTO-RESOLVE] Détection états inactifs >30j
+[AUTO-RESOLVE] ✅ Détecté 8 états inactifs
+[AUTO-RESOLVE] LLM Validation #3: True - État obsolète, pas de mise à jour récente
+[AUTO-RESOLVE] ✅ État #3 résolu: Apprentissage Python (inactif 45j)
+
+[SCHEDULER] 🧹 MAINTENANCE HEBDOMADAIRE - 28/12/2025 02:00
+[SCHEDULER] ✅ Auto-résolution: 5 résolus, 2 rejetés
+[SCHEDULER] ✅ Purge: 42 compressées, 0 archivées
+[SCHEDULER] 🎉 MAINTENANCE TERMINÉE
+```
+
+#### **Statistiques UI**
+
+Chaque opération affiche stats temps réel :
+- Nombre entrées traitées
+- Ratio compression moyen
+- Erreurs rencontrées
+- Temps exécution
+
+---
+
+### **FAQ - Option C**
+
+**Q: La compression est-elle réversible ?**  
+R: Oui, si `content_original` est conservé. La méthode `restore_compressed_entry()` restaure le contenu complet.
+
+**Q: Que se passe-t-il si l'Archiviste échoue ?**  
+R: L'entrée reste non compressée. Un log d'erreur est créé. Aucune perte de données.
+
+**Q: Les états actifs peuvent-ils être auto-résolus sans validation LLM ?**  
+R: Oui, mais **fortement déconseillé**. Mettez `require_llm_validation: false` à vos risques.
+
+**Q: Quelle est la taille d'un backup type ?**  
+R: ~5-20 KB par entrée. Pour 100 entrées, attendez-vous à ~1-2 MB de backups.
+
+**Q: Puis-je désactiver complètement l'Option C ?**  
+R: Oui. Mettez `auto_purge_enabled: false` et `auto_resolve_enabled: false`. Le scheduler ne fera rien.
+
+**Q: Les entrées archivées dans FAISS sont-elles encore lisibles ?**  
+R: Partiellement. Le résumé compressé est stocké. Pour détails complets, restaurez depuis backup.
+
+**Q: Combien d'espace disque est économisé ?**  
+R: Typiquement 60-80% de réduction sur entrées compressées (selon verbosité originale).
+
+---
+
+### **Troubleshooting Option C**
+
+| Problème | Cause Probable | Solution |
+|----------|----------------|----------|
+| "Archiviste non disponible" | Contrôleur non initialisé | Vérifier config `archiviste_controller` dans `__init__.py` |
+| "PurgeManager non disponible" | Module non chargé | Vérifier import dans `__init__.py` : `from .purge_manager import initialize_purge_manager` |
+| Compression échoue silencieusement | LLM timeout ou erreur | Vérifier logs Archiviste. Augmenter timeout si nécessaire |
+| Scheduler ne démarre pas | Config maintenance désactivée | Activer `auto_purge_enabled` OU `auto_resolve_enabled` |
+| Backups manquants | Permission écriture | Vérifier droits dossier `data/purge_backups/` |
+| FAISS unavailable | MemoryManager non initialisé | Utiliser mode `compress` uniquement ou initialiser MemoryManager |
+
+---
+
+### **Roadmap Option C**
+
+**v2.1 - Améliorations** (Q1 2026) :
+- [ ] Compression différentielle (delta encoding)
+- [ ] Export entrées compressées en Markdown
+- [ ] Statistiques détaillées (dashboard analytics)
+- [ ] Purge sélective par catégorie
+
+**v2.2 - Intelligence** (Q2 2026) :
+- [ ] Détection patterns récurrents (états qui reviennent)
+- [ ] Suggestions proactives de résolution
+- [ ] Apprentissage seuils optimaux par utilisateur
+- [ ] Prédiction croissance données
+
+**v3.0 - Cloud** (Q3 2026) :
+- [ ] Synchronisation backups cloud optionnelle
+- [ ] Compression cloud-native (S3/GCS)
+- [ ] Multi-device avec conflict resolution
+
+---
+
+**Note importante** : L'Option C est un système puissant mais **opt-in**. Par défaut, tout est désactivé pour éviter modifications inattendues. Activez progressivement après familiarisation.

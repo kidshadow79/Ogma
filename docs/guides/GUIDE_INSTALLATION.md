@@ -16,19 +16,19 @@ git clone <repository-url>
 cd OGMA
 
 # Installer toutes les dépendances
-pip install -r requirements-complete.txt
+pip install -r requirements.txt
 
 # Lancer OGMA
-python ogma_ng.py
+python launch_ogma.py
 ```
 
 ### Option 2: Installation Minimale
 ```bash
 # Installer les dépendances essentielles uniquement
-pip install -r requirements-minimal.txt
+pip install -r requirements/requirements-minimal.txt
 
 # Lancer OGMA
-python ogma_ng.py
+python launch_ogma.py
 ```
 
 ## 🔧 Configuration

@@ -15,6 +15,8 @@ def main():
     # Forcer l'encodage UTF-8 sur Windows
     if sys.platform.startswith('win'):
         os.environ['PYTHONIOENCODING'] = 'utf-8'
+        # Fix pour erreur "forrtl: error (200)" avec NumPy/PyTorch (Intel MKL) lors du Ctrl+C
+        os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
     
     # Vérification des dépendances critiques
     try:

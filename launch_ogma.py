@@ -43,6 +43,8 @@ def setup_environment():
     # Forcer l'encodage UTF-8 sur Windows
     if sys.platform.startswith('win'):
         os.environ['PYTHONIOENCODING'] = 'utf-8'
+        # Fix pour erreur "forrtl: error (200)" avec NumPy/PyTorch (Intel MKL) lors du Ctrl+C
+        os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
     
     # Charger le fichier .env si disponible
     env_file = Path(".env")
@@ -75,7 +77,6 @@ def create_directories():
         Path("data/memory"),
         Path("data/memory/backup"),
         Path("data/uploads"),
-        Path("data/ego_archive"),
         Path("models"),
         Path("static")
     ]
@@ -113,9 +114,9 @@ def main():
     print("OGMA - IA Conversationnelle avec Memoire")
     print("=" * 50)
     
-    # Vérifications pré-lancement
-    check_dependencies()
+    # Encodage d'abord, avant tout print avec emojis
     setup_environment()
+    check_dependencies()
     create_directories()
     
     if not check_backend_files():

@@ -1,0 +1,12 @@
+{
+  "filters": {
+    "archiviste": true,
+    "biography": true,
+    "dream": true,
+    "journal": true,
+    "directive": true,
+    "web": true,
+    "capability": true
+  },
+  "level": 3
+}

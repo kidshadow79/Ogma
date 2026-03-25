@@ -24,6 +24,7 @@ class TemporalGuardianConfig:
         # Métriques
         self.track_average_delays = True
         self.session_timeout_minutes = 30  # Nouvelle session après 30min inactivité
+        self.enrichment_threshold_seconds = 30  # Seuil délai pour enrichissement (secondes)
     
     def get_prompt_enrichment_template(self) -> str:
         """Retourne le template pour enrichir le prompt archiviste."""
@@ -54,7 +55,8 @@ CONTEXTE TEMPOREL DÉTAILLÉ:
             "enrich_archiviste_prompt": self.enrich_archiviste_prompt,
             "temporal_context_format": self.temporal_context_format,
             "track_average_delays": self.track_average_delays,
-            "session_timeout_minutes": self.session_timeout_minutes
+            "session_timeout_minutes": self.session_timeout_minutes,
+            "enrichment_threshold_seconds": self.enrichment_threshold_seconds
         }
     
     @classmethod

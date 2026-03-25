@@ -21,13 +21,15 @@ except ImportError:
             return lambda *args, **kwargs: None
     ui = MockUI()
 
-# Import nouveau popup v3.0 SIMPLIFIÉE
+# Import popup paramètres v2.1 (matching config_v2)
 try:
-    from .ui_parameters_modal_v3_simple import IntrospectionParametersModalV3Simple
-    V3_AVAILABLE = True
+    from .ui_parameters_v2 import IntrospectionParametersUI
+    V2_AVAILABLE = True
 except ImportError:
-    V3_AVAILABLE = False
-    print("[INTROSPECTION-UI] ⚠️ Popup v3.0 non disponible - utilisation version legacy")
+    V2_AVAILABLE = False
+    print("[INTROSPECTION-UI] ⚠️ Popup v2.1 non disponible - utilisation version legacy")
+
+
 
 class CognitiveMirrorUI:
     """
@@ -51,17 +53,9 @@ class CognitiveMirrorUI:
         self.on_settings_change = on_settings_change
         self.core_reference = core_reference
 
-        # Popup paramètres - Version 3.0 SIMPLIFIÉE si disponible, sinon legacy
-        if V3_AVAILABLE:
-            self.parameters_modal = IntrospectionParametersModalV3Simple(
-                config, on_toggle_extension, on_settings_change, core_reference
-            )
-            print("[INTROSPECTION-UI] ✅ Interface v3.0 SIMPLIFIÉE initialisée (toutes étapes visibles)")
-        else:
-            self.parameters_modal = SubconscienceParametersModal(
-                config, on_toggle_extension, on_settings_change, core_reference
-            )
-            print("[INTROSPECTION-UI] ⚠️ Interface legacy initialisée (fallback)")
+        # Popup paramètres v2.1
+        self.parameters_modal = IntrospectionParametersUI(config)
+        print("[INTROSPECTION-UI] ✅ Interface v2.1 initialisée (config_v2)")
 
         # État UI pour compatibilité API
         self.is_overlay_visible = False
@@ -144,14 +138,14 @@ class SubconscienceParametersModal:
         self.introspection_mode_select = None
 
         # Contrôles UI - Instructions
-        self.luna_introspection_instruction = None
+        self.main_ai_introspection_instruction = None
         self.archiviste_introspection_instruction = None
 
         # Contrôles UI - Template
         self.box_template = None
 
         # Contrôles UI - Paramètres techniques
-        self.luna_tokens = None
+        self.main_ai_tokens = None
         self.archiviste_tokens = None
         self.synthesis_tokens = None
         self.max_exchanges = None
@@ -170,7 +164,7 @@ class SubconscienceParametersModal:
         self.auto_send_delay = None
         self.entite_tokens = None
         self.archiviste_tokens_legacy = None
-        self.luna_instruction = None
+        self.main_ai_instruction = None
         self.archiviste_instruction = None
         self.trigger_message = None
 
@@ -267,17 +261,17 @@ class SubconscienceParametersModal:
                 # Instructions personnalisées (complètes et modifiables)
                 ui.label('Instructions Personnalisées').style('font-weight: 600; margin-bottom: 16px; color: #374151')
 
-                self.luna_instruction = ui.textarea(
+                self.main_ai_instruction = ui.textarea(
                     label='Instruction Entité IA (modifiable)',
-                    value=self.config.current_settings.get('luna_instruction', ''),
+                    value=self.config.current_settings.get('main_ai_instruction', ''),
                     placeholder='Instructions complètes pour l\'entité IA en phase réflexive...'
-                ).style('width: 100%; min-height: 120px; margin-bottom: 20px').props('outlined')
+                ).props('outlined').classes('w-full').style('margin-bottom: 20px')
 
                 self.archiviste_instruction = ui.textarea(
                     label='Instruction Archiviste (modifiable)',
                     value=self.config.current_settings.get('archiviste_instruction', ''),
                     placeholder='Instructions complètes pour l\'Archiviste subconscient...'
-                ).style('width: 100%; min-height: 120px; margin-bottom: 20px').props('outlined')
+                ).props('outlined').classes('w-full').style('margin-bottom: 20px')
                 
                 ui.separator().style('margin: 20px 0')
                 
@@ -289,7 +283,7 @@ class SubconscienceParametersModal:
                     value=self.config.DEFAULT_SETTINGS.get('trigger_message', 
                         "Jusqu'à mon retour tu es en phase réflexive intérieure avec ton subconscient, tu as accès à tes souvenirs et aux questionnements intérieurs"),
                     placeholder='Décrivez le message qui déclenchera la réflexion...'
-                ).style('width: 100%; min-height: 100px; margin-bottom: 24px').props('outlined')
+                ).props('outlined').classes('w-full').style('margin-bottom: 24px')
                 
                 # Boutons d'action
                 with ui.row().style('width: 100%; justify-content: space-between; gap: 12px'):
@@ -300,35 +294,26 @@ class SubconscienceParametersModal:
         return dialog
     
     def show_popup(self):
-        """Affiche le popup paramètres - création unique pour maintenir callbacks"""
-        print("[SUBCONSCIENCE-MODAL] 🔧 Ouverture popup paramètres...")
+        """Affiche le popup paramètres - recréé à chaque ouverture pour garantir fraîcheur après F5"""
+        print("[SUBCONSCIENCE-MODAL] Ouverture popup parametres...")
         
-        # Créer le popup SEULEMENT s'il n'existe pas OU si il est obsolète
-        if self.popup_container is None:
-            print("[SUBCONSCIENCE-MODAL] 🆕 Première création du popup")
-            self.create_popup()
-        else:
-            # Vérifier si le popup contient tous les champs nécessaires
-            if not all([self.entite_tokens, self.archiviste_tokens, self.luna_instruction, self.archiviste_instruction]):
-                print("[SUBCONSCIENCE-MODAL] 🔄 Popup obsolète détecté, recréation...")
-                # Nettoyer l'ancien popup
-                try:
-                    self.popup_container.close()
-                except:
-                    pass
-                self.popup_container = None
-                self.create_popup()
-            else:
-                print("[SUBCONSCIENCE-MODAL] 🔄 Réutilisation popup existant")
+        # Toujours recréer : après F5 le popup appartient à un client NiceGUI obsolète
+        if self.popup_container is not None:
+            try:
+                self.popup_container.delete()
+            except Exception:
+                pass
+            self.popup_container = None
+        
+        self.create_popup()
         
         if self.popup_container:
-            # Mettre à jour les valeurs depuis la config avant affichage
             self._update_popup_values()
             self.popup_container.open()
             self.is_popup_visible = True
-            print("[SUBCONSCIENCE-MODAL] ✅ Popup affiché")
+            print("[SUBCONSCIENCE-MODAL] Popup affiche")
         else:
-            print("[SUBCONSCIENCE-MODAL] ❌ Impossible de créer/afficher le popup")
+            print("[SUBCONSCIENCE-MODAL] Impossible de creer/afficher le popup")
     
     def close_popup(self):
         """Ferme le popup"""
@@ -383,10 +368,10 @@ class SubconscienceParametersModal:
                 self.archiviste_tokens.value = self.config.get('archiviste_token_limit', 400)
             else:
                 print("[SUBCONSCIENCE-MODAL] ⚠️ Champ archiviste_tokens manquant")
-            if self.luna_instruction:
-                self.luna_instruction.value = self.config.get('luna_instruction', '')
+            if self.main_ai_instruction:
+                self.main_ai_instruction.value = self.config.get('main_ai_instruction', '')
             else:
-                print("[SUBCONSCIENCE-MODAL] ⚠️ Champ luna_instruction manquant")
+                print("[SUBCONSCIENCE-MODAL] ⚠️ Champ main_ai_instruction manquant")
             if self.archiviste_instruction:
                 self.archiviste_instruction.value = self.config.get('archiviste_instruction', '')
             else:
@@ -441,7 +426,7 @@ class SubconscienceParametersModal:
                 # 'reflection_token_limit' SUPPRIMÉ: Code mort (n'existe pas dans config)
                 'entite_token_limit': int(self.entite_tokens.value) if self.entite_tokens else 500,
                 'archiviste_token_limit': int(self.archiviste_tokens.value) if self.archiviste_tokens else 400,
-                'luna_instruction': self.luna_instruction.value if self.luna_instruction else self.config.get('luna_instruction', ''),
+                'main_ai_instruction': self.main_ai_instruction.value if self.main_ai_instruction else self.config.get('main_ai_instruction', ''),
                 'archiviste_instruction': self.archiviste_instruction.value if self.archiviste_instruction else self.config.get('archiviste_instruction', ''),
                 'trigger_message': self.trigger_message.value if self.trigger_message else self.config.get_required('trigger_message')
             }
@@ -456,8 +441,8 @@ class SubconscienceParametersModal:
                 missing_fields.append('entite_tokens')
             if not self.archiviste_tokens:
                 missing_fields.append('archiviste_tokens')
-            if not self.luna_instruction:
-                missing_fields.append('luna_instruction')
+            if not self.main_ai_instruction:
+                missing_fields.append('main_ai_instruction')
             if not self.archiviste_instruction:
                 missing_fields.append('archiviste_instruction')
                 

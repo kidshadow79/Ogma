@@ -27,11 +27,15 @@ class PerceptionUI:
         self.current_config = {
             'webcam_index': 0,
             'capture_resolution': '640x480',
+            'use_native_resolution': False,  # Utiliser résolution native de la source (pas de resize)
             'jpeg_quality': 85,
             'display_fps': 15,  # FPS affichage stream
             # Paramètres stream optimisé
             'stream_quality': 75,  # Qualité JPEG stream (70-85% optimal)
             'surgical_mode': False,  # Mode Chirurgical: haute précision captures
+            # Paramètres Vision Avancée
+            'enable_depth': True,    # Activer Depth Anything V2
+            'enable_sam': False,     # Activer SAM 2 (Segment Anything)
             # Paramètres capture
             'capture_delay': 0.0,  # Délai avant capture (simple ou 1ère image chrono)
             'save_captures': False,  # Sauvegarder captures simples
@@ -260,20 +264,38 @@ class PerceptionUI:
             return False
 
     def detect_available_cameras(self) -> Dict[int, str]:
-        """Détecte les caméras disponibles"""
+        """Détecte les caméras disponibles avec backends multiples"""
         available_cameras = {}
 
-        for i in range(10):  # Tester jusqu'à 10 caméras
+        # Tester avec DSHOW (DirectShow - Windows par défaut)
+        for i in range(10):
             try:
-                cap = cv2.VideoCapture(i)
+                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
                 if cap.isOpened():
                     ret, _ = cap.read()
                     if ret:
                         available_cameras[i] = f"Caméra {i}"
-                        print(f"[PERCEPTION-UI] ✅ Caméra {i} détectée")
+                        print(f"[PERCEPTION-UI] ✅ Caméra {i} détectée (DSHOW)")
                 cap.release()
             except:
                 pass
+        
+        # Si peu de caméras trouvées, essayer MSMF (Media Foundation)
+        # OBS Virtual Camera peut être visible uniquement en MSMF
+        if len(available_cameras) < 3:
+            print("[PERCEPTION-UI] 🔄 Tentative détection MSMF (OBS Virtual Camera)...")
+            for i in range(10):
+                if i not in available_cameras:
+                    try:
+                        cap = cv2.VideoCapture(i, cv2.CAP_MSMF)
+                        if cap.isOpened():
+                            ret, _ = cap.read()
+                            if ret:
+                                available_cameras[i] = f"Caméra {i} (MSMF)"
+                                print(f"[PERCEPTION-UI] ✅ Caméra {i} détectée (MSMF)")
+                        cap.release()
+                    except:
+                        pass
 
         print(f"[PERCEPTION-UI] 📹 {len(available_cameras)} caméra(s) détectée(s)")
         return available_cameras

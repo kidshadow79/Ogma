@@ -9,6 +9,22 @@ data/uploads/
 data/ego_prompt.txt
 data/ego_prompt_synthesized.json
 
+# Fichiers générés à l'exécution (données personnelles)
+data/journal_reves.md
+data/journal_reves.json
+data/persistent_context.txt
+data/biographies/
+data/generated_images/
+data/backups/
+data/ego_compiled.json
+extensions/journal_de_bord/data/
+
+# Profils sauvegardés (données personnelles)
+profils_sauvegardes/*/data/
+
+# Backups racine
+backups/
+
 # ========================================
 # CONFIGURATION SENSIBLE (clés API)
 # ========================================
@@ -59,3 +75,8 @@ logs/
 test_output/
 debug_*.txt
 benchmark_*.json
+
+# Python virtual environment
+.venv/
+venv/
+env/

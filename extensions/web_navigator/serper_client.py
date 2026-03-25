@@ -20,14 +20,15 @@ class SerperClient:
         self.config = config
         self.last_request_time = 0
         
-        # Headers pour requêtes Serper
-        self.headers = {
+        print("[SERPER-CLIENT] Client Serper initialise avec scraping intelligent")
+    
+    def _get_headers(self) -> dict:
+        """Construit les headers a chaque requete (clé API peut changer a chaud)"""
+        return {
             'X-API-KEY': self.config.get_serper_api_key(),
             'Content-Type': 'application/json',
             'User-Agent': 'OGMA-WebNavigator-Serper/1.0'
         }
-        
-        print("[SERPER-CLIENT] 🌐 Client Serper initialisé avec scraping intelligent")
     
     def _respect_rate_limit(self):
         """Respecte le délai entre requêtes"""
@@ -55,7 +56,7 @@ class SerperClient:
         try:
             response = requests.post(
                 url,
-                headers=self.headers,
+                headers=self._get_headers(),
                 json=payload,
                 timeout=self.config.get_request_timeout()
             )

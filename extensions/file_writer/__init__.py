@@ -8,7 +8,7 @@ et de les sauvegarder automatiquement dans data/uploads/.
 
 FONCTIONNALITÉS:
 - Détection automatique demandes création .md
-- Extraction blocs markdown depuis réponses Luna
+- Extraction blocs markdown depuis réponses IA principale
 - Sauvegarde avec titre document comme nom fichier
 - Notification simple utilisateur
 
@@ -112,6 +112,23 @@ def get_file_writer():
     return _file_writer_agent
 
 
+def detect_request(user_message: str) -> bool:
+    """
+    Détecte si le message utilisateur demande création fichier .md.
+    Utile pour notifications pré-traitement.
+    
+    Args:
+        user_message: Message utilisateur
+        
+    Returns:
+        True si demande détectée, False sinon
+    """
+    if _file_writer_agent is None:
+        return False
+    
+    return _file_writer_agent.is_file_request(user_message)
+
+
 def process_response(user_message: str, ai_response: str) -> str:
     """
     Interface publique pour traiter paire user_message/ai_response.
@@ -161,6 +178,7 @@ __all__ = [
     'initialize_file_writer',
     'is_available',
     'get_file_writer',
+    'detect_request',
     'process_response',
     'get_statistics',
     'cleanup'

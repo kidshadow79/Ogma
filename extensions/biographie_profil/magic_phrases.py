@@ -5,7 +5,7 @@ Gestionnaire des phrases magiques pour l'extension Biographie Profil
 Gère:
 - Détection automatique des prénoms dans la conversation
 - Injection automatique du Volume 1 lors de la première mention
-- Phrases magiques Luna pour consultation
+- Phrases magiques IA pour consultation
 - Phrases magiques utilisateur pour mise à jour
 """
 
@@ -17,26 +17,177 @@ from pathlib import Path
 class BiographyMagicPhrases:
     """Gestionnaire des phrases magiques et détection automatique biographie"""
 
-    def __init__(self, biography_manager):
+    def __init__(self, biography_manager, archiviste_controller=None, status_queue=None):
         self.biography_manager = biography_manager
+        self.archiviste_controller = archiviste_controller  # 🚀 NOUVEAU: Contrôleur Archiviste pour sélection
+        self.status_queue = status_queue  # 🔔 NOUVEAU: Queue pour notifications frontend
         self.conversation_message_count = 0  # Compteur de messages pour détecter première interaction
         self.last_injection_message = -1  # Éviter les doubles injections sur le même message
 
-        print("[BIOGRAPHY-MAGIC] ✅ Gestionnaire phrases magiques initialisé")
+        print("[BIOGRAPHY-MAGIC] ✅ Gestionnaire phrases magiques initialisé (lazy load activé)")
 
     def reset_conversation(self):
         """Reset le compteur pour une nouvelle conversation"""
         self.conversation_message_count = 0
         self.last_injection_message = -1
         print("[BIOGRAPHY-MAGIC] 🔄 Reset conversation - injection automatique réactivée")
+    
+    def _should_inject_biography(self, message: str, message_count: int) -> bool:
+        """
+        🚀 OPTIMISATION: Analyse intelligente si injection biographie nécessaire (lazy load)
+        
+        Règles (ORDRE DE PRIORITÉ):
+        1. Présentation utilisateur avec biographie → INJECT (priorité haute)
+        2. Messages simples (salutations sans présentation) → SKIP injection
+        3. Questions personnelles → INJECT
+        4. Contexte riche (>10 mots) → INJECT
+        5. Mots-clés personnels après message 1 → INJECT
+        
+        Returns:
+            True si injection nécessaire, False sinon
+        """
+        message_lower = message.lower().strip()
+        
+        # RÈGLE 1 (PRIORITÉ HAUTE): Présentation utilisateur avec biographie existante → INJECT
+        # Pattern "c'est [prénom]", "c est [prénom]", "je suis [prénom]", "je m'appelle [prénom]"
+        # ⚠️ VÉRIFIE que le prénom correspond à une biographie existante
+        # Note: Accepte "c'est" et "c est" (avec ou sans apostrophe)
+        presentation_patterns = [
+            (r"\bc['']?est\s+([A-ZÀ-Ÿa-zà-ÿ]+)\b", "c'est"),  # c'est, c est, c'est (apostrophe typographique)
+            (r"\bc\s+est\s+([A-ZÀ-Ÿa-zà-ÿ]+)\b", "c est"),    # "c est" avec espace
+            (r"\bje\s+suis\s+([A-ZÀ-Ÿa-zà-ÿ]+)\b", "je suis"),
+            (r"\bje\s+m['']?appelle\s+([A-ZÀ-Ÿa-zà-ÿ]+)\b", "je m'appelle")  # m'appelle ou m appelle
+        ]
+        
+        # Récupérer la liste des utilisateurs avec biographie
+        available_users = self.biography_manager.get_existing_users() if self.biography_manager else []
+        available_users_lower = [u.lower() for u in available_users]
+        
+        for pattern, pattern_type in presentation_patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                detected_name = match.group(1)
+                # Vérifier si ce prénom a une biographie existante
+                if detected_name.lower() in available_users_lower:
+                    print(f"[BIO-LAZY] ✅ Présentation '{pattern_type} {detected_name}' détectée (biographie existante), injection requise")
+                    return True
+                else:
+                    print(f"[BIO-LAZY] ⚪ Prénom '{detected_name}' sans biographie, skip injection")
+                    # Continuer à chercher d'autres patterns
+        
+        # RÈGLE 2: Premier message simple (SANS présentation) → SKIP (économie 70% cas)
+        if message_count == 1:
+            # Messages simples courants
+            simple_greetings = [
+                "salut", "bonjour", "hello", "coucou", "hey", "hi",
+                "ça va", "comment vas-tu", "quoi de neuf"
+            ]
+            
+            # Vérifier si c'est un message simple (exact match ou court)
+            if message_lower in simple_greetings or len(message.split()) <= 3:
+                print(f"[BIO-LAZY] ⚪ Message simple '{message[:30]}...', skip injection (économie tokens)")
+                return False
+        
+        # RÈGLE 3: Questions personnelles → INJECT (haute pertinence)
+        personal_questions = [
+            "qui suis-je", "qui es-tu", "qui est",
+            "parle-moi de", "dis-moi qui", 
+            "rappelle-toi", "souviens-toi",
+            "notre histoire", "notre relation",
+            "qu'est-ce que tu sais de"
+        ]
+        
+        message_lower = message.lower()
+        if any(pattern in message_lower for pattern in personal_questions):
+            print(f"[BIO-LAZY] ✅ Question personnelle détectée, injection requise")
+            return True
+        
+        # RÈGLE 4: Contexte riche (>10 mots) → INJECT (probablement pertinent)
+        word_count = len(message.split())
+        if word_count > 10:
+            print(f"[BIO-LAZY] ✅ Contexte riche ({word_count} mots), injection requise")
+            return True
+        
+        # RÈGLE 5: Mots-clés personnels basiques → INJECT seulement si message_count > 1
+        # (évite double injection premier message si déjà traité par RÈGLE 1)
+        if message_count > 1:
+            personal_keywords_pattern = r'\b(moi|mon|ma|mes|je|j\')\b'
+            if re.search(personal_keywords_pattern, message_lower):
+                print(f"[BIO-LAZY] ✅ Mots-clés personnels détectés, injection requise")
+                return True
+        
+        # Par défaut: SKIP (contexte non pertinent)
+        print(f"[BIO-LAZY] ⚪ Contexte non pertinent, skip injection (économie tokens)")
+        return False
+    
+    def _deduplicate_memories_with_history(self, memories: List[Dict], conversation_history: List[Dict]) -> List[Dict]:
+        """
+        🎯 DÉDUPLICATION: Filtre souvenirs déjà présents dans l'historique conversationnel
+        
+        Args:
+            memories: Liste souvenirs biographiques à injecter
+            conversation_history: Historique conversation [{role, content}, ...]
+        
+        Returns:
+            Liste souvenirs NON redondants avec historique
+        """
+        if not conversation_history or len(conversation_history) < 2:
+            # Pas d'historique significatif → garder tous les souvenirs
+            print(f"[BIO-DEDUP] ⚪ Historique vide, aucune déduplication (garde {len(memories)} souvenirs)")
+            return memories
+        
+        # Extraire texte complet de l'historique (derniers 10 messages)
+        recent_history = conversation_history[-10:]
+        history_text = " ".join([
+            msg.get('content', '') 
+            for msg in recent_history 
+            if isinstance(msg.get('content'), str)
+        ]).lower()
+        
+        if not history_text.strip():
+            print(f"[BIO-DEDUP] ⚪ Historique sans texte, garde {len(memories)} souvenirs")
+            return memories
+        
+        # Filtrer souvenirs dont le contenu est déjà largement présent dans l'historique
+        deduplicated = []
+        removed_count = 0
+        
+        for memory in memories:
+            memory_content = memory.get('content', '').lower()
+            
+            if not memory_content:
+                continue
+            
+            # Extraire mots significatifs du souvenir (>3 chars, pas stopwords)
+            words = [w for w in re.findall(r'\b\w{4,}\b', memory_content) if w not in ['avec', 'pour', 'dans', 'cette', 'sont', 'plus']]
+            
+            if not words:
+                deduplicated.append(memory)
+                continue
+            
+            # Calculer taux de présence dans historique
+            words_in_history = sum(1 for w in words if w in history_text)
+            presence_rate = words_in_history / len(words) if words else 0
+            
+            # SEUIL: >70% mots présents = redondant
+            if presence_rate > 0.7:
+                removed_count += 1
+                print(f"[BIO-DEDUP] 🗑️ Souvenir redondant ({presence_rate*100:.0f}% présence): '{memory_content[:50]}...'")
+            else:
+                deduplicated.append(memory)
+        
+        print(f"[BIO-DEDUP] ✅ Déduplication: {len(memories)} → {len(deduplicated)} souvenirs ({removed_count} redondants supprimés)")
+        
+        return deduplicated
 
-    async def handle_magic_phrases(self, user_input: str, is_ai_message: bool = False) -> Optional[Dict]:
+    async def handle_magic_phrases(self, user_input: str, is_ai_message: bool = False, conversation_history: List[Dict] = None) -> Optional[Dict]:
         """
         Détecte et traite les phrases magiques de biographie
 
         Args:
             user_input: Texte du message (utilisateur ou IA)
             is_ai_message: True si c'est un message de l'IA (pour détection auto)
+            conversation_history: Historique conversation pour déduplication (NOUVEAU)
 
         Returns:
             Dict avec 'content' et 'type' ('display' ou 'inject') ou None
@@ -44,7 +195,7 @@ class BiographyMagicPhrases:
         try:
             print(f"[BIOGRAPHY-MAGIC] 🔍 Analyse message: '{user_input[:50]}...'")
 
-            # 1. PHRASES MAGIQUES LUNA (consultation explicite)
+            # 1. PHRASES MAGIQUES IA (consultation explicite)
             if is_ai_message:
                 luna_response = self._handle_luna_magic_phrases(user_input)
                 if luna_response:
@@ -58,7 +209,7 @@ class BiographyMagicPhrases:
 
             # 3. DÉTECTION AUTOMATIQUE PRÉNOMS (injection première fois)
             if not is_ai_message:  # Seulement sur messages utilisateur
-                auto_injection = self._handle_auto_detection(user_input)
+                auto_injection = await self._handle_auto_detection(user_input, conversation_history or [])
                 if auto_injection:
                     return {'content': auto_injection, 'type': 'inject'}
             return None
@@ -68,7 +219,7 @@ class BiographyMagicPhrases:
             return None
 
     def _handle_luna_magic_phrases(self, message: str) -> Optional[str]:
-        """Gère les phrases magiques de Luna pour consultation biographie"""
+        """Gère les phrases magiques de l'IA pour consultation biographie"""
 
         # Pattern: "il faut que je consulte la biographie de [prénom]"
         consultation_pattern = r"il\s+faut\s+que\s+je\s+consulte\s+la\s+biographie\s+de\s+([a-zA-ZÀ-ÿ]+)"
@@ -76,14 +227,14 @@ class BiographyMagicPhrases:
         match = re.search(consultation_pattern, message, re.IGNORECASE)
         if match:
             name = match.group(1).strip()
-            print(f"[BIOGRAPHY-MAGIC] 🎯 Luna demande consultation biographie: {name}")
+            print(f"[BIOGRAPHY-MAGIC] 🎯 IA principale demande consultation biographie: {name}")
 
             # Charger la biographie Volume 1
             biography_data = self.biography_manager.load_volume1_memories(name)
 
             if biography_data:
                 formatted_content = self._format_volume1_for_ai(biography_data)
-                print(f"[BIOGRAPHY-MAGIC] ✅ Biographie {name} fournie à Luna")
+                print(f"[BIOGRAPHY-MAGIC] ✅ Biographie {name} fournie à l'IA principale")
                 return formatted_content
             else:
                 print(f"[BIOGRAPHY-MAGIC] ❌ Aucune biographie trouvée pour {name}")
@@ -161,11 +312,25 @@ class BiographyMagicPhrases:
                     print(f"[BIOGRAPHY-MAGIC] 👤 Utilisateur détecté: {detected_user} ({most_frequent[1]} mentions)")
                     return detected_user
 
-            # 2. Fallback: Retourner premier utilisateur alphabétique avec biographie
-            users = self.biography_manager.get_existing_users()
+            # 2. Fallback: Utiliser l'utilisateur connecté (session)
+            try:
+                import ogma_ng
+                current_user = ogma_ng._current_user_name if hasattr(ogma_ng, '_current_user_name') else None
+                
+                if current_user:
+                    # Vérifier si l'utilisateur connecté a une biographie
+                    if current_user.lower() in [u.lower() for u in users]:
+                        print(f"[BIOGRAPHY-MAGIC] 👤 Utilisateur détecté (session): {current_user}")
+                        return current_user
+                    else:
+                        print(f"[BIOGRAPHY-MAGIC] ⚠️ Utilisateur connecté '{current_user}' sans biographie")
+            except Exception as e:
+                print(f"[BIOGRAPHY-MAGIC] ❌ Erreur récupération session utilisateur: {e}")
+
+            # 3. Dernier recours: Premier utilisateur alphabétique (ancien comportement)
             if users:
                 detected_user = users[0]
-                print(f"[BIOGRAPHY-MAGIC] 👤 Utilisateur détecté (fallback): {detected_user}")
+                print(f"[BIOGRAPHY-MAGIC] 👤 Utilisateur détecté (fallback alphabétique): {detected_user}")
                 return detected_user
 
             return None
@@ -212,11 +377,16 @@ class BiographyMagicPhrases:
         
         return None
 
-    def _handle_auto_detection(self, message: str) -> Optional[str]:
+    async def _handle_auto_detection(self, message: str, conversation_history: List[Dict]) -> Optional[str]:
         """Détection automatique : première interaction OU mots-clés personnels intelligents"""
         
         # Incrémenter le compteur de messages
         self.conversation_message_count += 1
+        
+        # 🚀 OPTIMISATION LAZY LOAD: Analyser pertinence AVANT injection
+        if not self._should_inject_biography(message, self.conversation_message_count):
+            # Message non pertinent → skip injection (économie tokens + performance)
+            return None
         
         # Éviter double injection sur le même message
         if self.last_injection_message == self.conversation_message_count:
@@ -229,16 +399,57 @@ class BiographyMagicPhrases:
         
         # TRIGGER 1: Première interaction de la conversation (PRIORITAIRE)
         if self.conversation_message_count == 1:
-            # Prendre le premier utilisateur disponible (logique générique)
-            user_name = available_users[0]
-            biography_data = self.biography_manager.load_volume1_memories(user_name)
+            # 🔧 FIX MULTI-USER: Utiliser l'utilisateur connecté (_current_user_name) au lieu du premier alphabétique
+            # Récupérer le nom de l'utilisateur connecté
+            try:
+                import ogma_ng
+                current_user = ogma_ng._current_user_name if hasattr(ogma_ng, '_current_user_name') else None
+                
+                # Vérifier si l'utilisateur connecté a une biographie
+                if current_user and current_user.lower() in [u.lower() for u in available_users]:
+                    user_name = current_user
+                    print(f"[BIOGRAPHY-MAGIC] 👤 Utilisateur connecté détecté: {user_name}")
+                else:
+                    # Fallback si pas de session utilisateur ou pas de biographie
+                    print(f"[BIOGRAPHY-MAGIC] ⚠️ Utilisateur connecté '{current_user}' sans biographie, skip injection")
+                    return None
+            except Exception as e:
+                print(f"[BIOGRAPHY-MAGIC] ❌ Erreur récupération utilisateur connecté: {e}")
+                return None
             
-            if biography_data:
-                print(f"[BIOGRAPHY-MAGIC] 🎯 INJECTION AUTO: Première interaction détectée")
-                self.last_injection_message = self.conversation_message_count
-                formatted_content = self._format_volume1_for_ai(biography_data, trigger_type="première_interaction")
-                print(f"[BIOGRAPHY-MAGIC] ✅ Biographie {user_name} injectée (première interaction)")
-                return formatted_content
+            # 🚀 INJECTION CIBLÉE ARCHIVISTE OBLIGATOIRE (pas de fallback)
+            if not self.archiviste_controller:
+                error_msg = "⚠️ Absence de subconscience (Archiviste) - Injection biographie impossible"
+                print(f"[BIOGRAPHY-MAGIC] ❌ ARCHIVISTE REQUIS: Pas d'injection sans Archiviste (première interaction)")
+                
+                # Notification frontend
+                if self.status_queue:
+                    self.status_queue.put(error_msg)
+                
+                return None
+            
+            selected_memories = await self.biography_manager.select_memories_archiviste(
+                user_name, message, self.archiviste_controller, max_memories=10
+            )
+            
+            if selected_memories:
+                # 🎯 DÉDUPLICATION avec historique (premier message = historique vide, donc pas de filtrage)
+                deduplicated_memories = self._deduplicate_memories_with_history(selected_memories, conversation_history)
+                
+                if deduplicated_memories:
+                    print(f"[BIOGRAPHY-MAGIC] 🎯 INJECTION AUTO: Première interaction détectée (Archiviste)")
+                    self.last_injection_message = self.conversation_message_count
+                    formatted_content = self._format_selected_memories(
+                        user_name, deduplicated_memories, trigger_type="première_interaction"
+                    )
+                    print(f"[BIOGRAPHY-MAGIC] ✅ Biographie {user_name} injectée (première interaction, {len(deduplicated_memories)} souvenirs après dédup)")
+                    return formatted_content
+                else:
+                    print(f"[BIOGRAPHY-MAGIC] ⚠️ Tous les souvenirs étaient redondants avec historique")
+                    return None
+            else:
+                print(f"[BIOGRAPHY-MAGIC] ⚠️ Archiviste n'a sélectionné aucun souvenir")
+                return None
         
         # TRIGGER 2: Logique intelligente basée sur le profil (SEULEMENT si pas première interaction)
         # Vérifier qu'aucune injection n'a déjà eu lieu sur ce message
@@ -264,21 +475,46 @@ class BiographyMagicPhrases:
         target_user = self._select_target_user_intelligent(message, available_users, detected_names, has_personal_keywords)
         
         if target_user:
-            biography_data = self.biography_manager.load_volume1_memories(target_user)
+            # Déterminer le type de déclenchement
+            if target_user in detected_names:
+                trigger_type = "mention_explicite"
+                print(f"[BIOGRAPHY-MAGIC] 🎯 INJECTION AUTO: Mention explicite détectée")
+            else:
+                trigger_type = "mots_clés_personnels" 
+                print(f"[BIOGRAPHY-MAGIC] 🎯 INJECTION AUTO: Mots-clés personnels détectés")
             
-            if biography_data:
-                # Déterminer le type de déclenchement pour le formatage
-                if target_user in detected_names:
-                    trigger_type = "mention_explicite"
-                    print(f"[BIOGRAPHY-MAGIC] 🎯 INJECTION AUTO: Mention explicite détectée")
-                else:
-                    trigger_type = "mots_clés_personnels" 
-                    print(f"[BIOGRAPHY-MAGIC] 🎯 INJECTION AUTO: Mots-clés personnels détectés")
+            # 🚀 INJECTION CIBLÉE ARCHIVISTE OBLIGATOIRE (pas de fallback)
+            if not self.archiviste_controller:
+                error_msg = "⚠️ Absence de subconscience (Archiviste) - Injection biographie impossible"
+                print(f"[BIOGRAPHY-MAGIC] ❌ ARCHIVISTE REQUIS: Pas d'injection sans Archiviste ({trigger_type})")
                 
-                self.last_injection_message = self.conversation_message_count
-                formatted_content = self._format_volume1_for_ai(biography_data, trigger_type=trigger_type)
-                print(f"[BIOGRAPHY-MAGIC] ✅ Biographie {target_user} injectée ({trigger_type})")
-                return formatted_content
+                # Notification frontend
+                if self.status_queue:
+                    self.status_queue.put(error_msg)
+                
+                return None
+            
+            selected_memories = await self.biography_manager.select_memories_archiviste(
+                target_user, message, self.archiviste_controller, max_memories=10
+            )
+            
+            if selected_memories:
+                # 🎯 DÉDUPLICATION avec historique (TRIGGER 2 aussi)
+                deduplicated_memories = self._deduplicate_memories_with_history(selected_memories, conversation_history)
+                
+                if deduplicated_memories:
+                    self.last_injection_message = self.conversation_message_count
+                    formatted_content = self._format_selected_memories(
+                        target_user, deduplicated_memories, trigger_type=trigger_type
+                    )
+                    print(f"[BIOGRAPHY-MAGIC] ✅ Biographie {target_user} injectée ({trigger_type}, {len(deduplicated_memories)} souvenirs après dédup)")
+                    return formatted_content
+                else:
+                    print(f"[BIOGRAPHY-MAGIC] ⚠️ Tous les souvenirs redondants avec historique pour {trigger_type}")
+                    return None
+            else:
+                print(f"[BIOGRAPHY-MAGIC] ⚠️ Archiviste n'a sélectionné aucun souvenir pour {trigger_type}")
+                return None
         
         return None
 
@@ -333,6 +569,55 @@ class BiographyMagicPhrases:
         elif trigger_type == "mention_explicite":
             content_lines.append("🔄 Biographie injectée suite à mention explicite du nom.")
 
+        return "\n".join(content_lines)
+    
+    def _format_selected_memories(self, user_name: str, selected_memories: List[Dict], 
+                                  trigger_type: str = "consultation") -> str:
+        """
+        🚀 NOUVEAU: Formate souvenirs sélectionnés par Archiviste (textes intégraux)
+        
+        Args:
+            user_name: Nom utilisateur
+            selected_memories: Liste souvenirs sélectionnés (3-10)
+            trigger_type: Type déclenchement (première_interaction, mots_clés_personnels, mention_explicite)
+        
+        Returns:
+            Texte formaté injection
+        """
+        # Header différent selon contexte
+        if trigger_type in ["première_interaction", "mots_clés_personnels", "mention_explicite"]:
+            header = f"[BIOGRAPHIE AUTO-INJECTION] Profil de {user_name}"
+        else:
+            header = f"[BIOGRAPHIE CONSULTATION] Profil de {user_name}"
+        
+        # Construction du contenu formaté
+        content_lines = [
+            header,
+            "=" * len(header),
+            f"📊 {len(selected_memories)} souvenirs pertinents sélectionnés",
+            "",
+            "📖 VOLUME 1 - SOUVENIRS PERTINENTS:",
+            ""
+        ]
+        
+        # Ajouter souvenirs TEXTES INTÉGRAUX (vs résumés 150 chars)
+        for i, memory in enumerate(selected_memories, 1):
+            memory_content = memory.get('content', 'Contenu non disponible')
+            # CHANGEMENT: Texte intégral sans limitation (vs 150 chars avant)
+            content_lines.append(f"{i}. {memory_content}")
+        
+        content_lines.extend([
+            "",
+            f"💡 Utilisez ces informations pour personnaliser vos interactions avec {user_name}.",
+        ])
+        
+        if trigger_type == "première_interaction":
+            content_lines.append("🔄 Cette biographie sera ré-injectée automatiquement si vous utilisez des mots-clés personnels (moi, je, mon, ma, etc.).")
+        elif trigger_type == "mots_clés_personnels":
+            content_lines.append("🔄 Biographie injectée suite à l'utilisation de mots-clés personnels.")
+        elif trigger_type == "mention_explicite":
+            content_lines.append("🔄 Biographie injectée suite à mention explicite du nom.")
+        
         return "\n".join(content_lines)
 
     def get_existing_biographies(self) -> List[str]:

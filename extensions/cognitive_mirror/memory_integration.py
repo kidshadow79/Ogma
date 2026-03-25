@@ -286,7 +286,19 @@ class MemoryIntegration:
                 memory_id = memory_entry.get("id", f"CM_{int(time.time())}")
                 
                 # Reconstruction du texte brut à partir du contenu
+                # Support de différents formats de memory_entry
                 text_parts = []
+                
+                # Format introspection v2 (nouveau)
+                if "synthesis" in memory_entry and memory_entry["synthesis"]:
+                    text_parts.append(f"Synthèse introspection: {memory_entry['synthesis']}")
+                if "main_ai_analysis" in memory_entry and memory_entry["main_ai_analysis"]:
+                    text_parts.append(f"Analyse initiale: {memory_entry['main_ai_analysis']}")
+                if "dialogue_messages" in memory_entry and memory_entry["dialogue_messages"]:
+                    dialogue_summary = f"{len(memory_entry['dialogue_messages'])} échanges IA↔Archiviste"
+                    text_parts.append(f"Dialogue: {dialogue_summary}")
+                
+                # Format réflexion legacy (ancien)
                 if "reflection_summary" in memory_entry:
                     text_parts.append(f"Réflexion: {memory_entry['reflection_summary']}")
                 if "insights" in memory_entry and memory_entry['insights']:
@@ -294,7 +306,7 @@ class MemoryIntegration:
                 if "conversation_context" in memory_entry:
                     text_parts.append(f"Contexte: {memory_entry['conversation_context']}")
                 
-                text_brut = "\n".join(text_parts) if text_parts else str(memory_entry.get('reflection_summary', ''))
+                text_brut = "\n".join(text_parts) if text_parts else str(memory_entry.get('synthesis', memory_entry.get('reflection_summary', '')))
                 
                 print(f"[MEMORY-INTEGRATION] 📝 Appel add_memory: id={memory_id}, text_brut={len(text_brut)} chars")
                 
@@ -496,7 +508,7 @@ class MemoryIntegration:
                 "duration": conversation_data.get("duration", 0),
                 "trigger": conversation_data.get("trigger", "inactivity"),
                 "insights": self._extract_conversation_insights(conversation_data),
-                "tags": ["subconscience", "automated", "luna", "archiviste"]
+                "tags": ["subconscience", "automated", "ia_principale", "archiviste"]
             }
             
             # Sauvegarde via MemoryManager OGMA
@@ -571,8 +583,9 @@ class MemoryIntegration:
             insights.append(f"Conversation riche: {len(messages)} échanges")
         
         participants = conversation_data.get("participants", [])
-        if "Luna" in participants and "Archiviste" in participants:
-            insights.append("Dialogue Luna-Archiviste complet")
+        # Détection dialogue IA↔Archiviste (générique)
+        if len(participants) >= 2 and "Archiviste" in participants:
+            insights.append("Dialogue IA principale-Archiviste complet")
         
         duration = conversation_data.get("duration", 0)
         if duration > 60:
@@ -590,7 +603,7 @@ class MemoryIntegration:
                 "save_decision": "yes/no",
                 "reason": str,
                 "importance": int (0-10),
-                "luna_analysis": str,
+                "main_ai_analysis": str,
                 "dialogue_messages": list,
                 "synthesis": str,
                 "duration": float,
@@ -627,7 +640,7 @@ class MemoryIntegration:
                 "timestamp": datetime.now().isoformat(),
 
                 # Contenu introspection
-                "luna_analysis": introspection_data.get("luna_analysis", ""),
+                "main_ai_analysis": introspection_data.get("main_ai_analysis", ""),
                 "dialogue_messages": introspection_data.get("dialogue_messages", []),
                 "synthesis": introspection_data.get("synthesis", ""),
 
@@ -641,7 +654,7 @@ class MemoryIntegration:
                 "exchanges_count": introspection_data.get("exchanges_count", 0),
 
                 # Tags
-                "tags": ["introspection", "v2", "luna", "archiviste", f"importance_{importance}"]
+                "tags": ["introspection", "v2", "ia_principale", "archiviste", f"importance_{importance}"]
             }
 
             # Sauvegarde via MemoryManager OGMA

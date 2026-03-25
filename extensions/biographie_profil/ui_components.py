@@ -424,20 +424,36 @@ class BiographyUI:
         try:
             import os
             import subprocess
+            import sys
+            from pathlib import Path
             
-            data_path = "data/biographies"
+            data_path = Path("data/biographies")
             
             # Créer le dossier s'il n'existe pas
-            os.makedirs(data_path, exist_ok=True)
+            data_path.mkdir(parents=True, exist_ok=True)
             
-            # Ouvrir dans l'explorateur Windows
-            subprocess.run(['explorer', os.path.abspath(data_path)], check=True)
+            # Convertir en chemin absolu
+            abs_path = data_path.resolve()
             
+            # Ouvrir dans l'explorateur selon l'OS
+            if sys.platform == 'win32':
+                # Windows: explorer avec chemin absolu
+                os.startfile(str(abs_path))
+            elif sys.platform == 'darwin':
+                # macOS
+                subprocess.Popen(['open', str(abs_path)])
+            else:
+                # Linux
+                subprocess.Popen(['xdg-open', str(abs_path)])
+            
+            print(f"[BIOGRAPHY-UI] ✅ Dossier ouvert: {abs_path}")
             ui.notify('📁 Dossier biographies ouvert', type='positive')
             
         except Exception as e:
             print(f"[BIOGRAPHY-UI] ❌ Erreur ouverture dossier: {e}")
-            ui.notify('❌ Impossible d\'ouvrir le dossier', type='negative')
+            import traceback
+            traceback.print_exc()
+            ui.notify(f'❌ Impossible d\'ouvrir le dossier: {e}', type='negative')
 
     def _load_volume2_instructions(self):
         """Charge les instructions Volume 2 sauvegardées ou retourne les instructions par défaut"""

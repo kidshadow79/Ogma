@@ -75,7 +75,7 @@ class TemporalGuardian:
             return {
                 "enriched_archiviste_prompt": archiviste_prompt,
                 "temporal_data": None,
-                "should_alert_main_ai": False
+                "temporal_summary": "Extension désactivée"
             }
         
         # Mesurer délais temporels
@@ -167,24 +167,55 @@ RÉPONSE :"""
             return None
     
     def _load_archiviste_instructions(self) -> str:
-        """Charge les instructions temporelles pour l'Archiviste."""
+        """Charge les instructions temporelles pour l'Archiviste (priorité settings.json)."""
         try:
+            # PRIORITÉ 1: Lire depuis settings.json
+            import sys
+            ogma_ng = sys.modules.get('ogma_ng')
+            if ogma_ng and hasattr(ogma_ng, '_ensure_settings_manager'):
+                sm = ogma_ng._ensure_settings_manager()
+                if sm:
+                    instructions = sm.settings.get('prompts', {}).get('temporal_guardian')
+                    if instructions:
+                        print(f"[TemporalGuardian] ✅ Instructions chargées depuis settings.json")
+                        return instructions
+            
+            # FALLBACK: Lire depuis fichier .md
             from pathlib import Path
             instructions_path = Path(__file__).parent / "INSTRUCTIONS_ARCHIVISTE_TEMPOREL.md"
             if instructions_path.exists():
+                print(f"[TemporalGuardian] ⚠️ Fallback fichier .md (settings.json manquant)")
                 return instructions_path.read_text(encoding='utf-8')
             else:
                 # Instructions par défaut si fichier manquant
+                print(f"[TemporalGuardian] ⚠️ Utilisation instructions par défaut (fichier .md introuvable)")
                 return """Tu es l'Archiviste d'OGMA. Analyse les patterns temporels utilisateur :
 - FATIGUE : délais croissants, ralentissement
-- RÉFLEXION : pauses 30s-2min après questions complexes  
-- ABSENCE : délais >5min, retour en session
+- RÉFLEXION : pauses 3min30s-5min après questions complexes  
+- ABSENCE : délais >8min, retour en session
 - CHANGEMENT RYTHME : variations significatives vs moyenne
 
 Génère une instruction courte pour l'IA principale si nécessaire."""
         except Exception as e:
             print(f"[TemporalGuardian] ⚠️ Erreur chargement instructions: {e}")
             return "Analyse les patterns temporels et génère une instruction si nécessaire."
+    
+    def reload_instructions(self):
+        """Recharge les instructions temporelles à chaud (sans redémarrer OGMA)."""
+        try:
+            print(f"[TemporalGuardian] 🔄 Rechargement instructions à chaud...")
+            # Force le rechargement en appelant directement _load_archiviste_instructions
+            # (qui lit toujours depuis settings.json en priorité)
+            test_instructions = self._load_archiviste_instructions()
+            if test_instructions:
+                print(f"[TemporalGuardian] ✅ Instructions rechargées ({len(test_instructions)} chars)")
+                return True
+            else:
+                print(f"[TemporalGuardian] ❌ Échec rechargement (instructions vides)")
+                return False
+        except Exception as e:
+            print(f"[TemporalGuardian] ❌ Erreur rechargement: {e}")
+            return False
     
     def _get_temporal_summary(self) -> str:
         """Génère un résumé temporel pour l'archiviste."""

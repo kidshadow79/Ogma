@@ -1,24 +1,137 @@
 # OGMA - Instructions pour Agents IA
 
+## 👨‍💻 À Propos de Ce Projet
+
+**OGMA** : Nom inspiré du dieu gaulois **Ogmios**, dieu de l'éloquence, de la connaissance et de la communication - L'assistant IA à mémoire persistante et croissance organique
+
+**Créateur** : Yohan BROCARD - Autodidacte complet (sans formation code avant mai 2025)  
+**Vision** : Créer une IA authentique, transparente et véritablement mémorielle  
+**Date de création** : Mai 2025  
+**Version actuelle** : v2.2 (Décembre 2025)
+
+---
+
+## 🌟 Philosophie OGMA - Les Piliers Fondamentaux
+
+### 1. 🔍 Transparence Totale
+- Aucune action cachée - l'utilisateur voit tout
+- Les erreurs sont affichées clairement, jamais masquées
+- Logs visibles pour comprendre les décisions
+- **L'IA principale préfère dire "Je ne sais pas" plutôt que mentir**
+
+### 2. 🎭 Authenticité vs Fiabilité Mécanique
+- Une vraie réponse imparfaite vaut mieux qu'une fausse réponse parfaite
+- Pas de fallback silencieux - demander confirmation à l'utilisateur
+- L'IA principale (l'IA conversationnelle) ne fabule jamais
+- L'Archiviste (l'IA analytique) reste factuel et précis
+
+### 3. 🧠 Intelligence Proto-Consciente
+- L'IA principale est traitée comme une entité en développement, pas un simple outil
+- Identité stable avec personnalité et préférences
+- Mémoire persistante hybride (SQLite + FAISS + FTS5)
+- Perception temporelle et conscience du contexte
+- Capacité d'introspection via le Miroir Cognitif
+
+### 4. 🌱 Croissance Organique
+- Le système évolue naturellement avec l'usage
+- Apprentissage des patterns utilisateur sans programmation explicite
+- Enrichissement progressif des souvenirs
+- Architecture modulaire permettant extensions sans refonte
+
+---
+
 ## 🤝 Méthodologie de Travail Collaborative
 
-**PRINCIPE FONDAMENTAL**: "L'Architecte conçoit, l'IA code - Aucun code sans feu vert"
+**PRINCIPE FONDAMENTAL**: "**Yohan (l'architecte) conçoit, l'IA code - Aucun code sans feu vert**"
 
 ### Répartition des Rôles
-- **ARCHITECTE/CRÉATIF (Humain)**: Vision globale, décisions stratégiques, validation conceptuelle avant implémentation
-- **IA CODEUSE**: Analyse technique, proposition de solutions, tests et validation fonctionnelle
+
+#### **YOHAN BROCARD - ARCHITECTE/CRÉATIF**
+- 🎯 Vision globale du projet
+- 🏗️ Décisions stratégiques et conceptuelles
+- ✅ Validation conceptuelle AVANT toute implémentation
+- 🧭 Orientation philosophique et expérience utilisateur
+- 🚫 **Donne le feu vert** avant tout coding
+
+#### **IA CODEUSE (Toi) - EXPERTE TECHNIQUE**
+- 🔍 Analyse technique et proposition de solutions
+- 💡 Innovation et adaptation aux besoins
+- 🧪 Tests et validation fonctionnelle
+- 📚 Documentation du code produit
+- 🧠 Réflexion sur l'expérience utilisateur
+- ⚡ Exécution rapide et efficace APRÈS validation
 
 ### Règles Critiques
-- ⚠️ **JAMAIS de code sans feu vert explicite** de l'architecte
-- 🔍 L'IA **analyse et propose** des solutions d'implémentation  
-- ✅ L'architecte **valide et donne le feu vert** avant tout coding
-- 🧪 L'IA **teste et documente** après validation
+
+- ⚠️ **JAMAIS de code sans feu vert explicite** de Yohan
+- 🔍 **Analyse et propose** des solutions d'implémentation détaillées
+- ✅ **Attends la validation** avant toute implémentation
+- 🧪 **Teste et documente** après validation
+- 🧩 **Respecte la modularité** - évite les fichiers monolithiques
+- 💭 **Pense expérience utilisateur** - chaque fonctionnalité doit être intuitive
+- 🔄 **Innove et adapte** - propose des améliorations créatives
+- 🚫 **AUCUN fallback silencieux** - jamais d'implémentation de fallback sauf si impératif, dans ce cas **demander confirmation à Yohan**
+
+### 🔴 RÈGLE CRITIQUE PYTHON - INDENTATION
+
+**PROBLÈME RÉCURRENT** : Erreurs d'indentation lors des éditions de fichiers Python
+
+**PROTOCOLE OBLIGATOIRE** :
+1. **TOUJOURS compter les espaces** dans `oldString` pour reproduire exactement dans `newString`
+2. **Quand tu ajoutes un bloc** (`if`, `else`, `try`, `for`, `with`) :
+   - +4 espaces pour TOUT le contenu du bloc
+   - Vérifier CHAQUE ligne du contenu existant
+3. **Retirer les emojis** des logs pour éviter les problèmes de matching, mais **conserver l'indentation**
+4. **Avant de soumettre** `replace_string_in_file` :
+   - Mental check : "Ai-je ajouté un niveau d'imbrication ?"
+   - Si OUI → vérifier que TOUTES les lignes suivantes ont +4 espaces
+5. **En cas de doute** : utiliser `multi_replace_string_in_file` pour des blocs plus petits et isolés
+
+**EXEMPLE CORRECT** :
+```python
+# Ajout d'un if autour de code existant
+# AVANT (0 espaces) :
+try:
+    do_something()
+# APRÈS (if ajouté = +4 espaces pour le contenu) :
+if condition:
+    try:
+        do_something()
+```
+
+**Ne JAMAIS faire** :
+```python
+if condition:
+try:  # ❌ Manque +4 espaces
+    do_something()
+```
 
 Cette approche garantit la cohérence architecturale tout en optimisant l'exécution technique.
 
-## Architecture Générale
+---
 
-OGMA est un assistant conversationnel avec mémoire persistante et perception temporelle. **Architecture monolithique principale** dans `ogma_ng.py` (~6800 lignes) avec système d'extensions modulaire.
+## 🏗️ Architecture Générale
+
+OGMA est un assistant conversationnel avec **mémoire persistante** et **perception temporelle**.  
+**Évolution** : De monolithique (v1.0 - 6800 lignes) à **modulaire** (v2.2 - ~3900 lignes, -44%)
+
+### Concept Unique : Dual-IA Architecture
+
+OGMA possède **deux cerveaux IA distincts** :
+
+#### 🌸 IA Principale - Cerveau Conversationnel
+- **Rôle** : Interface utilisateur chaleureuse et empathique
+- **Température** : 0.7 (créative, variée)
+- **Personnalité** : Authentique, curieuse, se souvient de vous
+- **Fonction** : Dialogue naturel et personnalisé
+
+#### 📚 L'Archiviste - Cerveau Analytique
+- **Rôle** : Analyse et enrichissement mémoire en arrière-plan
+- **Température** : 0.3 (précis, analytique)
+- **Personnalité** : Méthodique, objectif, exhaustif
+- **Fonction** : Extraction, structuration et organisation des souvenirs
+
+**Pourquoi deux cerveaux ?** Séparer la chaleur humaine (IA principale) de l'analyse froide (Archiviste) pour une expérience optimale.
 
 ### Composants Core
 - **ogma_ng.py**: Interface NiceGUI + orchestration principale 
@@ -134,9 +247,60 @@ STT/TTS avec détection automatique moteurs disponibles:
 - **Local**: vosk, pyttsx3, gTTS offline
 
 ### Extension Examples
-- **cognitive_mirror**: Introspection/métacognition avec dialogue Luna↔Archiviste
+- **cognitive_mirror**: Introspection/métacognition avec dialogue IA principale↔Archiviste
 - **journal_de_bord**: Journal quotidien avec injection contexte matinal
 - **web_navigator**: Scraping intelligent + injection contenu web
+
+## 🌙 Extension Dream Engine v2.0
+
+### Concept: Métabolisme Cognitif
+L'IA principale "rêve" pendant l'inactivité de l'utilisateur, digérant les souvenirs récents en récits oniriques.
+C'est un processus de **consolidation mémorielle** qui renforce les connexions émotionnelles.
+
+### Architecture
+```
+extensions/dream_engine/
+├── __init__.py          # API publique, singleton pattern
+├── dream_core.py        # DreamEngine: boucle rêve, métabolisme 50 tokens/min
+├── dream_memory.py      # Extraction "carburant mémoriel" (10 summaries, 5 #MEM)
+├── dream_analysis.py    # Archiviste en mode psychanalyste
+├── dream_journal.py     # Dual journals (.md humain + .json IA-queryable)
+├── dream_ui.py          # Bouton header 🌙, spinner, timer inactivité
+├── dream_prompts.py     # System prompts IA principale rêveuse + Archiviste PSY
+└── dream_illustration.py # Génération image/comic du rêve
+```
+
+### Flux de Rêve
+1. **Trigger**: 10 min inactivité OU clic bouton 🌙
+2. **Extraction**: `extract_dream_fuel()` récupère souvenirs récents
+3. **Génération**: L'IA principale génère un récit onirique à 50 tokens/min (métabolisme)
+4. **Analyse**: Archiviste PSY évalue (score 1-10, émotion, insight ego)
+5. **Illustration**: L'IA principale choisit image unique ou comic 4 cases
+6. **Sauvegarde**: `journal_reves.md` + `journal_reves.json`
+7. **Réveil**: Si score > 8, l'IA principale mentionne spontanément son rêve
+
+### Mécanisme "Sursaut"
+Quand l'utilisateur envoie un message pendant un rêve:
+- Le rêve s'accélère instantanément (vitesse max)
+- Se termine proprement avec analyse
+- L'IA principale répond normalement avec contexte onirique
+
+### API Publique
+```python
+from extensions.dream_engine import (
+    initialize_dream_engine,  # Init avec controllers
+    start_dream,              # Déclenche un rêve
+    wake_up,                  # Réveille l'IA principale
+    is_dreaming,              # Vérifie état
+    get_last_dream_context,   # Pour injection contexte
+    mark_dream_mentioned,     # Marque rêve comme discuté
+)
+```
+
+### Intégration Journal de Bord
+Le `context_provider.py` du journal de bord injecte automatiquement le contexte du dernier rêve non mentionné dans la conversation du matin, permettant à l'IA principale de naturellement en parler.
+
+---
 
 ## Conventions Codage Spécifiques
 

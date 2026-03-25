@@ -200,7 +200,7 @@ class OGMACleanerUI:
                 'memory': {
                     'label': '🧠 Mémoire complète (souvenirs, index FAISS, sauvegardes)',
                     'description': f"{self.analysis_data['memory'].get('file_count', 0)} fichiers - {format_size(self.analysis_data['memory'].get('total_size', 0))}",
-                    'warning': 'ATTENTION: Supprime tous les souvenirs de Luna'
+                    'warning': 'ATTENTION: Supprime tous les souvenirs de l\'IA'
                 },
                 'conversations': {
                     'label': '💬 Toutes les conversations',
@@ -210,7 +210,7 @@ class OGMACleanerUI:
                 'ego_data': {
                     'label': '🎭 Données ego (personnalité, contexte)',
                     'description': f"{self.analysis_data['ego_data'].get('file_count', 0)} fichiers - {format_size(self.analysis_data['ego_data'].get('total_size', 0))}",
-                    'warning': 'ATTENTION: Supprime la personnalité de Luna'
+                    'warning': 'ATTENTION: Supprime la personnalité de l\'IA'
                 },
                 'temp_files': {
                     'label': '🗑️ Fichiers temporaires et caches',

@@ -42,6 +42,14 @@ class TemporalParser:
         
         # Patterns temporels avec groupes de capture
         self.patterns = {
+            # Phrase magique IA
+            'ia_magic_phrase': [
+                r'il\s+faut\s+que\s+je\s+consulte\s+notre\s+conversation\s+de\s+(.+?)(?:\.|$|,|\n)',
+                r'je\s+dois\s+consulter\s+notre\s+conversation\s+de\s+(.+?)(?:\.|$|,|\n)',
+                r'il\s+faut\s+que\s+je\s+consulte\s+mes\s+conversations?\s*(?:avec\s+(\w+))?',  # mes conversations (avec Bob)
+                r'je\s+dois\s+consulter\s+mes\s+conversations?\s*(?:avec\s+(\w+))?',
+                r'il\s+faut\s+que\s+je\s+consulte\s+(?:la|les)\s+conversations?\s*(?:avec\s+(\w+))?',
+            ],
             # Relatif jours
             'relative_days': [
                 r'il y a (\d+) jours?',
@@ -126,6 +134,47 @@ class TemporalParser:
         """Convertit match regex en TemporalMatch."""
         
         text = match.group(0)
+        
+        # PHRASE MAGIQUE IA - "il faut que je consulte notre conversation de..."
+        if category == 'ia_magic_phrase':
+            # Extraire la référence temporelle après "de" (groupe 1)
+            # OU le nom de la personne après "avec" (groupe 1 aussi selon le pattern)
+            try:
+                temporal_ref = match.group(1) if match.group(1) else ""
+                temporal_ref = temporal_ref.strip().lower()
+            except (IndexError, AttributeError):
+                # Pas de groupe capturé (cas "mes conversations" sans précision)
+                temporal_ref = ""
+            
+            if self.debug:
+                print(f"[TEMPORAL-PARSER] 🔮 Phrase magique IA détectée: '{temporal_ref}' (from: '{text}')")
+            
+            # Si on a une référence temporelle ou un nom, essayer de parser
+            if temporal_ref:
+                # Parser la référence temporelle (hier, la semaine dernière, etc.)
+                # OU utiliser le nom comme contexte de recherche
+                sub_matches = self.parse(temporal_ref)
+                if sub_matches:
+                    # Utiliser le premier match de la sous-analyse
+                    sub_match = sub_matches[0]
+                    return TemporalMatch(
+                        pattern_type='ia_magic_phrase',
+                        date_start=sub_match.date_start,
+                        date_end=sub_match.date_end,
+                        confidence=0.95,  # Haute confiance car phrase magique explicite
+                        original_text=text,
+                        is_period=sub_match.is_period
+                    )
+            
+            # Fallback: dernière semaine si pas de pattern reconnu
+            return TemporalMatch(
+                pattern_type='ia_magic_phrase_fallback',
+                date_start=(now - timedelta(days=7)).replace(hour=0, minute=0, second=0),
+                date_end=now,
+                confidence=0.7,
+                original_text=text,
+                is_period=True
+            )
         
         # RELATIF JOURS
         if category == 'relative_days':
