@@ -16,6 +16,24 @@ from datetime import datetime
 from typing import Optional, Dict, List
 from PIL import Image, ImageDraw, ImageFont
 
+# Import Depth Manager
+try:
+    from extensions.depth_manager import DepthManager
+    DEPTH_AVAILABLE = True
+    print("[DEPTH] ✅ Depth Manager disponible")
+except ImportError as e:
+    DEPTH_AVAILABLE = False
+    print(f"[DEPTH] ⚠️ Depth Manager non disponible: {e}")
+
+# Import Contour Analyzer
+try:
+    from extensions.contour_analyzer import get_contour_analyzer, is_available as contour_is_available
+    CONTOUR_AVAILABLE = contour_is_available()
+    print(f"[CONTOUR] {'✅' if CONTOUR_AVAILABLE else '⚠️'} Contour Analyzer {'disponible' if CONTOUR_AVAILABLE else 'non disponible'}")
+except ImportError as e:
+    CONTOUR_AVAILABLE = False
+    print(f"[CONTOUR] ⚠️ Contour Analyzer non disponible: {e}")
+
 # Import du gestionnaire TTS/Perception
 try:
     sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -69,6 +87,12 @@ class PerceptionAgent:
         self.config = initial_config
         self.webcam_index = initial_config.get("webcam_index", 0)
         self.capture_resolution = tuple(initial_config.get("triage_resolution", [640, 480]))
+        
+        # Initialiser Depth Manager
+        self.depth_manager = DepthManager() if DEPTH_AVAILABLE else None
+        
+        # Initialiser Contour Analyzer
+        self.contour_analyzer = get_contour_analyzer() if CONTOUR_AVAILABLE else None
         
         print("[PERCEPTION-AGENT] ✅ Agent initialisé (architecture simplifiée)")
 
@@ -169,6 +193,101 @@ class PerceptionAgent:
         
         return cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
+    def _create_split_view(self, left, right):
+        """Crée une vue côte à côte"""
+        h1, w1 = left.shape[:2]
+        h2, w2 = right.shape[:2]
+        
+        if h1 != h2:
+            right = cv2.resize(right, (int(w2 * h1 / h2), h1))
+            
+        return np.hstack((left, right))
+
+    def _apply_advanced_vision(self, frame):
+        """
+        Applique les filtres de vision avancée (Depth et/ou Contours)
+        - Depth seul: 2 colonnes (Original | Depth)
+        - Contours seul: 2 colonnes (Original | Contours)
+        - Les deux: 3 colonnes (Original | Depth | Contours)
+        """
+        enable_depth = self.config.get('enable_depth', False) and self.depth_manager
+        enable_contour = self.config.get('enable_contour', False) and self.contour_analyzer
+        
+        # Cas 1: Aucun filtre
+        if not enable_depth and not enable_contour:
+            return frame
+        
+        h, w = frame.shape[:2]
+        legend_height = 60
+        
+        # Cas 2: Les deux activés → 3 colonnes
+        if enable_depth and enable_contour:
+            # Mettre à jour les options contours depuis la config
+            contour_options = {
+                'enable_canny': self.config.get('contour_canny', True),
+                'enable_sobel': self.config.get('contour_sobel', False),
+                'enable_laplacian': self.config.get('contour_laplacian', False),
+                'enable_adaptive': self.config.get('contour_adaptive', False),
+                'canny_low': self.config.get('contour_canny_low', 50),
+                'canny_high': self.config.get('contour_canny_high', 150),
+                'line_thickness': self.config.get('contour_thickness', 2),
+                'render_mode': self.config.get('contour_render_mode', 'overlay')
+            }
+            self.contour_analyzer.update_options(contour_options)
+            
+            # Colonne 1: Original avec header
+            original_col = np.zeros((h + legend_height, w, 3), dtype=np.uint8)
+            original_col[:] = (40, 40, 40)
+            original_col[legend_height:, :] = frame
+            cv2.putText(original_col, "ORIGINAL", (10, 20), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            
+            # Colonne 2: Depth avec header
+            depth_result = self.depth_manager.process_image(frame)
+            # Le depth_manager retourne un composite, on prend la partie droite
+            if depth_result.shape[1] > w:
+                depth_only = depth_result[:, w:]
+            else:
+                depth_only = depth_result
+            # Redimensionner si nécessaire
+            if depth_only.shape[0] != h or depth_only.shape[1] != w:
+                depth_only = cv2.resize(depth_only, (w, h))
+            depth_col = np.zeros((h + legend_height, w, 3), dtype=np.uint8)
+            depth_col[:] = (40, 40, 40)
+            depth_col[legend_height:, :] = depth_only
+            cv2.putText(depth_col, "DEPTH MAP", (10, 20), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            
+            # Colonne 3: Contours avec header
+            contour_only = self.contour_analyzer.process_image_contours_only(frame)
+            contour_col = np.zeros((h + legend_height, w, 3), dtype=np.uint8)
+            contour_col[:] = (40, 40, 40)
+            contour_col[legend_height:, :] = contour_only
+            cv2.putText(contour_col, "ANALYSE CONTOURS", (10, 20), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            
+            return np.hstack((original_col, depth_col, contour_col))
+            
+        # Cas 3: Depth seul → 2 colonnes
+        elif enable_depth:
+            return self.depth_manager.process_image(frame)
+            
+        # Cas 4: Contours seul → 2 colonnes
+        elif enable_contour:
+            # Mettre à jour les options contours depuis la config
+            contour_options = {
+                'enable_canny': self.config.get('contour_canny', True),
+                'enable_sobel': self.config.get('contour_sobel', False),
+                'enable_laplacian': self.config.get('contour_laplacian', False),
+                'enable_adaptive': self.config.get('contour_adaptive', False),
+                'canny_low': self.config.get('contour_canny_low', 50),
+                'canny_high': self.config.get('contour_canny_high', 150),
+                'line_thickness': self.config.get('contour_thickness', 2),
+                'render_mode': self.config.get('contour_render_mode', 'overlay')
+            }
+            self.contour_analyzer.update_options(contour_options)
+            return self.contour_analyzer.process_image(frame)
+
     def capture_for_chat(self) -> dict | None:
         """
         Capture une image au moment de l'envoi d'un message de chat.
@@ -185,21 +304,31 @@ class PerceptionAgent:
             frame_copy = self.current_frame.copy()
         
         try:
-            # Redimensionner en préservant aspect ratio
-            frame_resized = self._resize_keep_aspect(
-                frame_copy, 
-                target_width=self.capture_resolution[0], 
-                target_height=self.capture_resolution[1]
-            )
+            # Vérifier si on doit utiliser la résolution native
+            use_native = self.config.get('use_native_resolution', False)
+            
+            if use_native:
+                # Pas de redimensionnement - garder taille source
+                frame_resized = frame_copy
+                print(f"[CAPTURE] Mode résolution native activé - image source: {frame_resized.shape[1]}x{frame_resized.shape[0]}")
+            else:
+                # Redimensionner en préservant aspect ratio
+                frame_resized = self._resize_keep_aspect(
+                    frame_copy, 
+                    target_width=self.capture_resolution[0]
+                )
+
+            # Traitement Vision Avancée (Depth / SAM / Fusion)
+            frame_processed = self._apply_advanced_vision(frame_resized)
             
             # Sauvegarder l'image si activé
-            self._save_image_if_enabled(frame_resized, "photo_simple")
+            self._save_image_if_enabled(frame_processed, "photo_simple")
             
             # Encoder en JPEG
-            _, buffer = cv2.imencode('.jpg', frame_resized, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            _, buffer = cv2.imencode('.jpg', frame_processed, [cv2.IMWRITE_JPEG_QUALITY, 85])
             image_base64 = base64.b64encode(buffer).decode('utf-8')
             
-            h, w = frame_resized.shape[:2]
+            h, w = frame_processed.shape[:2]
             print(f"[CAPTURE] Image capturée pour le chat ({w}x{h}, aspect ratio préservé)")
             
             return {
@@ -266,6 +395,34 @@ class PerceptionAgent:
                 if i < frames_count - 1:
                     time.sleep(interval)
             
+            # Post-traitement Vision Avancée (Depth / SAM)
+            # On le fait APRÈS la capture pour ne pas perturber le timing de la rafale
+            processed_frames = []
+            print(f"[MOTION] 🧠 Traitement Vision Avancée sur {len(all_frames)} frames...")
+            for idx, frame in enumerate(all_frames):
+                try:
+                    # Vérifier si on doit utiliser la résolution native
+                    use_native = self.config.get('use_native_resolution', False)
+                    
+                    if use_native:
+                        # Pas de redimensionnement - garder taille source
+                        frame_resized = frame
+                    else:
+                        # Resize d'abord (comme dans capture_for_chat)
+                        frame_resized = self._resize_keep_aspect(
+                            frame, 
+                            target_width=self.capture_resolution[0]
+                        )
+                    # Appliquer filtres
+                    processed = self._apply_advanced_vision(frame_resized)
+                    processed_frames.append(processed)
+                except Exception as e:
+                    print(f"[MOTION] ⚠️ Erreur traitement frame {idx}: {e}")
+                    processed_frames.append(frame) # Fallback original
+            
+            # Utiliser les frames traités pour l'assemblage
+            all_frames = processed_frames
+
             if len(all_frames) < 2:
                 print("[MOTION] ⚠️ Pas assez d'images capturées, fallback vers capture simple")
                 return self.capture_for_chat()
@@ -319,14 +476,32 @@ class PerceptionAgent:
             if not frames:
                 return None
             
-            # Redimensionner tous les frames à la même taille (en préservant aspect ratio)
+            # Redimensionner tous les frames à la même taille EXACTE avec padding pour préserver aspect ratio
             target_size = (320, 240)  # Taille individuelle réduite
             resized_frames = []
             
             for frame in frames:
-                # Utiliser resize intelligent pour préserver aspect ratio
-                resized = self._resize_keep_aspect(frame, target_width=320, target_height=240)
-                resized_frames.append(resized)
+                # Calculer ratio et dimensions pour préserver aspect ratio
+                h, w = frame.shape[:2]
+                target_w, target_h = target_size
+                
+                # Calculer le ratio optimal (fit inside)
+                ratio = min(target_w / w, target_h / h)
+                new_w = int(w * ratio)
+                new_h = int(h * ratio)
+                
+                # Resize avec aspect ratio préservé
+                resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                
+                # Créer canvas noir de taille cible
+                canvas = np.zeros((target_h, target_w, 3), dtype=np.uint8)
+                
+                # Centrer l'image redimensionnée
+                y_offset = (target_h - new_h) // 2
+                x_offset = (target_w - new_w) // 2
+                canvas[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
+                
+                resized_frames.append(canvas)
             
             # Déterminer layout (jusqu'à 4x5 = 20 images)
             if layout == '2x2':
@@ -490,6 +665,25 @@ class PerceptionAgent:
         print("[PERCEPTION] Démarrage du thread de l'agent de perception OPTIMISÉ...")
         
         # ✅ SIMPLIFIÉ: Plus de cache disque (architecture séquentielle pure)
+        
+        # 🛡️ PROTECTION: Vérifier que l'index webcam est valide avant de démarrer
+        try:
+            test_cap = cv2.VideoCapture(self.webcam_index)
+            if not test_cap.isOpened():
+                print(f"[ERREUR] Erreur : Impossible d'ouvrir la webcam (index {self.webcam_index}).")
+                print(f"[PERCEPTION] 💡 Conseil: Vérifiez le numéro de caméra dans les paramètres")
+                test_cap.release()
+                self.event_queue.put(f"[ERREUR] Webcam index {self.webcam_index} non accessible.")
+                self.status = "error"
+                self.event_queue.put("[STATUS] inactive")
+                return
+            test_cap.release()
+        except Exception as e:
+            print(f"[ERREUR] Exception lors du test webcam: {e}")
+            self.event_queue.put(f"[ERREUR] Test webcam échoué: {e}")
+            self.status = "error"
+            self.event_queue.put("[STATUS] inactive")
+            return
         
         self.cap = cv2.VideoCapture(self.webcam_index)
         if not self.cap.isOpened():

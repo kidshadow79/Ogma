@@ -161,8 +161,115 @@ class JSONManager:
             return True
             
         except Exception as e:
-            print(f"[JSON-MANAGER] ERREUR Erreur sauvegarde: {e}")
+            print(f"[JSON-MANAGER] ERROR Erreur sauvegarde: {e}")
+            import traceback
+            traceback.print_exc()
             return False
+
+    def delete_entry(self, entry_id: str, entry_date: str) -> bool:
+        """
+        Supprime une entrée du journal
+        
+        Args:
+            entry_id: ID unique de l'entrée
+            entry_date: Date de l'entrée (format YYYY-MM-DD)
+        
+        Returns:
+            bool: True si suppression réussie
+        """
+        try:
+            start_time = time.time()
+            print(f"[JSON-MANAGER] DELETE Suppression entrée {entry_id} du {entry_date}")
+            
+            # Extraction année/mois/jour
+            year = entry_date[:4]
+            month = entry_date[5:7]
+            day = entry_date[8:10]
+            
+            # Chargement structure année
+            year_data = self._load_year_data(year)
+            
+            # Navigation vers le jour
+            if ("months" not in year_data or 
+                month not in year_data["months"] or
+                "days" not in year_data["months"][month] or
+                day not in year_data["months"][month]["days"]):
+                print(f"[JSON-MANAGER] WARN Date {entry_date} introuvable")
+                return False
+            
+            day_data = year_data["months"][month]["days"][day]
+            
+            # Recherche et suppression de l'entrée
+            entries = day_data.get("entries", [])
+            initial_count = len(entries)
+            
+            entries = [e for e in entries if e.get("id") != entry_id]
+            
+            if len(entries) == initial_count:
+                print(f"[JSON-MANAGER] WARN Entrée {entry_id} introuvable")
+                return False
+            
+            # Si plus d'entrées dans le jour, supprimer le jour entier
+            if len(entries) == 0:
+                del year_data["months"][month]["days"][day]
+                print(f"[JSON-MANAGER] INFO Jour {day} supprimé (plus d'entrées)")
+                
+                # Si plus de jours dans le mois, supprimer le mois
+                if len(year_data["months"][month]["days"]) == 0:
+                    del year_data["months"][month]
+                    print(f"[JSON-MANAGER] INFO Mois {month} supprimé (plus de jours)")
+            else:
+                # Mise à jour du jour avec entrées restantes
+                day_data["entries"] = entries
+                day_data["total_entries"] = len(entries)
+                self._update_day_metadata(day_data)
+                
+                # Mise à jour métadonnées mois
+                month_data = year_data["months"][month]
+                month_data["metadata"]["total_entries"] = sum(
+                    day["total_entries"] for day in month_data["days"].values()
+                )
+            
+            # Mise à jour métadonnées année si le mois existe encore
+            if "months" in year_data and len(year_data["months"]) > 0:
+                year_data["metadata"]["total_entries"] = sum(
+                    month["metadata"]["total_entries"] for month in year_data["months"].values()
+                )
+            
+            # Sauvegarde fichier année
+            self._save_year_data(year, year_data)
+            
+            # Invalidation du cache
+            self._invalidate_cache_for_date(entry_date)
+            
+            # Reconstruction de l'index de recherche (force refresh)
+            self._build_search_index()
+            
+            # Mise à jour statistiques
+            self.stats["total_entries"] -= 1
+            
+            duration = time.time() - start_time
+            print(f"[JSON-MANAGER] OK Entrée supprimée en {duration:.3f}s")
+            
+            return True
+            
+        except Exception as e:
+            print(f"[JSON-MANAGER] ERROR Erreur suppression: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def get_entries_by_date(self, target_date: Union[str, date]) -> List[Dict[str, Any]]:
+        """
+        Récupère toutes les entrées d'une date spécifique
+        
+        Args:
+            target_date: Date au format YYYY-MM-DD ou objet date
+        
+        Returns:
+            List[Dict]: Liste des entrées pour cette date
+        """
+        return self.get_day_entries(str(target_date) if isinstance(target_date, date) else target_date)
     
     def get_day_entries(self, target_date: str) -> List[Dict[str, Any]]:
         """
@@ -807,3 +914,376 @@ class JSONManager:
             
         except Exception as e:
             print(f"[JSON-MANAGER] WARN Erreur calcul stats courantes: {e}")
+    
+    # =========================================================================
+    # GESTION DES ÉTATS ACTIFS (v2.0)
+    # =========================================================================
+    
+    def get_active_states(self) -> Dict[str, Any]:
+        """
+        Récupère tous les états actifs (non résolus)
+        
+        Returns:
+            dict: Structure complète ÉTATS_ACTIFS avec metadata et states
+        """
+        try:
+            # Chargement fichier année courante
+            current_year = str(datetime.now().year)
+            year_data = self._load_year_data(current_year)
+            
+            if "ÉTATS_ACTIFS" not in year_data:
+                # Initialisation si manquant
+                year_data["ÉTATS_ACTIFS"] = {
+                    "metadata": {
+                        "last_update": datetime.now().isoformat(),
+                        "total_states": 0,
+                        "last_state_id": 0
+                    },
+                    "states": []
+                }
+                self._save_year_data(current_year, year_data)
+            
+            return year_data["ÉTATS_ACTIFS"]
+        
+        except Exception as e:
+            print(f"[JSON-MANAGER] ERROR get_active_states: {e}")
+            return {
+                "metadata": {"last_update": datetime.now().isoformat(), "total_states": 0, "last_state_id": 0},
+                "states": []
+            }
+    
+    def update_active_state(self, category: str, new_state: Dict[str, Any]) -> bool:
+        """
+        Ajoute ou met à jour un état actif
+        
+        Args:
+            category: Catégorie de l'état (santé, projet, humeur, etc.)
+            new_state: Dictionnaire contenant description, importance, source_entry_id
+        
+        Returns:
+            bool: True si succès
+        """
+        try:
+            current_year = str(datetime.now().year)
+            year_data = self._load_year_data(current_year)
+            
+            if "ÉTATS_ACTIFS" not in year_data:
+                year_data["ÉTATS_ACTIFS"] = {
+                    "metadata": {"last_update": datetime.now().isoformat(), "total_states": 0, "last_state_id": 0},
+                    "states": []
+                }
+            
+            états_actifs = year_data["ÉTATS_ACTIFS"]
+            states = états_actifs["states"]
+            metadata = états_actifs["metadata"]
+            
+            # Génération ID unique
+            state_id = metadata.get("last_state_id", 0) + 1
+            metadata["last_state_id"] = state_id
+            
+            # Construction nouvel état
+            state_entry = {
+                "state_id": state_id,
+                "category": category,
+                "description": new_state.get("description", ""),
+                "importance": new_state.get("importance", "medium"),
+                "created_at": datetime.now().isoformat(),
+                "last_update": datetime.now().isoformat(),
+                "resolved": False,
+                "resolved_at": None,
+                "source_entry_id": new_state.get("source_entry_id"),
+                # Option B: Stocker contexte conversation source
+                "source_context": new_state.get("source_context", {}),
+                "update_history": [
+                    {
+                        "timestamp": datetime.now().isoformat(),
+                        "action": "created",
+                        "entry_id": new_state.get("source_entry_id")
+                    }
+                ]
+            }
+            
+            # Ajout dans la liste
+            states.append(state_entry)
+            metadata["total_states"] = len([s for s in states if not s.get("resolved", False)])
+            metadata["last_update"] = datetime.now().isoformat()
+            
+            # Limite max_active_states
+            max_states = self.config.get("max_active_states", 10)
+            unresolved = [s for s in states if not s.get("resolved", False)]
+            if len(unresolved) > max_states:
+                # Résoudre automatiquement les plus anciens non-importants
+                to_resolve = sorted(
+                    [s for s in unresolved if s.get("importance") != "high"],
+                    key=lambda x: x.get("created_at", "")
+                )[:len(unresolved) - max_states]
+                
+                for old_state in to_resolve:
+                    old_state["resolved"] = True
+                    old_state["resolved_at"] = datetime.now().isoformat()
+                    old_state["auto_resolved"] = True
+                
+                print(f"[JSON-MANAGER] AUTO-RESOLVE {len(to_resolve)} états anciens (limite {max_states})")
+            
+            # Sauvegarde
+            year_data["ÉTATS_ACTIFS"] = états_actifs
+            self._save_year_data(current_year, year_data)
+            
+            print(f"[JSON-MANAGER] OK État actif ajouté: {category} (ID: {state_id})")
+            return state_id  # Retourner l'ID au lieu de True
+        
+        except Exception as e:
+            print(f"[JSON-MANAGER] ERROR update_active_state: {e}")
+            return None
+    
+    def create_active_state(self, category: str, new_state: Dict[str, Any]) -> Optional[int]:
+        """
+        Alias de update_active_state pour créer un nouvel état
+        
+        Args:
+            category: Catégorie de l'état
+            new_state: Données du nouvel état
+        
+        Returns:
+            int: ID de l'état créé ou None si erreur
+        """
+        return self.update_active_state(category, new_state)
+    
+    def add_state_to_history(self, state_id: int, action: str, entry_id: Optional[str] = None) -> bool:
+        """
+        Ajoute une entrée dans l'historique d'un état actif
+        
+        Args:
+            state_id: ID de l'état à modifier
+            action: Type d'action (updated, resolved, noted)
+            entry_id: ID de l'entrée journal liée (optionnel)
+        
+        Returns:
+            bool: True si succès
+        """
+        try:
+            current_year = str(datetime.now().year)
+            year_data = self._load_year_data(current_year)
+            
+            if "ÉTATS_ACTIFS" not in year_data:
+                return False
+            
+            états_actifs = year_data["ÉTATS_ACTIFS"]
+            states = états_actifs["states"]
+            
+            # Recherche de l'état
+            target_state = None
+            for state in states:
+                if state.get("state_id") == state_id:
+                    target_state = state
+                    break
+            
+            if not target_state:
+                print(f"[JSON-MANAGER] WARN État {state_id} introuvable")
+                return False
+            
+            # Ajout historique
+            if "update_history" not in target_state:
+                target_state["update_history"] = []
+            
+            target_state["update_history"].append({
+                "timestamp": datetime.now().isoformat(),
+                "action": action,
+                "entry_id": entry_id
+            })
+            
+            target_state["last_update"] = datetime.now().isoformat()
+            états_actifs["metadata"]["last_update"] = datetime.now().isoformat()
+            
+            # Sauvegarde
+            year_data["ÉTATS_ACTIFS"] = états_actifs
+            self._save_year_data(current_year, year_data)
+            
+            print(f"[JSON-MANAGER] OK Historique état {state_id} mis à jour: {action}")
+            return True
+        
+        except Exception as e:
+            print(f"[JSON-MANAGER] ERROR add_state_to_history: {e}")
+            return False
+    
+    def resolve_state(self, state_id: int, resolution_note: Optional[str] = None, entry_id: Optional[str] = None) -> bool:
+        """
+        Marque un état comme résolu
+        
+        Args:
+            state_id: ID de l'état à résoudre
+            resolution_note: Note de résolution (optionnel)
+            entry_id: ID entrée journal liée (optionnel)
+        
+        Returns:
+            bool: True si succès
+        """
+        try:
+            current_year = str(datetime.now().year)
+            year_data = self._load_year_data(current_year)
+            
+            if "ÉTATS_ACTIFS" not in year_data:
+                return False
+            
+            états_actifs = year_data["ÉTATS_ACTIFS"]
+            states = états_actifs["states"]
+            
+            # Recherche état
+            target_state = None
+            for state in states:
+                if state.get("state_id") == state_id:
+                    target_state = state
+                    break
+            
+            if not target_state:
+                print(f"[JSON-MANAGER] WARN État {state_id} introuvable")
+                return False
+            
+            # Résolution
+            target_state["resolved"] = True
+            target_state["resolved_at"] = datetime.now().isoformat()
+            target_state["last_update"] = datetime.now().isoformat()
+            
+            if resolution_note:
+                target_state["resolution_note"] = resolution_note
+            
+            # Ajout historique
+            if "update_history" not in target_state:
+                target_state["update_history"] = []
+            
+            target_state["update_history"].append({
+                "timestamp": datetime.now().isoformat(),
+                "action": "resolved",
+                "entry_id": entry_id,
+                "note": resolution_note
+            })
+            
+            # Mise à jour metadata
+            états_actifs["metadata"]["total_states"] = len([s for s in states if not s.get("resolved", False)])
+            états_actifs["metadata"]["last_update"] = datetime.now().isoformat()
+            
+            # Sauvegarde
+            year_data["ÉTATS_ACTIFS"] = états_actifs
+            self._save_year_data(current_year, year_data)
+            
+            print(f"[JSON-MANAGER] OK État {state_id} résolu")
+            return True
+        
+        except Exception as e:
+            print(f"[JSON-MANAGER] ERROR resolve_state: {e}")
+            return False
+    
+    def modify_active_state(self, state_id: int, update_note: str, entry_id: Optional[str] = None, new_description: Optional[str] = None) -> bool:
+        """
+        Modifie un état actif existant (description et/ou note de progression)
+        
+        Args:
+            state_id: ID de l'état à modifier
+            update_note: Note de mise à jour (obligatoire)
+            entry_id: ID de l'entrée journal liée (optionnel)
+            new_description: Nouvelle description de l'état (optionnel - remplace l'ancienne)
+        
+        Returns:
+            bool: True si succès
+        
+        Examples:
+            - modify_active_state(5, "Progression J4→J8", new_description="Gestation hybride jour 8/9")
+            - modify_active_state(3, "Amélioration constatée")  # Juste une note
+        """
+        try:
+            current_year = str(datetime.now().year)
+            year_data = self._load_year_data(current_year)
+            
+            if "ÉTATS_ACTIFS" not in year_data:
+                return False
+            
+            états_actifs = year_data["ÉTATS_ACTIFS"]
+            states = états_actifs["states"]
+            
+            # Recherche de l'état
+            target_state = None
+            for state in states:
+                if state.get("state_id") == state_id:
+                    target_state = state
+                    break
+            
+            if not target_state:
+                print(f"[JSON-MANAGER] WARN État {state_id} introuvable pour modification")
+                return False
+            
+            # Ajout note dans historique
+            if "update_history" not in target_state:
+                target_state["update_history"] = []
+            
+            # Préparer l'entrée historique
+            history_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "action": "updated",
+                "entry_id": entry_id,
+                "note": update_note
+            }
+            
+            # Si nouvelle description, modifier le contenu et garder trace de l'ancienne
+            if new_description and new_description != target_state.get("description"):
+                old_description = target_state.get("description", "")
+                target_state["description"] = new_description
+                history_entry["old_description"] = old_description
+                history_entry["new_description"] = new_description
+                print(f"[JSON-MANAGER] 📝 État {state_id} modifié: '{old_description[:30]}...' → '{new_description[:30]}...'")
+            
+            target_state["update_history"].append(history_entry)
+            
+            # Mise à jour timestamp
+            target_state["last_update"] = datetime.now().isoformat()
+            états_actifs["metadata"]["last_update"] = datetime.now().isoformat()
+            
+            # Sauvegarde
+            year_data["ÉTATS_ACTIFS"] = états_actifs
+            self._save_year_data(current_year, year_data)
+            
+            print(f"[JSON-MANAGER] ✅ État {state_id} mis à jour: {update_note[:50]}...")
+            return True
+        
+        except Exception as e:
+            print(f"[JSON-MANAGER] ERROR modify_active_state: {e}")
+            return False
+    
+    def get_unresolved_states(self, category: Optional[str] = None, min_importance: Optional[str] = None) -> List[Dict]:
+        """
+        Récupère les états non résolus avec filtres optionnels
+        
+        Args:
+            category: Filtrer par catégorie (optionnel)
+            min_importance: Importance minimale (low/medium/high) (optionnel)
+        
+        Returns:
+            list: Liste des états actifs non résolus
+        """
+        try:
+            états_actifs = self.get_active_states()
+            states = états_actifs.get("states", [])
+            
+            # Filtre résolution
+            unresolved = [s for s in states if not s.get("resolved", False)]
+            
+            # Filtre catégorie
+            if category:
+                unresolved = [s for s in unresolved if s.get("category") == category]
+            
+            # Filtre importance
+            if min_importance:
+                importance_levels = {"low": 0, "medium": 1, "high": 2}
+                min_level = importance_levels.get(min_importance, 0)
+                unresolved = [
+                    s for s in unresolved 
+                    if importance_levels.get(s.get("importance", "low"), 0) >= min_level
+                ]
+            
+            # Tri par date création (plus récent d'abord)
+            unresolved.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            
+            return unresolved
+        
+        except Exception as e:
+            print(f"[JSON-MANAGER] ERROR get_unresolved_states: {e}")
+            return []

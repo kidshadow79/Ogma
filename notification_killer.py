@@ -10,8 +10,8 @@ Usage dans OGMA:
 2. Ou exécuter ce script directement si nécessaire
 
 Problèmes résolus:
-- 🧠 Phase 1: Génération JSON IA pour Luna... (qui reste visible)
-- 📖 Phase 2: Transformation JSON → MD pour Luna... (qui reste visible)
+- 🧠 Phase 1: Génération JSON IA pour l'IA principale... (qui reste visible)
+- 📖 Phase 2: Transformation JSON → MD pour l'IA principale... (qui reste visible)
 """
 
 from nicegui import ui

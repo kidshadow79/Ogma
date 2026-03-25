@@ -1,0 +1,36 @@
+# OGMA - Dépendances Testing Industriel
+# ========================================
+
+# Framework de test principal
+pytest>=7.4.0
+pytest-asyncio>=0.21.0  # Support tests async
+pytest-cov>=4.1.0       # Couverture de code
+pytest-mock>=3.11.0     # Mocking avancé
+pytest-timeout>=2.1.0   # Timeout tests
+pytest-xdist>=3.3.0     # Exécution parallèle
+
+# Mocking et stubs
+responses>=0.23.0       # Mock requêtes HTTP
+freezegun>=1.2.0        # Mock datetime
+faker>=19.0.0           # Génération données factices
+
+# Assertions avancées
+pytest-describe>=2.1.0  # BDD-style tests
+pytest-bdd>=6.1.0       # Behavior-Driven Development
+
+# Qualité code
+pylint>=2.17.0          # Linting
+black>=23.7.0           # Formatting
+radon>=5.1.0            # Complexité cyclomatique
+flake8>=6.0.0           # Style guide
+
+# Performance
+pytest-benchmark>=4.0.0 # Benchmarking
+
+# Rapports
+pytest-html>=3.2.0      # Rapports HTML
+coverage[toml]>=7.2.0   # Couverture avancée
+
+# Debug
+pytest-pdb>=0.3.0       # Breakpoints automatiques
+pytest-pudb>=0.7.0      # Debugger visuel

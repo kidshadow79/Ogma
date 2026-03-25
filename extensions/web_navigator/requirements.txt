@@ -8,3 +8,5 @@ lxml>=4.9.0
 
 # Support des formats d'images (optionnel - améliore la détection)
 pillow>=10.0.0
+# Moteur de recherche gratuit (alternative a Serper, sans cle API)
+duckduckgo_search>=6.0.0

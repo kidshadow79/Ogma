@@ -2,7 +2,7 @@
 Extension Biographie Profil pour OGMA
 ====================================
 
-Extension modulaire permettant à Luna de créer et maintenir 
+Extension modulaire permettant à l'IA Principale de créer et maintenir 
 des bibliothèques biographiques des utilisateurs.
 
 Architecture:
@@ -26,8 +26,17 @@ _biography_ui = None
 _biography_magic_phrases = None
 _is_initialized = False
 
-def initialize_biography_extension(settings_manager, memory_manager, chat_controller):
-    """Initialise l'extension biographie_profil"""
+def initialize_biography_extension(settings_manager, memory_manager, chat_controller, archiviste_controller=None, status_queue=None):
+    """
+    Initialise l'extension biographie_profil
+    
+    Args:
+        settings_manager: Gestionnaire paramètres OGMA
+        memory_manager: Gestionnaire mémoire OGMA
+        chat_controller: Contrôleur IA chat OGMA
+        archiviste_controller: Contrôleur IA Archiviste (optionnel, pour sélection intelligente)
+        status_queue: Queue pour notifications frontend (optionnel)
+    """
     global _biography_manager, _biography_ui, _biography_magic_phrases, _is_initialized
 
     try:
@@ -37,11 +46,12 @@ def initialize_biography_extension(settings_manager, memory_manager, chat_contro
         # Initialiser l'interface
         _biography_ui = BiographyUI(settings_manager, _biography_manager)
 
-        # Initialiser le gestionnaire de phrases magiques
-        _biography_magic_phrases = BiographyMagicPhrases(_biography_manager)
+        # 🚀 OPTIMISATION: Initialiser phrases magiques avec Archiviste + Status Queue
+        _biography_magic_phrases = BiographyMagicPhrases(_biography_manager, archiviste_controller, status_queue)
 
         _is_initialized = True
-        print("[BIOGRAPHY-EXTENSION] ✅ Extension biographie_profil initialisée avec phrases magiques")
+        mode = "sélection Archiviste" if archiviste_controller else "mode classique"
+        print(f"[BIOGRAPHY-EXTENSION] ✅ Extension biographie_profil initialisée ({mode})")
         return True
 
     except Exception as e:
@@ -86,3 +96,13 @@ def open_settings_modal():
     else:
         print("[BIOGRAPHY-EXTENSION] ERROR Interface utilisateur non disponible")
         return False
+
+
+def cleanup():
+    """Nettoyage propre de l'extension biographie_profil."""
+    global _biography_manager, _biography_ui, _biography_magic_phrases, _is_initialized
+    _biography_manager = None
+    _biography_ui = None
+    _biography_magic_phrases = None
+    _is_initialized = False
+    print("[BIOGRAPHY-EXTENSION] Cleanup effectue")

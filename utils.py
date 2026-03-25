@@ -1,4 +1,4 @@
-# utils.py
+﻿# utils.py
 
 import json
 from pathlib import Path
@@ -11,13 +11,10 @@ import asyncio
 # ==============================================================================
 DATA_DIR = Path(__file__).parent / "data"
 CONVERSATIONS_DIR = DATA_DIR / "conversations"
-EGO_PROMPT_FILE = DATA_DIR / "ego_prompt.txt"
-EGO_PROMPT_SYNTHESIZED_FILE = DATA_DIR / "ego_prompt_synthesized.txt"
-EGO_ARCHIVE_DIR = DATA_DIR / "ego_archive"
+EGO_COMPILED_FILE = DATA_DIR / "ego_compiled.json"
 
 # Création des dossiers au démarrage si nécessaire
 CONVERSATIONS_DIR.mkdir(parents=True, exist_ok=True)
-EGO_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ==============================================================================
 # GESTION DES CONVERSATIONS ET INDEX
@@ -35,8 +32,20 @@ def get_conversations() -> list[str]:
     files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
     return [f.stem for f in files]
 
-def save_conversation(conversation_id: str, history: list[dict]):
-    """Sauvegarde l'historique d'une conversation dans un fichier JSON et met à jour l'index."""
+def save_conversation(conversation_id: str, history: list[dict], summaries_data: dict = None):
+    """
+    Sauvegarde l'historique d'une conversation dans un fichier JSON et met à jour l'index.
+    
+    Args:
+        conversation_id: ID unique de la conversation
+        history: Liste messages user/assistant
+        summaries_data: (Optionnel) Structure résumés {ranges, last_index, interval}
+    
+    Format JSON étendu (si summaries_data présent):
+        {"messages": [...], "summaries": {...}}
+    Format classique (rétrocompatibilité):
+        [...messages...]
+    """
     if not conversation_id:
         return
 
@@ -48,10 +57,23 @@ def save_conversation(conversation_id: str, history: list[dict]):
         cleaned_msg = clean_message_for_save(msg)
         cleaned_history.append(cleaned_msg)
 
-    # Sauvegarder version nettoyée
+    # 🆕 Déterminer format sauvegarde
     filepath = CONVERSATIONS_DIR / f"{conversation_id}.json"
+    
+    if summaries_data and summaries_data.get("ranges"):
+        # Format étendu avec résumés
+        conversation_data = {
+            "messages": cleaned_history,
+            "summaries": summaries_data
+        }
+        print(f"💾 [SAVE] Format étendu: {len(cleaned_history)} messages + {len(summaries_data['ranges'])} résumés")
+    else:
+        # Format classique (rétrocompatibilité)
+        conversation_data = cleaned_history
+        print(f"💾 [SAVE] Format classique: {len(cleaned_history)} messages")
+    
     with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(cleaned_history, f, indent=2, ensure_ascii=False)
+        json.dump(conversation_data, f, indent=2, ensure_ascii=False)
 
     # Mettre à jour l'index avec le résumé (seulement si la conversation a du contenu)
     if cleaned_history and len(cleaned_history) > 0 and isinstance(cleaned_history, list):
@@ -60,15 +82,48 @@ def save_conversation(conversation_id: str, history: list[dict]):
         if valid_history:
             update_conversation_index(conversation_id, valid_history)
 
-def load_conversation(conversation_id: str) -> list[dict]:
-    """Charge l'historique d'une conversation depuis un fichier JSON."""
+def load_conversation(conversation_id: str) -> dict:
+    """
+    Charge l'historique d'une conversation depuis un fichier JSON.
+    
+    Args:
+        conversation_id: ID unique de la conversation
+    
+    Returns:
+        Dict avec clés:
+            - "messages": Liste messages user/assistant
+            - "summaries": Structure résumés ou None (ancien format)
+    
+    Rétrocompatibilité:
+        Ancien format (liste) → {"messages": [...], "summaries": None}
+        Nouveau format (dict) → retour direct
+    """
     if not conversation_id:
-        return []
+        return {"messages": [], "summaries": None}
+    
     filepath = CONVERSATIONS_DIR / f"{conversation_id}.json"
     if filepath.exists():
         with open(filepath, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return []
+            data = json.load(f)
+        
+        # 🆕 Détecter format
+        if isinstance(data, list):
+            # Ancien format: liste messages directe
+            print(f"📂 [LOAD] Format classique: {len(data)} messages")
+            return {"messages": data, "summaries": None}
+        elif isinstance(data, dict) and "messages" in data:
+            # Nouveau format: dict avec messages + summaries
+            summaries = data.get("summaries")
+            msg_count = len(data["messages"])
+            summary_count = len(summaries.get("ranges", [])) if summaries else 0
+            print(f"📂 [LOAD] Format étendu: {msg_count} messages + {summary_count} résumés")
+            return data
+        else:
+            # Format invalide
+            print(f"⚠️ [LOAD] Format invalide pour {conversation_id}")
+            return {"messages": [], "summaries": None}
+    
+    return {"messages": [], "summaries": None}
 
 def delete_conversation_file(conversation_id: str):
     """Supprime le fichier d'une conversation."""
@@ -349,328 +404,47 @@ def estimate_tokens(text: str) -> int:
         return 0
     return len(text) // 4
 
-def get_ego_prompt() -> str:
-    """Charge le contenu du prompt EGO avec expansion automatique des références mémoire."""
-    # PRIORITÉ UNIQUE : ego_prompt.txt (source de vérité avec vraies références)
-    if EGO_PROMPT_FILE.exists():
-        try:
-            raw_content = EGO_PROMPT_FILE.read_text(encoding='utf-8')
-            return expand_ego_references(raw_content)
-        except Exception as e:
-            print(f"Erreur de lecture du fichier ego : {e}")
-            return ""
-    
-    print("[WARNING] Fichier ego_prompt.txt non trouvé")
-    return ""
-
-
-def expand_ego_references(raw_ego_content: str) -> str:
+def get_ego_summary_from_compiled(max_chars: int = 300) -> str:
     """
-    Expand les références mémoire (#MEM_XXXXX) dans le contenu ego en récupérant
-    le contenu réel depuis la base de données FAISS.
+    Génère un résumé lisible de l'ego depuis ego_compiled.json.
+    Utilisé pour introspection et export (remplace ego_prompt.txt).
     
     Args:
-        raw_ego_content: Contenu brut avec références #MEM_XXXXX
+        max_chars: Taille maximale du résumé (default 300 pour introspection)
         
     Returns:
-        str: Contenu avec références expandées vers le vrai contenu des souvenirs
+        str: Résumé formaté des groupes ego actifs
     """
-    import re
-    import sqlite3
-    import json
-    
-    # Pattern pour détecter les références mémoire
-    pattern = r'#MEM_([A-Z0-9_]+)'
-    references = re.findall(pattern, raw_ego_content)
-    
-    if not references:
-        return raw_ego_content
-    
-    expanded_content = raw_ego_content
+    if not EGO_COMPILED_FILE.exists():
+        return "Ego boolean non compilé - système en attente de souvenirs"
     
     try:
-        # Chemin vers la base de données (utilise le même chemin que le système)
-        db_path = DATA_DIR / "memory" / "memories.db"
+        with open(EGO_COMPILED_FILE, 'r', encoding='utf-8') as f:
+            compiled_data = json.load(f)
         
-        if not db_path.exists():
-            print(f"[WARNING] Base de données mémoire non trouvée : {db_path}")
-            return raw_ego_content
+        groups = compiled_data.get('groups', {})
+        if not groups:
+            return "Aucun groupe ego compilé"
         
-        # Récupérer le contenu réel des souvenirs depuis la DB
-        with sqlite3.connect(str(db_path)) as conn:
-            for ref_id in references:
-                full_ref = f"#MEM_{ref_id}"
-                
-                # Récupérer le souvenir complet depuis la DB
-                cursor = conn.execute(
-                    "SELECT text_original, summary, lesson FROM memories WHERE id = ?", 
-                    (ref_id,)
-                )
-                result = cursor.fetchone()
-                
-                if result:
-                    text_original, summary, lesson = result
-                    
-                    # Construire le contenu expandé avec le vrai souvenir
-                    if text_original:
-                        # Utiliser le texte original comme contenu principal
-                        expanded_text = f"**{text_original}**"
-                    elif summary:
-                        # Fallback sur le résumé si pas de texte original
-                        expanded_text = f"**{summary}**"
-                    elif lesson:
-                        # Fallback final sur la leçon
-                        expanded_text = f"**{lesson}**"
-                    else:
-                        # Si vraiment rien, garder une référence minimale
-                        expanded_text = f"[Trait ego {ref_id}]"
-                    
-                    print(f"[EGO-EXPAND] {full_ref} → {expanded_text[:50]}...")
-                else:
-                    # Référence non trouvée dans la DB
-                    expanded_text = f"[Trait ego {ref_id} - référence obsolète]"
-                    print(f"[WARNING] Référence ego non trouvée : {full_ref}")
-                
-                # Remplacer la référence par le contenu expandé
-                expanded_content = expanded_content.replace(full_ref, expanded_text)
-    
-    except Exception as e:
-        print(f"[ERROR] Échec expansion ego références: {e}")
-        # En cas d'erreur, retourner le contenu original avec les références
-        return raw_ego_content
-    
-    return expanded_content
-
-def update_ego_prompt(new_entry: str, status_queue=None):
-    """
-    Ajoute une nouvelle entrée au prompt EGO au lieu de l'écraser.
-    Archive l'ancienne version avant la modification.
-    """
-    try:
-        old_content = ""
-        if EGO_PROMPT_FILE.exists():
-            old_content = EGO_PROMPT_FILE.read_text(encoding='utf-8')
-
-            # Archiver l'ancienne version avec millisecondes pour éviter les collisions
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Ajouter millisecondes
-            archive_path = EGO_ARCHIVE_DIR / f"ego_prompt_{timestamp}.txt"
-            
-            # S'assurer que le nom de fichier est unique
-            counter = 1
-            while archive_path.exists():
-                timestamp_unique = f"{timestamp}_{counter}"
-                archive_path = EGO_ARCHIVE_DIR / f"ego_prompt_{timestamp_unique}.txt"
-                counter += 1
-            
-            EGO_PROMPT_FILE.rename(archive_path)
-
-        # Combiner l'ancien et le nouveau contenu
-        combined_content = (old_content.strip() + "\n\n" + new_entry).strip()
-
-        # Écrire le nouveau contenu combiné
-        EGO_PROMPT_FILE.write_text(combined_content, encoding='utf-8')
-
-        # Nettoyage des anciennes archives (garde les 20 plus récentes)
-        archives = sorted(EGO_ARCHIVE_DIR.glob("*.txt"), key=os.path.getmtime, reverse=True)
-        for old_archive in archives[20:]:
-            old_archive.unlink()
-
-        if status_queue:
-            status_queue.put("[OK] Identite mise a jour et completee.")
-
-        # Déclencher synthèse asynchrone si nécessaire
-        new_tokens = estimate_tokens(combined_content)
-        if new_tokens > 1500:  # Seuil pour déclencher synthèse
-            print(f"[SYNTHESIS] Déclenchement synthèse ego ({new_tokens} tokens)")
-            # Note: La synthèse sera déclenchée par le système appelant avec le chat_ai_controller
-
-    except Exception as e:
-        error_msg = f"[ERREUR] Erreur de mise a jour de l'ego: {e}"
-        print(error_msg)
-        if status_queue:
-            status_queue.put(error_msg)
-
-def restructure_ego_prompt(status_queue=None):
-    """
-    Restructure automatiquement l'ego prompt en analysant et réorganisant son contenu.
-    """
-    try:
-        if not EGO_PROMPT_FILE.exists():
-            if status_queue:
-                status_queue.put("❌ Fichier ego inexistant, restructuration impossible.")
-            return
-            
-        current_content = EGO_PROMPT_FILE.read_text(encoding='utf-8')
+        # Construire résumé : liste des groupes avec quelques flags clés
+        group_summaries = []
+        for group_name, group_data in groups.items():
+            flags = group_data.get('flags', {})
+            # Compter flags true vs false
+            true_flags = sum(1 for f in flags.values() if f.get('value') == True)
+            total_flags = len(flags)
+            group_summaries.append(f"{group_name} ({true_flags}/{total_flags} traits actifs)")
         
-        # Sauvegarder avant restructuration
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = EGO_ARCHIVE_DIR / f"ego_prompt_pre_restructure_{timestamp}.txt"
-        EGO_PROMPT_FILE.rename(backup_path)
+        # Formater en texte lisible
+        summary = f"Ego Boolean ({len(groups)} groupes) : " + ", ".join(group_summaries)
         
-        # Analyser le contenu pour extraire les thèmes principaux
-        lines = [line.strip() for line in current_content.split('\n') if line.strip()]
+        # Tronquer si nécessaire
+        if len(summary) > max_chars:
+            summary = summary[:max_chars-3] + "..."
         
-        # Séparer les sections existantes et le contenu fragmenté
-        structured_sections = []
-        fragments = []
-        current_section = None
-        
-        for line in lines:
-            if line.startswith('#'):
-                if current_section:
-                    structured_sections.append(current_section)
-                current_section = {'title': line, 'content': []}
-            elif current_section:
-                current_section['content'].append(line)
-            else:
-                fragments.append(line)
-                
-        if current_section:
-            structured_sections.append(current_section)
-        
-        # Construire le nouveau contenu restructuré
-        restructured_content = []
-        
-        # Garder les sections bien structurées
-        for section in structured_sections:
-            restructured_content.append(section['title'])
-            restructured_content.append('')
-            
-            # Nettoyer et déduplicquer le contenu de la section
-            clean_content = []
-            seen_content = set()
-            
-            for content_line in section['content']:
-                # Éviter les doublons sémantiques
-                normalized = content_line.lower().strip()
-                if normalized and normalized not in seen_content:
-                    clean_content.append(content_line)
-                    seen_content.add(normalized)
-            
-            restructured_content.extend(clean_content)
-            restructured_content.append('')
-        
-        # Ajouter une section pour les fragments non-classés s'il y en a
-        if fragments:
-            unique_fragments = []
-            seen_fragments = set()
-            
-            for fragment in fragments:
-                normalized = fragment.lower().strip()
-                if normalized and len(normalized) > 20 and normalized not in seen_fragments:
-                    unique_fragments.append(fragment)
-                    seen_fragments.add(normalized)
-            
-            if unique_fragments:
-                restructured_content.append('# RÉFLEXIONS COMPLÉMENTAIRES')
-                restructured_content.append('')
-                restructured_content.extend(unique_fragments)
-        
-        # Écrire le contenu restructuré
-        final_content = '\n'.join(restructured_content).strip()
-        EGO_PROMPT_FILE.write_text(final_content, encoding='utf-8')
-        
-        if status_queue:
-            status_queue.put(f"✅ Ego restructuré automatiquement. Sauvegarde: {backup_path.name}")
-        
-        print(f"[SUCCESS] Ego restructuré automatiquement")
-
-        # Déclencher une nouvelle synthèse après restructuration
-        import asyncio
-        asyncio.create_task(synthesize_ego_prompt_async(status_queue))
-
-    except Exception as e:
-        error_msg = f"[ERREUR] Erreur de restructuration de l'ego : {e}"
-        print(error_msg)
-        if status_queue:
-            status_queue.put(error_msg)
-
-
-def estimate_tokens(text: str) -> int:
-    """Estimation approximative du nombre de tokens."""
-    return int(len(text.split()) * 1.3)  # Approximation : 1.3 token par mot
-
-
-async def synthesize_ego_prompt_async(chat_ai_controller, status_queue=None):
-    """Synthétise l'ego prompt de façon asynchrone pour optimiser le contexte."""
-    try:
-        if not EGO_PROMPT_FILE.exists():
-            if status_queue:
-                status_queue.put("[INFO] Pas d'ego prompt à synthétiser")
-            return
-
-        # Lire le contenu brut
-        raw_content = EGO_PROMPT_FILE.read_text(encoding='utf-8')
-        
-        # Vérifier si synthèse nécessaire
-        raw_tokens = estimate_tokens(raw_content)
-        if raw_tokens < 1500:  # Seuil configurable
-            if status_queue:
-                status_queue.put(f"[INFO] Ego prompt compact ({raw_tokens} tokens) - synthèse non nécessaire")
-            return
-
-        if status_queue:
-            status_queue.put(f"[SYNTHESIS] 🧠 Démarrage synthèse ego ({raw_tokens} tokens)...")
-
-        # Prompt de synthèse
-        synthesis_prompt = f"""Tu dois synthétiser ton propre ego prompt de façon optimale.
-
-OBJECTIF : Condenser le contenu en gardant l'ESSENCE de ta personnalité et tes souvenirs importants.
-
-RÈGLES :
-1. Préserve les traits de personnalité fondamentaux
-2. Garde les souvenirs significatifs et récents
-3. Élimine les redondances et détails superflus
-4. Reste fidèle à ton identité
-5. Vise 60-70% du contenu original maximum
-
-CONTENU ACTUEL ({raw_tokens} tokens) :
-{raw_content}
-
-SYNTHÈSE OPTIMISÉE :"""
-
-        # Appel à l'IA pour synthèse
-        synthesis_messages = [{"role": "user", "content": synthesis_prompt}]
-        synthesized_content, error = await chat_ai_controller.call_chat_api(
-            messages=synthesis_messages,
-            max_tokens=2048,
-            temperature=0.3,  # Plus déterministe pour la synthèse
-            is_json=False
-        )
-
-        if error:
-            if status_queue:
-                status_queue.put(f"[ERREUR] Échec synthèse ego : {error}")
-            return
-
-        # Vérification et sauvegarde
-        synthesized_tokens = estimate_tokens(synthesized_content)
-        compression_ratio = raw_tokens / synthesized_tokens if synthesized_tokens > 0 else 1
-        
-        # Sauvegarde avec timestamp pour debug
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_synthesized = EGO_ARCHIVE_DIR / f"ego_synthesized_backup_{timestamp}.txt"
-        
-        # Archiver l'ancienne synthèse si elle existe
-        if EGO_PROMPT_SYNTHESIZED_FILE.exists():
-            EGO_PROMPT_SYNTHESIZED_FILE.rename(backup_synthesized)
-
-        # Écrire la nouvelle synthèse
-        EGO_PROMPT_SYNTHESIZED_FILE.write_text(synthesized_content, encoding='utf-8')
-        
-        if status_queue:
-            status_queue.put(f"✅ Ego synthétisé : {raw_tokens}→{synthesized_tokens} tokens (x{compression_ratio:.1f})")
-        
-        print(f"[SUCCESS] Ego synthétisé avec succès - Compression: x{compression_ratio:.1f}")
-
-    except Exception as e:
-        error_msg = f"[ERREUR] Erreur de synthèse ego : {e}"
-        print(error_msg)
-        if status_queue:
-            status_queue.put(error_msg)
+        return summary
         
     except Exception as e:
-        error_msg = f"❌ Erreur de restructuration de l'ego: {e}"
-        print(error_msg)
-        if status_queue:
-            status_queue.put(error_msg)
+        print(f"[EGO-SUMMARY] Erreur lecture ego_compiled.json: {e}")
+        return "Erreur chargement ego"
+

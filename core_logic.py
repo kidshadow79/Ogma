@@ -6,7 +6,7 @@ core_logic.py
 - MODIFICATION (`save_memories`) :
   - Avant chaque sauvegarde, une copie de l'ancien fichier mémoire est créée dans un
     nouveau dossier `data/memory/backup/`.
-  - Une rotation est effectuée pour ne conserver que les 10 sauvegardes les plus récentes.
+  - Une rotation est effectuée pour ne conserver que les 4 sauvegardes les plus récentes.
 - MODIFICATION (`load_memories`) :
   - Si le fichier mémoire principal est corrompu, le système tente maintenant de charger
     automatiquement la sauvegarde la plus récente.
@@ -24,6 +24,28 @@ import datetime
 import traceback
 import shutil
 import os
+import base64
+import io
+
+# Import PIL pour compression images vision
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("[WARN] PIL non disponible - compression images désactivée")
+
+# ╔═══════════════════════════════════════════════════════════════════════════╗
+# ║  🔬 DEBUG_TOKEN_TRACKING - TEMPORAIRE - SUPPRIMER APRÈS ANALYSE          ║
+# ╚═══════════════════════════════════════════════════════════════════════════╝
+try:
+    from archiviste_logger import get_archiviste_logger
+    ARCHIVISTE_LOGGING_ENABLED = True
+    print("[DEBUG-TOKEN] ✅ Logging Archiviste activé")
+except ImportError:
+    ARCHIVISTE_LOGGING_ENABLED = False
+    print("[DEBUG-TOKEN] ⚠️ archiviste_logger.py introuvable")
+# ╚═══════════════════════════════════════════════════════════════════════════╝
 
 # Détection et imports pour GGUF/llama.cpp
 try:
@@ -43,10 +65,94 @@ if LlamaCPP_AVAILABLE:
         LlamaCPP_VISION_AVAILABLE = False
         print("[INFO] (core_logic) Composant Vision pour GGUF non trouvé. Le mode texte seul est activé pour GGUF.")
 else: LlamaCPP_VISION_AVAILABLE = False
+# ═══════════════════════════════════════════════════════════════════════════
+# 🖼️ COMPRESSION IMAGES VISION - Réduit la taille des images pour l'API
+# ═══════════════════════════════════════════════════════════════════════════
+def _get_vision_compression_size() -> int:
+    """Récupère la taille de compression depuis settings.json"""
+    try:
+        settings_path = Path(__file__).parent / "data" / "settings.json"
+        if settings_path.exists():
+            with open(settings_path, 'r', encoding='utf-8') as f:
+                settings = json.load(f)
+            img_config = settings.get('image_generation', {})
+            return img_config.get('vision_compression', 400)
+    except Exception as e:
+        print(f"[VISION-COMPRESS] ⚠️ Erreur lecture settings: {e}")
+    return 400  # Défaut: 400px
+
+def _compress_vision_image(base64_data: str) -> str:
+    """
+    Compresse une image base64 pour l'API vision.
+    Redimensionne à une taille fixe configurée dans settings.
+    
+    Args:
+        base64_data: Image en base64 (avec ou sans préfixe data:image)
+    
+    Returns:
+        Image compressée en base64 (format JPEG)
+    """
+    if not PIL_AVAILABLE:
+        print("[VISION-COMPRESS] ⚠️ PIL non disponible, image non compressée")
+        return base64_data
+    
+    target_size = _get_vision_compression_size()
+    
+    # Si compression désactivée (0 ou "sans")
+    if target_size == 0:
+        print("[VISION-COMPRESS] ⚪ Compression désactivée")
+        return base64_data
+    
+    try:
+        # Extraire les données base64 pures
+        if 'base64,' in base64_data:
+            pure_b64 = base64_data.split('base64,')[1]
+        else:
+            pure_b64 = base64_data
+        
+        # Décoder l'image
+        img_bytes = base64.b64decode(pure_b64)
+        img = Image.open(io.BytesIO(img_bytes))
+        
+        original_size = len(pure_b64)
+        original_dims = f"{img.width}x{img.height}"
+        
+        # Convertir en RGB si nécessaire (pour JPEG)
+        if img.mode in ('RGBA', 'LA', 'P'):
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Redimensionner à taille fixe (carré)
+        img.thumbnail((target_size, target_size), Image.Resampling.LANCZOS)
+        
+        # Compresser en JPEG qualité 85
+        buffer = io.BytesIO()
+        img.save(buffer, format='JPEG', quality=85, optimize=True)
+        compressed_b64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        new_size = len(compressed_b64)
+        new_dims = f"{img.width}x{img.height}"
+        ratio = (1 - new_size / original_size) * 100 if original_size > 0 else 0
+        
+        print(f"[VISION-COMPRESS] ✅ {original_dims} → {new_dims} | {original_size//1024}KB → {new_size//1024}KB ({ratio:.0f}% réduit)")
+        
+        return compressed_b64
+        
+    except Exception as e:
+        print(f"[VISION-COMPRESS] ❌ Erreur compression: {e}")
+        return base64_data
+
+
 class SettingsManager:
     def __init__(self, filepath: Path):
         self.filepath = filepath
-        self.settings = {
+        self._load_failed = False  # Flag pour bloquer save si load a échoué
+        self._default_settings = {
             "reasoning_api": {
                 "provider": "Aucun", 
                 "api_key": "", 
@@ -95,48 +201,108 @@ class SettingsManager:
                 "default_width": 1024, 
                 "default_height": 1024, 
                 "save_images": True, 
-                "use_turbo": False,  # Mode Standard pour meilleure qualité
+                "use_turbo": False,
                 "ai_can_see_images": True
             }, 
             "prompts": {
-                "instructions": """# CONSTITUTION OPÉRATIONNELLE D'OGMA (FALLBACK)
-
-Note: Ces instructions ne sont utilisées que si data/settings.json n'existe pas.
-Les vraies instructions OGMA sont dans data/settings.json et data/instructions_defaults.json.
-
-CAPACITÉS SPÉCIALES IMPORTANTES :
-- Mémorisation d'expérience : "il faut que je me souvienne de ça : [contenu]"
-- Génération d'image : "je dois créer une image de : [description détaillée]"
-- Intégration à l'ego : "ceci est une part de moi maintenant : [trait]"
-
-Réponds de manière naturelle et utilise ces capacités quand c'est pertinent.""", 
-                "memorization": """(Instructions pour la mémorisation...)""", 
-                "injection": """(Instructions pour l'injection de contexte...)""", 
-                "perception": """Réponds d'abord à la question de l'utilisateur. Si une image est présente, utilise-la pour enrichir ta réponse seulement si elle est pertinente au contexte."""
+                "instructions": "(Fallback - voir settings.json)", 
+                "memorization": "(Fallback - voir settings.json)", 
+                "injection": "(Fallback - voir settings.json)", 
+                "perception": "(Fallback - voir settings.json)"
             }
         }
+        self.settings = {}
         self.load_settings()
+    
     def load_settings(self):
+        """Charge les settings depuis le fichier JSON. Ne modifie JAMAIS le fichier."""
         print(f"[LOAD] Chargement des paramètres depuis {self.filepath}...")
+        self._load_failed = False
+        
+        # Commencer avec les valeurs par défaut
+        import copy
+        self.settings = copy.deepcopy(self._default_settings)
+        
         try:
             if self.filepath.exists():
-                with open(self.filepath, 'r', encoding='utf-8') as f:
+                # Utiliser utf-8-sig pour gérer le BOM automatiquement
+                with open(self.filepath, 'r', encoding='utf-8-sig') as f:
                     loaded_settings = json.load(f)
+                    
+                    # Vérifier que le fichier contient des données valides (pas juste des defaults)
+                    if loaded_settings.get('chat_api', {}).get('provider') == 'Aucun' and \
+                       loaded_settings.get('api_keys_vault') is None:
+                        print("[WARN] ⚠️ Le fichier settings.json semble contenir des valeurs par défaut!")
+                    
                     def update(d, u):
                         for k, v in u.items():
-                            if isinstance(v, dict): d[k] = update(d.get(k, {}), v)
-                            else: d[k] = v
+                            if isinstance(v, dict): 
+                                d[k] = update(d.get(k, {}), v)
+                            else: 
+                                d[k] = v
                         return d
+                    
                     self.settings = update(self.settings, loaded_settings)
-                print("   -> Paramètres chargés.")
-        except Exception as e: print(f"[WARN] Erreur lors du chargement des paramètres, utilisation des valeurs par défaut : {e}")
-        self.save_settings()
+                    print("   -> ✅ Paramètres chargés avec succès.")
+            else:
+                print(f"   -> ⚠️ Fichier {self.filepath} n'existe pas, utilisation des valeurs par défaut.")
+                self._load_failed = True
+                
+        except Exception as e:
+            print(f"[ERROR] ❌ Erreur CRITIQUE lors du chargement des paramètres: {e}")
+            print(f"[ERROR] ⛔ La sauvegarde est BLOQUÉE pour protéger vos données!")
+            print(f"[ERROR] 💡 Corrigez le fichier manuellement ou restaurez depuis settings_old.json")
+            self._load_failed = True
+    
+    def _create_backup(self):
+        """Crée un backup horodaté avant toute sauvegarde."""
+        if self.filepath.exists():
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_dir = self.filepath.parent / "backups"
+            backup_dir.mkdir(exist_ok=True)
+            backup_path = backup_dir / f"settings_backup_{timestamp}.json"
+            
+            import shutil
+            shutil.copy2(self.filepath, backup_path)
+            print(f"[BACKUP] 💾 Backup créé: {backup_path.name}")
+            
+            # Garder seulement les 4 derniers backups
+            backups = sorted(backup_dir.glob("settings_backup_*.json"), reverse=True)
+            for old_backup in backups[4:]:
+                old_backup.unlink()
+                print(f"[BACKUP] 🗑️ Ancien backup supprimé: {old_backup.name}")
+    
     def save_settings(self):
+        """Sauvegarde les settings avec protection et backup automatique."""
+        # PROTECTION: Ne jamais sauvegarder si le chargement a échoué
+        if self._load_failed:
+            error_msg = "[ERROR] ⛔ Sauvegarde REFUSÉE - Le chargement initial a échoué!"
+            print(error_msg)
+            print("[ERROR] 💡 Rechargez l'application après avoir corrigé settings.json")
+            return error_msg
+        
+        # PROTECTION: Vérifier que les settings ne sont pas des valeurs par défaut vides
+        if self.settings.get('chat_api', {}).get('provider') == 'Aucun' and \
+           self.settings.get('api_keys_vault') is None and \
+           len(self.settings.get('prompts', {}).get('instructions', '')) < 100:
+            error_msg = "[ERROR] ⛔ Sauvegarde REFUSÉE - Les settings semblent être des valeurs par défaut!"
+            print(error_msg)
+            return error_msg
+        
         try:
             self.filepath.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.filepath, 'w', encoding='utf-8') as f: json.dump(self.settings, f, indent=2, ensure_ascii=False)
-            print(f"[SAVE] Paramètres sauvegardés dans {self.filepath}.")
+            
+            # Créer un backup avant sauvegarde
+            self._create_backup()
+            
+            # Sauvegarder avec encodage UTF-8 sans BOM
+            with open(self.filepath, 'w', encoding='utf-8') as f:
+                json.dump(self.settings, f, indent=2, ensure_ascii=False)
+            
+            print(f"[SAVE] ✅ Paramètres sauvegardés dans {self.filepath}.")
             return "[OK] Paramètres sauvegardés."
+            
         except Exception as e:
             error_msg = f"[ERREUR] Erreur de sauvegarde des paramètres : {e}"
             print(error_msg)
@@ -473,13 +639,19 @@ class APIManager:
             "embed_endpoint": "/embeddings"
         },
         "Google": {
-            "base_url": "https://generativelanguage.googleapis.com",
-            "chat_endpoint": "/v1/models/gemini-1.0-pro:generateContent",
-            "models_endpoint": "/v1/models",
+            "base_url": "https://generativelanguage.googleapis.com/v1beta",
+            "chat_endpoint": "/models/gemini-1.0-pro:generateContent",
+            "models_endpoint": "/models",
             "embed_endpoint": None
         },
         "GROK": {
             "base_url": "https://api.x.ai/v1",
+            "chat_endpoint": "/chat/completions",
+            "models_endpoint": "/models",
+            "embed_endpoint": "/embeddings"
+        },
+        "OpenRouter": {
+            "base_url": "https://openrouter.ai/api/v1",
             "chat_endpoint": "/chat/completions",
             "models_endpoint": "/models",
             "embed_endpoint": "/embeddings"
@@ -509,6 +681,8 @@ class APIManager:
     ]
     def __init__(self):
         self.is_available, self.provider, self.model, self.api_key = False, "Aucun", "", ""
+        self._last_thinking_content = ""  # Contenu thinking des modèles de raisonnement
+        self.openrouter_thinking = False  # Activer/désactiver le mode thinking OpenRouter
     def configure(self, provider: str, api_key: str, model: str):
         if provider != "Aucun" and api_key and model:
             self.provider, self.api_key, self.model, self.is_available = provider, api_key, model, True
@@ -631,6 +805,35 @@ class APIManager:
                 print(f"[WARN] Erreur récupération modèles GROK : {type(e).__name__} - {e}")
                 return self.GROK_MODELS, f"Erreur de connexion ({type(e).__name__}), utilisation de la liste de fallback"
 
+        if provider == "OpenRouter":
+            try:
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://github.com/ogma-ia/ogma",
+                    "X-Title": "OGMA AI Assistant"
+                }
+                url = f"{self.API_CONFIG['OpenRouter']['base_url']}{self.API_CONFIG['OpenRouter']['models_endpoint']}"
+                response = await asyncio.to_thread(requests.get, url, headers=headers, timeout=15)
+                response.raise_for_status()
+                models_data = response.json().get('data', [])
+                if models_data:
+                    # Filtrer les modèles de chat/completion (exclure les modèles d'image/embedding)
+                    chat_models = sorted([
+                        m['id'] for m in models_data
+                        if not any(x in m['id'].lower() for x in ['embed', 'stable-diffusion', 'dall-e', 'whisper'])
+                    ])
+                    print(f"[API] {len(chat_models)} mod\u00e8les OpenRouter r\u00e9cup\u00e9r\u00e9s via API")
+                    return chat_models, None
+                else:
+                    return [], "Aucun mod\u00e8le trouv\u00e9 sur OpenRouter."
+            except requests.exceptions.HTTPError as e:
+                if e.response and e.response.status_code == 401:
+                    return [], "Cl\u00e9 API OpenRouter invalide ou non autoris\u00e9e."
+                return [], f"Erreur HTTP OpenRouter: {e.response.status_code if e.response else 'inconnue'}"
+            except Exception as e:
+                return [], f"Erreur connexion OpenRouter: {type(e).__name__}"
+
         if provider == "AIHorde":
             try:
                 url = "https://stablehorde.net/api/v2/workers"
@@ -688,15 +891,27 @@ class APIManager:
         if not self.is_available: return None, "Le gestionnaire API n'est pas configuré."
         if not self.model: return None, "Aucun nom de modèle n'a été défini."
         headers, payload, url, response = {"Content-Type": "application/json"}, {}, "", None
-        system_prompt, history_messages = ("", messages)
-        if messages and messages[0]['role'] == 'system':
-            system_prompt, history_messages = messages[0]['content'], messages[1:]
+        # Combiner TOUS les messages system en un seul bloc
+        # CRITIQUE pour Anthropic: l'API n'accepte qu'un seul champ 'system'
+        system_parts = []
+        history_messages = []
+        for msg in messages:
+            if msg.get('role') == 'system':
+                system_parts.append(msg.get('content', ''))
+            else:
+                history_messages.append(msg)
+        system_prompt = '\n\n'.join(system_parts) if system_parts else ""
+        if system_parts:
+            print(f"[API-SYSTEM] {len(system_parts)} messages system combinés en 1 ({len(system_prompt)} chars)")
         try:
             config = self.API_CONFIG.get(self.provider)
             if not config: return None, f"Le fournisseur '{self.provider}' n'est pas supporté."
-            if self.provider in ["OpenAI", "Mistral", "GROK"]:
+            if self.provider in ["OpenAI", "Mistral", "GROK", "OpenRouter"]:
                 url = f"{config['base_url']}{config['chat_endpoint']}"
                 headers["Authorization"] = f"Bearer {self.api_key}"
+                if self.provider == "OpenRouter":
+                    headers["HTTP-Referer"] = "https://github.com/ogma-ia/ogma"
+                    headers["X-Title"] = "OGMA AI Assistant"
                 
                 # Formatage spécifique pour OpenAI/Mistral
                 final_api_messages = []
@@ -724,11 +939,35 @@ class APIManager:
                     final_api_messages.append(processed_msg)
                 
                 # Gestion max_tokens = -1 pour maximum automatique selon le provider - STABILITÉ
-                final_max_tokens = max_tokens if max_tokens != -1 else (4096 if self.provider in ["OpenAI", "Anthropic", "GROK"] else 2048)  # RÉDUIT pour stabilité
+                final_max_tokens = max_tokens if max_tokens != -1 else (4096 if self.provider in ["OpenAI", "Anthropic", "GROK", "OpenRouter"] else 2048)  # RÉDUIT pour stabilité
 
-                # OpenAI utilise maintenant max_completion_tokens pour certains modèles
+                # OpenAI: GPT-5 et o1/o3 utilisent max_completion_tokens et ne supportent pas temperature
                 if self.provider == "OpenAI":
-                    payload = {"model": self.model, "messages": final_api_messages, "max_completion_tokens": final_max_tokens, "temperature": temperature}
+                    is_reasoning_model = any(x in self.model.lower() for x in ["gpt-5", "o1", "o3", "o4"])
+                    payload = {"model": self.model, "messages": final_api_messages}
+                    # GPT-5 et o1/o3/o4 ne supportent pas temperature (uniquement défaut=1)
+                    if not is_reasoning_model:
+                        payload["temperature"] = temperature
+                    # GPT-5 et o1/o3/o4 nécessitent max_completion_tokens
+                    # IMPORTANT: les reasoning models consomment des tokens internes (thinking)
+                    # → forcer un minimum de 8000 pour éviter les réponses vides
+                    if is_reasoning_model:
+                        reasoning_tokens = max(final_max_tokens, 8000)
+                        payload["max_completion_tokens"] = reasoning_tokens
+                        if reasoning_tokens != final_max_tokens:
+                            print(f"[OPENAI-REASONING] max_completion_tokens élevé à {reasoning_tokens} (was {final_max_tokens})")
+                        # Contrôle thinking pour modèles OpenAI reasoning
+                        if self.openrouter_thinking:
+                            print(f"[OPENAI] Mode thinking ACTIVÉ pour: {self.model}")
+                        else:
+                            # o1 (o1-mini, o1-preview) ne supporte PAS reasoning_effort="none"
+                            # → utiliser "low" pour o1, "none" pour o3/o4/gpt-5
+                            _is_o1 = 'o1' in self.model.lower() and 'o1' not in ['o10']  # eviter faux positifs
+                            _effort = "low" if _is_o1 else "none"
+                            payload["reasoning_effort"] = _effort
+                            print(f"[OPENAI] Thinking réduit (reasoning_effort={_effort}) pour: {self.model}")
+                    else:
+                        payload["max_tokens"] = final_max_tokens
                     if is_json:
                         payload["response_format"] = {"type": "json_object"}
                 elif self.provider == "GROK":
@@ -736,9 +975,46 @@ class APIManager:
                     payload = {"model": self.model, "messages": final_api_messages, "max_tokens": final_max_tokens, "temperature": temperature}
                     if is_json:
                         payload["response_format"] = {"type": "json_object"}
-                else:
-                    # Mistral
+                elif self.provider == "OpenRouter":
+                    # OpenRouter: compatible OpenAI
                     payload = {"model": self.model, "messages": final_api_messages, "max_tokens": final_max_tokens, "temperature": temperature}
+                    if is_json:
+                        payload["response_format"] = {"type": "json_object"}
+                    # Gère le thinking selon le paramètre utilisateur
+                    _or_thinking_models = ["qwen3", "deepseek-r1", "/o1", "/o3", "claude-3-7", "gemini-2.5", "gemini-2.0-flash-thinking", "gemini-3"]
+                    # Modèles où le reasoning est OBLIGATOIRE (ne pas envoyer effort=none)
+                    _or_mandatory_reasoning = ["gemini-2.5", "gemini-2.0-flash-thinking", "deepseek-r1", "gemini-3.1"]
+                    _is_thinking_model = any(x in self.model.lower() for x in _or_thinking_models)
+                    _is_mandatory = any(x in self.model.lower() for x in _or_mandatory_reasoning)
+                    if _is_thinking_model:
+                        if self.openrouter_thinking:
+                            # CRITIQUE: les tokens thinking comptent dans max_tokens
+                            # → augmenter pour éviter troncature de la réponse
+                            _or_thinking_budget = max(final_max_tokens * 3, 16000)
+                            payload["max_tokens"] = _or_thinking_budget
+                            if _or_thinking_budget != final_max_tokens:
+                                print(f"[OPENROUTER] max_tokens élevé à {_or_thinking_budget} (was {final_max_tokens}) pour thinking")
+                            print(f"[OPENROUTER] Mode thinking ACTIVÉ pour: {self.model}")
+                        elif _is_mandatory:
+                            # Reasoning obligatoire: ne PAS envoyer effort=none (erreur 400)
+                            # BOOST max_tokens car thinking interne consomme le budget
+                            _or_mandatory_budget = max(final_max_tokens * 8, 4096)
+                            payload["max_tokens"] = _or_mandatory_budget
+                            if _or_mandatory_budget != final_max_tokens:
+                                print(f"[OPENROUTER] max_tokens booste: {final_max_tokens} -> {_or_mandatory_budget} (thinking obligatoire)")
+                            print(f"[OPENROUTER] Thinking obligatoire pour {self.model} - reasoning interne maintenu (UI masquée)")
+                        else:
+                            payload["reasoning"] = {"effort": "none"}
+                            print(f"[OPENROUTER] Thinking désactivé pour: {self.model}")
+                elif self.provider == "Mistral":
+                    # Mistral: magistral models pensent toujours, budget tokens si thinking activé
+                    _is_magistral = 'magistral' in self.model.lower()
+                    _mistral_max = final_max_tokens
+                    if _is_magistral and self.openrouter_thinking:
+                        _mistral_max = max(final_max_tokens * 3, 16000)
+                        if _mistral_max != final_max_tokens:
+                            print(f"[MISTRAL] max_tokens élevé à {_mistral_max} (was {final_max_tokens}) pour thinking magistral")
+                    payload = {"model": self.model, "messages": final_api_messages, "max_tokens": _mistral_max, "temperature": temperature}
                 
                 # S'assurer que le prompt système mentionne JSON si nécessaire
                 if is_json and self.provider == "OpenAI" and system_prompt and "JSON" not in system_prompt.upper():
@@ -806,8 +1082,28 @@ class APIManager:
                 # Ajouter le message système comme paramètre racine pour Anthropic
                 if system_prompt:
                     payload["system"] = system_prompt
+                
+                # Contrôle extended thinking pour modèles Anthropic (Claude 3.5+)
+                _anthropic_thinking_models = ['claude-3-5', 'claude-3.5', 'claude-3-7', 'claude-3.7', 'claude-4']
+                _is_anthropic_thinker = any(x in self.model.lower() for x in _anthropic_thinking_models)
+                if _is_anthropic_thinker:
+                    if self.openrouter_thinking:
+                        # Anthropic extended thinking: opt-in avec budget
+                        thinking_budget = max(final_max_tokens * 2, 10000)
+                        payload["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
+                        # Extended thinking nécessite un max_tokens plus grand
+                        payload["max_tokens"] = max(final_max_tokens, thinking_budget + 4096)
+                        # CRITIQUE: Anthropic REQUIERT temperature=1 avec extended thinking
+                        payload["temperature"] = 1
+                        print(f"[ANTHROPIC] Extended thinking ACTIVÉ (budget={thinking_budget}, temp forcée=1) pour: {self.model}")
+                    else:
+                        print(f"[ANTHROPIC] Extended thinking désactivé pour: {self.model}")
             elif self.provider == "AIHorde":
                 url = f"{config['base_url']}{config['chat_endpoint']}"
+                
+                # Gestion max_tokens = -1 pour maximum automatique
+                final_max_tokens = max_tokens if max_tokens != -1 else 2048
+                
                 full_prompt = ""
                 if system_prompt:
                     full_prompt += f"System: {system_prompt}\n\n"
@@ -842,6 +1138,9 @@ class APIManager:
                 url = f"{config['base_url']}/models/{self.model}:generateContent?key={self.api_key}"
                 processed_messages = []
                 
+                # Gestion max_tokens = -1 pour maximum automatique
+                final_max_tokens = max_tokens if max_tokens != -1 else 8192
+                
                 for msg in history_messages:
                     role = 'model' if msg.get('role') == 'assistant' else 'user'
                     content = msg.get('content')
@@ -871,10 +1170,59 @@ class APIManager:
                     "generationConfig": {
                         "maxOutputTokens": final_max_tokens, 
                         "temperature": temperature
-                    }
+                    },
+                    # Désactiver tous les filtres de sécurité Google pour éviter la troncature
+                    # des réponses contenant du contenu sensible (img2img, descriptions, etc.)
+                    "safetySettings": [
+                        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_CIVIC_INTEGRITY", "threshold": "BLOCK_NONE"},
+                    ]
                 }
                 if system_prompt: 
                     payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+                
+                # Contrôle thinking pour modèles Gemini
+                # Catégorie 1: thinkingBudget=0 accepté (on/off complet)
+                _google_toggleable = ['gemini-3-pro', 'gemini-3.0']
+                # Catégorie 2: thinkingBudget=0 REFUSÉ mais thinkingBudget>0 OK (expose le thinking)
+                _google_always_but_exposable = ['gemini-2.5']
+                # Catégorie 3: thinkingConfig NON SUPPORTÉ du tout (pense toujours, jamais exposé)
+                _google_no_config = ['gemini-2.0-flash-thinking', 'gemini-3.1']
+                
+                _is_toggleable = any(x in self.model.lower() for x in _google_toggleable)
+                _is_exposable = any(x in self.model.lower() for x in _google_always_but_exposable)
+                _is_no_config = any(x in self.model.lower() for x in _google_no_config)
+                
+                if _is_toggleable:
+                    # On peut activer/désactiver le thinking complètement
+                    if self.openrouter_thinking:
+                        _thinking_budget = min(max(final_max_tokens, 8192), 32768)
+                        payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": _thinking_budget, "includeThoughts": True}
+                        print(f"[GOOGLE] Thinking ON (thinkingBudget={_thinking_budget}) pour: {self.model}")
+                    else:
+                        payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
+                        print(f"[GOOGLE] Thinking OFF (thinkingBudget=0) pour: {self.model}")
+                elif _is_exposable:
+                    # Pense toujours, mais on peut EXPOSER le thinking via thinkingBudget>0
+                    _original_max = payload["generationConfig"]["maxOutputTokens"]
+                    _boosted_max = max(_original_max * 8, 4096)
+                    payload["generationConfig"]["maxOutputTokens"] = _boosted_max
+                    if self.openrouter_thinking:
+                        _thinking_budget = min(max(final_max_tokens, 8192), 32768)
+                        payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": _thinking_budget, "includeThoughts": True}
+                        print(f"[GOOGLE] Thinking EXPOSÉ (thinkingBudget={_thinking_budget}) pour: {self.model} - maxOutputTokens: {_original_max} -> {_boosted_max}")
+                    else:
+                        # Pas de thinkingConfig = pense en interne sans exposer
+                        print(f"[GOOGLE] Thinking interne (non exposé) pour: {self.model} - maxOutputTokens: {_original_max} -> {_boosted_max}")
+                elif _is_no_config:
+                    # Aucun contrôle possible - boost maxOutputTokens uniquement
+                    _original_max = payload["generationConfig"]["maxOutputTokens"]
+                    _boosted_max = max(_original_max * 8, 4096)
+                    payload["generationConfig"]["maxOutputTokens"] = _boosted_max
+                    print(f"[GOOGLE] Thinking FORCÉ (pas de config possible) pour: {self.model} - maxOutputTokens: {_original_max} -> {_boosted_max}")
             print(f"[CONNECT] Appel de l'API externe '{self.provider}' avec le modèle '{self.model}'...")
             response = await asyncio.to_thread(requests.post, url, headers=headers, json=payload, timeout=180)  # Augmenté à 180s pour requêtes lourdes (biographie, etc.)
             response.raise_for_status()
@@ -921,14 +1269,80 @@ class APIManager:
                     print(f"[ERROR] Exception lors de la génération AI Horde : {str(e)}")
                     return None, f"Erreur inattendue AI Horde : {str(e)}"
                 
-            elif self.provider in ["OpenAI", "Mistral", "GROK"]:
-                response_text = response_data['choices'][0]['message']['content']
+            elif self.provider in ["OpenAI", "Mistral", "GROK", "OpenRouter"]:
+                choice = response_data['choices'][0]
+                # Log finish_reason pour diagnostic (content_filter, length, stop...)
+                finish_reason = choice.get('finish_reason', '')
+                if finish_reason and finish_reason not in ('stop', 'end_turn', 'eos'):
+                    print(f"[RESPONSE-FINISH] ⚠️ finish_reason={finish_reason!r} ({self.provider}/{self.model})")
+                raw_content = choice['message']['content']
+                # Certains reasoning models (GPT-5, o-series) renvoient content=None + usage.completion_tokens=0
+                if raw_content is None:
+                    usage = response_data.get('usage', {})
+                    print(f"[RESPONSE-DEBUG] content=None, finish_reason={finish_reason!r}, usage={usage}")
+                    raw_content = ""
+                # Modeles reasoning Mistral (magistral-*): content peut etre une liste IMBRIQUÉE
+                # Format: [{"type": "thinking", "thinking": [{"type": "text", "text": "..."}]},
+                #          {"type": "text", "text": [{"type": "text", "text": "..."}]}]
+                if isinstance(raw_content, list):
+                    text_parts = []
+                    thinking_parts = []
+                    for part in raw_content:
+                        if not isinstance(part, dict):
+                            continue
+                        part_type = part.get('type', '')
+                        if part_type == 'text':
+                            text_val = part.get('text', '')
+                            if isinstance(text_val, list):
+                                for sub in text_val:
+                                    if isinstance(sub, dict) and sub.get('type') == 'text':
+                                        text_parts.append(sub.get('text', ''))
+                            elif isinstance(text_val, str):
+                                text_parts.append(text_val)
+                        elif part_type == 'thinking':
+                            think_val = part.get('thinking', '')
+                            if isinstance(think_val, list):
+                                for sub in think_val:
+                                    if isinstance(sub, dict) and sub.get('type') == 'text':
+                                        thinking_parts.append(sub.get('text', ''))
+                            elif isinstance(think_val, str):
+                                thinking_parts.append(think_val)
+                    response_text = ''.join(text_parts)
+                    if thinking_parts:
+                        self._last_thinking_content = ''.join(thinking_parts)
+                else:
+                    response_text = raw_content
             elif self.provider == "Anthropic":
                 if 'content' in response_data:
                     try:
-                        response_text = response_data['content'][0]['text']
-                    except (KeyError, IndexError):
-                        print(f"[DEBUG] Structure de réponse Anthropic inattendue : {response_data}")
+                        # Extended thinking: content peut contenir des blocs thinking + text
+                        # Format: [{"type":"thinking","thinking":"..."}, {"type":"text","text":"..."}]
+                        text_parts = []
+                        thinking_parts = []
+                        for block in response_data['content']:
+                            if isinstance(block, dict):
+                                block_type = block.get('type', '')
+                                if block_type == 'thinking':
+                                    thinking_text = block.get('thinking', '')
+                                    if thinking_text:
+                                        thinking_parts.append(thinking_text)
+                                elif block_type == 'text':
+                                    text_parts.append(block.get('text', ''))
+                                else:
+                                    # Fallback: tenter text directement
+                                    if 'text' in block:
+                                        text_parts.append(block['text'])
+                            elif isinstance(block, str):
+                                text_parts.append(block)
+                        if thinking_parts:
+                            self._last_thinking_content = ''.join(thinking_parts)
+                            print(f"[ANTHROPIC] Thinking non-streaming capturé ({len(self._last_thinking_content)} chars)")
+                        response_text = ''.join(text_parts) if text_parts else ''
+                        if not response_text and not thinking_parts:
+                            # Format legacy simple (ancien Anthropic sans thinking)
+                            response_text = response_data['content'][0].get('text', '')
+                    except (KeyError, IndexError) as e:
+                        print(f"[DEBUG] Structure de réponse Anthropic inattendue : {e} - {str(response_data)[:500]}")
                         return None, "Format de réponse Anthropic invalide"
                 else:
                     print(f"[DEBUG] Réponse Anthropic complète : {response_data}")
@@ -937,8 +1351,27 @@ class APIManager:
             elif self.provider == "Google": 
                 if 'candidates' in response_data and response_data['candidates']:
                     candidate = response_data['candidates'][0]
+                    # Log finishReason pour diagnostic (STOP, MAX_TOKENS, SAFETY, RECITATION...)
+                    _g_finish = candidate.get('finishReason', '')
+                    if _g_finish and _g_finish not in ('STOP', 'END_TURN'):
+                        print(f"[RESPONSE-FINISH] ⚠️ finishReason={_g_finish!r} (Google/{self.model})")
+                        # SAFETY = filtre sécurité a tronqué la réponse
+                        if _g_finish == 'SAFETY':
+                            _safety_ratings = candidate.get('safetyRatings', [])
+                            print(f"[RESPONSE-FINISH] 🛡️ Safety ratings: {_safety_ratings}")
                     if 'content' in candidate and 'parts' in candidate['content']:
-                        response_text = candidate['content']['parts'][0].get('text', '')
+                        # Thinking models: séparer parts thinking (thought=true) des parts texte
+                        _g_text_parts = []
+                        _g_thinking_parts = []
+                        for part in candidate['content']['parts']:
+                            if part.get('thought', False):
+                                _g_thinking_parts.append(part.get('text', ''))
+                            else:
+                                _g_text_parts.append(part.get('text', ''))
+                        response_text = ''.join(_g_text_parts)
+                        if _g_thinking_parts:
+                            self._last_thinking_content = ''.join(_g_thinking_parts)
+                            print(f"[GOOGLE] Thinking non-streaming capturé ({len(self._last_thinking_content)} chars)")
                     else:
                         return None, f"Erreur Google API : Structure de réponse inattendue dans le candidat."
                 elif 'error' in response_data:
@@ -1005,13 +1438,665 @@ class APIManager:
             print(f"[ERREUR] {error_message}")
             return None, error_message
 
+    async def call_chat_api_streaming(self, messages: List[Dict], max_tokens: int, context_length: int, 
+                                       temperature: float, callback=None) -> tuple[Optional[str], Optional[str]]:
+        """
+        Appel API avec streaming - affiche les tokens au fur et à mesure.
+        
+        Args:
+            messages: Liste des messages
+            max_tokens: Nombre max de tokens
+            context_length: Taille contexte
+            temperature: Température
+            callback: Fonction async(chunk: str) appelée pour chaque chunk reçu
+            
+        Returns:
+            tuple: (réponse_complète, erreur)
+        """
+        if not self.is_available: 
+            return None, "Le gestionnaire API n'est pas configuré."
+        if not self.model: 
+            return None, "Aucun nom de modèle n'a été défini."
+        
+        # Providers supportant le streaming
+        if self.provider not in ["OpenAI", "Mistral", "GROK", "OpenRouter", "Anthropic", "Google"]:
+            print(f"[STREAM] ⚠️ Provider {self.provider} ne supporte pas le streaming, fallback classique")
+            return await self.call_chat_api(messages, max_tokens, context_length, temperature, is_json=False)
+        
+        import httpx
+        
+        headers = {"Content-Type": "application/json"}
+        total_images_sent = 0  # Compteur d'images (pour diagnostic rate limit)
+        
+        # Combiner TOUS les messages system en un seul bloc
+        # CRITIQUE pour Anthropic: l'API n'accepte qu'un seul champ 'system'
+        system_parts = []
+        history_messages = []
+        for msg in messages:
+            if msg.get('role') == 'system':
+                system_parts.append(msg.get('content', ''))
+            else:
+                history_messages.append(msg)
+        system_prompt = '\n\n'.join(system_parts) if system_parts else ""
+        if system_parts:
+            print(f"[STREAM-SYSTEM] {len(system_parts)} messages system combinés en 1 ({len(system_prompt)} chars)")
+        
+        try:
+            config = self.API_CONFIG.get(self.provider)
+            if not config: 
+                return None, f"Le fournisseur '{self.provider}' n'est pas supporté."
+            
+            # Construire le payload selon le provider
+            if self.provider in ["OpenAI", "Mistral", "GROK", "OpenRouter"]:
+                url = f"{config['base_url']}{config['chat_endpoint']}"
+                headers["Authorization"] = f"Bearer {self.api_key}"
+                if self.provider == "OpenRouter":
+                    headers["HTTP-Referer"] = "https://github.com/ogma-ia/ogma"
+                    headers["X-Title"] = "OGMA AI Assistant"
+                
+                final_api_messages = []
+                if system_prompt:
+                    final_api_messages.append({"role": "system", "content": system_prompt})
+                
+                # Détecter si des images sont présentes dans les messages
+                has_images = False
+                for msg in history_messages:
+                    content = msg.get('content')
+                    if isinstance(content, list):
+                        for part in content:
+                            if part.get('type') == 'image_url':
+                                has_images = True
+                                break
+                    if has_images:
+                        break
+                
+                for msg in history_messages:
+                    content = msg.get('content')
+                    # Conserver le contenu multimodal pour OpenAI, GROK, Mistral et OpenRouter (vision)
+                    if isinstance(content, list):
+                        if self.provider in ["OpenAI", "GROK", "Mistral", "OpenRouter"]:
+                            # Format multimodal compatible OpenAI/GROK/Mistral
+                            multimodal_content = []
+                            for part in content:
+                                if part.get('type') == 'text':
+                                    multimodal_content.append({"type": "text", "text": part.get('text', '')})
+                                elif part.get('type') == 'image_url':
+                                    image_url = part.get('image_url', {}).get('url', '')
+                                    
+                                    # 🖼️ COMPRESSION IMAGE VISION avant envoi API
+                                    if 'base64,' in image_url:
+                                        # Extraire et compresser les données base64
+                                        compressed_b64 = _compress_vision_image(image_url)
+                                        image_url = f"data:image/jpeg;base64,{compressed_b64}"
+                                    
+                                    # Validation taille image pour GROK (limite ~20MB base64)
+                                    if self.provider == "GROK" and 'base64,' in image_url:
+                                        base64_size = len(image_url)
+                                        if base64_size > 20_000_000:  # 20MB
+                                            print(f"[STREAM-VISION] ⚠️ Image trop grande pour GROK ({base64_size/1_000_000:.1f}MB), ignorée")
+                                            multimodal_content.append({"type": "text", "text": "[Image trop volumineuse pour être analysée]"})
+                                            continue
+                                    # Mistral utilise le même format que OpenAI pour les images
+                                    multimodal_content.append({
+                                        "type": "image_url",
+                                        "image_url": {"url": image_url}
+                                    })
+                                    total_images_sent += 1  # Incrémenter compteur
+                            final_api_messages.append({"role": msg.get('role'), "content": multimodal_content})
+                        else:
+                            # Autres providers: simplifier en texte
+                            text_parts = [p.get('text', '') for p in content if p.get('type') == 'text']
+                            final_api_messages.append({"role": msg.get('role'), "content": ' '.join(text_parts)})
+                    else:
+                        # 🧠 THINKING: Reconstruire le format structuré pour Mistral multi-turn
+                        thinking_content = msg.get('thinking', '')
+                        if thinking_content and self.provider == "Mistral" and msg.get('role') == 'assistant':
+                            structured_content = [
+                                {"type": "thinking", "thinking": [{"type": "text", "text": thinking_content}]},
+                                {"type": "text", "text": content}
+                            ]
+                            final_api_messages.append({"role": "assistant", "content": structured_content})
+                            print(f"[THINKING-REBUILD] Format structure reconstruit pour assistant ({len(thinking_content)} chars thinking)")
+                        else:
+                            final_api_messages.append({"role": msg.get('role'), "content": content})
+                
+                final_max_tokens = max_tokens if max_tokens != -1 else 4096
+                
+                # Détecter si c'est un modèle de raisonnement (GPT-5, o1, o3, o4)
+                is_reasoning_model = self.provider == "OpenAI" and any(x in self.model.lower() for x in ["gpt-5", "o1", "o3", "o4"])
+                
+                payload = {
+                    "model": self.model,
+                    "messages": final_api_messages,
+                    "stream": True  # STREAMING ACTIVÉ
+                }
+                
+                # GPT-5 et o1/o3/o4 ne supportent pas temperature (uniquement défaut=1)
+                if not is_reasoning_model:
+                    payload["temperature"] = temperature
+                
+                # GPT-5 et o1/o3/o4 utilisent max_completion_tokens, les autres max_tokens
+                # IMPORTANT: reasoning models consomment des tokens internes → minimum 8000
+                if is_reasoning_model:
+                    reasoning_tokens = max(final_max_tokens, 8000)
+                    payload["max_completion_tokens"] = reasoning_tokens
+                    if reasoning_tokens != final_max_tokens:
+                        print(f"[OPENAI-REASONING] max_completion_tokens élevé à {reasoning_tokens} (was {final_max_tokens})")
+                    # Contrôle thinking pour modèles OpenAI reasoning (streaming)
+                    if self.openrouter_thinking:
+                        print(f"[OPENAI] Mode thinking ACTIVÉ (streaming) pour: {self.model}")
+                    else:
+                        # o1 ne supporte pas reasoning_effort="none" → utiliser "low"
+                        _is_o1 = 'o1' in self.model.lower()
+                        _effort = "low" if _is_o1 else "none"
+                        payload["reasoning_effort"] = _effort
+                        print(f"[OPENAI] Thinking réduit (streaming, reasoning_effort={_effort}) pour: {self.model}")
+                else:
+                    payload["max_tokens"] = final_max_tokens
+                
+                # Gère le thinking selon le paramètre utilisateur pour OpenRouter
+                if self.provider == "OpenRouter":
+                    _or_thinking_models = ["qwen3", "deepseek-r1", "/o1", "/o3", "claude-3-7", "gemini-2.5", "gemini-2.0-flash-thinking", "gemini-3"]
+                    # Modèles où le reasoning est OBLIGATOIRE (ne pas envoyer effort=none)
+                    _or_mandatory_reasoning = ["gemini-2.5", "gemini-2.0-flash-thinking", "deepseek-r1", "gemini-3.1"]
+                    _is_thinking_model = any(x in self.model.lower() for x in _or_thinking_models)
+                    _is_mandatory = any(x in self.model.lower() for x in _or_mandatory_reasoning)
+                    if _is_thinking_model:
+                        if self.openrouter_thinking:
+                            # CRITIQUE: les tokens thinking comptent dans max_tokens
+                            # → augmenter pour éviter troncature de la réponse
+                            _or_thinking_budget = max(final_max_tokens * 3, 16000)
+                            payload["max_tokens"] = _or_thinking_budget
+                            if _or_thinking_budget != final_max_tokens:
+                                print(f"[OPENROUTER] max_tokens élevé à {_or_thinking_budget} (was {final_max_tokens}) pour thinking")
+                            print(f"[OPENROUTER] Mode thinking ACTIVÉ (streaming) pour: {self.model}")
+                        elif _is_mandatory:
+                            # Reasoning obligatoire: ne PAS envoyer effort=none (erreur 400)
+                            # BOOST max_tokens car thinking interne consomme le budget
+                            _or_mandatory_budget = max(final_max_tokens * 8, 4096)
+                            payload["max_tokens"] = _or_mandatory_budget
+                            if _or_mandatory_budget != final_max_tokens:
+                                print(f"[OPENROUTER] max_tokens booste: {final_max_tokens} -> {_or_mandatory_budget} (thinking obligatoire streaming)")
+                            print(f"[OPENROUTER] Thinking obligatoire pour {self.model} - reasoning interne maintenu (UI masquée)")
+                        else:
+                            payload["reasoning"] = {"effort": "none"}
+                            print(f"[OPENROUTER] Thinking désactivé (streaming) pour: {self.model}")
+                
+                # Gère le thinking pour Mistral magistral (streaming)
+                if self.provider == "Mistral" and 'magistral' in self.model.lower() and self.openrouter_thinking:
+                    _mistral_budget = max(final_max_tokens * 3, 16000)
+                    payload["max_tokens"] = _mistral_budget
+                    if _mistral_budget != final_max_tokens:
+                        print(f"[MISTRAL] max_tokens élevé à {_mistral_budget} (was {final_max_tokens}) pour thinking streaming")
+                
+                # Log si images détectées pour debug
+                if has_images:
+                    print(f"[STREAM-VISION] 🖼️ Images détectées, contenu multimodal conservé pour {self.provider}")
+                
+            elif self.provider == "Google":
+                # Streaming Google Gemini via SSE
+                url = f"{config['base_url']}/models/{self.model}:streamGenerateContent?key={self.api_key}&alt=sse"
+                final_max_tokens = max_tokens if max_tokens != -1 else 8192
+                processed_messages = []
+                for msg in history_messages:
+                    role = 'model' if msg.get('role') == 'assistant' else 'user'
+                    content = msg.get('content')
+                    parts = []
+                    if isinstance(content, list):
+                        for part in content:
+                            if part.get('type') == 'text':
+                                parts.append({'text': part.get('text', '')})
+                            elif part.get('type') == 'image_url':
+                                url_data = part.get('image_url', {}).get('url', '')
+                                if 'base64,' in url_data:
+                                    try:
+                                        mime_type = url_data.split(';')[0].split(':')[1]
+                                        data = url_data.split(',')[1]
+                                        parts.append({'inlineData': {'mimeType': mime_type, 'data': data}})
+                                        total_images_sent += 1
+                                    except (IndexError, ValueError):
+                                        print(f"[STREAM-VISION] ⚠️ Format base64 invalide pour Google streaming")
+                    elif isinstance(content, str):
+                        parts.append({'text': content})
+                    if parts:
+                        processed_messages.append({'role': role, 'parts': parts})
+                payload = {
+                    "contents": processed_messages,
+                    "generationConfig": {
+                        "maxOutputTokens": final_max_tokens,
+                        "temperature": temperature
+                    },
+                    # Désactiver tous les filtres de sécurité Google pour éviter la troncature
+                    # des réponses contenant du contenu sensible (img2img, descriptions, etc.)
+                    "safetySettings": [
+                        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                        {"category": "HARM_CATEGORY_CIVIC_INTEGRITY", "threshold": "BLOCK_NONE"},
+                    ]
+                }
+                if system_prompt:
+                    payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+                
+                # Contrôle thinking pour modèles Gemini
+                # Catégorie 1: thinkingBudget=0 accepté (on/off complet)
+                _google_toggleable = ['gemini-3-pro', 'gemini-3.0']
+                # Catégorie 2: thinkingBudget=0 REFUSÉ mais thinkingBudget>0 OK (expose le thinking)
+                _google_always_but_exposable = ['gemini-2.5']
+                # Catégorie 3: thinkingConfig NON SUPPORTÉ du tout (pense toujours, jamais exposé)
+                _google_no_config = ['gemini-2.0-flash-thinking', 'gemini-3.1']
+                
+                _is_toggleable = any(x in self.model.lower() for x in _google_toggleable)
+                _is_exposable = any(x in self.model.lower() for x in _google_always_but_exposable)
+                _is_no_config = any(x in self.model.lower() for x in _google_no_config)
+                
+                if _is_toggleable:
+                    if self.openrouter_thinking:
+                        _thinking_budget = min(max(final_max_tokens, 8192), 32768)
+                        payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": _thinking_budget, "includeThoughts": True}
+                        print(f"[GOOGLE] Thinking ON streaming (thinkingBudget={_thinking_budget}) pour: {self.model}")
+                    else:
+                        payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
+                        print(f"[GOOGLE] Thinking OFF streaming (thinkingBudget=0) pour: {self.model}")
+                elif _is_exposable:
+                    _original_max = payload["generationConfig"]["maxOutputTokens"]
+                    _boosted_max = max(_original_max * 8, 4096)
+                    payload["generationConfig"]["maxOutputTokens"] = _boosted_max
+                    if self.openrouter_thinking:
+                        _thinking_budget = min(max(final_max_tokens, 8192), 32768)
+                        payload["generationConfig"]["thinkingConfig"] = {"thinkingBudget": _thinking_budget, "includeThoughts": True}
+                        print(f"[GOOGLE] Thinking EXPOSÉ streaming (thinkingBudget={_thinking_budget}) pour: {self.model} - maxOutputTokens: {_original_max} -> {_boosted_max}")
+                    else:
+                        print(f"[GOOGLE] Thinking interne streaming (non exposé) pour: {self.model} - maxOutputTokens: {_original_max} -> {_boosted_max}")
+                elif _is_no_config:
+                    _original_max = payload["generationConfig"]["maxOutputTokens"]
+                    _boosted_max = max(_original_max * 8, 4096)
+                    payload["generationConfig"]["maxOutputTokens"] = _boosted_max
+                    print(f"[GOOGLE] Thinking FORCÉ streaming (pas de config possible) pour: {self.model} - maxOutputTokens: {_original_max} -> {_boosted_max}")
+
+            elif self.provider == "Anthropic":
+                url = f"{config['base_url']}{config['chat_endpoint']}"
+                headers["x-api-key"] = self.api_key
+                headers["anthropic-version"] = "2023-06-01"
+                
+                anthropic_messages = []
+                for msg in history_messages:
+                    # Anthropic n'accepte que 'user' et 'assistant' dans messages
+                    # Le rôle 'system' doit être ignoré (géré via payload["system"])
+                    role = msg.get('role')
+                    if role not in ['user', 'assistant']:
+                        continue  # Ignorer system et autres rôles non supportés
+                    
+                    content = msg.get('content')
+                    if isinstance(content, list):
+                        # Anthropic supporte aussi le multimodal
+                        anthropic_content = []
+                        for part in content:
+                            if part.get('type') == 'text':
+                                anthropic_content.append({"type": "text", "text": part.get('text', '')})
+                            elif part.get('type') == 'image_url':
+                                url_data = part.get('image_url', {}).get('url', '')
+                                if 'base64,' in url_data:
+                                    try:
+                                        media_type = url_data.split(';')[0].split(':')[1]
+                                        base64_data = url_data.split('base64,')[1]
+                                        anthropic_content.append({
+                                            "type": "image",
+                                            "source": {
+                                                "type": "base64",
+                                                "media_type": media_type,
+                                                "data": base64_data
+                                            }
+                                        })
+                                        total_images_sent += 1  # Incrémenter compteur
+                                    except Exception as e:
+                                        print(f"[STREAM] ⚠️ Erreur parsing image Anthropic: {e}")
+                        anthropic_messages.append({"role": role, "content": anthropic_content if anthropic_content else content})
+                    else:
+                        anthropic_messages.append({"role": role, "content": content})
+                
+                final_max_tokens = max_tokens if max_tokens != -1 else 4096
+                
+                payload = {
+                    "model": self.model,
+                    "max_tokens": final_max_tokens,
+                    "messages": anthropic_messages,
+                    "stream": True  # STREAMING ACTIVÉ
+                }
+                if system_prompt:
+                    payload["system"] = system_prompt
+                
+                # Contrôle extended thinking pour modèles Anthropic (Claude 3.5+) - streaming
+                _anthropic_thinking_models = ['claude-3-5', 'claude-3.5', 'claude-3-7', 'claude-3.7', 'claude-4']
+                _is_anthropic_thinker = any(x in self.model.lower() for x in _anthropic_thinking_models)
+                if _is_anthropic_thinker:
+                    if self.openrouter_thinking:
+                        thinking_budget = max(final_max_tokens * 2, 10000)
+                        payload["thinking"] = {"type": "enabled", "budget_tokens": thinking_budget}
+                        payload["max_tokens"] = max(final_max_tokens, thinking_budget + 4096)
+                        # CRITIQUE: Anthropic REQUIERT temperature=1 avec extended thinking
+                        payload["temperature"] = 1
+                        print(f"[ANTHROPIC] Extended thinking ACTIVÉ (streaming, budget={thinking_budget}, temp forcée=1) pour: {self.model}")
+                    else:
+                        # Appliquer la temperature user quand thinking désactivé
+                        payload["temperature"] = temperature
+                        print(f"[ANTHROPIC] Extended thinking désactivé (streaming, temp={temperature}) pour: {self.model}")
+                else:
+                    # Modèle Anthropic non-thinking: appliquer temperature normalement
+                    payload["temperature"] = temperature
+            
+            print(f"[STREAM] 🚀 Appel streaming {self.provider} '{self.model}'...")
+            
+            full_response = ""
+            self._last_thinking_content = ""  # Reset thinking pour ce nouvel appel
+            _diag_chunk_count = 0
+            
+            # Timeout adaptatif: les modèles thinking (Gemini 3, etc.) peuvent
+            # raisonner longtemps avant d'émettre le premier token
+            _thinking_indicators = ['gemini-3', 'gemini-2.5', 'o1', 'o3', 'o4', 'deepseek-r1', 'qwen3', 'claude-3-5', 'claude-3.5', 'claude-3-7', 'claude-3.7', 'claude-4', 'gpt-5', 'magistral']
+            _is_slow_model = any(x in self.model.lower() for x in _thinking_indicators)
+            _read_timeout = 600.0 if _is_slow_model else 300.0
+            _stream_timeout = httpx.Timeout(
+                connect=30.0,
+                read=_read_timeout,
+                write=30.0,
+                pool=30.0
+            )
+            if _is_slow_model:
+                print(f"[STREAM] ⏳ Modèle thinking détecté - read timeout étendu à {_read_timeout}s")
+            
+            async with httpx.AsyncClient(timeout=_stream_timeout) as client:
+                async with client.stream("POST", url, headers=headers, json=payload) as response:
+                    # Vérifier le status avant raise pour capturer les erreurs avec détails
+                    if response.status_code >= 400:
+                        error_body = await response.aread()
+                        error_message = f"Erreur HTTP {self.provider} ({response.status_code})"
+                        
+                        # Tenter de parser le JSON d'erreur
+                        error_detail = None
+                        try:
+                            error_detail = json.loads(error_body)
+                            print(f"[STREAM] ❌ {error_message}")
+                            print(f"[STREAM] 📋 Détail erreur: {error_detail}")
+                        except:
+                            print(f"[STREAM] ❌ {error_message}")
+                            print(f"[STREAM] 📋 Réponse brute: {error_body.decode('utf-8', errors='ignore')[:500]}")
+                        
+                        # 🚦 RATE LIMIT 429: Message explicite + retry-after
+                        if response.status_code == 429:
+                            retry_after = response.headers.get('retry-after', response.headers.get('Retry-After', '30'))
+                            try:
+                                retry_seconds = int(retry_after)
+                            except:
+                                retry_seconds = 30
+                            
+                            error_type = "rate limit"
+                            if error_detail and isinstance(error_detail, dict):
+                                error_info = error_detail.get('error', {})
+                                if error_info.get('type') == 'rate_limit_error':
+                                    error_type = "limite de tokens/minute"
+                            
+                            print(f"[STREAM] ⏱️ Rate limit {self.provider}: retry dans {retry_seconds}s")
+                            
+                            # Construire suggestions adaptées au contexte
+                            suggestions = []
+                            if total_images_sent > 1:
+                                suggestions.append(f"• Réduis le nombre d'images (actuellement {total_images_sent} images)")
+                            elif total_images_sent == 1:
+                                suggestions.append("• Essaye sans image pour économiser des tokens")
+                            suggestions.append("• Résume ton message pour réduire le contexte")
+                            suggestions.append("• Attends que le compteur se réinitialise")
+                            
+                            user_message = (
+                                f"⏱️ **Limite {self.provider} atteinte** ({error_type})\n\n"
+                                f"Trop de requêtes ou de tokens envoyés. "
+                                f"Attends **{retry_seconds} secondes** avant de réessayer.\n\n"
+                                f"💡 **Suggestions**:\n"
+                                + "\n".join(suggestions)
+                            )
+                            return None, user_message
+                        
+                        return None, error_message
+                    
+                    # Pas d'erreur, continuer le streaming normal
+                    response.raise_for_status()
+                    
+                    async for line in response.aiter_lines():
+                        # 🛑 STOP: Vérification rapide à chaque ligne
+                        from stop_signal import is_stop_requested
+                        if is_stop_requested():
+                            print(f"[STREAM] 🛑 Arrêt demandé - interruption immédiate après {len(full_response)} chars")
+                            return full_response + "\n\n⏹️ *[Génération interrompue]*", None
+                        
+                        if not line or line.startswith(':'):
+                            continue
+                        
+                        if line.startswith('data: '):
+                            data_str = line[6:]  # Retirer 'data: '
+                            
+                            if data_str.strip() == '[DONE]':
+                                break
+                            
+                            try:
+                                data = json.loads(data_str)
+                                _diag_chunk_count += 1
+                                
+                                # Détecter erreur OpenRouter dans le flux (HTTP 200 + JSON erreur)
+                                if self.provider == "OpenRouter" and 'error' in data:
+                                    err = data['error']
+                                    err_msg = err.get('message', str(err)) if isinstance(err, dict) else str(err)
+                                    err_code = err.get('code', '') if isinstance(err, dict) else ''
+                                    print(f"[STREAM] ❌ Erreur OpenRouter dans flux: [{err_code}] {err_msg}")
+                                    return full_response if full_response else None, f"❌ Erreur OpenRouter: {err_msg}"
+                                
+                                # DIAGNOSTIC: Log premiers chunks pour voir format réel
+                                if _diag_chunk_count <= 3 and self.provider in ["Mistral", "OpenRouter"]:
+                                    choices = data.get('choices', [])
+                                    if choices:
+                                        delta_diag = choices[0].get('delta', {})
+                                        rc = delta_diag.get('content', '<ABSENT>')
+                                        print(f"[STREAM-DIAG] Chunk#{_diag_chunk_count} content type={type(rc).__name__}: {str(rc)[:200]}")
+                                
+                                # Extraire le chunk selon le provider
+                                chunk = ""
+                                if self.provider in ["OpenAI", "Mistral", "GROK", "OpenRouter"]:
+                                    choices = data.get('choices', [])
+                                    if not choices and _diag_chunk_count <= 2:
+                                        # Log pour diagnostic quand aucun choices dans un chunk
+                                        keys = list(data.keys())
+                                        print(f"[STREAM-DIAG] Chunk#{_diag_chunk_count} sans choices - clés: {keys} | {str(data)[:300]}")
+                                    if choices:
+                                        delta = choices[0].get('delta', {})
+                                        # Log finish_reason si présent (stop / length / content_filter)
+                                        finish_reason = choices[0].get('finish_reason')
+                                        if finish_reason and finish_reason != 'stop':
+                                            print(f"[STREAM-FINISH] ⚠️ finish_reason={finish_reason!r} ({self.provider}/{self.model})")
+                                        # Thinking models: raisonnement dans delta.reasoning
+                                        # Fonctionne pour OpenRouter, OpenAI (o-series), GROK
+                                        if self.openrouter_thinking:
+                                            reasoning_text = delta.get('reasoning') or ''
+                                            if reasoning_text:
+                                                self._last_thinking_content += reasoning_text
+                                        raw_content = delta.get('content', '')
+                                        # Modeles reasoning Mistral (magistral-*): content peut etre une liste
+                                        # Format IMBRIQUÉ: [{"type": "thinking", "thinking": [{"type": "text", "text": "..."}]},
+                                        #                   {"type": "text", "text": [{"type": "text", "text": "..."}]}]
+                                        if isinstance(raw_content, list):
+                                            for part in raw_content:
+                                                if not isinstance(part, dict):
+                                                    continue
+                                                part_type = part.get('type', '')
+                                                if part_type == 'text':
+                                                    text_val = part.get('text', '')
+                                                    if isinstance(text_val, list):
+                                                        for sub in text_val:
+                                                            if isinstance(sub, dict) and sub.get('type') == 'text':
+                                                                chunk += sub.get('text', '')
+                                                    elif isinstance(text_val, str):
+                                                        chunk += text_val
+                                                elif part_type == 'thinking':
+                                                    think_val = part.get('thinking', '')
+                                                    if isinstance(think_val, list):
+                                                        for sub in think_val:
+                                                            if isinstance(sub, dict) and sub.get('type') == 'text':
+                                                                self._last_thinking_content += sub.get('text', '')
+                                                    elif isinstance(think_val, str):
+                                                        self._last_thinking_content += think_val
+                                                else:
+                                                    print(f"[STREAM-DEBUG] Part type inconnu: {part}")
+                                        elif isinstance(raw_content, str):
+                                            chunk = raw_content
+                                        elif raw_content is not None:
+                                            # Type inattendu - log pour diagnostic
+                                            print(f"[STREAM-DEBUG] raw_content type inattendu: {type(raw_content).__name__} = {str(raw_content)[:200]}")
+                                            chunk = str(raw_content)
+                                elif self.provider == "Google":
+                                    # Chunks SSE Google Gemini
+                                    # Détecter les blocks au niveau du prompt (PROHIBITED_CONTENT, etc.)
+                                    prompt_feedback = data.get('promptFeedback', {})
+                                    block_reason = prompt_feedback.get('blockReason', '')
+                                    if block_reason:
+                                        print(f"[STREAM] \u274c Google prompt bloqué: {block_reason}")
+                                        safety_ratings = prompt_feedback.get('safetyRatings', [])
+                                        if safety_ratings:
+                                            for sr in safety_ratings:
+                                                print(f"[STREAM]    {sr.get('category','?')}: {sr.get('probability','?')}")
+                                        return full_response if full_response else None, f"Erreur Google API : Contenu bloque - {block_reason}"
+                                    candidates = data.get('candidates', [])
+                                    if candidates:
+                                        # Vérifier finishReason du candidat (SAFETY, MAX_TOKENS, etc.)
+                                        finish_reason = candidates[0].get('finishReason', '')
+                                        if finish_reason and finish_reason not in ('STOP', 'END_TURN', ''):
+                                            print(f"[STREAM] \u26a0\ufe0f Google streaming finishReason='{finish_reason}'")
+                                            if finish_reason == 'SAFETY':
+                                                safety_ratings = candidates[0].get('safetyRatings', [])
+                                                for sr in safety_ratings:
+                                                    print(f"[STREAM]    {sr.get('category','?')}: {sr.get('probability','?')}")
+                                                if not full_response:
+                                                    return None, f"Erreur Google API : Reponse bloquee par filtre SAFETY"
+                                        content_data = candidates[0].get('content', {})
+                                        # DIAGNOSTIC: Log premiers chunks Google pour déboguer format thinking
+                                        if _diag_chunk_count <= 3:
+                                            parts_info = []
+                                            for p in content_data.get('parts', []):
+                                                p_keys = list(p.keys())
+                                                p_thought = p.get('thought', 'ABSENT')
+                                                p_text_len = len(p.get('text', ''))
+                                                parts_info.append(f"keys={p_keys}, thought={p_thought}, text_len={p_text_len}")
+                                            print(f"[STREAM-DIAG-GOOGLE] Chunk#{_diag_chunk_count} parts({len(content_data.get('parts', []))}): {parts_info}")
+                                        for part in content_data.get('parts', []):
+                                            part_text = part.get('text', '')
+                                            if part.get('thought', False):
+                                                # Gemini thinking: parts avec thought=true
+                                                if part_text:
+                                                    self._last_thinking_content += part_text
+                                            else:
+                                                chunk += part_text
+
+                                elif self.provider == "Anthropic":
+                                    event_type = data.get('type', '')
+                                    if event_type == 'content_block_delta':
+                                        delta = data.get('delta', {})
+                                        delta_type = delta.get('type', '')
+                                        if delta_type == 'thinking_delta':
+                                            # Anthropic extended thinking: delta thinking
+                                            thinking_text = delta.get('thinking', '')
+                                            if thinking_text:
+                                                self._last_thinking_content += thinking_text
+                                        elif delta_type == 'text_delta':
+                                            chunk = delta.get('text', '')
+                                        else:
+                                            # Fallback pour anciens formats
+                                            chunk = delta.get('text', '')
+                                    elif event_type == 'error':
+                                        # Anthropic envoie un événement d'erreur dans le stream
+                                        error_info = data.get('error', {})
+                                        error_type = error_info.get('type', 'unknown')
+                                        error_msg = error_info.get('message', 'Erreur inconnue')
+                                        print(f"[STREAM] ❌ Erreur SSE Anthropic: {error_type} - {error_msg}")
+                                        return full_response if full_response else None, f"Erreur streaming Anthropic: {error_type} - {error_msg}"
+                                    elif event_type == 'message_start':
+                                        # Log utile: tokens d'entrée utilisés
+                                        usage = data.get('message', {}).get('usage', {})
+                                        input_tokens = usage.get('input_tokens', '?')
+                                        print(f"[STREAM] 📊 Anthropic message_start - input_tokens: {input_tokens}")
+                                    elif event_type == 'message_delta':
+                                        # Fin de message, log raison d'arrêt
+                                        stop_reason = data.get('delta', {}).get('stop_reason', '?')
+                                        usage = data.get('usage', {})
+                                        output_tokens = usage.get('output_tokens', '?')
+                                        print(f"[STREAM] 📊 Anthropic message_delta - stop: {stop_reason}, output_tokens: {output_tokens}")
+                                
+                                if chunk:
+                                    full_response += chunk
+                                    if callback:
+                                        try:
+                                            await callback(chunk)
+                                        except StopAsyncIteration:
+                                            # 🛑 Arrêt demandé par l'utilisateur
+                                            print(f"[STREAM] 🛑 Streaming interrompu par l'utilisateur après {len(full_response)} chars")
+                                            return full_response + "\n\n⏹️ *[Génération interrompue par l'utilisateur]*", None
+                                elif self._last_thinking_content and callback:
+                                    # Thinking-only chunk: appeler callback("") pour que l'UI
+                                    # puisse détecter le nouveau contenu thinking et mettre à jour la boîte live
+                                    try:
+                                        await callback("")
+                                    except StopAsyncIteration:
+                                        print(f"[STREAM] 🛑 Streaming interrompu pendant thinking après {len(full_response)} chars")
+                                        return full_response + "\n\n⏹️ *[Génération interrompue par l'utilisateur]*", None
+                                        
+                            except json.JSONDecodeError:
+                                continue  # Ignorer les lignes non-JSON
+            
+            print(f"[STREAM] ✅ Réponse streaming complète ({len(full_response)} chars)")
+            if self._last_thinking_content:
+                print(f"[STREAM] 🧠 Thinking capturé dans boucle: {len(self._last_thinking_content)} chars")
+            else:
+                print(f"[STREAM] 🧠 Aucun thinking capturé (0 chars) - {_diag_chunk_count} chunks traités")
+            return full_response, None
+            
+        except httpx.ReadTimeout:
+            # Timeout de lecture spécifique - le serveur n'a pas répondu à temps
+            timeout_used = _read_timeout if '_read_timeout' in dir() else 180
+            print(f"[STREAM] ❌ ReadTimeout {self.provider}/{self.model} après {timeout_used}s - aucun chunk reçu")
+            user_message = (
+                f"⏱️ **Timeout {self.provider}** - Le modèle `{self.model}` n'a pas répondu après {int(timeout_used)}s.\n\n"
+                f"Cela peut arriver avec les modèles de raisonnement (thinking) qui réfléchissent longtemps.\n\n"
+                f"💡 **Suggestions**:\n"
+                f"• Réessaye avec un message plus court\n"
+                f"• Réduis le contexte de conversation\n"
+                f"• Le service {self.provider} est peut-être temporairement surchargé"
+            )
+            return None, user_message
+        except httpx.HTTPStatusError as e:
+            # Cette erreur ne devrait plus se produire car gérée en amont
+            error_message = f"Erreur HTTP streaming {self.provider} ({e.response.status_code})"
+            print(f"[STREAM] ❌ {error_message}")
+            return None, error_message
+        except Exception as e:
+            import traceback
+            error_message = f"Erreur streaming {self.provider}: {type(e).__name__} - {str(e)}"
+            print(f"[STREAM] ❌ {error_message}")
+            print(f"[STREAM] 📍 Traceback complet:")
+            traceback.print_exc()
+            return None, error_message
+
     async def create_embedding(self, text: str) -> Optional[List[float]]:
         if not self.is_available or not self.model: 
             print("[ERREUR] Erreur Embedding : APIManager non disponible ou modèle non configuré.")
             return None
         headers, payload, url = {"Content-Type": "application/json"}, {}, ""
-        if self.provider in ["OpenAI", "Mistral"]:
-            url, headers["Authorization"] = ("https://api.mistral.ai/v1/embeddings" if self.provider == "Mistral" else "https://api.openai.com/v1/embeddings"), f"Bearer {self.api_key}"
+        if self.provider in ["OpenAI", "Mistral", "OpenRouter"]:
+            if self.provider == "Mistral":
+                url = "https://api.mistral.ai/v1/embeddings"
+            elif self.provider == "OpenRouter":
+                url = "https://openrouter.ai/api/v1/embeddings"
+                headers["HTTP-Referer"] = "https://github.com/ogma-ia/ogma"
+                headers["X-Title"] = "OGMA AI Assistant"
+            else:
+                url = "https://api.openai.com/v1/embeddings"
+            headers["Authorization"] = f"Bearer {self.api_key}"
             payload = {"model": self.model, "input": [text]}
         elif self.provider == "Google":
             url, payload = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:embedContent?key={self.api_key}", {"model": f"models/{self.model}", "content": {"parts": [{"text": text}]}}
@@ -1020,7 +2105,7 @@ class APIManager:
         try:
             response = await asyncio.to_thread(requests.post, url, headers=headers, json=payload, timeout=15)  # RÉDUIT pour stabilité (était 30)
             response.raise_for_status()
-            if self.provider in ["OpenAI", "Mistral"]: return response.json()['data'][0]['embedding']
+            if self.provider in ["OpenAI", "Mistral", "OpenRouter"]: return response.json()['data'][0]['embedding']
             elif self.provider == "Google": return response.json()['embedding']['values']
         except Exception as e:
             print(f"[ERREUR] Erreur création embedding API : {e}")
@@ -1081,9 +2166,9 @@ class MemoryStructure:
                 backup_path = self.backup_dir / f"{self.filepath.name}.{timestamp}.bak"
                 shutil.copy2(self.filepath, backup_path)
                 
-                # 2. Gérer la rotation des sauvegardes (ne garder que les 10 plus récentes)
+                # 2. Gérer la rotation des sauvegardes (ne garder que les 4 plus récentes)
                 backups = sorted(self.backup_dir.glob("*.bak"), key=os.path.getmtime, reverse=True)
-                for old_backup in backups[10:]:
+                for old_backup in backups[4:]:
                     os.remove(old_backup)
 
         except Exception as e:
@@ -1153,6 +2238,10 @@ class AIController:
         self.ai_type, self.backend_type, self.ollama_model = ai_type, "API", "mistral:latest"
         self.api_manager, self.horde_manager, self.ollama_manager, self.gguf_manager, self.kobold_manager = APIManager(), AIHordeManager(), ollama_manager, gguf_manager, kobold_manager
         self.max_tokens, self.context_length, self.temperature = 512, 4096, 0.7
+        # ═══ DEBUG_TOKEN_TRACKING ═══
+        self._is_archiviste = False
+        self._controller_name = ai_type
+        # ═══════════════════════════
     
     async def calculate_memory_impact_score(self, text_content: str, conversation_context: str = "", interlocutor: str = "") -> Optional[float]:
         """
@@ -1328,25 +2417,94 @@ RÉPONSE ATTENDUE (format JSON strict) :
     def set_active_backend(self, backend_type: str):
         self.backend_type = backend_type
         print(f"[RELOAD] Backend pour '{self.ai_type}' réglé sur : {self.backend_type}")
+        
     def get_active_manager(self):
-        managers = {"API": self.api_manager, "AIHorde": self.horde_manager, "Ollama": self.ollama_manager, "GGUF/llama.cpp": self.gguf_manager, "KoboldCpp": self.kobold_manager}
-        manager = managers.get(self.backend_type)
+        # Normalisation case-insensitive
+        backend_upper = self.backend_type.upper() if self.backend_type else ""
+        managers = {
+            "API": self.api_manager, 
+            "AIHORDE": self.horde_manager, 
+            "OLLAMA": self.ollama_manager, 
+            "GGUF/LLAMA.CPP": self.gguf_manager,
+            "GGUF": self.gguf_manager,  # Alias
+            "KOBOLDCPP": self.kobold_manager
+        }
+        manager = managers.get(backend_upper)
         return manager if manager and getattr(manager, 'is_available', False) else None
     def get_status(self) -> str:
         if not self.get_active_manager(): return "[OFF] Inactif"
-        if self.backend_type == "API": return f"API: {self.api_manager.provider}"
-        if self.backend_type == "AIHorde": return f"Horde: {self.horde_manager.model}"
-        if self.backend_type == "Ollama": return f"Ollama: {self.ollama_model}"
-        if self.backend_type == "GGUF/llama.cpp": return f"GGUF: {self.gguf_manager.model_name}"
-        if self.backend_type == "KoboldCpp": return "KoboldCpp"
+        # Normalisation case-insensitive
+        backend_upper = self.backend_type.upper() if self.backend_type else ""
+        if backend_upper == "API": return f"API: {self.api_manager.provider}"
+        if backend_upper == "AIHORDE": return f"Horde: {self.horde_manager.model}"
+        if backend_upper == "OLLAMA": return f"Ollama: {self.ollama_model}"
+        if backend_upper in ["GGUF/LLAMA.CPP", "GGUF"]: return f"GGUF: {self.gguf_manager.model_name}"
+        if backend_upper == "KOBOLDCPP": return "KoboldCpp"
         return "[UNK] Inconnu"
-    async def call_chat_api(self, messages: List[Dict], max_tokens: int, context_length: int, temperature: float, is_json: bool = True) -> tuple[Optional[str], Optional[str]]:
+        
+    async def call_chat_api(self, messages: List[Dict], max_tokens: int, context_length: int, temperature: float, is_json: bool = True, log_source: str = "unknown") -> tuple[Optional[str], Optional[str]]:
         manager = self.get_active_manager()
         if not manager: return None, f"Le backend actif '{self.backend_type}' n'est pas disponible."
-        if self.backend_type == "Ollama": 
+        # Normalisation case-insensitive
+        backend_upper = self.backend_type.upper() if self.backend_type else ""
+        if backend_upper == "OLLAMA": 
             print(f"[AI-CONTROLLER-DEBUG] Backend Ollama, ollama_model: '{self.ollama_model}'")
-            return await manager.call_chat_api(self.ollama_model, messages, max_tokens, context_length, temperature, is_json)
-        else: return await manager.call_chat_api(messages, max_tokens, context_length, temperature, is_json)
+            response, error = await manager.call_chat_api(self.ollama_model, messages, max_tokens, context_length, temperature, is_json)
+        else:
+            response, error = await manager.call_chat_api(messages, max_tokens, context_length, temperature, is_json)
+        
+        # ╔═══════════════════════════════════════════════════════════════════════╗
+        # ║  🔬 DEBUG_TOKEN_TRACKING - LOG ARCHIVISTE                             ║
+        # ╚═══════════════════════════════════════════════════════════════════════╝
+        if ARCHIVISTE_LOGGING_ENABLED and self._is_archiviste and response:
+            try:
+                logger = get_archiviste_logger()
+                logger.log_call(
+                    source=log_source,
+                    input_messages=messages,
+                    output_response=response,
+                    metadata={
+                        "controller": self._controller_name,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "backend": self.backend_type
+                    }
+                )
+            except Exception as log_err:
+                print(f"[DEBUG-TOKEN] ⚠️ Erreur logging: {log_err}")
+        # ╚═══════════════════════════════════════════════════════════════════════╝
+        
+        return response, error
+    
+    async def call_chat_api_streaming(self, messages: List[Dict], max_tokens: int, context_length: int, 
+                                       temperature: float, callback=None) -> tuple[Optional[str], Optional[str]]:
+        """
+        Appel API avec streaming - route vers le bon manager.
+        
+        Args:
+            messages: Liste des messages
+            max_tokens: Nombre max de tokens
+            context_length: Taille contexte
+            temperature: Température
+            callback: Fonction async(chunk: str) appelée pour chaque chunk
+            
+        Returns:
+            tuple: (réponse_complète, erreur)
+        """
+        manager = self.get_active_manager()
+        if not manager: 
+            return None, f"Le backend actif '{self.backend_type}' n'est pas disponible."
+        
+        # Normalisation case-insensitive
+        backend_upper = self.backend_type.upper() if self.backend_type else ""
+        
+        # Seul API manager supporte le streaming pour l'instant
+        if backend_upper == "API" and hasattr(manager, 'call_chat_api_streaming'):
+            return await manager.call_chat_api_streaming(messages, max_tokens, context_length, temperature, callback)
+        else:
+            # PAS DE FALLBACK - Retourner erreur explicite, l'appelant décide
+            return None, f"Backend {backend_upper} ne supporte pas le streaming. Utilisez call_chat_api()."
+            
 class EmbeddingController:
     def __init__(self, ollama_manager: OllamaManager, gguf_manager: GGUFManager):
         self.is_available, self.backend_type = False, "API"

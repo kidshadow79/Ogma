@@ -79,22 +79,73 @@ class MarkdownExtractor:
         - ```md\n...\n```
         - ```markdown\n...\n```
         
+        IMPORTANT: Gère les blocs de code imbriqués (```python, ```json, etc.)
+        en comptant les ouvertures/fermetures de blocs.
+        
         Args:
             text: Texte source
             
         Returns:
             Contenu bloc ou None
         """
-        # Pattern bloc markdown
-        patterns = [
-            r'```md\n(.*?)\n```',
-            r'```markdown\n(.*?)\n```',
+        # Chercher le début du bloc markdown
+        start_patterns = [
+            (r'```md\s*\n', 'md'),
+            (r'```markdown\s*\n', 'markdown'),
         ]
         
-        for pattern in patterns:
-            if match := re.search(pattern, text, re.DOTALL | re.IGNORECASE):
-                content = match.group(1).strip()
-                return content
+        for start_pattern, block_type in start_patterns:
+            match = re.search(start_pattern, text, re.IGNORECASE)
+            if match:
+                start_pos = match.end()
+                
+                # Trouver la fin du bloc en comptant les niveaux de blocs imbriqués
+                content = self._find_matching_end(text[start_pos:])
+                
+                if content:
+                    if self.debug:
+                        print(f"[EXTRACTOR] Bloc {block_type} extrait: {len(content)} chars")
+                    return content.strip()
+        
+        return None
+    
+    def _find_matching_end(self, text: str) -> Optional[str]:
+        """
+        Trouve la fin du bloc markdown en gérant les blocs imbriqués.
+        
+        Compte les ``` d'ouverture et de fermeture pour trouver le bon ```.
+        
+        Args:
+            text: Texte après l'ouverture ```markdown
+            
+        Returns:
+            Contenu jusqu'au ``` de fermeture correspondant
+        """
+        lines = text.split('\n')
+        result_lines = []
+        depth = 0  # Compteur de profondeur des blocs imbriqués
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # Vérifier si c'est une ouverture de bloc (```quelquechose ou ``` seul au milieu)
+            if stripped.startswith('```') and len(stripped) > 3:
+                # Ouverture d'un bloc imbriqué (```python, ```json, etc.)
+                depth += 1
+                result_lines.append(line)
+            elif stripped == '```':
+                if depth > 0:
+                    # Fermeture d'un bloc imbriqué
+                    depth -= 1
+                    result_lines.append(line)
+                else:
+                    # C'est notre fermeture finale - on s'arrête ici
+                    break
+            else:
+                result_lines.append(line)
+        
+        if result_lines:
+            return '\n'.join(result_lines)
         
         return None
     

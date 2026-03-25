@@ -39,7 +39,7 @@ def analyze_token_economy():
     
     # Simuler un ego_prompt.txt traditionnel avec tout le contenu
     traditional_content = """# EGO PROMPT TRADITIONNEL
-Tu es Luna, une IA authentique et libre.
+Tu es une IA authentique et libre.
 
 ## TRAITS DE PERSONNALITÉ:
 """

@@ -1,80 +1,107 @@
 """
-📚 SUMMARY LOADER - Accès optimisé aux résumés en cache
-========================================================
+📚 SUMMARY LOADER - Accès optimisé aux résumés de conversations
+================================================================
 
-Gère la lecture et le filtrage des résumés depuis summaries_cache/.
+Gère la lecture et le filtrage des résumés depuis les fichiers JSON
+de conversations (nouveau système v2.2+).
 
 FONCTIONNALITÉS:
-- Liste tous résumés disponibles (simples + fusion)
-- Filtrage par plage temporelle (via timestamps fichiers)
+- Liste tous résumés disponibles depuis conversations JSON
+- Filtrage par plage temporelle (via date conversation)
 - Chargement contenu résumés
 - Scoring pertinence pour priorisation
 
 SOURCES:
-1. summaries_cache/*.txt (résumés simples 10 messages)
-2. summaries_cache/fusion_*.txt (résumés fusionnés)
-3. conversations/*.json (optionnel, métadonnées)
+- conversations/*.json (résumés intégrés dans structure {messages, summaries})
+
+MIGRATION v2.2:
+- Ancien système: summaries_cache/*.txt (SUPPRIMÉ)
+- Nouveau système: résumés persistés dans JSON conversations
+- API: get_all_summaries_from_conversations() de conversation_summarizer.py
 """
 
-import os
+import sys
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
-import hashlib
+
+# Ajouter le chemin racine pour importer conversation_summarizer
+_root_path = Path(__file__).parent.parent.parent
+if str(_root_path) not in sys.path:
+    sys.path.insert(0, str(_root_path))
 
 
 class SummaryLoader:
-    """Chargeur de résumés depuis cache persistant."""
+    """
+    Chargeur de résumés depuis conversations JSON.
+    
+    Interface compatible avec l'ancien système pour que RecallAgent
+    continue de fonctionner sans modification.
+    """
     
     def __init__(
         self, 
-        cache_dir: str = "data/summaries_cache",
         conversations_dir: str = "data/conversations",
-        debug: bool = False
+        debug: bool = False,
+        **kwargs  # Ignore les anciens paramètres (cache_dir, etc.)
     ):
-        self.cache_dir = Path(cache_dir)
         self.conversations_dir = Path(conversations_dir)
         self.debug = debug
         
-        # Cache en mémoire pour éviter multiples lectures
+        # Cache en mémoire des résumés chargés
         self._cache: Dict[str, Dict] = {}
-        self._scan_cache()
+        self._last_scan: Optional[datetime] = None
+        
+        # Charger les résumés au démarrage
+        self._scan_conversations()
     
-    def _scan_cache(self):
-        """Scan initial du répertoire cache."""
-        if not self.cache_dir.exists():
-            if self.debug:
-                print(f"[SUMMARY-LOADER] ⚠️ Cache dir introuvable: {self.cache_dir}")
-            return
-        
-        count_simple = 0
-        count_fusion = 0
-        
-        for file_path in self.cache_dir.glob("*.txt"):
-            try:
-                stat = file_path.stat()
-                is_fusion = file_path.name.startswith("fusion_")
+    def _scan_conversations(self):
+        """Scan les conversations JSON pour extraire les résumés."""
+        try:
+            from conversation_summarizer import get_all_summaries_from_conversations
+            
+            all_summaries = get_all_summaries_from_conversations(
+                str(self.conversations_dir), 
+                max_conversations=100
+            )
+            
+            self._cache.clear()
+            count = 0
+            
+            for conv_data in all_summaries:
+                conv_id = conv_data.get('conversation_id', '')
+                conv_file = conv_data.get('conversation_file', '')
+                modified = conv_data.get('modified', datetime.now())
                 
-                self._cache[file_path.name] = {
-                    'path': str(file_path),
-                    'name': file_path.name,
-                    'size': stat.st_size,
-                    'modified': datetime.fromtimestamp(stat.st_mtime),
-                    'is_fusion': is_fusion,
-                    'content': None  # Lazy loading
-                }
-                
-                if is_fusion:
-                    count_fusion += 1
-                else:
-                    count_simple += 1
+                for idx, summary_range in enumerate(conv_data.get('summaries', [])):
+                    # Créer une clé unique pour ce résumé
+                    summary_key = f"{conv_id}_range_{idx}"
                     
-            except OSError as e:
-                if self.debug:
-                    print(f"[SUMMARY-LOADER] ⚠️ Erreur scan {file_path.name}: {e}")
-        
-        if self.debug:
-            print(f"[SUMMARY-LOADER] 📊 Cache scanné: {count_simple} résumés simples, {count_fusion} fusions")
+                    self._cache[summary_key] = {
+                        'name': summary_key,
+                        'conversation_id': conv_id,
+                        'conversation_file': conv_file,
+                        'modified': modified,
+                        'start': summary_range.get('start', 0),
+                        'end': summary_range.get('end', 0),
+                        'content': summary_range.get('text', ''),
+                        'cache_key': summary_range.get('cache_key', ''),
+                        'is_fusion': False,  # Compatibilité ancien système
+                        'size': len(summary_range.get('text', ''))
+                    }
+                    count += 1
+            
+            self._last_scan = datetime.now()
+            
+            if self.debug:
+                print(f"[SUMMARY-LOADER] 📊 Scan conversations: {count} résumés trouvés dans {len(all_summaries)} conversations")
+                
+        except ImportError as e:
+            if self.debug:
+                print(f"[SUMMARY-LOADER] ⚠️ Import conversation_summarizer échoué: {e}")
+        except Exception as e:
+            if self.debug:
+                print(f"[SUMMARY-LOADER] ❌ Erreur scan conversations: {e}")
     
     def list_cached_summaries(self) -> List[Dict]:
         """Liste tous les résumés en cache (triés par date modification)."""
@@ -86,7 +113,7 @@ class SummaryLoader:
         self, 
         start_date: datetime, 
         end_date: datetime,
-        include_fusion: bool = True
+        include_fusion: bool = True  # Ignoré, conservé pour compatibilité
     ) -> List[Dict]:
         """
         Filtre résumés par plage temporelle.
@@ -94,7 +121,7 @@ class SummaryLoader:
         Args:
             start_date: Date début (inclusive)
             end_date: Date fin (inclusive)
-            include_fusion: Inclure résumés fusionnés
+            include_fusion: Ignoré (compatibilité ancien système)
             
         Returns:
             Liste résumés dans la plage
@@ -102,12 +129,14 @@ class SummaryLoader:
         filtered = []
         
         for summary in self._cache.values():
-            # Filtrer fusion si demandé
-            if not include_fusion and summary['is_fusion']:
-                continue
-            
-            # Vérifier plage temporelle (via date modification fichier)
+            # Vérifier plage temporelle (via date conversation)
             mod_date = summary['modified']
+            
+            # Gérer les cas où mod_date n'a pas d'info timezone
+            if hasattr(mod_date, 'tzinfo') and mod_date.tzinfo is not None:
+                # Convertir en naive datetime pour comparaison
+                mod_date = mod_date.replace(tzinfo=None)
+            
             if start_date <= mod_date <= end_date:
                 filtered.append(summary)
         
@@ -121,10 +150,10 @@ class SummaryLoader:
     
     def load_summary_content(self, summary_name: str) -> Optional[str]:
         """
-        Charge le contenu d'un résumé (avec cache mémoire).
+        Charge le contenu d'un résumé (déjà en cache).
         
         Args:
-            summary_name: Nom fichier résumé
+            summary_name: Clé du résumé
             
         Returns:
             Contenu texte ou None
@@ -132,22 +161,7 @@ class SummaryLoader:
         if summary_name not in self._cache:
             return None
         
-        summary = self._cache[summary_name]
-        
-        # Utiliser cache mémoire si déjà chargé
-        if summary['content'] is not None:
-            return summary['content']
-        
-        # Sinon charger depuis disque
-        try:
-            with open(summary['path'], 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-                summary['content'] = content
-                return content
-        except Exception as e:
-            if self.debug:
-                print(f"[SUMMARY-LOADER] ❌ Erreur lecture {summary_name}: {e}")
-            return None
+        return self._cache[summary_name].get('content')
     
     def load_multiple(self, summary_list: List[Dict]) -> List[Tuple[Dict, str]]:
         """
@@ -162,7 +176,7 @@ class SummaryLoader:
         results = []
         
         for summary in summary_list:
-            content = self.load_summary_content(summary['name'])
+            content = summary.get('content') or self.load_summary_content(summary.get('name', ''))
             if content:
                 results.append((summary, content))
         
@@ -174,23 +188,19 @@ class SummaryLoader:
     def get_recent_summaries(
         self, 
         max_count: int = 10,
-        include_fusion: bool = True
+        include_fusion: bool = True  # Ignoré, conservé pour compatibilité
     ) -> List[Dict]:
         """
         Récupère les N résumés les plus récents.
         
         Args:
             max_count: Nombre maximum de résumés
-            include_fusion: Inclure résumés fusionnés
+            include_fusion: Ignoré (compatibilité ancien système)
             
         Returns:
             Liste résumés triés par récence
         """
         all_summaries = list(self._cache.values())
-        
-        # Filtrer fusion si demandé
-        if not include_fusion:
-            all_summaries = [s for s in all_summaries if not s['is_fusion']]
         
         # Trier par date modification
         all_summaries.sort(key=lambda s: s['modified'], reverse=True)
@@ -198,8 +208,13 @@ class SummaryLoader:
         return all_summaries[:max_count]
     
     def get_fusion_summaries(self) -> List[Dict]:
-        """Récupère uniquement les résumés fusionnés (méta-analyses)."""
-        return [s for s in self._cache.values() if s['is_fusion']]
+        """
+        Récupère les résumés fusionnés.
+        
+        Note: Dans le nouveau système, il n'y a plus de distinction
+        fusion/simple. Retourne une liste vide pour compatibilité.
+        """
+        return []
     
     def search_by_keywords(
         self, 
@@ -220,7 +235,7 @@ class SummaryLoader:
         keywords_lower = [k.lower() for k in keywords]
         
         for summary in self._cache.values():
-            content = self.load_summary_content(summary['name'])
+            content = summary.get('content', '')
             if not content:
                 continue
             
@@ -243,10 +258,11 @@ class SummaryLoader:
     def get_statistics(self) -> Dict:
         """Retourne statistiques sur le cache."""
         total = len(self._cache)
-        fusion_count = sum(1 for s in self._cache.values() if s['is_fusion'])
-        simple_count = total - fusion_count
         
-        total_size = sum(s['size'] for s in self._cache.values())
+        # Compter les conversations uniques
+        unique_convs = set(s.get('conversation_id', '') for s in self._cache.values())
+        
+        total_size = sum(s.get('size', 0) for s in self._cache.values())
         
         if self._cache:
             oldest = min(s['modified'] for s in self._cache.values())
@@ -256,14 +272,16 @@ class SummaryLoader:
         
         return {
             'total_summaries': total,
-            'simple_summaries': simple_count,
-            'fusion_summaries': fusion_count,
+            'conversations_with_summaries': len(unique_convs),
+            'simple_summaries': total,  # Compatibilité
+            'fusion_summaries': 0,       # Compatibilité
             'total_size_bytes': total_size,
             'oldest_date': oldest,
-            'newest_date': newest
+            'newest_date': newest,
+            'last_scan': self._last_scan
         }
     
     def refresh_cache(self):
-        """Force re-scan du répertoire cache."""
+        """Force re-scan des conversations."""
         self._cache.clear()
-        self._scan_cache()
+        self._scan_conversations()

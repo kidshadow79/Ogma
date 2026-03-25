@@ -3,10 +3,10 @@ Extension Text2Image pour OGMA
 ===============================
 Génération d'images via IA à partir de descriptions textuelles.
 
-Backends supportés:
-- Perchance (Stable Diffusion) - Gratuit et illimité
-- [Futur] Fal.ai (Flux)
-- [Futur] ComfyUI Local
+Providers supportés:
+- GROK (xAI) - grok-2-image-1212 - Mode Spicy disponible
+- OpenAI (DALL-E 3/2) - Haute qualité, censuré
+- Google (Imagen 3) - Bonne qualité, modérément censuré
 
 Usage:
     from extensions.text2img import get_text2img_manager, initialize_text2img
@@ -84,9 +84,18 @@ def is_available():
     """
     return _is_initialized and _text2img_manager is not None
 
+def cleanup():
+    """Nettoyage propre de l'extension text2img."""
+    global _text2img_manager, _is_initialized
+    _text2img_manager = None
+    _is_initialized = False
+    print("[TEXT2IMG] Cleanup effectue")
+
+
 __all__ = [
     'Text2ImageManager',
     'initialize_text2img',
     'get_text2img_manager',
-    'is_available'
+    'is_available',
+    'cleanup'
 ]

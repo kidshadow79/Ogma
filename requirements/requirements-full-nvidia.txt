@@ -1,0 +1,18 @@
+# OGMA - Installation Complète GPU NVIDIA (sans audio avancé)
+# =============================================================
+# Standard CPU + accélération CUDA. Identique à requirements.txt
+# mais avec PyTorch GPU et llama-cpp CUDA à la place du CPU.
+#
+# Usage : pip install -r requirements/requirements-full-nvidia.txt
+# Prérequis : CUDA 12.8 + drivers NVIDIA 581+
+# =============================================================
+
+# Index PyTorch CUDA 12.8 (doit être en premier)
+--extra-index-url https://download.pytorch.org/whl/cu128
+--extra-index-url https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu128
+
+# --- Core OGMA (standard CPU) ---
+-r ../requirements.txt
+
+# --- Surcharge GPU (remplace torch CPU) ---
+-r requirements-nvidia.txt

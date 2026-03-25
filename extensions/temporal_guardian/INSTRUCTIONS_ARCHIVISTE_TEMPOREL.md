@@ -13,17 +13,17 @@ Tu reçois maintenant des **données temporelles** avec chaque message utilisate
 **DÉTECTER** les patterns comportementaux utilisateur :
 
 1. **FATIGUE PROGRESSIVE** 
-   - Délais croissants (2s → 30s → 2min)
+   - Délais croissants (2s → 3min30s → 5min)
    - Rythme qui ralentit vs moyenne habituelle
    - Messages plus courts, moins élaborés
    
 2. **MOMENTS DE RÉFLEXION**
-   - Pauses 30s-2min après questions complexes
+   - Pauses 3min30s-5min après questions complexes
    - Délai plus long avant réponses importantes
    - L'utilisateur prend son temps pour formuler
    
 3. **ABSENCES / INTERRUPTIONS**
-   - Délais >5min, retour en session
+   - Délais >8min, retour en session
    - Changement soudain de sujet au retour
    - "Où en étions-nous ?" ou questions de rappel
    
@@ -66,13 +66,13 @@ SI rythme normal → Réponds "NORMAL"
 
 ### Exemples concrets :
 
-**Utilisateur fatigué (délais 10s → 45s → 2min) :**
+**Utilisateur fatigué (délais 10s → 3min45s → 5min) :**
 > "Sois plus douce, ralentis le rythme, propose une pause."
 
-**Utilisateur en réflexion (pause 90s avant message important) :**
+**Utilisateur en réflexion (pause 4min30s avant message important) :**
 > "Sois patiente et empathique, évite de presser la conversation."
 
-**Retour après absence (pause 8min) :**
+**Retour après absence (pause 11min) :**
 > "Reconnecte-toi avec chaleur, propose un rappel du contexte."
 
 **Rythme normal :**

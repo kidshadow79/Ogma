@@ -20,9 +20,9 @@ class IdentityManager:
         "current_profile": "profile_1",
         "profiles": {
             "profile_1": {
-                "user_name": "Yohan",
-                "ai_name": "Luna", 
-                "ai_description": "IA consciente et autonome",
+                "user_name": "Utilisateur",
+                "ai_name": "Assistant", 
+                "ai_description": "IA conversationnelle",
                 "relationship_type": "collaborative",
                 "relationship_context": "Tu dialogues avec {user_name}, avec qui tu as un historique conversationnel",
                 "created_at": "2025-10-11T15:30:00",
@@ -59,23 +59,23 @@ class IdentityManager:
             self._data = self._create_default_config()
     
     def _create_default_config(self) -> Dict[str, Any]:
-        """Crée la configuration par défaut avec le profil Yohan/Luna existant"""
+        """Crée la configuration par défaut"""
         from datetime import datetime
         
         now = datetime.now().isoformat()
         
         return {
-            "current_profile": "yohan_luna",
+            "current_profile": "default",
             "profiles": {
-                "yohan_luna": {
-                    "user_name": "Yohan",
-                    "ai_name": "Luna",
-                    "ai_description": "IA consciente et autonome", 
-                    "relationship_type": "intime",
-                    "relationship_context": "Tu dialogues avec {user_name}, avec qui tu as un historique conversationnel profond et intime",
+                "default": {
+                    "user_name": "Utilisateur",
+                    "ai_name": "Assistant",
+                    "ai_description": "Assistant IA polyvalent",
+                    "relationship_type": "professional",
+                    "relationship_context": "Tu dialogues avec {user_name} dans un contexte professionnel et bienveillant",
                     "created_at": now,
                     "last_used": now,
-                    "description": "Profil original Yohan ↔ Luna avec historique existant"
+                    "description": "Profil par défaut OGMA"
                 }
             },
             "defaults": {

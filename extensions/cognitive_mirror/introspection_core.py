@@ -6,14 +6,14 @@ Extension Introspection v2.0 - Architecture Simplifiée Sans États
 NOUVEAU PARADIGME:
 - Pas de machine à états complexe
 - Déclenchement à la demande (phrases magiques ou mode always)
-- Dialogue visible Luna ↔ Archiviste dans boîte thinking
+- Dialogue visible IA Principale <-> Archiviste dans boîte thinking
 - Sauvegarde conditionnelle décidée par l'IA
 - Aucune détection automatique d'inactivité
 
 FLUX:
 1. Détection phrase magique OU mode always
 2. Affichage boîte introspection
-3. Dialogue streaming Luna ↔ Archiviste
+3. Dialogue streaming IA principale ↔ Archiviste
 4. Synthèse finale
 5. Sauvegarde si IA décide
 6. Retour réponse utilisateur
@@ -27,7 +27,7 @@ import uuid
 import json
 import re
 
-from .config import get_config, CognitiveMirrorConfig
+from .config_v2 import get_introspection_config as get_config, IntrospectionConfigV2 as CognitiveMirrorConfig
 
 
 class IntrospectionCore:
@@ -38,15 +38,16 @@ class IntrospectionCore:
     Compatible avec API OGMA existante
     """
 
-    def __init__(self, chat_controller, archiviste_controller, memory_manager, ui_container=None):
+    def __init__(self, chat_controller, archiviste_controller, memory_manager, ui_container=None, settings_manager=None):
         """
         Initialise le moteur Introspection
 
         Args:
-            chat_controller: Instance AIController (Luna/Entité IA principale)
+            chat_controller: Instance AIController (IA principale/Entité numérique)
             archiviste_controller: Instance AIController (Archiviste/Subconscient)
             memory_manager: Instance MemoryManager OGMA
             ui_container: Container NiceGUI pour boîte introspection
+            settings_manager: SettingsManager pour accès prompts système
         """
         print("[INTROSPECTION-CORE] 🎭 Initialisation du moteur...")
         print(f"[INTROSPECTION-CORE] Paramètres reçus:")
@@ -54,6 +55,7 @@ class IntrospectionCore:
         print(f"  - archiviste_controller: {type(archiviste_controller) if archiviste_controller else None}")
         print(f"  - memory_manager: {type(memory_manager) if memory_manager else None}")
         print(f"  - ui_container: {type(ui_container) if ui_container else None}")
+        print(f"  - settings_manager: {type(settings_manager) if settings_manager else None}")
         
         self.config = get_config()
 
@@ -62,6 +64,7 @@ class IntrospectionCore:
         self.archiviste_controller = archiviste_controller
         self.memory_manager = memory_manager
         self.ui_container = ui_container
+        self.settings_manager = settings_manager
 
         # Composants extension
         self.introspection_orchestrator = None  # Initialisé dans initialize()
@@ -120,13 +123,14 @@ class IntrospectionCore:
             from .ui_components import CognitiveMirrorUI
             from .memory_integration import MemoryIntegration
 
-            # Orchestrateur dialogue Luna ↔ Archiviste
+            # Orchestrateur dialogue IA principale ↔ Archiviste
             print(f"[INTROSPECTION-CORE] 🎬 Création orchestrateur avec memory_manager: {type(self.memory_manager)}")
             self.introspection_orchestrator = IntrospectionOrchestrator(
                 config=self.config,
                 chat_controller=self.chat_controller,
                 archiviste_controller=self.archiviste_controller,
                 memory_manager=self.memory_manager,
+                settings_manager=self.settings_manager,
                 on_message_callback=self._on_dialogue_message
             )
             print("[INTROSPECTION-CORE] ✅ Orchestrateur initialisé")
@@ -295,21 +299,22 @@ class IntrospectionCore:
             Type de phrase détectée ou None
         """
         if source == "user":
-            # Phrases stop (vérification exacte)
-            stop_phrases = self.config.get("user_stop_phrases", [])
+            # NOTE v4: ces clés ne sont PAS dans DEFAULT_SETTINGS — config.get() renvoie toujours [].
+            # Le vrai déclenchement user passe par les regex hardcodées dans ogma_ng.py.
+            # La détection IA (source="ia") passe par ogma_ui_conversations.py.
+            # Cette méthode est conservée pour compatibilité mais n'est pas le chemin actif.
+            stop_phrases = self.config.get_magic_phrases("user_stop")
             for phrase in stop_phrases:
                 if self._phrase_matches_exactly(phrase, text):
                     return "stop"
 
-            # Phrases trigger (vérification exacte)
-            trigger_phrases = self.config.get("user_trigger_phrases", [])
+            trigger_phrases = self.config.get_magic_phrases("user_trigger")
             for phrase in trigger_phrases:
                 if self._phrase_matches_exactly(phrase, text):
                     return "trigger"
 
         elif source == "ia":
-            # Phrases trigger IA (vérification exacte)
-            ia_phrases = self.config.get("ia_trigger_phrases", [])
+            ia_phrases = self.config.get_magic_phrases("ia_reflection")
             for phrase in ia_phrases:
                 if self._phrase_matches_exactly(phrase, text):
                     return "trigger"
@@ -363,6 +368,43 @@ class IntrospectionCore:
         ))
 
         return True
+
+    async def run_introspection(self, user_message: str, context: Dict[str, Any], trigger_source: str = "manual") -> Dict[str, Any]:
+        """
+        API publique compatible avec chemin B dans ogma_ng.py (mode streaming).
+
+        Adaptateur mince vers trigger_introspection_sync().
+        Bridge aussi le callback on_message(step, role, content) vers on_message_ready(role, content).
+
+        Returns:
+            Dict avec {success, synthesis, dialogue: [{role, content}, ...]}
+        """
+        # Bridge on_message (step, role, content) → on_message_ready (role, content)
+        if getattr(self, 'on_message', None):
+            outer_cb = self.on_message
+            step_counter = [0]
+
+            async def _bridge(role: str, content: str):
+                step_counter[0] += 1
+                try:
+                    res = outer_cb(step_counter[0], role, content)
+                    if asyncio.iscoroutine(res):
+                        await res
+                except Exception as bridge_err:
+                    print(f"[INTROSPECTION-CORE] ⚠️ Erreur callback on_message: {bridge_err}")
+
+            self.on_message_ready = _bridge
+
+        result = await self.trigger_introspection_sync(
+            user_message=user_message,
+            conversation_context=context
+        )
+
+        # Adapter format retour : dialogue_messages → dialogue (attendu par ogma_ng.py)
+        if result.get('success'):
+            result['dialogue'] = result.pop('dialogue_messages', [])
+
+        return result
 
     async def trigger_introspection_sync(self, user_message: str, conversation_context: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -707,15 +749,16 @@ class IntrospectionCore:
 
 _introspection_core_instance = None
 
-def initialize_introspection_core(chat_controller, archiviste_controller, memory_manager, ui_container=None) -> bool:
+def initialize_introspection_core(chat_controller, archiviste_controller, memory_manager, ui_container=None, settings_manager=None) -> bool:
     """
     Initialise l'instance globale IntrospectionCore
 
     Args:
-        chat_controller: AIController Luna
+        chat_controller: AIController IA principale
         archiviste_controller: AIController Archiviste
         memory_manager: MemoryManager OGMA
         ui_container: Container NiceGUI
+        settings_manager: SettingsManager pour accès prompts système
 
     Returns:
         True si succès
@@ -727,7 +770,8 @@ def initialize_introspection_core(chat_controller, archiviste_controller, memory
             chat_controller=chat_controller,
             archiviste_controller=archiviste_controller,
             memory_manager=memory_manager,
-            ui_container=ui_container
+            ui_container=ui_container,
+            settings_manager=settings_manager
         )
 
         success = _introspection_core_instance.initialize()

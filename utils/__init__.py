@@ -17,11 +17,10 @@ spec.loader.exec_module(utils_root)
 
 # Exposer les constantes critiques
 DATA_DIR = utils_root.DATA_DIR
-EGO_PROMPT_FILE = utils_root.EGO_PROMPT_FILE
-EGO_PROMPT_SYNTHESIZED_FILE = utils_root.EGO_PROMPT_SYNTHESIZED_FILE
+EGO_COMPILED_FILE = utils_root.EGO_COMPILED_FILE
 
 # Import helpers pour extensions et callbacks (logic_callbacks.py)
-get_ego_prompt = utils_root.get_ego_prompt
+get_ego_summary_from_compiled = utils_root.get_ego_summary_from_compiled
 save_conversation = utils_root.save_conversation
 save_conversations_index = utils_root.save_conversations_index
 load_conversations_index = utils_root.load_conversations_index
@@ -30,8 +29,6 @@ load_conversation = utils_root.load_conversation
 delete_conversation_file = utils_root.delete_conversation_file
 rename_conversation_file = utils_root.rename_conversation_file
 estimate_tokens = utils_root.estimate_tokens
-update_ego_prompt = utils_root.update_ego_prompt
-restructure_ego_prompt = utils_root.restructure_ego_prompt
 search_conversations = utils_root.search_conversations
 get_conversation_context = utils_root.get_conversation_context
 
@@ -48,10 +45,9 @@ from .backend_utils import map_backend_for_controller
 __all__ = [
     # Constantes (depuis utils.py racine)
     'DATA_DIR',
-    'EGO_PROMPT_FILE',
-    'EGO_PROMPT_SYNTHESIZED_FILE',
+    'EGO_COMPILED_FILE',
     # Helpers pour extensions et logic_callbacks (depuis utils.py racine)
-    'get_ego_prompt',
+    'get_ego_summary_from_compiled',
     'save_conversation',
     'save_conversations_index',
     'load_conversations_index',
@@ -60,8 +56,6 @@ __all__ = [
     'delete_conversation_file',
     'rename_conversation_file',
     'estimate_tokens',
-    'update_ego_prompt',
-    'restructure_ego_prompt',
     'search_conversations',
     'get_conversation_context',
     # Fonctions refactorisées

@@ -14,9 +14,10 @@ from pathlib import Path
 class WebNavigatorCommands:
     """Gestionnaire de commandes internet avec Serper pour OGMA"""
     
-    def __init__(self, config, serper_client):
+    def __init__(self, config, serper_client, duckduckgo_client=None):
         self.config = config
         self.serper_client = serper_client
+        self.duckduckgo_client = duckduckgo_client
         
         # Statistiques d'usage
         self.stats = {
@@ -31,7 +32,17 @@ class WebNavigatorCommands:
         }
         
         print("[WEB-COMMANDS] 🎮 Gestionnaire de commandes Serper initialisé")
-    
+
+    def _get_active_client(self):
+        """
+        Retourne le client de recherche actif selon la configuration.
+        - 'duckduckgo' : DuckDuckGoClient (gratuit, sans clé API)
+        - 'serper'     : SerperClient (par défaut)
+        """
+        if self.config.get_search_provider() == "duckduckgo" and self.duckduckgo_client:
+            return self.duckduckgo_client
+        return self.serper_client
+
     def clean_search_query(self, query: str) -> str:
         """
         Nettoie et optimise une requête de recherche
@@ -305,11 +316,12 @@ class WebNavigatorCommands:
             return "❌ La recherche web est désactivée ou clé API manquante.", None
         
         print(f"[WEB-COMMANDS] 🔍 Recherche web{'🧠 intelligente' if intelligent_scraping else ''}: '{query}'")
-        
+
+        client = self._get_active_client()
         try:
             if intelligent_scraping:
                 # Recherche avec scraping intelligent (Top 5 pages)
-                enriched_content, error = await self.serper_client.search_with_intelligent_scraping(
+                enriched_content, error = await client.search_with_intelligent_scraping(
                     query, top_pages=5
                 )
                 
@@ -322,9 +334,9 @@ class WebNavigatorCommands:
                     return enriched_content, None
             
             if not intelligent_scraping:
-                # Recherche Serper classique
+                # Recherche classique via client actif
                 serper_response, error = await asyncio.to_thread(
-                    self.serper_client.search_web, 
+                    client.search_web, 
                     query
                 )
                 
@@ -340,7 +352,7 @@ class WebNavigatorCommands:
                 self.stats["successful_requests"] += 1
                 
                 # Formater pour OGMA
-                formatted_content = self.serper_client.format_web_results_for_ogma(serper_response, query)
+                formatted_content = client.format_web_results_for_ogma(serper_response, query)
                 
                 return formatted_content, None
             
@@ -364,11 +376,12 @@ class WebNavigatorCommands:
             return "❌ La recherche d'actualités est désactivée ou clé API manquante.", None
         
         print(f"[WEB-COMMANDS] 📰 Recherche actualités: '{query}'")
-        
+
+        client = self._get_active_client()
         try:
-            # Appel API Serper News
+            # Appel News via client actif
             serper_response, error = await asyncio.to_thread(
-                self.serper_client.search_news, 
+                client.search_news, 
                 query
             )
             
@@ -384,7 +397,7 @@ class WebNavigatorCommands:
             self.stats["successful_requests"] += 1
             
             # Formater pour OGMA
-            formatted_content = self.serper_client.format_news_results_for_ogma(serper_response, query)
+            formatted_content = client.format_news_results_for_ogma(serper_response, query)
             
             return formatted_content, None
             
@@ -408,11 +421,12 @@ class WebNavigatorCommands:
             return "❌ La recherche d'images est désactivée ou clé API manquante.", None
         
         print(f"[WEB-COMMANDS] 🖼️ Recherche images: '{query}'")
-        
+
+        client = self._get_active_client()
         try:
-            # Appel API Serper Images
+            # Appel Images via client actif
             serper_response, error = await asyncio.to_thread(
-                self.serper_client.search_images, 
+                client.search_images, 
                 query
             )
             
@@ -428,7 +442,7 @@ class WebNavigatorCommands:
             self.stats["successful_requests"] += 1
             
             # Formater pour OGMA
-            formatted_content = self.serper_client.format_images_results_for_ogma(serper_response, query)
+            formatted_content = client.format_images_results_for_ogma(serper_response, query)
             
             # Si option activée, télécharger la première image
             downloaded_path = None

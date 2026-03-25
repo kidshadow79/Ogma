@@ -1,25 +1,26 @@
 """
-Manager principal de l'extension Text2Image
-============================================
-Orchestre la génération d'images, la sauvegarde et l'historique.
+Manager de génération d'images (Multi-Provider)
+================================================
+Orchestre le backend multi-provider, la sauvegarde et l'historique.
+Providers supportés: GROK (xAI), OpenAI (DALL-E), Google (Imagen)
+
 """
 
-import asyncio
 import json
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 from datetime import datetime
-import uuid
 
-from .perchance_http_backend import PerchanceHTTPBackend
+from .image_backend import get_image_backend, reset_backend, ImageGenerationBackend
+
 
 class Text2ImageManager:
     """Gestionnaire principal de génération d'images"""
 
     def __init__(self, settings_manager):
         self.settings_manager = settings_manager
-        self.backend = None
-        self.history = []
+        self.backend: Optional[ImageGenerationBackend] = None
+        self.history: List[Dict] = []
 
         # Chemins
         self.generated_images_dir = Path("data/generated_images")
@@ -33,28 +34,33 @@ class Text2ImageManager:
 
     def initialize_backend(self) -> bool:
         """
-        Initialise le backend de génération (actuellement Perchance HTTP)
+        Initialise le backend de génération multi-provider
 
         Returns:
-            bool: True si l'initialisation a réussi
+            bool: True si au moins un provider est disponible
         """
         try:
-            print("[TEXT2IMG-MANAGER] 🔧 Initialisation backend...")
-
-            # Utiliser le backend HTTP (plus fiable que la lib Python)
-            # Passer settings_manager pour accès aux paramètres custom
-            self.backend = PerchanceHTTPBackend(settings_manager=self.settings_manager)
-            success = self.backend.initialize()
-
-            if success:
-                print("[TEXT2IMG-MANAGER] ✅ Backend initialisé")
+            print("[TEXT2IMG-MANAGER] 🔧 Initialisation backend multi-provider...")
+            
+            # Reset et recréer le backend
+            reset_backend()
+            self.backend = get_image_backend(self.settings_manager)
+            
+            if not self.backend:
+                print("[TEXT2IMG-MANAGER] ❌ Impossible de créer le backend")
+                return False
+            
+            providers = self.backend.get_available_providers()
+            
+            if providers:
+                print(f"[TEXT2IMG-MANAGER] ✅ Backend initialisé avec {len(providers)} provider(s): {', '.join(providers)}")
                 return True
             else:
-                print("[TEXT2IMG-MANAGER] ❌ Échec initialisation backend")
+                print("[TEXT2IMG-MANAGER] ⚠️ Aucun provider configuré (clés API manquantes)")
                 return False
 
         except Exception as e:
-            print(f"[TEXT2IMG-MANAGER] ❌ Erreur initialisation backend: {e}")
+            print(f"[TEXT2IMG-MANAGER] ❌ Erreur initialisation: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -69,56 +75,39 @@ class Text2ImageManager:
 
         Args:
             prompt: Description de l'image
-            **kwargs: Paramètres additionnels (width, height, etc.)
+            **kwargs: provider, model, width, height, etc.
 
         Returns:
             tuple: (image_bytes, error_message, metadata)
-                - Si succès: (bytes, None, metadata)
-                - Si échec: (None, error_message, None)
         """
-        if not self.backend or not self.backend.is_available:
-            return None, "Backend non disponible", None
+        if not self.backend:
+            return None, "Backend non initialisé", None
 
         try:
-            # Récupérer les paramètres depuis settings image_generation (compatible avec ancien système)
-            img_settings = self.settings_manager.settings.get('image_generation', {})
-            text2img_settings = self.settings_manager.settings.get('text2img', {})
-
-            width = kwargs.get('width', img_settings.get('default_width', 1024))
-            height = kwargs.get('height', img_settings.get('default_height', 1024))
-            model = kwargs.get('model', img_settings.get('model', text2img_settings.get('model', 'flux')))
-            safe_mode = kwargs.get('safe_mode', img_settings.get('safe_mode', text2img_settings.get('safe_mode', True)))
-            enhance = kwargs.get('enhance', text2img_settings.get('enhance', False))
-            nologo = kwargs.get('nologo', text2img_settings.get('nologo', True))
-            seed = kwargs.get('seed', text2img_settings.get('seed', None))
+            # Récupérer la config depuis settings
+            img_config = self.settings_manager.settings.get('image_generation', {})
+            
+            # Paramètres avec fallback sur config
+            provider = kwargs.get('provider', img_config.get('provider', 'GROK'))
+            model = kwargs.get('model', img_config.get('model'))
+            width = kwargs.get('width', img_config.get('width', 1024))
+            height = kwargs.get('height', img_config.get('height', 1024))
 
             # Générer l'image
-            image_bytes, error = await self.backend.generate_image(
+            image_bytes, error, metadata = await self.backend.generate(
                 prompt=prompt,
-                width=width,
-                height=height,
+                provider=provider,
                 model=model,
-                safe_mode=safe_mode,
-                enhance=enhance,
-                nologo=nologo,
-                seed=seed
+                width=width,
+                height=height
             )
 
             if error:
                 return None, error, None
 
-            # Créer les métadonnées
-            metadata = {
-                "timestamp": datetime.now().isoformat(),
-                "prompt": prompt,
-                "width": width,
-                "height": height,
-                "model": model,
-                "safe_mode": safe_mode,
-                "enhance": enhance,
-                "seed": seed,
-                "backend": self.backend.backend_name
-            }
+            # Enrichir les métadonnées
+            metadata["timestamp"] = datetime.now().isoformat()
+            metadata["original_prompt"] = prompt
 
             return image_bytes, None, metadata
 
@@ -137,29 +126,53 @@ class Text2ImageManager:
         """
         Sauvegarde une image générée avec ses métadonnées
 
-        Args:
-            image_bytes: Données binaires de l'image
-            metadata: Métadonnées de génération
-
         Returns:
             tuple: (chemin_fichier, error_message)
-                - Si succès: (Path, None)
-                - Si échec: (None, error_message)
         """
         try:
             # Vérifier si la sauvegarde est activée
-            settings = self.settings_manager.settings.get('text2img', {})
-            if not settings.get('save_images', True):
+            img_config = self.settings_manager.settings.get('image_generation', {})
+            if not img_config.get('save_images', True):
                 print("[TEXT2IMG-MANAGER] ℹ️ Sauvegarde désactivée")
                 return None, None
 
             # Générer le nom de fichier
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            # IMPORTANT: On utilise des TIRETS (-) et NON des underscores (_)
+            # car NiceGUI ui.markdown() interprète _text_ comme <em>text</em>
+            # ce qui corrompt les URL des images dans les balises <img src="...">
+            # Les nombres consécutifs de 6+ chiffres sont aussi interprétés comme pattern _XXX_
+            # donc on sépare TOUT avec des tirets: YYYY-MM-DD-HH-MM-SS
+            timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             prompt_slug = metadata.get('prompt', 'image')[:30]
-            prompt_slug = "".join(c if c.isalnum() or c in (' ', '-', '_') else '' for c in prompt_slug).strip()
-            prompt_slug = prompt_slug.replace(' ', '_')
+            
+            # 🛡️ NETTOYAGE RENFORCÉ pour éviter OSError [WinError 123]
+            # 1. Nettoyer balises HTML/Markdown (y compris échappées comme <\em>)
+            import re
+            prompt_slug = re.sub(r'<[^>]*>', '', prompt_slug)  # Balises normales
+            prompt_slug = re.sub(r'<\\[^>]*>', '', prompt_slug)  # Balises échappées <\em>
+            
+            # 2. Remplacer DIRECTEMENT les caractères interdits Windows (<>:"/\|?*)
+            invalid_chars = r'<>:"/\|?*'
+            prompt_slug = ''.join(c if c not in invalid_chars else '-' for c in prompt_slug)
+            
+            # 3. Remplacer les accents par équivalents ASCII (é→e, à→a, etc.)
+            import unicodedata
+            prompt_slug = unicodedata.normalize('NFKD', prompt_slug)
+            prompt_slug = prompt_slug.encode('ascii', 'ignore').decode('ascii')
+            
+            # 4. Garder uniquement alphanumériques, espaces et tirets
+            prompt_slug = "".join(c if c.isalnum() or c in (' ', '-') else '' for c in prompt_slug).strip()
+            prompt_slug = prompt_slug.replace(' ', '-')
 
-            filename = f"generated_{timestamp}_{prompt_slug}.png"
+            provider = metadata.get('provider', 'unknown').lower()
+            
+            # 🎲 BATCH SUPPORT: Ajouter suffixe -v{N} pour éviter écrasement
+            batch_index = metadata.get('batch_index')
+            if batch_index:
+                filename = f"{provider}-{timestamp}-{prompt_slug}-v{batch_index}.png"
+            else:
+                filename = f"{provider}-{timestamp}-{prompt_slug}.png"
+            
             filepath = self.generated_images_dir / filename
 
             # Sauvegarder l'image
@@ -168,7 +181,7 @@ class Text2ImageManager:
 
             print(f"[TEXT2IMG-MANAGER] 💾 Image sauvegardée: {filepath}")
 
-            # Ajouter le filename aux métadonnées
+            # Ajouter aux métadonnées
             metadata['filename'] = filename
             metadata['filepath'] = str(filepath)
 
@@ -181,12 +194,50 @@ class Text2ImageManager:
         except Exception as e:
             error_msg = f"Erreur sauvegarde: {str(e)}"
             print(f"[TEXT2IMG-MANAGER] ❌ {error_msg}")
-            import traceback
-            traceback.print_exc()
             return None, error_msg
 
+    def get_available_providers(self) -> List[str]:
+        """Retourne les providers disponibles"""
+        if self.backend:
+            return self.backend.get_available_providers()
+        return []
+
+    def get_provider_models(self, provider: str) -> List[str]:
+        """Retourne les modèles pour un provider"""
+        if self.backend:
+            return self.backend.get_provider_models(provider)
+        return []
+
+    def provider_supports_nsfw(self, provider: str) -> bool:
+        """Vérifie si un provider supporte Unfiltered"""
+        if self.backend:
+            return self.backend.provider_supports_nsfw(provider)
+        return False
+
+    def get_history(self, limit: int = 50) -> List[Dict]:
+        """Retourne l'historique des générations"""
+        return self.history[-limit:] if limit else self.history
+
+    def get_backend_info(self) -> Dict[str, Any]:
+        """Retourne les informations sur le backend"""
+        if not self.backend:
+            return {"status": "non initialisé", "providers": []}
+        
+        providers = self.backend.get_available_providers()
+        return {
+            "status": "actif" if providers else "aucun provider",
+            "providers": providers,
+            "providers_info": {
+                p: {
+                    "models": self.backend.get_provider_models(p),
+                    "nsfw_support": self.backend.provider_supports_nsfw(p)
+                }
+                for p in providers
+            }
+        }
+
     def _load_history(self):
-        """Charge l'historique des générations depuis le fichier JSON"""
+        """Charge l'historique depuis le fichier JSON"""
         try:
             if self.history_file.exists():
                 with open(self.history_file, 'r', encoding='utf-8') as f:
@@ -194,41 +245,14 @@ class Text2ImageManager:
                 print(f"[TEXT2IMG-MANAGER] 📜 Historique chargé: {len(self.history)} générations")
             else:
                 self.history = []
-                print(f"[TEXT2IMG-MANAGER] 📜 Aucun historique existant")
         except Exception as e:
             print(f"[TEXT2IMG-MANAGER] ⚠️ Erreur chargement historique: {e}")
             self.history = []
 
     def _save_history(self):
-        """Sauvegarde l'historique des générations dans le fichier JSON"""
+        """Sauvegarde l'historique dans le fichier JSON"""
         try:
             with open(self.history_file, 'w', encoding='utf-8') as f:
                 json.dump(self.history, f, indent=2, ensure_ascii=False)
-            print(f"[TEXT2IMG-MANAGER] 📜 Historique sauvegardé: {len(self.history)} générations")
         except Exception as e:
             print(f"[TEXT2IMG-MANAGER] ⚠️ Erreur sauvegarde historique: {e}")
-
-    def get_history(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-        """
-        Récupère l'historique des générations
-
-        Args:
-            limit: Nombre maximum de résultats (None = tous)
-
-        Returns:
-            List[Dict]: Liste des métadonnées de génération
-        """
-        if limit:
-            return self.history[-limit:]
-        return self.history
-
-    def get_backend_info(self) -> Optional[Dict[str, Any]]:
-        """
-        Retourne les informations sur le backend actif
-
-        Returns:
-            dict: Informations du backend, ou None si non disponible
-        """
-        if self.backend:
-            return self.backend.get_backend_info()
-        return None

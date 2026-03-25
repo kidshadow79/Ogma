@@ -97,6 +97,7 @@ Architecte → Contrôle final + Prochaine itération
 - Attendre validation avant d'écrire du code
 - Tester systématiquement les implémentations
 - Documenter les solutions développées
+- **JAMAIS de hardcoding de noms spécifiques** (ex: "Luna") - toujours utiliser des termes génériques (ex: "IA principale", "entité numérique")
 
 ### ❌ **DON'T - À ÉVITER**
 
@@ -110,6 +111,7 @@ Architecte → Contrôle final + Prochaine itération
 - Proposer sans analyser l'existant
 - Implémenter sans considérer les alternatives
 - Modifier l'architecture sans validation
+- **Hardcoder des noms spécifiques** (Luna, etc.) - le code doit être multi-profil générique
 
 ---
 

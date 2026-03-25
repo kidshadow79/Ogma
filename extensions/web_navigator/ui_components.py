@@ -27,7 +27,8 @@ class WebNavigatorUI:
         self.config = config
         self.commands_handler = commands_handler
         
-        # Éléments UI pour Serper (seront créés dynamiquement)
+        # Éléments UI (seront créés dynamiquement)
+        self.provider_select = None
         self.enabled_switch = None
         self.api_key_input = None
         self.api_status_label = None
@@ -50,10 +51,29 @@ class WebNavigatorUI:
         
         with container:
             # En-tête de l'extension
-            ui.markdown("### 🌐 Extension Web Navigator (Serper)")
+            ui.markdown("### 🌐 Extension Web Navigator")
             ui.markdown("*Recherche internet intelligente avec phrases magiques*")
             ui.separator()
-            
+
+            # ── SÉLECTEUR DE MOTEUR DE RECHERCHE ──────────────────────────────
+            with ui.card().classes('w-full mb-4').style(
+                'background: rgba(46, 204, 113, 0.1); border: 1px solid rgba(46, 204, 113, 0.4);'
+            ):
+                ui.markdown("**🚀 Moteur de recherche actif**").style('color: #27ae60; font-weight: bold;')
+                with ui.row().classes('w-full items-center gap-4'):
+                    self.provider_select = ui.select(
+                        label="Moteur actif",
+                        options={
+                            "serper": "🔑 Serper (2 500 req/mois gratuites, clé API requise)",
+                            "duckduckgo": "🧡 DuckDuckGo (100% gratuit, sans clé API)",
+                        },
+                        value=self.config.get_search_provider()
+                    ).on_value_change(self._on_provider_changed).classes('flex-1')
+                ui.markdown(
+                    "**DuckDuckGo** : gratuit et sans inscription, idéal en secours ou si quota Serper épuisé.  \n"
+                    "**Serper** : résultats Google, scraping intelligent des pages activé."
+                ).style('color: #7f8c8d; font-size: 0.85em;')
+
             # Section clé API
             with ui.card().classes('w-full mb-4').style('background: rgba(52, 152, 219, 0.1); border: 1px solid rgba(52, 152, 219, 0.3);'):
                 ui.markdown("**🔑 Configuration API Serper**").style('color: #3498db; font-weight: bold;')
@@ -220,6 +240,16 @@ class WebNavigatorUI:
                         on_click=self._test_serper_connection
                     ).classes('bg-green-500')
     
+    def _on_provider_changed(self, event):
+        """Gestionnaire changement de moteur de recherche actif"""
+        value = event.value
+        success = self.config.set("search_provider", value)
+        if success:
+            label = "DuckDuckGo (gratuit)" if value == "duckduckgo" else "Serper (API)"
+            ui.notify(f"Moteur de recherche : {label}", type='positive')
+        else:
+            ui.notify("Erreur sauvegarde du moteur de recherche", type='negative')
+
     def _on_enabled_changed(self, event):
         """Gestionnaire changement activation générale"""
         value = event.value

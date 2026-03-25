@@ -114,7 +114,8 @@ def create_portable_package(exe_path, app_name):
         ".env.template",
         "README_REQUIREMENTS.md",
         "GUIDE_INSTALLATION.md",
-        "requirements-minimal.txt"
+        "requirements.txt",
+        "requirements/requirements-minimal.txt"
     ]
     
     for file in essential_files:

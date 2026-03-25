@@ -173,6 +173,50 @@ class JournalCore:
         """Vérifie si l'extension est activée"""
         return self.config.is_enabled() and self.current_state != JournalState.DISABLED
     
+    def update_archiviste(self, archiviste_controller) -> bool:
+        """
+        Met à jour l'archiviste controller (utile quand initialisé avec MockArchiviste).
+        
+        Args:
+            archiviste_controller: Nouvelle instance AIController pour génération résumés
+            
+        Returns:
+            True si mise à jour réussie
+        """
+        try:
+            if not archiviste_controller:
+                print("[JOURNAL-CORE] ⚠️ update_archiviste: controller None ignoré")
+                return False
+            
+            # Vérifier si c'est un vrai controller (pas un Mock)
+            if not hasattr(archiviste_controller, 'context_length') or \
+               not hasattr(archiviste_controller, 'call_chat_api'):
+                print("[JOURNAL-CORE] ⚠️ update_archiviste: controller invalide")
+                return False
+            
+            self.archiviste_controller = archiviste_controller
+            
+            # Mettre à jour l'EntryGenerator aussi
+            if self.entry_generator:
+                self.entry_generator.archiviste = archiviste_controller
+                print(f"[JOURNAL-CORE] ✅ Archiviste mis à jour (context: {archiviste_controller.context_length})")
+            
+            # Mettre à jour le LiveStateDetector aussi
+            try:
+                from .live_state_detector import get_live_detector
+                detector = get_live_detector()
+                if detector:
+                    detector.archiviste = archiviste_controller
+                    print("[JOURNAL-CORE] ✅ LiveStateDetector mis à jour avec vrai Archiviste")
+            except Exception as e:
+                print(f"[JOURNAL-CORE] ⚠️ LiveStateDetector update failed: {e}")
+            
+            return True
+            
+        except Exception as e:
+            print(f"[JOURNAL-CORE] ❌ Erreur update_archiviste: {e}")
+            return False
+    
     def get_today_context(self, max_entries: int = None) -> str:
         """
         Retourne le contexte des dernières conversations pour enrichir conversation.

@@ -1,134 +1,76 @@
-# 🧠 Extension Introspection v2.0 pour OGMA (anciennement Cognitive Mirror)
+# 🧠 Extension Introspection v2.0 pour OGMA
 
 """
-Extension Introspection v2.0 - Dialogue visible Luna ↔ Archiviste
+Extension Introspection v2.0 - IntrospectionCore
 
-NOUVEAU PARADIGME:
-- Déclenchement à la demande (phrases magiques ou mode always)
-- Dialogue visible streaming dans boîte thinking
-- Sauvegarde conditionnelle décidée par l'IA
-- Sans détection automatique d'inactivité
+Système direct sans fallback : IntrospectionCore est le seul moteur.
+Si un module manque, l'erreur est explicite au démarrage.
 
-Architecture v2.0:
-- introspection_core.py: Moteur principal simplifié (NOUVEAU)
-- introspection_orchestrator.py: Gestion dialogue streaming (NOUVEAU)
-- ui_parameters_modal_v2.py: Popup paramètres complet (NOUVEAU)
-- config.py: Configuration étendue avec nouveaux paramètres
-- memory_integration.py: Sauvegarde conditionnelle IA
-- ui_components.py: Interface avec backward compatibility
-
-Usage v2.0:
+Usage:
     from extensions.cognitive_mirror import initialize_introspection
-
-    # Initialisation
-    success = initialize_introspection(
-        chat_controller=luna_ai,
-        archiviste_controller=archiviste_ai,
-        memory_manager=memory_mgr
-    )
-
-    # Utilisation
-    from extensions.cognitive_mirror import get_introspection_core
-    core = get_introspection_core()
-
-    # Traiter message utilisateur
-    response = await core.process_user_message(user_msg, context)
-
-COMPATIBILITÉ LEGACY:
-    Les anciennes fonctions initialize_cognitive_mirror() et get_cognitive_mirror()
-    sont maintenues pour compatibilité mais utilisent le nouveau système.
+    success = initialize_introspection(chat_controller, archiviste_controller, memory_manager)
 """
 
-from .config import CognitiveMirrorConfig, get_config
+# ===== IMPORTS DIRECTS (v2.1 - config_v2 est le système actif) =====
+# config_v2 = source de vérité. Aliases pour rétrocompatibilité.
 
-# Import nouveau système v2.0
-try:
-    from .introspection_core import IntrospectionCore, initialize_introspection_core, get_introspection_core
-    V2_AVAILABLE = True
-except ImportError:
-    V2_AVAILABLE = False
-    print("[INTROSPECTION] ⚠️ Système v2.0 non disponible - fallback v1.0")
+from .introspection_core import IntrospectionCore, initialize_introspection_core, get_introspection_core
+from .config_v2 import IntrospectionConfigV2, get_introspection_config
 
-# Import ancien système (fallback + compatibilité)
-try:
-    from .core_cognitive_mirror import CognitiveMirrorCore
-    LEGACY_AVAILABLE = True
-except ImportError:
-    LEGACY_AVAILABLE = False
+# Aliases rétrocompatibilité (ancien naming)
+get_config = get_introspection_config
+CognitiveMirrorConfig = IntrospectionConfigV2
 
+# UI
 from .ui_components import CognitiveMirrorUI
 from .memory_integration import MemoryIntegration
 
-__version__ = "2.0.0"  # Version Introspection
+print("[INTROSPECTION] ✅ Système v2.1 chargé (IntrospectionCore + config_v2)")
+
+__version__ = "2.1.0"
 __author__ = "OGMA Team"
 
-# Instance globale (singleton pattern OGMA)
+# Instance globale singleton
 _core_instance = None
 
-# ===== API v2.0 (NOUVEAU) =====
-
-def initialize_introspection(chat_controller, archiviste_controller, memory_manager, ui_container=None):
+def initialize_introspection(chat_controller, archiviste_controller, memory_manager, ui_container=None, settings_manager=None):
     """
-    Initialise l'extension Introspection v2.0 (NOUVEAU)
-
-    Args:
-        chat_controller: Instance AIController (Luna/IA principale)
-        archiviste_controller: Instance AIController (Archiviste)
-        memory_manager: Instance MemoryManager
-        ui_container: Container UI NiceGUI (optionnel)
-
-    Returns:
-        bool: True si initialisation réussie
+    Initialise l'extension Introspection v2.0.
     """
     global _core_instance
 
-    if not V2_AVAILABLE:
-        print("[INTROSPECTION] ❌ Système v2.0 non disponible - utiliser fallback v1.0")
-        return False
+    success = initialize_introspection_core(
+        chat_controller=chat_controller,
+        archiviste_controller=archiviste_controller,
+        memory_manager=memory_manager,
+        ui_container=ui_container,
+        settings_manager=settings_manager
+    )
 
-    try:
-        print(f"[INTROSPECTION] 🚀 Initialisation extension v{__version__}")
+    if success:
+        _core_instance = get_introspection_core()
+        config = get_introspection_config()
+        state = "ON" if config.is_enabled() else "OFF"
+        print(f"[INTROSPECTION] ✅ Extension v2.0 initialisée (état: {state})")
+        return True
 
-        # Validation dépendances
-        if not all([chat_controller, archiviste_controller, memory_manager]):
-            raise ValueError("Dépendances OGMA manquantes")
-
-        # Initialisation via fonction modulaire
-        success = initialize_introspection_core(
-            chat_controller=chat_controller,
-            archiviste_controller=archiviste_controller,
-            memory_manager=memory_manager,
-            ui_container=ui_container
-        )
-
-        if success:
-            _core_instance = get_introspection_core()
-            print(f"[INTROSPECTION] ✅ Extension v2.0 initialisée (état: {'ON' if _core_instance.is_enabled else 'OFF'})")
-
-        return success
-
-    except Exception as e:
-        print(f"[INTROSPECTION] ❌ Erreur initialisation: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    print("[INTROSPECTION] ❌ Échec initialisation v2.0")
+    return False
 
 
-def get_introspection() -> 'IntrospectionCore':
-    """
-    Retourne l'instance singleton IntrospectionCore v2.0
+def get_introspection():
+    """Retourne l'instance singleton IntrospectionCore."""
+    return get_introspection_core()
 
-    Returns:
-        IntrospectionCore ou None
-    """
-    if V2_AVAILABLE:
-        return get_introspection_core()
-    return None
+
+def is_v21() -> bool:
+    """True — v4 utilise le chemin v2.1 (boite thinking + streaming)."""
+    return True
 
 
 # ===== API LEGACY (Compatibilité v1.0 → v2.0) =====
 
-def initialize_cognitive_mirror(chat_controller, archiviste_controller, memory_manager, ui_container=None):
+def initialize_cognitive_mirror(chat_controller, archiviste_controller, memory_manager, ui_container=None, settings_manager=None):
     """
     Initialise extension (LEGACY - redirige vers v2.0)
 
@@ -140,12 +82,13 @@ def initialize_cognitive_mirror(chat_controller, archiviste_controller, memory_m
         archiviste_controller: Instance AIController
         memory_manager: Instance MemoryManager
         ui_container: Container UI (optionnel)
+        settings_manager: SettingsManager (optionnel)
 
     Returns:
         bool: True si succès
     """
     print("[COGNITIVE-MIRROR] ⚠️ Fonction legacy appelée - redirection vers Introspection v2.0")
-    return initialize_introspection(chat_controller, archiviste_controller, memory_manager, ui_container)
+    return initialize_introspection(chat_controller, archiviste_controller, memory_manager, ui_container, settings_manager)
 
 def get_cognitive_mirror():
     """
@@ -158,37 +101,30 @@ def get_cognitive_mirror():
 
 
 def is_available() -> bool:
-    """Vérifie si extension disponible"""
+    """Vérifie si extension disponible."""
     return get_introspection_core() is not None
 
 
 def is_enabled() -> bool:
-    """Vérifie si extension activée"""
+    """Vérifie si extension activée."""
     core = get_introspection_core()
+    # is_enabled est une @property sur IntrospectionCore
     return core is not None and core.is_enabled
 
 
 def toggle_enabled() -> bool:
-    """
-    Bascule état ON/OFF
-
-    Returns:
-        bool: Nouvel état
-    """
-    if is_available():
-        return _core_instance.toggle_enabled()
+    """Bascule état ON/OFF."""
+    core = get_introspection_core()
+    if core:
+        return core.toggle_enableyhud()
     return False
 
 
 def get_ui_components():
-    """
-    Retourne composants UI pour intégration OGMA
-
-    Returns:
-        CognitiveMirrorUI ou None
-    """
-    if is_available():
-        return _core_instance.get_ui_components()
+    """Retourne composants UI pour intégration OGMA."""
+    core = get_introspection_core()
+    if core:
+        return core.get_ui_components()
     return None
 
 
@@ -210,91 +146,75 @@ def get_extension_status():
 
 
 async def process_user_message(user_message: str, conversation_context: dict):
-    """
-    Traite message utilisateur avec introspection si nécessaire
-
-    Args:
-        user_message: Message utilisateur
-        conversation_context: Contexte conversationnel
-
-    Returns:
-        Réponse enrichie ou None
-    """
-    if is_enabled():
-        return await _core_instance.process_user_message(user_message, conversation_context)
+    """Traite message utilisateur avec introspection si nécessaire."""
+    if not is_enabled():
+        return None
+    core = get_introspection_core()
+    if core:
+        return await core.process_user_message(user_message, conversation_context)
     return None
 
 
 def check_magic_phrases(text: str, source: str = "user"):
-    """
-    Vérifie phrases magiques dans texte
-
-    Args:
-        text: Texte à vérifier
-        source: "user" ou "ia"
-
-    Returns:
-        Type phrase ("trigger", "stop") ou None
-    """
-    if is_available():
-        return _core_instance.check_magic_phrases(text, source)
+    """Vérifie phrases magiques dans texte."""
+    core = get_introspection_core()
+    if core:
+        return core.check_magic_phrases(text, source)
     return None
 
 
 def stop_current_introspection(reason: str = "external"):
-    """
-    Arrête introspection en cours
-
-    Args:
-        reason: Raison arrêt
-    """
-    if is_available():
-        _core_instance.stop_current_introspection(reason)
+    """Arrête introspection en cours."""
+    core = get_introspection_core()
+    if core:
+        core.stop_current_introspection(reason)
 
 
 def cleanup():
-    """Nettoyage et fermeture propre"""
+    """Nettoyage et fermeture propre."""
     global _core_instance
     if _core_instance:
-        print("[INTROSPECTION] 🔄 Fermeture extension")
+        print("[INTROSPECTION] Fermeture extension v2.0")
         _core_instance.cleanup()
         _core_instance = None
-        print("[INTROSPECTION] ✅ Extension fermée proprement")
+        print("[INTROSPECTION] ✅ Extension v2.0 fermée")
 
 
-# ===== FONCTIONS LEGACY OBSOLÈTES (Compatibilité) =====
+# ===== FONCTIONS LEGACY COMPATIBILITÉ =====
 
 def get_reflection_context():
-    """LEGACY - Obsolète en v2.0"""
+    """LEGACY - Obsolète."""
     return None
 
 
 def start_inactivity_monitoring():
-    """LEGACY - Obsolète en v2.0 (pas de détection auto)"""
+    """LEGACY - Obsolète."""
     pass
 
 
 def stop_reflection_session():
-    """LEGACY - Redirige vers stop_current_introspection()"""
+    """LEGACY - Redirige vers stop_current_introspection()."""
     stop_current_introspection("legacy_stop")
+
 
 # Points d'entrée publics pour intégration OGMA
 __all__ = [
-    # ===== API v2.0 (NOUVEAU) =====
+    # API principale v2.0
     'initialize_introspection',
     'get_introspection',
     'process_user_message',
     'check_magic_phrases',
     'stop_current_introspection',
+    'is_v21',
 
-    # ===== API LEGACY (Compatibilité) =====
+    # Aliases compatibilité (legacy nommage)
     'initialize_cognitive_mirror',
     'get_cognitive_mirror',
-    'get_reflection_context',  # Obsolète
-    'start_inactivity_monitoring',  # Obsolète
-    'stop_reflection_session',  # Redirigé
+    'get_reflection_context',
+    'start_inactivity_monitoring',
+    'stop_reflection_session',
 
-    # ===== API COMMUNE =====
+    # API commune
     'cleanup',
     'is_available',
     'is_enabled',
@@ -302,12 +222,14 @@ __all__ = [
     'get_ui_components',
     'get_extension_status',
 
-    # Configuration
+    # Configuration (v2.0 + alias v2.1)
+    'get_introspection_config',
     'get_config',
     'CognitiveMirrorConfig',
+    'IntrospectionConfigV2',
 
     # Classes
-    'IntrospectionCore',  # Si v2.0 disponible
+    'IntrospectionCore',
     'CognitiveMirrorUI',
-    'MemoryIntegration'
+    'MemoryIntegration',
 ]

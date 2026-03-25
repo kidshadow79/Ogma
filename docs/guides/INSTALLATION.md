@@ -1,32 +1,28 @@
-# Guide d'Installation OCTOPUS v1.8.8
+# Guide d'Installation OGMA v2.x
 
 ## 📋 Prérequis
 - **Python 3.9+** (recommandé: Python 3.11)
 - **Windows 10/11** ou **Linux/macOS**
-- **16 GB RAM minimum** (32 GB recommandé pour les gros modèles)
+- **8 GB RAM minimum** (16 GB recommandé)
 
 ## 🚀 Installation Rapide
 
 ### Option 1: Installation Standard (CPU + API)
 ```bash
-pip install -r requirements-minimal.txt
-python app.py
+pip install -r requirements.txt
+python launch_ogma.py
 ```
 
-### Option 2: Installation Complète (avec perception visuelle)
+### Option 2: Installation Minimale (sans audio lourd)
+```bash
+pip install -r requirements/requirements-minimal.txt
+python launch_ogma.py
+```
+
+### Option 3: Installation GPU NVIDIA
 ```bash
 pip install -r requirements.txt
-python app.py
-```
-
-### Option 3: Installation GPU NVIDIA (RTX 5070ti et supérieur)
-```bash
-# Windows
-install_nvidia.bat
-
-# Linux/Mac
-chmod +x install_nvidia.sh
-./install_nvidia.sh
+pip install -r requirements/requirements-nvidia.txt
 ```
 
 ## 🎯 Configurations Recommandées

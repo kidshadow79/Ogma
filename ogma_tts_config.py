@@ -4,7 +4,7 @@ OGMA TTS Configuration
 Configuration spécialisée des moteurs Text-to-Speech.
 
 CONTIENT :
-- Configuration moteurs TTS (System, Google, ElevenLabs, Azure, gTTS, Edge TTS)
+- Configuration moteurs TTS (System, Google, ElevenLabs, Azure, gTTS)
 - Tests et validation audio
 - Paramètres audio communs (vitesse, volume)
 - Interface de sélection des voix
@@ -37,6 +37,31 @@ def _notify_safe(message: str, type_msg: str = 'info'):
             ui.notify(message, type='info', timeout=3000)
     except Exception:
         print(f"[NOTIFY] {message}")
+
+
+def _reload_tts_config():
+    """Recharge la configuration TTS depuis settings.json vers l'audio manager"""
+    try:
+        import sys
+        ogma_ng = sys.modules.get('ogma_ng')
+        if ogma_ng:
+            # Appeler _apply_tts_config_from_settings si disponible
+            apply_func = getattr(ogma_ng, '_apply_tts_config_from_settings', None)
+            audio_mgr = getattr(ogma_ng, '_audio_manager', None)
+            sm = getattr(ogma_ng, '_settings_mgr', None)
+            
+            # Debug: afficher la voix actuelle dans settings
+            if sm:
+                voice_in_settings = sm.settings.get('tts', {}).get('elevenlabs_voice_id', 'N/A')
+                print(f"[TTS-CONFIG] Voice ID dans settings: {voice_in_settings}")
+            
+            if apply_func and audio_mgr:
+                apply_func(audio_mgr)
+                print("[TTS-CONFIG] Configuration TTS rechargée")
+            else:
+                print("[TTS-CONFIG] Fonction ou audio_manager non disponible")
+    except Exception as e:
+        print(f"[TTS-CONFIG] Erreur reload: {e}")
 
 
 def _render_tts_config(current_engine, sm, refresh_callback):
@@ -108,11 +133,18 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                         _audio_manager = _get_global_var('_audio_manager')
                         if _audio_manager:
                             test_text = "Bonjour, ceci est un test de la synthèse vocale système."
-                            success = await _audio_manager.speak(test_text)
-                            if success:
-                                _notify_safe('🔊 Test vocal réussi', 'positive')
-                            else:
-                                _notify_safe('❌ Erreur lors du test vocal', 'negative')
+                            try:
+                                # Utiliser speak_async pour compatibilité await
+                                if hasattr(_audio_manager, 'speak_async'):
+                                    success = await _audio_manager.speak_async(test_text)
+                                else:
+                                    success = _audio_manager.speak(test_text)
+                                if success:
+                                    _notify_safe('🔊 Test vocal réussi', 'positive')
+                                else:
+                                    _notify_safe('❌ Erreur lors du test vocal', 'negative')
+                            except Exception as e:
+                                _notify_safe(f'❌ Erreur test TTS: {str(e)}', 'negative')
                         else:
                             _notify_safe('❌ Audio manager non disponible', 'negative')
 
@@ -230,6 +262,8 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 sm.settings['tts'] = {}
             sm.settings['tts']['elevenlabs_api_key'] = e.value
             sm.save_settings()
+            # Recharger la config TTS dans l'audio manager
+            _reload_tts_config()
             ui.notify('Clé API ElevenLabs sauvegardée', type='positive')
 
         ui.input(
@@ -247,6 +281,8 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 sm.settings['tts'] = {}
             sm.settings['tts']['elevenlabs_voice_id'] = e.value
             sm.save_settings()
+            # Recharger la config TTS dans l'audio manager
+            _reload_tts_config()
             ui.notify('Voice ID ElevenLabs sauvegardé', type='positive')
 
         ui.input(
@@ -256,11 +292,111 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             on_change=on_elevenlabs_voice_change
         ).classes('mb-3')
 
+        # Sélection du modèle ElevenLabs
+        elevenlabs_model = sm.settings.get('tts', {}).get('elevenlabs_model', 'eleven_multilingual_v2')
+        model_options = {
+            'eleven_multilingual_v2': '🌍 Multilingual v2 (haute qualité)',
+            'eleven_turbo_v2_5': '⚡ Turbo v2.5 (rapide)',
+            'eleven_flash_v2_5': '💨 Flash v2.5 (ultra-rapide)'
+        }
+        def on_elevenlabs_model_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['elevenlabs_model'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify(f'Modèle ElevenLabs: {model_options.get(e.value, e.value)}', type='positive')
+
+        ui.select(
+            label='Modèle',
+            options=model_options,
+            value=elevenlabs_model,
+            on_change=on_elevenlabs_model_change
+        ).classes('mb-3')
+
+        # === Paramètres vocaux avancés ===
+        with ui.expansion('🎛️ Paramètres vocaux avancés', icon='tune').classes('w-full mb-3'):
+            
+            # Stability (stabilité de la voix)
+            elevenlabs_stability = sm.settings.get('tts', {}).get('elevenlabs_stability', 0.5)
+            def on_stability_change(e):
+                if 'tts' not in sm.settings:
+                    sm.settings['tts'] = {}
+                sm.settings['tts']['elevenlabs_stability'] = e.value
+                sm.save_settings()
+                _reload_tts_config()
+            
+            with ui.row().classes('w-full items-center gap-2 mb-2'):
+                ui.label('Stabilité').classes('text-sm w-24')
+                ui.slider(min=0, max=1, step=0.05, value=elevenlabs_stability, on_change=on_stability_change).classes('flex-grow')
+                ui.label().bind_text_from(lambda: f'{sm.settings.get("tts", {}).get("elevenlabs_stability", 0.5):.2f}').classes('text-xs w-10')
+            ui.label('↑ Plus stable = voix cohérente | ↓ Plus variable = expressif').classes('text-xs text-muted mb-2')
+
+            # Similarity Boost (ressemblance à la voix originale)
+            elevenlabs_similarity = sm.settings.get('tts', {}).get('elevenlabs_similarity', 0.75)
+            def on_similarity_change(e):
+                if 'tts' not in sm.settings:
+                    sm.settings['tts'] = {}
+                sm.settings['tts']['elevenlabs_similarity'] = e.value
+                sm.save_settings()
+                _reload_tts_config()
+            
+            with ui.row().classes('w-full items-center gap-2 mb-2'):
+                ui.label('Similarité').classes('text-sm w-24')
+                ui.slider(min=0, max=1, step=0.05, value=elevenlabs_similarity, on_change=on_similarity_change).classes('flex-grow')
+                ui.label().bind_text_from(lambda: f'{sm.settings.get("tts", {}).get("elevenlabs_similarity", 0.75):.2f}').classes('text-xs w-10')
+            ui.label('Ressemblance à la voix clonée/originale').classes('text-xs text-muted mb-2')
+
+            # Style (expressivité)
+            elevenlabs_style = sm.settings.get('tts', {}).get('elevenlabs_style', 0.0)
+            def on_style_change(e):
+                if 'tts' not in sm.settings:
+                    sm.settings['tts'] = {}
+                sm.settings['tts']['elevenlabs_style'] = e.value
+                sm.save_settings()
+                _reload_tts_config()
+            
+            with ui.row().classes('w-full items-center gap-2 mb-2'):
+                ui.label('Style').classes('text-sm w-24')
+                ui.slider(min=0, max=1, step=0.05, value=elevenlabs_style, on_change=on_style_change).classes('flex-grow')
+                ui.label().bind_text_from(lambda: f'{sm.settings.get("tts", {}).get("elevenlabs_style", 0.0):.2f}').classes('text-xs w-10')
+            ui.label('Expressivité émotionnelle (0 = neutre, 1 = très expressif)').classes('text-xs text-muted mb-2')
+
+            # Speed (vitesse de parole)
+            elevenlabs_speed = sm.settings.get('tts', {}).get('elevenlabs_speed', 1.0)
+            def on_speed_change(e):
+                if 'tts' not in sm.settings:
+                    sm.settings['tts'] = {}
+                sm.settings['tts']['elevenlabs_speed'] = e.value
+                sm.save_settings()
+                _reload_tts_config()
+            
+            with ui.row().classes('w-full items-center gap-2 mb-2'):
+                ui.label('Vitesse').classes('text-sm w-24')
+                ui.slider(min=0.5, max=2.0, step=0.1, value=elevenlabs_speed, on_change=on_speed_change).classes('flex-grow')
+                ui.label().bind_text_from(lambda: f'{sm.settings.get("tts", {}).get("elevenlabs_speed", 1.0):.1f}x').classes('text-xs w-10')
+            ui.label('Vitesse de parole (0.5x lent → 2.0x rapide)').classes('text-xs text-muted mb-2')
+
+            # Speaker Boost (amélioration vocale)
+            elevenlabs_speaker_boost = sm.settings.get('tts', {}).get('elevenlabs_speaker_boost', True)
+            def on_speaker_boost_change(e):
+                if 'tts' not in sm.settings:
+                    sm.settings['tts'] = {}
+                sm.settings['tts']['elevenlabs_speaker_boost'] = e.value
+                sm.save_settings()
+                _reload_tts_config()
+            
+            ui.switch('Speaker Boost (améliore la clarté)', value=elevenlabs_speaker_boost, on_change=on_speaker_boost_change).classes('mb-2')
+
         # Bouton test ElevenLabs
         def test_elevenlabs_tts():
             async def _test():
                 _audio_manager = _get_global_var('_audio_manager')
-                if not elevenlabs_api_key:
+                # Relire les valeurs actuelles depuis settings (pas les captures de closure)
+                current_key = sm.settings.get('tts', {}).get('elevenlabs_api_key', '')
+                current_voice = sm.settings.get('tts', {}).get('elevenlabs_voice_id', 'pNInz6obpgDQGcFmaJgB')
+                
+                if not current_key:
                     _notify_safe('❌ Clé API ElevenLabs manquante', 'negative')
                     return
 
@@ -269,8 +405,8 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                     try:
                         success = await _audio_manager.speak_elevenlabs(
                             test_text,
-                            elevenlabs_voice_id,
-                            elevenlabs_api_key
+                            current_voice,
+                            current_key
                         )
                         if success:
                             _notify_safe('🔊 Test ElevenLabs réussi', 'positive')
@@ -295,6 +431,540 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         ui.button('🧪 Tester ElevenLabs', on_click=test_elevenlabs_tts).classes('mb-3')
 
         ui.label('💡 Trouvez les Voice IDs sur votre tableau de bord ElevenLabs').classes('text-xs text-muted mb-3')
+
+    elif current_engine == 'fish_audio':
+        # Configuration Fish Audio
+        ui.label('Configuration Fish Audio').classes('text-sm font-medium mb-2')
+
+        # Clé API Fish Audio
+        fish_audio_api_key = sm.settings.get('tts', {}).get('fish_audio_api_key', '')
+        def on_fish_audio_key_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['fish_audio_api_key'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify('Clé API Fish Audio sauvegardée', type='positive')
+
+        ui.input(
+            label='Clé API Fish Audio',
+            placeholder='Entrez votre clé API Fish Audio',
+            password=True,
+            value=fish_audio_api_key,
+            on_change=on_fish_audio_key_change
+        ).classes('mb-3')
+
+        # ID de voix Fish Audio (reference_id)
+        fish_audio_voice_id = sm.settings.get('tts', {}).get('fish_audio_voice_id', '')
+        def on_fish_audio_voice_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['fish_audio_voice_id'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify('Voice ID Fish Audio sauvegardé', type='positive')
+
+        ui.input(
+            label='Reference ID (Voice)',
+            placeholder='ID du modèle de voix Fish Audio',
+            value=fish_audio_voice_id,
+            on_change=on_fish_audio_voice_change
+        ).classes('mb-3')
+
+        # Modèle Fish Audio
+        fish_audio_model = sm.settings.get('tts', {}).get('fish_audio_model', 's2-pro')
+        fish_audio_models = {
+            's2-pro': 'S2 Pro (dernier, recommandé)',
+            's1': 'S1 (standard)',
+        }
+        def on_fish_audio_model_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['fish_audio_model'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify(f'Modèle Fish Audio: {e.value}', type='positive')
+        ui.select(
+            label='Modèle',
+            options=fish_audio_models,
+            value=fish_audio_model,
+            on_change=on_fish_audio_model_change
+        ).classes('mb-3')
+
+        # Émotion Fish Audio (injection dans le texte via balises)
+        fish_audio_emotion = sm.settings.get('tts', {}).get('fish_audio_emotion', 'none')
+        fish_audio_emotion_options = {
+            'none': 'Aucune (voix naturelle)',
+            'happy': 'Joyeux (happy)',
+            'excited': 'Enthousiaste (excited)',
+            'calm': 'Calme (calm)',
+            'sad': 'Triste (sad)',
+            'angry': 'En colère (angry)',
+            'curious': 'Curieux (curious)',
+            'confident': 'Confiant (confident)',
+            'empathetic': 'Empathique (empathetic)',
+            'nervous': 'Nerveux (nervous)',
+            'grateful': 'Reconnaissant (grateful)',
+            'relaxed': 'Détendu (relaxed)',
+            'nostalgic': 'Nostalgique (nostalgic)',
+            'determined': 'Déterminé (determined)',
+            'whispering': 'Chuchotement (whispering)',
+            'soft tone': 'Ton doux (soft tone)',
+            'in a hurry tone': 'Pressé (in a hurry tone)',
+            'shouting': 'Fort (shouting)',
+        }
+        def on_fish_audio_emotion_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['fish_audio_emotion'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+        ui.select(
+            label='Émotion (injectée dans le texte)',
+            options=fish_audio_emotion_options,
+            value=fish_audio_emotion,
+            on_change=on_fish_audio_emotion_change
+        ).classes('mb-1')
+        ui.label('S1 : syntaxe (balise). S2-pro : syntaxe [balise] — langage naturel libre.').classes('text-xs text-muted mb-3')
+
+        # Options avancées Fish Audio
+        with ui.expansion('Options avancées', icon='tune').classes('mb-3 w-full'):
+
+            # Latence
+            fish_audio_latency = sm.settings.get('tts', {}).get('fish_audio_latency', 'normal')
+            fish_audio_latency_options = {
+                'normal': 'Normal (qualité maximale)',
+                'balanced': 'Balanced (~300ms, légèrement moins stable)',
+            }
+            def on_fish_audio_latency_change(e):
+                if 'tts' not in sm.settings:
+                    sm.settings['tts'] = {}
+                sm.settings['tts']['fish_audio_latency'] = e.value
+                sm.save_settings()
+                _reload_tts_config()
+            ui.select(
+                label='Mode latence',
+                options=fish_audio_latency_options,
+                value=fish_audio_latency,
+                on_change=on_fish_audio_latency_change
+            ).classes('mb-3')
+
+            # Chunk length
+            fish_audio_chunk = sm.settings.get('tts', {}).get('fish_audio_chunk_length', 200)
+            def on_fish_audio_chunk_change(e):
+                if 'tts' not in sm.settings:
+                    sm.settings['tts'] = {}
+                val = max(100, min(300, int(e.value or 200)))
+                sm.settings['tts']['fish_audio_chunk_length'] = val
+                sm.save_settings()
+                _reload_tts_config()
+            with ui.row().classes('items-center gap-2 w-full mb-1'):
+                ui.label('Chunk length').classes('text-sm w-28')
+                ui.number(
+                    min=100, max=300, step=10, value=fish_audio_chunk,
+                    format='%d', suffix='chars',
+                    on_change=on_fish_audio_chunk_change
+                ).classes('w-32')
+            ui.label('Taille des blocs de texte traités (100-300). Plus court = plus rapide.').classes('text-xs text-muted mb-3')
+
+            # Bitrate MP3
+            fish_audio_bitrate = sm.settings.get('tts', {}).get('fish_audio_mp3_bitrate', 128)
+            fish_audio_bitrate_options = {64: '64 kbps (léger)', 128: '128 kbps (standard)', 192: '192 kbps (haute qualité)'}
+            def on_fish_audio_bitrate_change(e):
+                if 'tts' not in sm.settings:
+                    sm.settings['tts'] = {}
+                sm.settings['tts']['fish_audio_mp3_bitrate'] = int(e.value)
+                sm.save_settings()
+                _reload_tts_config()
+            ui.select(
+                label='Qualité MP3',
+                options=fish_audio_bitrate_options,
+                value=fish_audio_bitrate,
+                on_change=on_fish_audio_bitrate_change
+            ).classes('mb-3')
+
+            # Normalize
+            fish_audio_normalize = sm.settings.get('tts', {}).get('fish_audio_normalize', True)
+            def on_fish_audio_normalize_change(e):
+                if 'tts' not in sm.settings:
+                    sm.settings['tts'] = {}
+                sm.settings['tts']['fish_audio_normalize'] = e.value
+                sm.save_settings()
+                _reload_tts_config()
+            ui.switch(
+                'Normalisation du texte (recommandée)',
+                value=fish_audio_normalize,
+                on_change=on_fish_audio_normalize_change
+            ).classes('mb-2')
+            ui.label('Normalise les nombres, abréviations, etc. avant synthèse.').classes('text-xs text-muted mb-2')
+
+        # Bouton test Fish Audio
+        def test_fish_audio_tts():
+            async def _test():
+                _audio_manager = _get_global_var('_audio_manager')
+                # Relire les valeurs actuelles depuis settings
+                current_key = sm.settings.get('tts', {}).get('fish_audio_api_key', '')
+                current_voice = sm.settings.get('tts', {}).get('fish_audio_voice_id', '')
+                
+                if not current_key:
+                    _notify_safe('❌ Clé API Fish Audio manquante', 'negative')
+                    return
+
+                if _audio_manager:
+                    test_text = "Bonjour, ceci est un test de Fish Audio."
+                    try:
+                        success = await _audio_manager.speak_fish_audio(
+                            test_text,
+                            current_voice,
+                            current_key
+                        )
+                        if success:
+                            _notify_safe('🔊 Test Fish Audio réussi', 'positive')
+                        else:
+                            _notify_safe('❌ Erreur test Fish Audio', 'negative')
+                    except Exception as e:
+                        _notify_safe(f'❌ Erreur Fish Audio: {str(e)}', 'negative')
+                else:
+                    _notify_safe('❌ Audio manager non disponible', 'negative')
+
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(_test())
+                else:
+                    loop.run_until_complete(_test())
+            except:
+                asyncio.create_task(_test())
+
+        ui.button('🧪 Tester Fish Audio', on_click=test_fish_audio_tts).classes('mb-3')
+
+        ui.label('💡 Créez vos voix sur fish.audio et copiez le Reference ID').classes('text-xs text-muted mb-3')
+
+    elif current_engine == 'cartesia':
+        # Configuration Cartesia AI
+        ui.label('Configuration Cartesia AI').classes('text-sm font-medium mb-2')
+
+        # Clé API Cartesia
+        cartesia_api_key = sm.settings.get('tts', {}).get('cartesia_api_key', '')
+        def on_cartesia_key_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['cartesia_api_key'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify('Clé API Cartesia sauvegardée', type='positive')
+
+        ui.input(
+            label='Clé API Cartesia',
+            placeholder='Entrez votre clé API Cartesia',
+            password=True,
+            value=cartesia_api_key,
+            on_change=on_cartesia_key_change
+        ).classes('mb-3')
+
+        # ID de voix Cartesia
+        cartesia_voice_id = sm.settings.get('tts', {}).get('cartesia_voice_id', '')
+        def on_cartesia_voice_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['cartesia_voice_id'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify('Voice ID Cartesia sauvegardé', type='positive')
+
+        ui.input(
+            label='Voice ID Cartesia',
+            placeholder='ID de la voix Cartesia',
+            value=cartesia_voice_id,
+            on_change=on_cartesia_voice_change
+        ).classes('mb-3')
+
+        # Modèle Cartesia
+        cartesia_model = sm.settings.get('tts', {}).get('cartesia_model', 'sonic-2')
+        cartesia_models = {
+            'sonic-2': 'Sonic 2 (Standard)',
+            'sonic-3': 'Sonic 3 (Premium)'
+        }
+        def on_cartesia_model_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['cartesia_model'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify(f'Modèle Cartesia: {e.value}', type='positive')
+
+        ui.select(
+            label='Modèle',
+            options=cartesia_models,
+            value=cartesia_model,
+            on_change=on_cartesia_model_change
+        ).classes('mb-3')
+
+        # --- Controles sonic-3 uniquement ---
+        cartesia_model_for_controls = sm.settings.get('tts', {}).get('cartesia_model', 'sonic-2')
+        with ui.expansion('Options avancees (sonic-3)', icon='tune').classes('mb-3 w-full'):
+            if cartesia_model_for_controls != 'sonic-3':
+                ui.label('Ces options sont disponibles uniquement avec le modele sonic-3.').classes('text-xs text-muted')
+            else:
+                # Vitesse
+                cartesia_speed = sm.settings.get('tts', {}).get('cartesia_speed', 1.0)
+                def on_cartesia_speed_change(e):
+                    if 'tts' not in sm.settings:
+                        sm.settings['tts'] = {}
+                    val = round(float(e.value), 2)
+                    # Clamp dans la plage valide
+                    val = max(0.6, min(1.5, val))
+                    sm.settings['tts']['cartesia_speed'] = val
+                    sm.save_settings()
+                    _reload_tts_config()
+                with ui.row().classes('items-center gap-2 w-full mb-1'):
+                    ui.label('Vitesse').classes('text-sm w-20')
+                    ui.number(
+                        min=0.6, max=1.5, step=0.05, value=cartesia_speed,
+                        format='%.2f', suffix='x',
+                        on_change=on_cartesia_speed_change
+                    ).classes('w-28')
+                ui.label('0.6x (lent) → 1.0x (normal) → 1.5x (rapide)').classes('text-xs text-muted mb-3')
+
+                # Emotion
+                cartesia_emotion = sm.settings.get('tts', {}).get('cartesia_emotion', 'neutral')
+                cartesia_emotions = {
+                    'neutral': 'Neutre',
+                    'excited': 'Enthousiaste',
+                    'content': 'Apaisee',
+                    'sad': 'Triste',
+                    'angry': 'Determinee',
+                    'curious': 'Curieuse',
+                    'affectionate': 'Affectueuse',
+                    'calm': 'Calme',
+                    'sympathetic': 'Empathique',
+                    'mysterious': 'Mysterieuse',
+                }
+                def on_cartesia_emotion_change(e):
+                    if 'tts' not in sm.settings:
+                        sm.settings['tts'] = {}
+                    sm.settings['tts']['cartesia_emotion'] = e.value
+                    sm.save_settings()
+                    _reload_tts_config()
+                    ui.notify(f'Emotion: {e.value}', type='positive')
+                ui.select(
+                    label='Emotion',
+                    options=cartesia_emotions,
+                    value=cartesia_emotion,
+                    on_change=on_cartesia_emotion_change
+                ).classes('mb-1')
+                ui.label('Guide emotionnel pour la voix (beta Cartesia)').classes('text-xs text-muted mb-2')
+
+        # Bouton test Cartesia
+        def test_cartesia_tts():
+            async def _test():
+                _audio_manager = _get_global_var('_audio_manager')
+                # Relire les valeurs actuelles depuis settings
+                current_key = sm.settings.get('tts', {}).get('cartesia_api_key', '')
+                current_voice = sm.settings.get('tts', {}).get('cartesia_voice_id', '')
+                current_model = sm.settings.get('tts', {}).get('cartesia_model', 'sonic-2')
+                
+                if not current_key:
+                    _notify_safe('❌ Clé API Cartesia manquante', 'negative')
+                    return
+
+                if _audio_manager:
+                    test_text = "Bonjour, ceci est un test de Cartesia AI."
+                    try:
+                        success = await _audio_manager.speak_cartesia(
+                            test_text,
+                            current_voice,
+                            current_key,
+                            current_model
+                        )
+                        if success:
+                            _notify_safe('🔊 Test Cartesia réussi', 'positive')
+                        else:
+                            _notify_safe('❌ Erreur test Cartesia', 'negative')
+                    except Exception as e:
+                        _notify_safe(f'❌ Erreur Cartesia: {str(e)}', 'negative')
+                else:
+                    _notify_safe('❌ Audio manager non disponible', 'negative')
+
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(_test())
+                else:
+                    loop.run_until_complete(_test())
+            except:
+                asyncio.create_task(_test())
+
+        ui.button('🧪 Tester Cartesia', on_click=test_cartesia_tts).classes('mb-3')
+
+        ui.label('💡 Trouvez vos voix sur cartesia.ai dans la Voice Library').classes('text-xs text-muted mb-3')
+
+    elif current_engine == 'hume_ai' or current_engine.strip().lower() == 'hume_ai':
+        # Configuration Hume AI (Octave TTS)
+        ui.label('Configuration Hume AI (Octave TTS)').classes('text-sm font-medium mb-2')
+
+        # Clé API Hume AI
+        hume_ai_api_key = sm.settings.get('tts', {}).get('hume_ai_api_key', '')
+        def on_hume_ai_key_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['hume_ai_api_key'] = e.value
+            sm.save_settings()
+            # Appliquer la config
+            _reload_tts_config()
+            ui.notify('Clé API Hume AI sauvegardée', type='positive')
+
+        ui.input(
+            label='Clé API Hume AI',
+            placeholder='Entrez votre clé API Hume AI',
+            password=True,
+            value=hume_ai_api_key,
+            on_change=on_hume_ai_key_change
+        ).classes('mb-3')
+
+        # Sélecteur version Octave
+        hume_ai_version = sm.settings.get('tts', {}).get('hume_ai_version', 2)
+        def on_hume_version_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['hume_ai_version'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify(f'Version Octave {e.value} sélectionnée', type='positive')
+
+        octave_version_options = {
+            1: '🎵 Octave 1 (stable)',
+            2: '⚡ Octave 2 (preview - plus rapide, multi-langues)'
+        }
+
+        ui.select(
+            label='Version Octave',
+            options=octave_version_options,
+            value=hume_ai_version,
+            on_change=on_hume_version_change
+        ).classes('mb-3')
+
+        ui.label('💡 Octave 2 : ~100ms latence, 11 langues | Octave 1 : anglais/espagnol uniquement').classes('text-xs text-muted mb-2')
+
+        # Voice ID personnalisé (priorité haute)
+        hume_ai_voice_id = sm.settings.get('tts', {}).get('hume_ai_voice_id', '')
+        def on_hume_voice_id_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['hume_ai_voice_id'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify('Voice ID Hume AI sauvegardé', type='positive')
+
+        ui.input(
+            label='Voice ID personnalisé (optionnel - prioritaire)',
+            placeholder='Ex: 09ad914d-8e7f-40f8-a279-e34f07f7dab2',
+            value=hume_ai_voice_id,
+            on_change=on_hume_voice_id_change
+        ).classes('mb-2')
+
+        ui.label('💡 Trouvez vos Voice IDs sur app.hume.ai/voices (voix créées ou clonées)').classes('text-xs text-muted mb-3')
+
+        # Nom de la voix Hume (Voice Library) - si pas de Voice ID
+        hume_ai_voice_name = sm.settings.get('tts', {}).get('hume_ai_voice_name', '')
+        def on_hume_ai_voice_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['hume_ai_voice_name'] = e.value
+            sm.save_settings()
+            _reload_tts_config()
+            ui.notify('Voix Hume AI sauvegardée', type='positive')
+
+        # Voix populaires de la Voice Library Hume
+        hume_voice_options = {
+            '': '🎲 Voix dynamique (utilise la description)',
+            'Dacher': '🎭 Dacher - Voix expressive masculine',
+            'Kora': '🎭 Kora - Voix féminine chaleureuse',
+            'Aura': '🎭 Aura - Voix féminine douce',
+            'Stella': '🎭 Stella - Voix féminine professionnelle',
+            'Orion': '🎭 Orion - Voix masculine grave',
+            'Zephyr': '🎭 Zephyr - Voix neutre fluide',
+            'Atlas': '🎭 Atlas - Voix masculine autoritaire',
+            'Ember': '🎭 Ember - Voix féminine énergique',
+        }
+
+        ui.select(
+            label='Voix Voice Library (si pas de Voice ID)',
+            options=hume_voice_options,
+            value=hume_ai_voice_name,
+            on_change=on_hume_ai_voice_change
+        ).classes('mb-3')
+
+        # Description pour voix dynamique
+        hume_ai_description = sm.settings.get('tts', {}).get('hume_ai_description', '')
+        def on_hume_ai_description_change(e):
+            if 'tts' not in sm.settings:
+                sm.settings['tts'] = {}
+            sm.settings['tts']['hume_ai_description'] = e.value
+            sm.save_settings()
+            # Appliquer la config
+            _reload_tts_config()
+            ui.notify('Description Hume AI sauvegardée', type='positive')
+
+        ui.textarea(
+            label='Description de la voix (optionnel)',
+            placeholder='Ex: "Voix féminine chaleureuse et empathique, avec un léger accent français"',
+            value=hume_ai_description,
+            on_change=on_hume_ai_description_change
+        ).classes('mb-3').style('min-height: 80px')
+
+        ui.label('💡 Si aucune voix n\'est sélectionnée, Hume génère une voix à partir de la description').classes('text-xs text-muted mb-2')
+
+        # Bouton test Hume AI
+        def test_hume_ai_tts():
+            async def _test():
+                _audio_manager = _get_global_var('_audio_manager')
+                # Relire les valeurs actuelles depuis settings
+                current_key = sm.settings.get('tts', {}).get('hume_ai_api_key', '')
+                current_voice_name = sm.settings.get('tts', {}).get('hume_ai_voice_name', '')
+                current_voice_id = sm.settings.get('tts', {}).get('hume_ai_voice_id', '')
+                current_desc = sm.settings.get('tts', {}).get('hume_ai_description', '')
+                current_version = sm.settings.get('tts', {}).get('hume_ai_version', 2)
+                
+                if not current_key:
+                    _notify_safe('❌ Clé API Hume AI manquante', 'negative')
+                    return
+
+                if _audio_manager:
+                    test_text = "Bonjour, ceci est un test de Hume AI avec Octave."
+                    try:
+                        success = await _audio_manager.speak_hume_ai(
+                            test_text,
+                            current_voice_name,
+                            current_key,
+                            current_desc,
+                            current_voice_id,
+                            current_version
+                        )
+                        if success:
+                            _notify_safe('🔊 Test Hume AI réussi', 'positive')
+                        else:
+                            _notify_safe('❌ Erreur test Hume AI', 'negative')
+                    except Exception as e:
+                        _notify_safe(f'❌ Erreur Hume AI: {str(e)}', 'negative')
+                else:
+                    _notify_safe('❌ Audio manager non disponible', 'negative')
+
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(_test())
+                else:
+                    loop.run_until_complete(_test())
+            except:
+                asyncio.create_task(_test())
+
+        ui.button('🧪 Tester Hume AI', on_click=test_hume_ai_tts).classes('mb-3')
+
+        ui.label('💡 Explorez les voix sur app.hume.ai/voices').classes('text-xs text-muted mb-3')
 
     elif current_engine == 'azure' or current_engine.strip().lower() == 'azure':
         # Configuration Azure AI Speech
@@ -485,101 +1155,8 @@ def _render_tts_config(current_engine, sm, refresh_callback):
 
         ui.label('💡 Google TTS offline - gratuit mais nécessite une connexion internet pour la synthèse').classes('text-xs text-muted mb-3')
 
-    elif current_engine == 'edge_tts' or current_engine.strip().lower() == 'edge_tts':
-        # Configuration Microsoft Edge TTS
-        print("[DEBUG-TTS] ✅ SECTION Edge TTS ACTIVÉE")
-        ui.label('Configuration Microsoft Edge TTS').classes('text-sm font-medium mb-2')
-
-        # Voix Edge TTS
-        edge_voice = sm.settings.get('tts', {}).get('edge_tts_voice', 'fr-FR-DeniseNeural')
-        def on_edge_voice_change(e):
-            if 'tts' not in sm.settings:
-                sm.settings['tts'] = {}
-            sm.settings['tts']['edge_tts_voice'] = e.value
-            sm.save_settings()
-
-            _audio_manager = _get_global_var('_audio_manager')
-            if _audio_manager:
-                _audio_manager.edge_tts_voice = e.value
-
-            ui.notify(f'Voix Edge TTS: {e.value}', type='positive')
-
-        edge_voice_options = {
-            # Voix françaises
-            'fr-FR-DeniseNeural': '🇫🇷 ♀️ Denise (Française)',
-            'fr-FR-HenriNeural': '🇫🇷 ♂️ Henri (Français)',
-            'fr-CA-SylvieNeural': '🇨🇦 ♀️ Sylvie (Canadienne)',
-            'fr-CA-JeanNeural': '🇨🇦 ♂️ Jean (Canadien)',
-            'fr-CA-AntoineNeural': '🇨🇦 ♂️ Antoine (Canadien)',
-            'fr-BE-CharlineNeural': '🇧🇪 ♀️ Charline (Belge)',
-            'fr-BE-GerardNeural': '🇧🇪 ♂️ Gerard (Belge)',
-            'fr-CH-FabriceNeural': '🇨🇭 ♂️ Fabrice (Suisse)',
-            'fr-CH-ArianeNeural': '🇨🇭 ♀️ Ariane (Suisse)',
-
-            # Voix espagnoles sud-américaines (FÉMININES)
-            'es-AR-ElenaNeural': '🇦🇷 ♀️ Elena (Argentine)',
-            'es-AR-TomasNeural': '🇦🇷 ♂️ Tomas (Argentin)',
-            'es-CL-CatalinaNeural': '🇨🇱 ♀️ Catalina (Chilienne)',
-            'es-CL-LorenzoNeural': '🇨🇱 ♂️ Lorenzo (Chilien)',
-            'es-CO-SalomeNeural': '🇨🇴 ♀️ Salome (Colombienne)',
-            'es-CO-GonzaloNeural': '🇨🇴 ♂️ Gonzalo (Colombien)',
-            'es-MX-DaliaNeural': '🇲🇽 ♀️ Dalia (Mexicaine)',
-            'es-MX-JorgeNeural': '🇲🇽 ♂️ Jorge (Mexicain)',
-            'es-PE-CamilaNeural': '🇵🇪 ♀️ Camila (Péruvienne)',
-            'es-PE-AlexNeural': '🇵🇪 ♂️ Alex (Péruvien)',
-            'es-VE-PaolaNeural': '🇻🇪 ♀️ Paola (Vénézuélienne)',
-            'es-VE-SebastianNeural': '🇻🇪 ♂️ Sebastian (Vénézuélien)',
-
-            # Voix portugaises brésiliennes
-            'pt-BR-FranciscaNeural': '🇧🇷 ♀️ Francisca (Brésilienne)',
-            'pt-BR-AntonioNeural': '🇧🇷 ♂️ Antonio (Brésilien)',
-
-            # Voix anglaises
-            'en-US-AriaNeural': '🇺🇸 ♀️ Aria (US)',
-            'en-US-GuyNeural': '🇺🇸 ♂️ Guy (US)',
-            'en-US-JennyNeural': '🇺🇸 ♀️ Jenny (US)',
-            'en-GB-LibbyNeural': '🇬🇧 ♀️ Libby (UK)',
-            'en-GB-MaisieNeural': '🇬🇧 ♀️ Maisie (UK)',
-            'en-GB-RyanNeural': '🇬🇧 ♂️ Ryan (UK)'
-        }
-
-        ui.select(
-            label='Voix Microsoft Edge TTS',
-            options=edge_voice_options,
-            value=edge_voice,
-            on_change=on_edge_voice_change
-        ).classes('mb-3')
-
-        # Bouton test Edge TTS
-        def test_edge_tts_button():
-            async def _test():
-                _audio_manager = _get_global_var('_audio_manager')
-                if _audio_manager:
-                    test_text = "Bonjour, ceci est un test de Microsoft Edge TTS."
-                    try:
-                        success = await _audio_manager.speak_edge_tts(test_text, edge_voice)
-                        if success:
-                            _notify_safe('🔊 Test Edge TTS réussi', 'positive')
-                        else:
-                            _notify_safe('❌ Erreur test Edge TTS', 'negative')
-                    except Exception as e:
-                        _notify_safe(f'❌ Erreur Edge TTS: {str(e)}', 'negative')
-                else:
-                    _notify_safe('❌ Audio manager non disponible', 'negative')
-
-            import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    asyncio.ensure_future(_test())
-                else:
-                    loop.run_until_complete(_test())
-            except:
-                asyncio.create_task(_test())
-
-        ui.button('🧪 Tester Microsoft Edge TTS', on_click=test_edge_tts_button).classes('mb-3')
-
-        ui.label('💡 Microsoft Edge TTS - gratuit, haute qualité, 35+ voix (France, Sud-Amérique, Brésil)').classes('text-xs text-muted mb-3')
+    # Note: Edge TTS a été retiré (bloqué par Microsoft depuis 2024 - erreur 403 Forbidden)
+    # Le service gratuit non-officiel n'est plus fonctionnel.
 
     # === PARAMÈTRES AUDIO COMMUNS ===
     ui.separator().classes('my-3')
@@ -602,7 +1179,12 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         ui.notify(f'Vitesse: {speed} mots/min', type='positive')
 
     with ui.row().classes('w-full items-center gap-2 mb-2'):
-        ui.label('Vitesse de parole:').classes('text-sm w-32')
+        ui.label('Vitesse de parole:').classes('text-sm w-32').tooltip(
+            'Actif pour : Windows SAPI, pyttsx3, Azure, Google TTS.\n'
+            'ElevenLabs : utiliser le slider Vitesse dans ses options avancees.\n'
+            'Cartesia : utiliser le slider Vitesse dans Options avancees (sonic-3).\n'
+            'Cartesia sonic-2 : aucun controle de vitesse disponible via API.'
+        )
         ui.number(
             label='mots/min',
             value=tts_speed,

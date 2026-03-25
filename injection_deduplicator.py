@@ -48,6 +48,11 @@ class InjectionDeduplicator:
         self.ego_memory_ids: Set[str] = set()  # Compatibilité ancien code
         self.content_hashes: Set[str] = set()
         
+        # ✨ COOLDOWN SYSTEM - Option A (27 nov 2025)
+        self.last_injection_message_count: Dict[str, int] = {}  # memory_id -> dernier message injecté
+        self.current_message_count: int = 0  # Compteur messages dans conversation
+        self.cooldown_threshold: int = 3  # Seuil cooldown: 3 messages (réduit le 7 fév 2026, était 20)
+        
         # Configuration de sécurité - DÉSACTIVÉ par défaut pour éviter faux positifs
         self.enable_semantic_dedup = enable_semantic_dedup  # DÉSACTIVÉ: trop risqué
         self.conservative_mode = conservative_mode  # Mode prudent par défaut
@@ -88,7 +93,12 @@ class InjectionDeduplicator:
         self.all_memory_ids.clear()
         self.ego_memory_ids.clear()
         self.content_hashes.clear()
-        logger.info("Session de déduplication réinitialisée")
+        
+        # ✨ Reset cooldown tracking
+        self.last_injection_message_count.clear()
+        self.current_message_count = 0
+        
+        logger.info("Session de déduplication réinitialisée (cooldown reset)")
 
     def register_injection(self, source: str, content: str, content_type: str = "unknown", 
                           content_id: Optional[str] = None) -> InjectionContent:
@@ -173,6 +183,73 @@ class InjectionDeduplicator:
         # SÉCURITÉ: Prendre plus de mots pour capturer les nuances (15 au lieu de 10)
         words = cleaned.split()[:15]
         return ' '.join(words)
+
+    def increment_message_count(self):
+        """Incrémente le compteur de messages (appelé à chaque tour de conversation)"""
+        self.current_message_count += 1
+        logger.debug(f"Message count: {self.current_message_count}")
+    
+    def is_on_cooldown(self, memory_id: str) -> Tuple[bool, int]:
+        """
+        Vérifie si un souvenir est en cooldown (déjà injecté récemment)
+        
+        Args:
+            memory_id: ID du souvenir à vérifier
+            
+        Returns:
+            (is_on_cooldown: bool, messages_remaining: int)
+        """
+        if memory_id not in self.last_injection_message_count:
+            return False, 0  # Jamais injecté
+        
+        last_injection = self.last_injection_message_count[memory_id]
+        messages_since = self.current_message_count - last_injection
+        
+        if messages_since < self.cooldown_threshold:
+            messages_remaining = self.cooldown_threshold - messages_since
+            return True, messages_remaining
+        
+        return False, 0
+    
+    def register_memory_injection(self, memory_id: str):
+        """Enregistre l'injection d'un souvenir à ce message-ci"""
+        self.last_injection_message_count[memory_id] = self.current_message_count
+        logger.debug(f"Souvenir {memory_id} injecté au message {self.current_message_count}")
+    
+    def filter_memories_by_cooldown(self, memories: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+        """
+        Filtre les souvenirs en cooldown
+        
+        ⚠️  IMPORTANT: Cette fonction NE fait QUE filtrer.
+        L'enregistrement effectif doit être fait manuellement après usage
+        via register_memory_injection() pour éviter enregistrement prématuré.
+        
+        Args:
+            memories: Liste de souvenirs candidats
+            
+        Returns:
+            (allowed_memories: List[Dict], blocked_memories: List[Dict])
+        """
+        allowed = []
+        blocked = []
+        
+        for mem in memories:
+            memory_id = mem.get('id') or mem.get('memory_id')
+            if not memory_id:
+                # Pas d'ID → autoriser (souvenirs système)
+                allowed.append(mem)
+                continue
+            
+            is_cooled, remaining = self.is_on_cooldown(memory_id)
+            if is_cooled:
+                mem['cooldown_remaining'] = remaining
+                blocked.append(mem)
+                logger.debug(f"🚫 Cooldown: {mem.get('title', 'N/A')[:40]} ({remaining} messages restants)")
+            else:
+                allowed.append(mem)
+                # ✅ NE PAS enregistrer ici - sera fait après usage effectif
+        
+        return allowed, blocked
 
     def _is_truly_redundant(self, proposed_content: str, proposed_hash: str) -> bool:
         """
@@ -377,6 +454,20 @@ def register_archiviste_injection(memories_content: str):
     """Enregistre l'injection effective de l'Archiviste"""
     deduplicator.register_injection("archiviste", memories_content, "detailed_memories")
 
+def increment_message_count():
+    """Incrémente le compteur de messages (appelé à chaque message utilisateur)"""
+    deduplicator.increment_message_count()
+
+def filter_memories_by_cooldown(memories: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
+    """Filtre les souvenirs en cooldown"""
+    return deduplicator.filter_memories_by_cooldown(memories)
+
 def get_deduplication_stats() -> Dict:
     """Retourne les statistiques courantes"""
-    return deduplicator.get_session_stats()
+    stats = deduplicator.get_session_stats()
+    stats['cooldown'] = {
+        'current_message': deduplicator.current_message_count,
+        'cooldown_threshold': deduplicator.cooldown_threshold,
+        'memories_tracked': len(deduplicator.last_injection_message_count)
+    }
+    return stats

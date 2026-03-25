@@ -46,12 +46,13 @@ class RecallAgent:
             'summaries_loaded': 0
         }
     
-    def process_message(self, user_message: str) -> Optional[str]:
+    def process_message(self, user_message: str, source: str = "user") -> Optional[str]:
         """
-        Traite un message utilisateur et génère contexte si pertinent.
+        Traite un message (utilisateur OU IA) et génère contexte si pertinent.
         
         Args:
-            user_message: Message utilisateur brut
+            user_message: Message brut (utilisateur ou IA)
+            source: Source du message ("user" ou "ia")
             
         Returns:
             Contexte formaté pour injection ou None
@@ -59,7 +60,8 @@ class RecallAgent:
         self._stats['queries_processed'] += 1
         
         if self.debug:
-            print(f"[RECALL-AGENT] 🔍 Traitement: '{user_message[:100]}...'")
+            prefix = "👤 USER" if source == "user" else "🤖 IA"
+            print(f"[RECALL-AGENT] 🔍 {prefix} Traitement: '{user_message[:100]}...'")
         
         # 1. Détection patterns temporels
         temporal_matches = self.temporal_parser.parse(user_message)

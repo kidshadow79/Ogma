@@ -16,10 +16,32 @@ from typing import Dict, Optional, Tuple
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Cache global pour éviter détections multiples
+_DETECTION_CACHE = {}
+
+# Fallbacks par provider (si modèle absent de OFFICIAL_SPECIFICATIONS)
+# Valeurs minimales sûres pour éviter context overflow
+PROVIDER_FALLBACKS = {
+    "openai":      {"context_length": 128000, "max_tokens": 8192},
+    "anthropic":   {"context_length": 200000, "max_tokens": 8192},
+    "mistral":     {"context_length": 128000, "max_tokens": 8192},
+    "google":      {"context_length": 1048576, "max_tokens": 8192},
+    "grok":        {"context_length": 131072,  "max_tokens": 16384},
+    "minimax":     {"context_length": 1000000, "max_tokens": 40960},
+    "openrouter":  {"context_length": 32768,   "max_tokens": 4096},  # conservatif car modèles variés
+    "deepseek":    {"context_length": 163840,  "max_tokens": 32768},
+    "qwen":        {"context_length": 131072,  "max_tokens": 16384},
+    "cohere":      {"context_length": 128000,  "max_tokens": 4096},
+    "meta-llama":  {"context_length": 131072,  "max_tokens": 8192},
+    "default":     {"context_length": 32768,   "max_tokens": 4096},
+}
+
 # Base de données des spécifications officielles
 OFFICIAL_SPECIFICATIONS = {
     "openai": {
         "gpt-5": {"context_length": 192000, "max_tokens": 16384},
+        "gpt-5-nano": {"context_length": 128000, "max_tokens": 16384},
+        "gpt-5-mini": {"context_length": 128000, "max_tokens": 16384},
         "gpt-5-chat": {"context_length": 192000, "max_tokens": 16384},
         "gpt-5-chat-latest": {"context_length": 192000, "max_tokens": 16384},
         "gpt-5-latest": {"context_length": 192000, "max_tokens": 16384},
@@ -43,9 +65,18 @@ OFFICIAL_SPECIFICATIONS = {
         "claude-3-haiku": {"context_length": 200000, "max_tokens": 4096},
     },
     "google": {
+        # Gemini 3.x (dernière génération - Jan 2026)
+        "gemini-3-pro": {"context_length": 1048576, "max_tokens": 65536},
+        "gemini-3-flash": {"context_length": 1048576, "max_tokens": 65536},
+        # Gemini 2.5
+        "gemini-2.5-pro": {"context_length": 1048576, "max_tokens": 65536},
+        "gemini-2.5-flash": {"context_length": 1048576, "max_tokens": 65536},
+        "gemini-2.5-flash-lite": {"context_length": 1048576, "max_tokens": 8192},
+        # Gemini 2.0
+        "gemini-2.0-flash": {"context_length": 1048576, "max_tokens": 8192},
+        # Gemini 1.5 (legacy)
         "gemini-1.5-pro": {"context_length": 2097152, "max_tokens": 8192},
         "gemini-1.5-flash": {"context_length": 1048576, "max_tokens": 8192},
-        "gemini-pro": {"context_length": 32768, "max_tokens": 8192},
     },
     "grok": {
         "grok-4": {"context_length": 256000, "max_tokens": 32768},
@@ -60,6 +91,32 @@ OFFICIAL_SPECIFICATIONS = {
         "grok-2-012": {"context_length": 128000, "max_tokens": 16384},
         "grok-2-vision-012": {"context_length": 128000, "max_tokens": 16384},
         "grok-code-fast-1": {"context_length": 128000, "max_tokens": 16384},
+    },
+    "minimax": {
+        "minimax-m2.7": {"context_length": 1000000, "max_tokens": 40960},
+        "minimax-m2": {"context_length": 1000000, "max_tokens": 40960},
+        "minimax-01": {"context_length": 1000000, "max_tokens": 4096},
+    },
+    "openrouter": {
+        # MiniMax
+        "minimax/minimax-m2.7": {"context_length": 1000000, "max_tokens": 40960},
+        "minimax/minimax-m2": {"context_length": 1000000, "max_tokens": 40960},
+        "minimax/minimax-01": {"context_length": 1000000, "max_tokens": 4096},
+        # DeepSeek
+        "deepseek/deepseek-r2": {"context_length": 163840, "max_tokens": 32768},
+        "deepseek/deepseek-r1": {"context_length": 163840, "max_tokens": 32768},
+        "deepseek/deepseek-chat-v3-5": {"context_length": 163840, "max_tokens": 32768},
+        "deepseek/deepseek-v3": {"context_length": 163840, "max_tokens": 32768},
+        # Qwen
+        "qwen/qwen3-235b-a22b": {"context_length": 131072, "max_tokens": 16384},
+        "qwen/qwen3-32b": {"context_length": 131072, "max_tokens": 16384},
+        # Meta
+        "meta-llama/llama-4-maverick": {"context_length": 1048576, "max_tokens": 16384},
+        "meta-llama/llama-4-scout": {"context_length": 512000, "max_tokens": 16384},
+        "meta-llama/llama-3.3-70b-instruct": {"context_length": 131072, "max_tokens": 16384},
+        # Mistral (via OpenRouter)
+        "mistralai/mistral-large-2411": {"context_length": 128000, "max_tokens": 8192},
+        "mistralai/mistral-small-3.2-24b-instruct": {"context_length": 128000, "max_tokens": 8192},
     }
 }
 
@@ -133,14 +190,15 @@ class HybridDetection:
         
         print(f"[HYBRID-DETECT] 🎯 Analyse optimale pour {provider}/{model}")
         
-        # Si pas de détection API, utiliser officiel ou fallback
+        # Si pas de détection API, utiliser officiel ou fallback provider
         if not api_detected:
             if official_specs:
                 print(f"[HYBRID-DETECT] ✅ Utilise spéc officielle (pas d'API)")
                 return official_specs
             else:
-                print(f"[HYBRID-DETECT] 🔄 Fallback par défaut")
-                return {"context_length": 4096, "max_tokens": 512}
+                fallback = PROVIDER_FALLBACKS.get(provider.lower(), PROVIDER_FALLBACKS["default"])
+                print(f"[HYBRID-DETECT] 🔄 Fallback provider '{provider}': {fallback['context_length']:,}/{fallback['max_tokens']:,}")
+                return fallback
         
         # Si pas de spéc officielle, utiliser API
         if not official_specs:
@@ -193,7 +251,7 @@ class HybridDetection:
 
 def hybrid_auto_detect_capabilities(provider: str, model: str, api_type: str, api_key: str) -> Dict[str, int]:
     """
-    Interface principale pour la détection hybride.
+    Interface principale pour la détection hybride avec CACHE.
     
     Args:
         provider: Provider (openai, mistral, anthropic, google)
@@ -204,16 +262,28 @@ def hybrid_auto_detect_capabilities(provider: str, model: str, api_type: str, ap
     Returns:
         Dict avec context_length et max_tokens optimaux
     """
+    # Vérification cache
+    cache_key = f"{provider}/{model}/{api_type}"
+    if cache_key in _DETECTION_CACHE:
+        print(f"[HYBRID-CACHE] ✅ {cache_key} (from cache)")
+        return _DETECTION_CACHE[cache_key]
+    
     print(f"[HYBRID-AUTO-DETECT] 🚀 {provider}/{model} ({api_type})")
     
     detector = HybridDetection()
     
     try:
-        return detector.detect_with_hybrid_approach(provider, model, api_type, api_key)
+        result = detector.detect_with_hybrid_approach(provider, model, api_type, api_key)
+        # Mise en cache
+        _DETECTION_CACHE[cache_key] = result
+        return result
     except Exception as e:
         print(f"[HYBRID-AUTO-DETECT] ❌ Erreur: {e}")
-        # Fallback ultime
-        return {"context_length": 4096, "max_tokens": 512}
+        # Fallback ultime par provider
+        fallback = PROVIDER_FALLBACKS.get(provider.lower(), PROVIDER_FALLBACKS["default"])
+        print(f"[HYBRID-AUTO-DETECT] 🔄 Fallback provider '{provider}': {fallback['context_length']:,}/{fallback['max_tokens']:,}")
+        _DETECTION_CACHE[cache_key] = fallback
+        return fallback
 
 if __name__ == "__main__":
     print("🧠 OGMA - SYSTÈME DÉTECTION HYBRIDE")
