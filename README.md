@@ -94,7 +94,7 @@ cd Ogma
 pip install -r requirements.txt
 
 # Pour GPU NVIDIA (CUDA)
-# pip install -r config/requirements-nvidia.txt
+# pip install -r requirements/requirements-nvidia.txt
 
 # 3. Configurer les clés API
 cp .env.example .env
@@ -157,7 +157,7 @@ Ogma/
 │   ├── conversations/          # Historique JSON
 │   └── memory/                 # SQLite DB + index FAISS + backups
 │
-├── config/                     # Scripts d'installation et configuration
+├── requirements/               # Fichiers de dépendances (minimal, nvidia, audio...)
 ├── docs/                       # Documentation, audits, guides
 ├── tests/                      # Tests, debug, validation
 ├── scripts/                    # Utilitaires et outils d'analyse
