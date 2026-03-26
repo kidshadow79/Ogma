@@ -1,0 +1,76 @@
+
+                    GNU Affero General Public License
+                       Version 3, 19 November 2007
+
+  Copyright (C) 2025 Yohan BROCARD  <your@email.com>
+  Everyone is permitted to copy and distribute verbatim copies
+  of this license document, but changing it is not allowed.
+
+                TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+  0. This License applies to any copyrightable work licensed under it.
+
+  1. You may copy and distribute verbatim copies of the Program's source code
+     as you receive it, in any medium, provided that you conspicuously and
+     appropriately publish on each copy an appropriate copyright notice and
+     disclaimer of warranty; keep intact all the notices that refer to this
+     License and to the absence of any warranty; and give all recipients a copy
+     of this License along with the Program.
+
+  2. You may modify your copy or copies of the Program or any portion of it,
+     thus forming a work based on the Program, and copy and distribute such
+     modifications or work under the terms of Section 1 above, provided that you
+     also meet all of these conditions:
+
+     a) You must cause the modified files to carry prominent notices stating
+        that you have changed the files and the date of any change.
+
+     b) You must cause the entire work to be licensed at no charge to all third
+        parties under the terms of this License.
+
+     c) If the modified program normally reads commands interactively when run,
+        you must cause it, when launched, to print or display an announcement
+        including an appropriate copyright notice and a notice that there is
+        no warranty (or else, says that the user should get a copy of this
+        License).  This requirement modifies the ordinary working of this License
+        in that parties who normally receive copies of the Program will get
+        a copy of this License in addition to the usual information they
+        normally receive.
+
+  3. You may copy and distribute the Program (or a work based on it, under
+     Section 2) in object code or executable form under the terms of Sections 1
+     and 2 above provided that you accompany it with the same copy of this
+     License, and with a suitable notice stating that you have shipped
+     object code or executable form.
+
+  4. You may not copy, modify, sublicense, or distribute the Program except as
+     expressly provided under this License. Any attempt otherwise to copy,
+     modify, sublicense or distribute the Program is void, and will automatically
+     terminate your rights under this License. However, parties who have received
+     copies, or rights, from you under this License will not have their licenses
+     terminated so long as such parties remain in full compliance.
+
+  5. You are not required to accept this License, since you have not signed it.  However, nothing else grants you permission to modify or distribute the Program or its derivative works.  These actions are prohibited by law if you do not accept this License.  Therefore, by modifying or distributing the Program (or any work based on the Program), you indicate your acceptance of this License to do so, and all its terms and conditions for copying, distribution and modification.
+
+  6. Each time you redistribute the Program (or any work based on it), the recipient automatically receives a license from the original licensor to copy, distribute or modify the Program subject to these terms and conditions. You may not impose any further restrictions on the recipients' exercise of the rights granted herein.
+
+  7. If you use this Program in a proprietary program, you may include this License only if you do not impose any further restrictions.
+
+  8. When you convey a copy of this Program, you may at your option remove any
+     additional legal rights that can be waived if you keep intact this License.
+
+  9. If the output of the Program is non-interactive, you may provide this License in a location normally used for software licensing on your website.
+
+  10. Each time you redistribute the Program, you should also pass along a copy of this License. 
+
+     END OF TERMS AND CONDITIONS
+
+  How to apply these terms to your new programs:
+
+     If you develop a new program, and you want it to be of the greatest benefit to the public, the best way to achieve this is to make it free software that everyone can use, distribute, and modify under these terms.
+
+     To do this, attach the following notices to the program. It is safest to attach them to the start or end of each source file to convey this information and to provide a means to remove this notice.
+
+         GNU AGPL v3  <http://www.gnu.org/licenses/agpl-3.0.html>
+
+  Also add information on how to contact you by electronic and paper mail.
