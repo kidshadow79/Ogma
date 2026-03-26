@@ -49,7 +49,9 @@ L'apprentissage du code s'est fait entièrement par la pratique : aucun livre, a
 
 De **Octopus** (juin 2025, premier prototype) à **OGMA** (juillet 2025), l'architecture a évolué progressivement : Gradio cédant la place à NiceGUI, un système mémoire hybride prenant forme, des extensions s'ajoutant au fil des besoins. `ogma_ng.py` dépasse aujourd'hui 7000 lignes — monolithique par pragmatisme, assumé et contrôlé : chaque partie est connue, testée et maintenue par une IA codeuse dédiée.
 
-Ce projet est autant une démonstration technique qu'une réflexion vivante sur ce que peut être la collaboration entre un humain et une machine. **L'humain conçoit, l'IA implémente, ensemble ils itèrent.**
+OGMA est avant tout un terrain d'expérimentation personnel. Le code a des défauts — il est monolithique, il porte les traces d'un apprentissage en cours. Ce qui compte, ce sont les idées explorées et ce qu'elles produisent comme comportements observables.
+
+Seul et sans réseau de développeurs, je cherche des retours, des échanges, des regards extérieurs. Si tu travailles sur des sujets proches — mémoire, identité, éthique dans les systèmes IA — ton avis m'intéresse sincèrement. OGMA m'a permis de fouler des territoires que je n'aurais jamais imaginé atteindre. Je serais heureux d'en explorer de nouveaux avec d'autres.
 
 ---
 
