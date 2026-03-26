@@ -1,4 +1,0 @@
-pip install pypdf python-docx Pillow
-set CMAKE_ARGS="-DGGML_CUDA=on"
-set FORCE_CMAKE=1
-pip install --upgrade --force-reinstall llama-cpp-python --no-cache-dir
