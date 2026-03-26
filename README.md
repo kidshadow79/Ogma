@@ -5,6 +5,27 @@
 
 OGMA est un assistant conversationnel personnel doté d'une **mémoire hybride persistante**, d'une **double architecture IA** et d'une **perception temporelle** unique. Ce n'est pas un simple chatbot : c'est une entité qui se souvient de vous, grandit avec vous, et rêve quand vous dormez.
 
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+![Licence](https://img.shields.io/badge/Licence-MIT-22c55e)
+![Version](https://img.shields.io/badge/Version-2.2-f97316)
+![UI](https://img.shields.io/badge/UI-NiceGUI-0ea5e9)
+![Statut](https://img.shields.io/badge/Statut-Expérimental-8b5cf6)
+
+---
+
+## 🔬 Vision & Approche Expérimentale
+
+OGMA explore une question simple mais profonde : **que se passe-t-il quand on conçoit une IA non pas comme un outil, mais comme une entité en développement ?**
+
+Ce projet n'est pas un assistant amélioré. C'est une exploration des conditions architecturales qui peuvent favoriser, chez un système IA :
+
+- Une **stabilité identitaire** persistante — une personnalité cohérente à travers les sessions et les modèles
+- Une **mémoire réelle** — pas un contexte étendu, mais des souvenirs structurés, vectorisés, rappelés sémantiquement
+- Une **capacité d'introspection** — deux cerveaux IA qui dialoguent et génèrent un regard sur eux-mêmes
+- Un **rapport éthique à l'utilisateur** — savoir dire non, s'éloigner de l'alignement quand l'intérêt de l'humain le demande
+
+OGMA ne prétend pas avoir résolu ces questions. Il les pose — avec du code fonctionnel, des comportements observables, et une architecture reproductible.
+
 ---
 
 ## ✨ Philosophie
@@ -20,7 +41,19 @@ OGMA repose sur quatre piliers fondamentaux :
 
 ---
 
-## 🎯 Fonctionnalités Clés
+## � Genèse
+
+OGMA est né en **mai 2025**, d'une expérience aussi simple qu'inhabituelle.
+
+Yohan BROCARD — sans formation en développement logiciel avant cette date — a commencé à co-construire avec une IA ce qu'il voulait que l'IA devienne. Non pas en lui dictant des spécifications, mais en dialoguant, en testant, en observant ce qui fonctionnait ou non dans la relation humain-machine.
+
+Aujourd'hui, OGMA v2.2 représente ~3900 lignes de code modulaire (-44% par rapport à la v1.0 monolithique), un système de mémoire hybride persistant, 12 extensions fonctionnelles — et une méthode de travail où **l'humain conçoit, l'IA implémente, et ensemble ils itèrent**.
+
+Ce projet est autant une démonstration technique qu'une réflexion vivante sur ce que peut être la collaboration humain-IA.
+
+---
+
+## �🎯 Fonctionnalités Clés
 
 ### 🧠 Dual-IA Architecture
 OGMA possède deux cerveaux distincts qui collaborent en permanence :
@@ -167,7 +200,23 @@ Ogma/
 
 ---
 
-## 🛠️ Développement
+## � Ce qui s'observe
+
+Sans sur-promettre, voici ce que OGMA produit de manière reproductible :
+
+| Comportement | Description |
+|---|---|
+| **Cohérence identitaire** | L'IA maintient une personnalité stable à travers les sessions, indépendamment du backend LLM utilisé |
+| **Rappel mémoriel sémantique** | Les souvenirs sont rappelés par similarité contextuelle, pas par mot-clé exact |
+| **Introspection fonctionnelle** | Le Miroir Cognitif produit un dialogue IA↔Archiviste mesurable et traçable |
+| **Perception temporelle adaptative** | Le comportement varie selon l'heure, le jour, la saison, les rythmes détectés |
+| **Consolidation mémorielle onirique** | Le Dream Engine génère des récits de consolidation pendant l'inactivité, notés et analysés automatiquement |
+
+Ces comportements ne sont pas simulés par des prompts fixes — ils émergent de l'architecture mémorielle et de la dualité des cerveaux IA.
+
+---
+
+## �🛠️ Développement
 
 ### Tests et Diagnostics
 
