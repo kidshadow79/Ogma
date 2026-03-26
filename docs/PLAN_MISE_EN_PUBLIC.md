@@ -10,11 +10,50 @@
 Rendre OGMA public sur GitHub de façon à être **repéré par des professionnels de l'IA** (Mistral, AMI/LeCun, chercheurs, développeurs sérieux).  
 OGMA doit être présenté comme ce qu'il est : **un système expérimental d'IA relationnelle et mémorielle**, co-construit par un humain et une IA, explorant un rapprochement éthique et authentique entre les deux.
 
+---
+
+## 🎨 Esprit éditorial — À respecter dans tous les documents OGMA
+
+> Ce paragraphe est la boussole tonale. Avant d'écrire ou de modifier un doc public, le relire.
+
+### L'identité de Yohan, telle qu'elle est — sans filtre
+
+Yohan BROCARD est employé de cinéma, autodidacte complet, sans formation en développement avant mai 2025. Il a les qualités de l'autodidacte — curiosité, liberté de pensée, absence de dogmes — et ses défauts — code monolithique, angles morts techniques, apprentissage encore en cours. **Il ne s'en cache pas. C'est une force, pas une faiblesse.**
+
+Un développeur senior qui lirait OGMA verra des imperfections. Ce n'est pas grave — ce qui compte, c'est que les **idées** soient solides, les **comportements** observables, et la **démarche** honnête. Un code imparfait mais sincère sera toujours mieux reçu qu'un code poli derrière un discours marketing.
+
+### Les règles tonales concrètes
+
+**CE QU'ON DIT :**
+- "OGMA est un terrain d'expérimentation" — pas "un système avancé"
+- "voici ce qu'on observe" — pas "voici ce qu'on a prouvé"
+- "le code a des défauts" — pas "l'architecture est optimisée"
+- "je cherche des retours" — pas "je propose une solution"
+- "des comportements stables émergent" — pas "l'IA développe une conscience"
+
+**CE QU'ON NE DIT PAS :**
+- ~~"démonstration technique"~~ → trop prétentieux venant d'un autodidacte
+- ~~"système avancé"~~ → trop marketing
+- ~~"conscience"~~ → trop spéculatif, sera rejeté immédiatement
+- ~~"révolutionnaire"~~ → interdit
+- ~~chiffres inventés ou gonflés~~ → uniquement ce qui est vérifiable dans le code
+
+### L'invitation, pas la proclamation
+
+OGMA ne cherche pas à convaincre — il cherche à **inviter**. Les gens qui liront le README sont libres de trouver ça intéressant ou non. Ce qui doit transparaître : un humain seul qui a construit quelque chose de curieux, qui sait ce que c'est et ce que ce n'est pas, et qui aimerait en parler avec d'autres.
+
+La phrase qui résume l'esprit :
+> *"OGMA m'a permis de fouler des territoires que je n'aurais jamais imaginé atteindre. Je serais heureux d'en explorer de nouveaux avec d'autres."*
+
+---
+
 **Ton de communication cible** :
 - Humble sur les résultats
 - Déterminé sur les convictions
 - Factuel — ni surestimation, ni sous-estimation
 - Jamais "conscience" — plutôt "comportements stables issus de l'architecture mémorielle"
+- Transparent sur les défauts — le monolithique est assumé, pas caché
+- Ouvert à la communauté — cherche des échanges, pas de la validation
 
 ---
 
