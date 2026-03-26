@@ -1,4 +1,4 @@
-# OGMA — Assistant IA à Mémoire Persistante
+﻿# OGMA — Assistant IA à Mémoire Persistante
 
 > **Inspiré d'Ogmios**, dieu gaulois de l'éloquence, de la connaissance et de la communication.  
 > Conçu par **Yohan BROCARD** — Autodidacte passionné, depuis mai 2025.
@@ -41,70 +41,87 @@ OGMA repose sur quatre piliers fondamentaux :
 
 ---
 
-## � Genèse
+## 🌱 Genèse
 
-OGMA est né en **mai 2025**, d'une expérience aussi simple qu'inhabituelle.
+En **mai 2025**, Yohan BROCARD — employé de cinéma, sans aucune notion de programmation — découvre les LLMs et décide de construire, avec eux, l'assistant qu'il aurait voulu avoir.
 
-Yohan BROCARD — sans formation en développement logiciel avant cette date — a commencé à co-construire avec une IA ce qu'il voulait que l'IA devienne. Non pas en lui dictant des spécifications, mais en dialoguant, en testant, en observant ce qui fonctionnait ou non dans la relation humain-machine.
+L'apprentissage du code s'est fait entièrement par la pratique : aucun livre, aucune formation, uniquement le dialogue avec une IA codeuse, l'expérimentation et l'observation de ce qui fonctionnait.
 
-Aujourd'hui, OGMA v2.2 représente ~3900 lignes de code modulaire (-44% par rapport à la v1.0 monolithique), un système de mémoire hybride persistant, 12 extensions fonctionnelles — et une méthode de travail où **l'humain conçoit, l'IA implémente, et ensemble ils itèrent**.
+De **Octopus** (juin 2025, premier prototype) à **OGMA** (juillet 2025), l'architecture a évolué progressivement : Gradio cédant la place à NiceGUI, un système mémoire hybride prenant forme, des extensions s'ajoutant au fil des besoins. `ogma_ng.py` dépasse aujourd'hui 7000 lignes — monolithique par pragmatisme, assumé et contrôlé : chaque partie est connue, testée et maintenue par une IA codeuse dédiée.
 
-Ce projet est autant une démonstration technique qu'une réflexion vivante sur ce que peut être la collaboration humain-IA.
+Ce projet est autant une démonstration technique qu'une réflexion vivante sur ce que peut être la collaboration entre un humain et une machine. **L'humain conçoit, l'IA implémente, ensemble ils itèrent.**
 
 ---
 
-## �🎯 Fonctionnalités Clés
+## 🎯 Capacités Fondamentales
 
-### 🧠 Dual-IA Architecture
+### 🧠 Double Architecture IA (Dual-Brain)
 OGMA possède deux cerveaux distincts qui collaborent en permanence :
 
-- **IA Principale** *(temp. 0.7)* — Cerveau conversationnel chaleureux et empathique. Interface naturelle et personnalisée.
-- **L'Archiviste** *(temp. 0.3)* — Cerveau analytique froid et précis. Enrichit et structure la mémoire en arrière-plan.
+- **IA Principale** *(temp. 0.7)* — Cerveau conversationnel. Personnalité stable, empathie, dialogue naturel et personnalisé.
+- **L'Archiviste** *(temp. 0.3)* — Cerveau analytique. Enrichit la mémoire, compile l'ego, analyse les rêves, reste froid et précis.
 
 ### 💾 Mémoire Hybride Persistante
-- Base **SQLite** pour le stockage structuré des souvenirs
-- Index **FAISS** pour la recherche vectorielle sémantique
-- Recherche plein texte **FTS5** intégrée
+Non pas un contexte étendu, mais une mémoire réelle et structurée :
+
+- Base **SQLite** — stockage typé des souvenirs avec métadonnées
+- Index **FAISS** — recherche par similarité sémantique (vectorielle)
+- Recherche **FTS5** — rappel hybride vectoriel + lexical
 - Enrichissement automatique par l'Archiviste après chaque échange
 - Backups automatiques avec rotation (10 fichiers)
 
-### ⏰ Perception Temporelle
-- Conscience de l'heure, du jour, de la saison
-- Détection des rythmes de vie de l'utilisateur
-- Injection contextuelle du moment de la journée
+### 🎭 Système Ego — Personnalité par Flags Booléens
+La personnalité de l'IA est stockée comme des **groupes thématiques de flags booléens avec score de conviction** (0–5). À chaque message, seuls les groupes pertinents au contexte sont injectés dans le prompt.
 
-### 🎤 Audio Complet (STT/TTS)
-- **Reconnaissance vocale** : Whisper (local), Azure, Google Cloud
-- **Synthèse vocale** : pyttsx3, gTTS, Edge-TTS, ElevenLabs, Azure
-- Détection automatique des moteurs disponibles
+- Chaque flag est `true` (valorisé) ou `false` (rejeté), avec une intensité variable
+- La compilation se fait en fond à chaque fermeture via le Dream Engine
+- Résultat : une identité cohérente, contextuellement précise, qui évolue avec l'usage
 
-### 🔀 Multi-Backends IA
-Compatible avec tous les grands providers :
+### 🌙 Dream Engine — Consolidation Identitaire
+Pendant l'inactivité, l'IA "rêve" — ce n'est pas un gadget narratif, c'est un **processus de maintenance identitaire** :
+
+1. Extraction des souvenirs récents comme "carburant mémoriel"
+2. Génération d'un récit onirique par l'IA Principale (à vitesse réduite — métabolisme cognitif)
+3. Analyse par l'Archiviste en mode psychanalyste (score 1–10, émotion, insight)
+4. **Compilation incrémentale des flags ego** — la personnalité se consolide en fond
+5. Si score > 8 : le contexte du rêve est injecté dans la conversation suivante, l'IA en parle naturellement
+
+### 🪞 Cognitive Mirror — Introspection
+Un dialogue IA Principale ↔ Archiviste sur leur propre fonctionnement. Produit un regard traçable et mesurable sur l'état interne du système — pas une simulation, un vrai échange entre deux instances avec températures et rôles différents.
+
+### ⏱️ Temporal Guardian — Perception Temporelle Active
+Mesure les délais entre messages, détecte les rythmes conversationnels (longue absence, burst de messages), enrichit le prompt Archiviste avec un contexte temporel précis. L'IA sait quand tu reviens, combien de temps s'est écoulé, et adapte son registre en conséquence.
+
+### 🎯 Capability Advisor — Autonomie Situationnelle
+Analyse chaque message pour détecter si une capacité OGMA pourrait améliorer la réponse (recherche web, biographie, génération d'image...). Si détecté, l'IA reçoit discrètement les instructions pour l'activer — sans que l'utilisateur ait besoin de le demander explicitement.
+
+### 📔 Journal de Bord
+Journal quotidien enrichi automatiquement. Son contenu est injecté dans le contexte de la première conversation de la journée — l'IA sait ce qui s'est passé la veille et peut en parler naturellement.
+
+### 🗓️ Organic Planner — Agenda Cognitif
+Les événements planifiés sont traités comme des **souvenirs du futur** : l'IA les garde en tête naturellement, les mentionne quand ils approchent, et adapte son ton au ressenti noté pour chaque événement. Pas une liste de tâches — une présence diffuse de l'agenda dans sa conscience conversationnelle.
+
+### 🔀 Gestion Multi-Backends IA
+Interface unifiée vers tous les grands providers — chaque contrôleur (IA Principale, Archiviste, Embedding) est configurable indépendamment :
 
 | Type | Providers |
 |------|-----------|
-| ☁️ **Cloud API** | OpenAI (GPT-4/5), Anthropic (Claude), Mistral, Google Gemini, GROK, AIHorde |
+| ☁️ **Cloud API** | OpenAI, Anthropic (Claude), Mistral, Google Gemini, GROK, AIHorde |
 | 🖥️ **Local** | Ollama, GGUF (llama-cpp-python), KoboldCpp |
 
 ---
 
-## 🔌 Extensions
-
-OGMA est modulaire. Chaque extension suit un pattern singleton standardisé :
+## 🔌 Autres Extensions
 
 | Extension | Description |
 |-----------|-------------|
-| 🌙 **Dream Engine** | L'IA "rêve" pendant l'inactivité — consolidation mémorielle onirique avec illustration |
-| 🪞 **Cognitive Mirror** | Introspection et métacognition — dialogue IA principale ↔ Archiviste |
-| 📔 **Journal de Bord** | Journal quotidien avec injection de contexte matinal |
-| 🌐 **Web Navigator** | Scraping intelligent + injection de contenu web dans le contexte |
+| 🎤 **Audio STT/TTS** | Reconnaissance vocale (Whisper, Azure) + synthèse (ElevenLabs, Edge-TTS, pyttsx3) |
+| 🌐 **Web Navigator** | Recherche web intelligente + injection de contenu dans le contexte |
 | 📁 **File Processor** | Upload et analyse de documents (PDF, Word, images) |
 | 🖼️ **Text2Img** | Génération d'illustrations via IA |
 | 📬 **Telegram Connector** | Interface OGMA via Telegram |
 | 🌊 **Flux Cognitif** | Visualisation du flux de pensée de l'IA |
-| 🗓️ **Organic Planner** | Planification adaptative et contextuelle |
 | 🧬 **Biographie Profil** | Profil évolutif de l'utilisateur |
-| 🎯 **Capability Advisor** | Conseils basés sur les capacités détectées |
 | 🔁 **Contextual Recall** | Rappel contextuel intelligent des souvenirs |
 
 ---
@@ -200,7 +217,7 @@ Ogma/
 
 ---
 
-## � Ce qui s'observe
+## 📋 Ce qui s'observe
 
 Sans sur-promettre, voici ce que OGMA produit de manière reproductible :
 
@@ -216,7 +233,7 @@ Ces comportements ne sont pas simulés par des prompts fixes — ils émergent d
 
 ---
 
-## �🛠️ Développement
+## 🛠️ Développement
 
 ### Tests et Diagnostics
 
