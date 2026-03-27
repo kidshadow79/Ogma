@@ -135,14 +135,16 @@ Interface unifiée vers tous les grands providers — chaque contrôleur (IA Pri
 - `pip` à jour
 - (Optionnel) GPU NVIDIA avec CUDA pour accélération
 
-### Étapes
+### Option A — Avec environnement virtuel (recommandé)
+
+Isole les dépendances d'OGMA du reste de votre système Python. Idéal pour éviter les conflits de versions.
 
 ```bash
 # 1. Cloner le dépôt
 git clone https://github.com/kidshadow79/Ogma.git
 cd Ogma
 
-# 2. Créer et activer un environnement virtuel (recommandé)
+# 2. Créer et activer un environnement virtuel
 python -m venv venv
 
 # Windows
@@ -160,8 +162,33 @@ pip install -r requirements.txt
 # pip install -r requirements/requirements-nvidia.txt
 
 # 5. Configurer les clés API
-cp .env.example .env
-# Éditer .env avec vos clés API
+cp data/settings.example.json data/settings.json
+# Éditer data/settings.json avec vos clés API
+```
+
+> **Note** : À chaque nouvelle session, pensez à réactiver le venv (`venv\Scripts\activate`) avant de lancer OGMA.
+
+### Option B — Sans environnement virtuel
+
+Installation directe dans le Python système. Plus simple mais peut créer des conflits si d'autres projets utilisent les mêmes paquets.
+
+```bash
+# 1. Cloner le dépôt
+git clone https://github.com/kidshadow79/Ogma.git
+cd Ogma
+
+# 2. Mettre pip à jour
+python -m pip install --upgrade pip
+
+# 3. Installer les dépendances
+pip install -r requirements.txt
+
+# Pour GPU NVIDIA (CUDA)
+# pip install -r requirements/requirements-nvidia.txt
+
+# 4. Configurer les clés API
+cp data/settings.example.json data/settings.json
+# Éditer data/settings.json avec vos clés API
 ```
 
 ### Configuration `.env`
