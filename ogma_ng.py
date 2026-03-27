@@ -4531,8 +4531,21 @@ Tu viens TOUT JUSTE de te réveiller d'un rêve ! C'est ta PREMIÈRE interaction
         # Vérifier si l'orchestration a déjà été injectée dans cette session
         is_new_session = not _orchestration_injected
         print(f"[COGNITIF-ORCHESTRATION] DEBUG is_new_session={is_new_session}, _orchestration_injected={_orchestration_injected}")
-        
+
+        # Vérifier si c'est vraiment une toute première interaction (jamais de mémoire ni conversations)
+        is_truly_first_ever = False
         if is_new_session:
+            try:
+                mm = _ensure_memory_manager()
+                _memory_empty = mm is None or (hasattr(mm, 'memory_count') and mm.memory_count == 0)
+                _no_conv_index = not (DATA_DIR / "conversations" / "index.json").exists()
+                is_truly_first_ever = _memory_empty and _no_conv_index
+                if is_truly_first_ever:
+                    print("[COGNITIF-ORCHESTRATION] ℹ️ Toute première interaction détectée — skip orchestration continuité")
+            except Exception:
+                pass
+
+        if is_new_session and not is_truly_first_ever:
             # Charger l'instruction salutations depuis settings ou utiliser défaut
             sm = _ensure_settings_manager()
             orchestration_prompt = sm.settings.get('prompts', {}).get('salutations')
@@ -4587,6 +4600,10 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
             # Marquer comme injecté pour éviter les injections répétées
             _orchestration_injected = True
             print(f"[COGNITIF-ORCHESTRATION] ✨ Orchestration cognitive activée - IA principale guidée pour usage naturel des contextes")
+        elif is_new_session and is_truly_first_ever:
+            # Marquer quand même pour ne pas réévaluer à chaque message
+            _orchestration_injected = True
+            print("[COGNITIF-ORCHESTRATION] ⏭️ Skip orchestration (toute première interaction)")
         else:
             print("[COGNITIF-ORCHESTRATION] SKIP Conversation en cours - pas de nouvelles directives")
             
