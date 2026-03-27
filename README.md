@@ -154,11 +154,7 @@ cd Ogma
 
 # 2. Créer et activer un environnement virtuel
 python -m venv venv
-
-# Windows
 venv\Scripts\activate
-# Linux/macOS
-source venv/bin/activate
 
 # 3. Mettre pip à jour
 python -m pip install --upgrade pip
