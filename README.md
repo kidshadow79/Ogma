@@ -135,6 +135,14 @@ Interface unifiée vers tous les grands providers — chaque contrôleur (IA Pri
 - `pip` à jour
 - (Optionnel) GPU NVIDIA avec CUDA pour accélération
 
+### Fichiers de dépendances
+
+| Fichier | Usage |
+|---|---|
+| `requirements.txt` | Installation standard (recommandé pour commencer) |
+| `requirements/requirements-minimal.txt` | Dépendances minimales uniquement |
+| `requirements/requirements-nvidia.txt` | Surcouche GPU NVIDIA/CUDA (à installer en plus) |
+
 ### Option A — Avec environnement virtuel (recommandé)
 
 Isole les dépendances d'OGMA du reste de votre système Python. Idéal pour éviter les conflits de versions.
@@ -150,7 +158,7 @@ python -m venv venv
 # Windows
 venv\Scripts\activate
 # Linux/macOS
-# source venv/bin/activate
+source venv/bin/activate
 
 # 3. Mettre pip à jour
 python -m pip install --upgrade pip
@@ -158,19 +166,15 @@ python -m pip install --upgrade pip
 # 4. Installer les dépendances
 pip install -r requirements.txt
 
-# Pour GPU NVIDIA (CUDA)
+# Pour GPU NVIDIA (CUDA) — en complément
 # pip install -r requirements/requirements-nvidia.txt
-
-# 5. Configurer les clés API
-cp data/settings.example.json data/settings.json
-# Éditer data/settings.json avec vos clés API
 ```
 
 > **Note** : À chaque nouvelle session, pensez à réactiver le venv (`venv\Scripts\activate`) avant de lancer OGMA.
 
 ### Option B — Sans environnement virtuel
 
-Installation directe dans le Python système. Plus simple mais peut créer des conflits si d'autres projets utilisent les mêmes paquets.
+Installation directe dans le Python système. Plus simple, mais peut créer des conflits si d'autres projets utilisent les mêmes paquets.
 
 ```bash
 # 1. Cloner le dépôt
@@ -183,27 +187,9 @@ python -m pip install --upgrade pip
 # 3. Installer les dépendances
 pip install -r requirements.txt
 
-# Pour GPU NVIDIA (CUDA)
+# Pour GPU NVIDIA (CUDA) — en complément
 # pip install -r requirements/requirements-nvidia.txt
-
-# 4. Configurer les clés API
-cp data/settings.example.json data/settings.json
-# Éditer data/settings.json avec vos clés API
 ```
-
-### Configuration `.env`
-```env
-# Au minimum une clé API pour démarrer
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-MISTRAL_API_KEY=...
-
-# Optionnel - Audio cloud
-ELEVENLABS_API_KEY=...
-AZURE_SPEECH_KEY=...
-```
-
-> **Note** : Sans clé API, OGMA fonctionne avec des modèles locaux (Ollama ou GGUF).
 
 ---
 
