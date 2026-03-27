@@ -48,7 +48,11 @@ requirements-nvidia.txt
   → Commande : pip install -r requirements/requirements-nvidia.txt
 
 requirements-audio.txt
-  → Uniquement l'audio avancé (librosa, soundfile, webrtcvad + TTS cloud)
+  → Uniquement l'audio avancé (librosa, soundfile, webrtcvad + TTS cloud premium)
+  → ⚠️  NON nécessaire pour le TTS et STT de base — ceux-ci sont inclus dans requirements.txt
+       (edge-tts, pyttsx3, Whisper local, pyaudio sont déjà présents)
+  → Utile uniquement pour : analyse spectrale, formats audio étendus (FLAC/OGG),
+       détection d'activité vocale (VAD), et TTS cloud premium (Google Cloud, Azure)
   → À utiliser si requirements.txt est déjà installé
   → Commande : pip install -r requirements/requirements-audio.txt
 
@@ -63,7 +67,8 @@ TABLEAU RÉCAPITULATIF
   TTS de base                ✅        ✅        ✅         ✅              ✅
   OpenCV, perception         ✅        ❌        ✅         ✅              ✅
   GPU CUDA (torch+llama)     ❌        ❌        ❌         ✅              ✅
-  Audio avancé (VAD, etc.)   ❌        ❌        ❌         ❌              ✅
+  Audio avancé (VAD, librosa, etc.)   ❌        ❌        ❌         ❌              ✅
+  → NON requis pour TTS/STT de base (inclus dans racine)
 
 
 NOTES
