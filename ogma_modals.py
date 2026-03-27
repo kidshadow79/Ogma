@@ -3701,13 +3701,13 @@ def _models_modal():
 def _telegram_connector_settings_modal():
     """Modal de configuration pour l'extension Telegram Connector"""
     
-    # Vérifier disponibilité
+    # Vérifier disponibilité de la lib (mais on crée le modal quand même)
+    telegram_lib_available = False
     try:
         from extensions.telegram_connector import is_telegram_available
-        if not is_telegram_available():
-            return None
-    except ImportError:
-        return None
+        telegram_lib_available = is_telegram_available()
+    except Exception:
+        pass
     
     # Créer le dialog avec glassmorphism
     dialog = ui.dialog().style('''
@@ -3727,18 +3727,26 @@ def _telegram_connector_settings_modal():
             overflow-y: auto !important;
         '''):
             
-            # Conteneur pour l'interface de l'extension
-            settings_container = ui.column().classes('w-full')
-            
-            try:
-                from extensions.telegram_connector.ui_components import get_telegram_ui
+            # Message d'install si lib manquante
+            if not telegram_lib_available:
+                with ui.column().classes('w-full gap-3 p-4'):
+                    ui.label('📱 Telegram Connector').classes('text-lg font-bold')
+                    ui.separator()
+                    ui.label('⚠️ Dépendance manquante').classes('text-yellow-500 font-semibold')
+                    ui.label('Pour activer le connecteur Telegram, installez la dépendance :').classes('text-sm')
+                    ui.code('pip install python-telegram-bot').classes('w-full')
+                    ui.label('Puis redémarrez OGMA.').classes('text-sm text-gray-400')
+            else:
+                # Conteneur pour l'interface de l'extension
+                settings_container = ui.column().classes('w-full')
                 
-                telegram_ui = get_telegram_ui()
-                telegram_ui.create_settings_panel(settings_container)
-                
-            except Exception as e:
-                with settings_container:
-                    ui.label(f"❌ Erreur chargement: {e}").classes('text-red-500')
+                try:
+                    from extensions.telegram_connector.ui_components import get_telegram_ui
+                    telegram_ui = get_telegram_ui()
+                    telegram_ui.create_settings_panel(settings_container)
+                except Exception as e:
+                    with settings_container:
+                        ui.label(f"❌ Erreur chargement: {e}").classes('text-red-500')
             
             # Boutons
             with ui.row().classes('justify-end gap-2 mt-4'):

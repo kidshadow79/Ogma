@@ -7661,7 +7661,7 @@ async def _async_awakening(notif):
                         print("[INIT] ✅ Telegram Connector démarré automatiquement")
                     else:
                         print("[INIT] ✅ Telegram Connector initialisé (démarrage manuel)")
-        except ImportError:
+        except (ImportError, Exception):
             print("[INIT] ⚠️ Telegram Connector: python-telegram-bot non installé")
         except Exception as e:
             print(f"[INIT] ⚠️ Telegram Connector: {e}")

@@ -2,6 +2,7 @@
 OGMA Telegram Connector - Bot Handler
 Gestion du bot Telegram avec polling
 """
+from __future__ import annotations
 
 import asyncio
 from typing import Optional, Callable
