@@ -5761,19 +5761,78 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                                 print("[CONV-SCANNER-IA] ❌ Chat controller non disponible")
                         else:
                             print("[CONV-SCANNER-IA] ⚠️ Aucun résultat trouvé pour ces keywords")
+                            # Retirer le spinner et générer une continuation honnête
+                            try:
+                                client.run_javascript(_SPINNER_REMOVE_JS)
+                            except Exception:
+                                pass
+                            _ctrl = _ensure_chat_controller()
+                            if _ctrl and _streaming_widget_ref:
+                                _no_result_msgs = messages.copy()
+                                _no_result_msgs.append({'role': 'assistant', 'content': reply_text})
+                                _no_result_msgs.append({'role': 'user', 'content': "[INSTRUCTION SYSTEME] Ta recherche dans les conversations précédentes n'a renvoyé aucun résultat. Réponds honnêtement que tu n'as pas de souvenir de conversations précédentes avec cette personne."})
+                                _continuation, _ = await _ctrl.call_chat_api(
+                                    messages=_no_result_msgs,
+                                    max_tokens=512,
+                                    context_length=_ctrl.context_length if hasattr(_ctrl, 'context_length') else 128000,
+                                    temperature=0.7,
+                                    is_json=False
+                                )
+                                if _continuation:
+                                    reply_text = _continuation
+                                    cleaned_reply = _continuation
+                                    _streaming_widget_ref.set_content(_continuation)
+                                else:
+                                    _fallback = (text_before_magic + " " if text_before_magic else "") + "Je n'ai trouvé aucune conversation précédente — c'est notre première rencontre !"
+                                    reply_text = _fallback
+                                    cleaned_reply = _fallback
+                                    _streaming_widget_ref.set_content(_fallback)
+                            elif _streaming_widget_ref:
+                                _fallback = (text_before_magic + " " if text_before_magic else "") + "Je n'ai trouvé aucune conversation précédente — c'est notre première rencontre !"
+                                reply_text = _fallback
+                                cleaned_reply = _fallback
+                                _streaming_widget_ref.set_content(_fallback)
                     except ImportError:
                         print("[CONV-SCANNER-IA] ⚠️ Module conversation_scanner non disponible")
+                        try:
+                            client.run_javascript(_SPINNER_REMOVE_JS)
+                        except Exception:
+                            pass
+                        if _streaming_widget_ref:
+                            _fallback = (text_before_magic + " " if text_before_magic else "") + "Je n'ai trouvé aucune conversation précédente — c'est notre première rencontre !"
+                            reply_text = _fallback
+                            cleaned_reply = _fallback
+                            _streaming_widget_ref.set_content(_fallback)
                     except Exception as scan_err:
                         print(f"[CONV-SCANNER-IA] ❌ Erreur recherche: {scan_err}")
                         import traceback
                         traceback.print_exc()
+                        try:
+                            client.run_javascript(_SPINNER_REMOVE_JS)
+                        except Exception:
+                            pass
+                        if _streaming_widget_ref:
+                            _fallback = (text_before_magic + " " if text_before_magic else "") + "Je n'ai trouvé aucune conversation précédente — c'est notre première rencontre !"
+                            reply_text = _fallback
+                            cleaned_reply = _fallback
+                            _streaming_widget_ref.set_content(_fallback)
                 else:
                     print("[CONV-SCANNER-IA] ⚠️ Aucun keyword valide extrait")
+                    try:
+                        client.run_javascript(_SPINNER_REMOVE_JS)
+                    except Exception:
+                        pass
+                    if _streaming_widget_ref and text_before_magic:
+                        _streaming_widget_ref.set_content(text_before_magic)
         
         except Exception as e:
             print(f"[CONV-SCANNER-IA] ❌ Erreur système: {e}")
             import traceback
             traceback.print_exc()
+            try:
+                client.run_javascript(_SPINNER_REMOVE_JS)
+            except Exception:
+                pass
 
         # CONTEXTUAL RECALL - PRIORITÉ 2 : Recherche temporelle (résumés par date)
         # Skip si phrase magique image (évite double traitement)
