@@ -6,6 +6,7 @@
 
 # Interface principale
 nicegui>=2.0.0,<3.0.0
+python-telegram-bot>=20.0         # Connecteur Telegram
 
 # IA et APIs
 openai>=1.0.0
