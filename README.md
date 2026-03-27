@@ -142,13 +142,24 @@ Interface unifiée vers tous les grands providers — chaque contrôleur (IA Pri
 git clone https://github.com/kidshadow79/Ogma.git
 cd Ogma
 
-# 2. Installer les dépendances
+# 2. Créer et activer un environnement virtuel (recommandé)
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+# Linux/macOS
+# source venv/bin/activate
+
+# 3. Mettre pip à jour
+python -m pip install --upgrade pip
+
+# 4. Installer les dépendances
 pip install -r requirements.txt
 
 # Pour GPU NVIDIA (CUDA)
 # pip install -r requirements/requirements-nvidia.txt
 
-# 3. Configurer les clés API
+# 5. Configurer les clés API
 cp .env.example .env
 # Éditer .env avec vos clés API
 ```
