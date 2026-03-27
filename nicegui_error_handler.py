@@ -86,7 +86,7 @@ class NiceGUIErrorFilter:
                     
                     stale_clients = []
                     for client in cls.instances.values():
-                        if client.shared or client.has_socket_connection:
+                        if getattr(client, 'shared', False) or client.has_socket_connection:
                             continue
                         if client.created > time.time() - threshold:
                             continue
@@ -147,7 +147,7 @@ class NiceGUIErrorFilter:
             
             async def patched_can_start(self):
                 """Version patchée avec timeout augmenté de 60s à 300s"""
-                if self.client.shared:
+                if getattr(self.client, 'shared', False):
                     return True
                 
                 # Utiliser le timeout augmenté au lieu de 60s

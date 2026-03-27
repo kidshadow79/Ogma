@@ -81,6 +81,7 @@ def _get_real_audio_manager():
             # Charger la configuration depuis settings
             use_whisper_api = False
             api_key = None
+            device_index = None
             
             try:
                 from pathlib import Path
