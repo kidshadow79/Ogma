@@ -7914,10 +7914,7 @@ def main_page():
     from datetime import datetime
     import time
     _page_start_time = time.time()
-    print("=" * 70)
-    print(f"[DEBUG-MAIN] 🔄 main_page() appelée à {datetime.now().strftime('%H:%M:%S.%f')}")
-    print(f"[DEBUG-MAIN] ⚠️ Si ce message apparaît après le premier, c'est un RECHARGEMENT!")
-    print("=" * 70)
+    # (debug rechargement désactivé)
     
     # === VÉRIFICATION SESSION UTILISATEUR (POPUP LOGIN) ===
     stored_user = app.storage.user.get('ogma_user')
@@ -7937,15 +7934,7 @@ def main_page():
         _show_login_popup()
     # === FIN VÉRIFICATION SESSION ===
     
-    # Tracer le contexte d'appel (qui a déclenché ce rechargement?)
-    import traceback
-    stack = traceback.extract_stack()
-    print("[DEBUG-MAIN] 📍 Stack d'appel (3 derniers frames):")
-    for frame in stack[-4:-1]:  # Les 3 derniers frames avant main_page
-        print(f"    → {frame.filename}:{frame.lineno} dans {frame.name}()")
-    
     # 1. CONSTRUCTION DE L'INTERFACE IMMÉDIATE (Squelette)
-    print("[DEBUG-MAIN] Construction du squelette UI...")
     
     # Styles et mode sombre (après le print pour mesurer le timing)
     _link_styles()

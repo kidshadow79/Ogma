@@ -54,7 +54,18 @@ except ImportError:
     print("[TTS] Google Cloud TTS non disponible - installez avec: pip install google-cloud-texttospeech")
 
 try:
+    import warnings
+    import os
+    import sys
+    # Silencer le warning pkg_resources de pygame
+    warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
+    # Silencer le message "Hello from the pygame community"
+    _devnull = open(os.devnull, 'w')
+    _old_stdout = sys.stdout
+    sys.stdout = _devnull
     import pygame
+    sys.stdout = _old_stdout
+    _devnull.close()
     PYGAME_AVAILABLE = True
 except ImportError:
     PYGAME_AVAILABLE = False

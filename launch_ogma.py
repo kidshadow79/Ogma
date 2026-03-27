@@ -65,9 +65,8 @@ def setup_environment():
     
     available_keys = [k for k, v in api_keys.items() if v and v != "your_key_here"]
     if available_keys:
-        print(f"✅ Clés API configurées: {', '.join(available_keys)}")
-    else:
-        print("⚠️ Aucune clé API configurée. Configurez vos clés dans .env ou via l'interface.")
+        print(f"✅ Clés API .env: {', '.join(available_keys)}")
+    # (les clés settings.json sont chargées plus tard par OGMA - pas d'avertissement ici)
 
 def create_directories():
     """Crée les dossiers nécessaires"""
@@ -141,6 +140,10 @@ def main():
         return
     
     print("\nLancement d'OGMA...")
+    # Silencer les loggers tiers verbeux (comtypes, etc.)
+    import logging
+    logging.getLogger("comtypes").setLevel(logging.WARNING)
+    logging.getLogger("comtypes.client._code_cache").setLevel(logging.WARNING)
     # Préférer 127.0.0.1 pour éviter les soucis IPv6 (::1) sur Windows
     host = os.getenv('OGMA_HOST', '127.0.0.1')
     base_port = int(os.getenv('OGMA_PORT', '8080'))

@@ -199,7 +199,6 @@ class JournalCore:
             # Mettre à jour l'EntryGenerator aussi
             if self.entry_generator:
                 self.entry_generator.archiviste = archiviste_controller
-                print(f"[JOURNAL-CORE] ✅ Archiviste mis à jour (context: {archiviste_controller.context_length})")
             
             # Mettre à jour le LiveStateDetector aussi
             try:
@@ -207,7 +206,6 @@ class JournalCore:
                 detector = get_live_detector()
                 if detector:
                     detector.archiviste = archiviste_controller
-                    print("[JOURNAL-CORE] ✅ LiveStateDetector mis à jour avec vrai Archiviste")
             except Exception as e:
                 print(f"[JOURNAL-CORE] ⚠️ LiveStateDetector update failed: {e}")
             

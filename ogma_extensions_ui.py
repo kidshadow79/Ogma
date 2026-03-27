@@ -87,43 +87,27 @@ def _initialize_biography_extension():
     """Initialise l'extension Biographie Profil si disponible"""
     global _biography_manager, _biography_ui, _biography_available
 
-    print(f"[DEBUG-BIOGRAPHY-INIT] === DÉBUT INITIALISATION ===")
-    print(f"[DEBUG-BIOGRAPHY-INIT] BIOGRAPHY_EXTENSION_AVAILABLE = {BIOGRAPHY_EXTENSION_AVAILABLE}")
-
     if not BIOGRAPHY_EXTENSION_AVAILABLE:
         print("[BIOGRAPHY-EXTENSION] ❌ Extension non disponible")
         return
 
     try:
-        print("[DEBUG-BIOGRAPHY-INIT] Extension disponible, initialisation...")
-        
         # Forcer initialisation des contrôleurs si nécessaire
         from ogma_ng import _ensure_chat_controller, _ensure_archiviste_controller
         chat_ctrl = _ensure_chat_controller()
         archiviste_ctrl = _ensure_archiviste_controller()
-        
-        print(f"[DEBUG-BIOGRAPHY-INIT] Settings manager: {type(_settings_manager)}")
-        print(f"[DEBUG-BIOGRAPHY-INIT] Memory manager: {type(_memory_manager)}")
-        print(f"[DEBUG-BIOGRAPHY-INIT] Chat controller: {type(chat_ctrl)}")
-        print(f"[DEBUG-BIOGRAPHY-INIT] Archiviste controller: {type(archiviste_ctrl)}")
 
-        # 🚀 OPTIMISATION: Passer Archiviste + Status Queue pour notifications
+        # Passer Archiviste + Status Queue pour notifications
         success = initialize_biography_extension(_settings_manager, _memory_manager, chat_ctrl, archiviste_ctrl, _status_queue)
-        print(f"[DEBUG-BIOGRAPHY-INIT] initialize_biography_extension() retourne: {success}")
 
         if success:
             _biography_available = True
             from extensions.biographie_profil import get_biography_manager, get_biography_ui
             _biography_manager = get_biography_manager()
             _biography_ui = get_biography_ui()
-            print(f"[DEBUG-BIOGRAPHY-INIT] _biography_manager: {type(_biography_manager)}")
-            print(f"[DEBUG-BIOGRAPHY-INIT] _biography_ui: {type(_biography_ui)}")
             print("[BIOGRAPHY-EXTENSION] ✅ Extension biographie_profil initialisée")
         else:
             print("[BIOGRAPHY-EXTENSION] ❌ Échec initialisation extension")
-
-        print(f"[DEBUG-BIOGRAPHY-INIT] _biography_available = {_biography_available}")
-        print(f"[DEBUG-BIOGRAPHY-INIT] === FIN INITIALISATION ===")
 
     except Exception as e:
         print(f"[BIOGRAPHY-EXTENSION] ❌ Erreur initialisation: {e}")

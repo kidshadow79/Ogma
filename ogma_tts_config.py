@@ -67,13 +67,7 @@ def _reload_tts_config():
 def _render_tts_config(current_engine, sm, refresh_callback):
     """Affiche la configuration spécifique au moteur TTS sélectionné."""
 
-    print(f"[DEBUG-TTS] ========================")
-    print(f"[DEBUG-TTS] _render_tts_config() APPELÉE")
-    print(f"[DEBUG-TTS] Moteur reçu: '{current_engine}'")
-    print(f"[DEBUG-TTS] Type: {type(current_engine)}")
-    print(f"[DEBUG-TTS] Longueur: {len(current_engine)}")
-    print(f"[DEBUG-TTS] Repr: {repr(current_engine)}")
-    print(f"[DEBUG-TTS] ========================")
+    # (debug TTS désactivé)
 
     if current_engine == 'system':
         # Configuration voix système

@@ -2416,7 +2416,6 @@ RÉPONSE ATTENDUE (format JSON strict) :
             return None  # Pas de fallback
     def set_active_backend(self, backend_type: str):
         self.backend_type = backend_type
-        print(f"[RELOAD] Backend pour '{self.ai_type}' réglé sur : {self.backend_type}")
         
     def get_active_manager(self):
         # Normalisation case-insensitive
