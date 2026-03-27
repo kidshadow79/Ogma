@@ -2,7 +2,7 @@ OGMA - Guide des dépendances
 =============================
 
 Convention Python : requirements.txt à la racine est LE fichier standard.
-Il documente l'état réel d'OGMA (CPU, sans audio avancé).
+Il documente l'état réel d'OGMA (CPU).
 Les variantes sont dans ce dossier requirements/.
 
 
@@ -12,7 +12,7 @@ FICHIER RACINE
 requirements.txt  (à la racine du projet)
   → Installation standard, identique à l'environnement OGMA actuel
   → CPU uniquement, TTS de base (Fish Audio, Edge-TTS, pyttsx3)
-  → Inclut Whisper local (torch CPU) mais pas librosa/VAD
+  → Inclut Whisper local (torch CPU)
   → Commande : pip install -r requirements.txt
 
 
@@ -31,12 +31,6 @@ requirements-full-nvidia.txt            ← RECOMMANDÉ si GPU NVIDIA
   → Prérequis : CUDA 12.8, drivers NVIDIA 581+
   → Commande : pip install -r requirements/requirements-full-nvidia.txt
 
-requirements-full-nvidia-audio.txt      ← TOUT INCLUS
-  → Standard + GPU CUDA + audio avancé (librosa, soundfile, VAD)
-  → Pour analyse audio poussée, détection d'activité vocale (VAD)
-  → Prérequis : CUDA 12.8, drivers NVIDIA 581+
-  → Commande : pip install -r requirements/requirements-full-nvidia-audio.txt
-
 
 BLOCS SUPPLÉMENTAIRES STANDALONE
 -------------------------------------
@@ -47,28 +41,17 @@ requirements-nvidia.txt
   → À utiliser si requirements.txt est déjà installé
   → Commande : pip install -r requirements/requirements-nvidia.txt
 
-requirements-audio.txt
-  → Uniquement l'audio avancé (librosa, soundfile, webrtcvad + TTS cloud premium)
-  → ⚠️  NON nécessaire pour le TTS et STT de base — ceux-ci sont inclus dans requirements.txt
-       (edge-tts, pyttsx3, Whisper local, pyaudio sont déjà présents)
-  → Utile uniquement pour : analyse spectrale, formats audio étendus (FLAC/OGG),
-       détection d'activité vocale (VAD), et TTS cloud premium (Google Cloud, Azure)
-  → À utiliser si requirements.txt est déjà installé
-  → Commande : pip install -r requirements/requirements-audio.txt
-
 
 TABLEAU RÉCAPITULATIF
 -------------------------------------
 
-                           racine   minimal  standard  full-nvidia  full-nvidia-audio
-  NiceGUI, APIs IA           ✅        ✅        ✅         ✅              ✅
-  FAISS, SQLite, mémoire     ✅        ✅        ✅         ✅              ✅
-  Whisper local (torch CPU)  ✅        ❌        ✅         ✅              ✅
-  TTS de base                ✅        ✅        ✅         ✅              ✅
-  OpenCV, perception         ✅        ❌        ✅         ✅              ✅
-  GPU CUDA (torch+llama)     ❌        ❌        ❌         ✅              ✅
-  Audio avancé (VAD, librosa, etc.)   ❌        ❌        ❌         ❌              ✅
-  → NON requis pour TTS/STT de base (inclus dans racine)
+                           racine   minimal  full-nvidia
+  NiceGUI, APIs IA           ✅        ✅        ✅
+  FAISS, SQLite, mémoire     ✅        ✅        ✅
+  Whisper local (torch CPU)  ✅        ❌        ✅
+  TTS de base                ✅        ✅        ✅
+  OpenCV, perception         ✅        ❌        ✅
+  GPU CUDA (torch+llama)     ❌        ❌        ✅
 
 
 NOTES
