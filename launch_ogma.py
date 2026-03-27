@@ -84,6 +84,14 @@ def create_directories():
     for directory in directories:
         directory.mkdir(parents=True, exist_ok=True)
     
+    # Auto-copie settings.example.json -> settings.json au 1er démarrage
+    settings_path = Path("data/settings.json")
+    settings_example = Path("data/settings.example.json")
+    if not settings_path.exists() and settings_example.exists():
+        import shutil
+        shutil.copy2(settings_example, settings_path)
+        print("✅ settings.json créé depuis settings.example.json (configurez vos clés API)")
+    
     print("✅ Structure de dossiers créée")
 
 def check_backend_files():
