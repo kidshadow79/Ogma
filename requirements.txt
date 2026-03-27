@@ -3,8 +3,9 @@
 # ==============================================================================
 # Installation complète : pip install -r requirements.txt
 #
-# Pour GPU NVIDIA (CUDA) : voir config/requirements-nvidia.txt
-# Pour les tests         : voir tests/requirements-testing.txt
+# Pour GPU NVIDIA (CUDA) : voir requirements/requirements-nvidia.txt
+# Installation complète GPU : voir requirements/requirements-full-nvidia.txt
+# Minimal sans audio      : voir requirements/requirements-minimal.txt
 # ==============================================================================
 
 
