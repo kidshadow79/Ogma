@@ -39,6 +39,7 @@ pywin32>=306                      # Interface Windows SAPI (voix système)
 comtypes>=1.1.14                  # COM objects pour Windows
 gtts>=2.5.0                       # Google Text-to-Speech
 edge-tts>=7.2.0                   # Microsoft Edge TTS
+python-telegram-bot>=20.0         # Connecteur Telegram (extension optionnelle)
 google-cloud-texttospeech>=2.29.0 # Google Cloud TTS (premium)
 azure-cognitiveservices-speech>=1.45.0  # Azure AI Speech Services
 
