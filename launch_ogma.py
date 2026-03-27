@@ -91,6 +91,14 @@ def create_directories():
         import shutil
         shutil.copy2(settings_example, settings_path)
         print("✅ settings.json créé depuis settings.example.json (configurez vos clés API)")
+
+    # Auto-copie persistent_context.default.txt -> persistent_context.txt au 1er démarrage
+    context_path = Path("data/persistent_context.txt")
+    context_default = Path("data/persistent_context.default.txt")
+    if not context_path.exists() and context_default.exists():
+        import shutil
+        shutil.copy2(context_default, context_path)
+        print("✅ persistent_context.txt créé depuis le fichier par défaut")
     
     print("✅ Structure de dossiers créée")
 

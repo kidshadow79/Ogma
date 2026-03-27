@@ -13,6 +13,7 @@ data/ego_prompt_synthesized.json
 data/journal_reves.md
 data/journal_reves.json
 data/persistent_context.txt
+!data/persistent_context.default.txt
 data/biographies/
 data/generated_images/
 data/backups/
