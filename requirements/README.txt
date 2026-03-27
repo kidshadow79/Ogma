@@ -56,14 +56,14 @@ requirements-audio.txt
 TABLEAU RÉCAPITULATIF
 -------------------------------------
 
-                          minimal  standard  full-nvidia  full-nvidia-audio
-  NiceGUI, APIs IA          ✅        ✅         ✅              ✅
-  FAISS, SQLite, mémoire    ✅        ✅         ✅              ✅
-  Whisper local (torch CPU) ❌        ✅         ✅              ✅
-  TTS de base               ✅        ✅         ✅              ✅
-  OpenCV, perception        ❌        ✅         ✅              ✅
-  GPU CUDA (torch+llama)    ❌        ❌         ✅              ✅
-  Audio avancé (VAD, etc.)  ❌        ❌         ❌              ✅
+                           racine   minimal  standard  full-nvidia  full-nvidia-audio
+  NiceGUI, APIs IA           ✅        ✅        ✅         ✅              ✅
+  FAISS, SQLite, mémoire     ✅        ✅        ✅         ✅              ✅
+  Whisper local (torch CPU)  ✅        ❌        ✅         ✅              ✅
+  TTS de base                ✅        ✅        ✅         ✅              ✅
+  OpenCV, perception         ✅        ❌        ✅         ✅              ✅
+  GPU CUDA (torch+llama)     ❌        ❌        ❌         ✅              ✅
+  Audio avancé (VAD, etc.)   ❌        ❌        ❌         ❌              ✅
 
 
 NOTES
