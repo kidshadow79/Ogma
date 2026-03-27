@@ -5,7 +5,7 @@
 # Usage: pip install -r requirements/requirements-minimal.txt
 
 # Interface principale
-nicegui>=2.0.0
+nicegui>=2.0.0,<3.0.0
 
 # IA et APIs
 openai>=1.0.0
