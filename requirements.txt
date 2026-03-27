@@ -7,6 +7,8 @@
 # Pour les tests         : voir tests/requirements-testing.txt
 # ==============================================================================
 
+# Index supplémentaire pour llama-cpp-python (wheel pré-compilée, évite la compilation C++ sur Windows)
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 
 # ==============================
 # INTERFACE UTILISATEUR
