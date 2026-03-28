@@ -638,6 +638,10 @@ Ce sont tes directives comportementales EGO. Elles definissent qui tu es.
     def _format_conversation_context(self, context: Dict[str, Any]) -> str:
         """Formate contexte conversationnel pour prompts"""
         try:
+            # Garde défensive : context doit être un dict
+            if not isinstance(context, dict):
+                return str(context)[:500] if context else ""
+
             # Extraire informations contextuelles enrichies
             user_identity = context.get("user_identity", "Utilisateur")
             main_ai_identity = context.get("main_ai_identity", "IA Principale")
@@ -653,6 +657,10 @@ Ce sont tes directives comportementales EGO. Elles definissent qui tu es.
             if messages:
                 formatted.append("\nHISTORIQUE RÉCENT:")
                 for msg in messages:
+                    # Garde défensive : msg peut ne pas être un dict
+                    if not isinstance(msg, dict):
+                        formatted.append(f"MESSAGE: {str(msg)[:200]}")
+                        continue
                     role = msg.get("role", "unknown")
                     content = msg.get("content", "")
                     # Moins de troncature (500 chars au lieu de 200)

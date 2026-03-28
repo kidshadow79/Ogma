@@ -5448,8 +5448,8 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                             'chat_history': extended_history,
                             'user_identity': identities.get('user_identity', identities.get('user_name', 'Utilisateur')),
                             'ego_prompt': current_ego_prompt,
-                            'ai_identity': identities.get('main_ai_identity', identities.get('ai_description', '')),
-                            'ia_name': identities.get('ai_name', 'IA principale'),
+                            'main_ai_identity': identities.get('main_ai_identity', identities.get('ai_description', '')),
+                            'relationship_context': identities.get('relationship_context', ''),
                             'trigger_type': 'ia_self_triggered'
                         }
                         
