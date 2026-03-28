@@ -320,7 +320,7 @@ class IntrospectionParametersUI:
             with ui.column().classes('gap-2'):
                 ui.label('Échanges max').style('color: #e5e7eb;')
                 self.ui_controls['max_exchanges'] = ui.number(
-                    value=self.config.get("max_dialogue_exchanges", 4),
+                    value=self.config.get("max_dialogue_exchanges", 6),
                     min=2,
                     max=10,
                     on_change=lambda e: self._on_setting_changed("max_dialogue_exchanges", e.value)

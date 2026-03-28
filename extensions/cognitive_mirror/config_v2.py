@@ -241,13 +241,13 @@ Si cette réflexion a produit un insight que tu dois retenir, ajoute en fin de r
         
         # Tokens par étape (configurables)
         "step1_max_tokens": 400,
-        "step2_conscious_max_tokens": 300,
-        "step2_unconscious_max_tokens": 300,
-        "step3_max_tokens": 500,
+        "step2_conscious_max_tokens": 200,
+        "step2_unconscious_max_tokens": 200,
+        "step3_max_tokens": 700,
         
         # Dialogue - échanges Conscient↔Archiviste
         "min_dialogue_exchanges": 2,  # Minimum allers-retours OBLIGATOIRES
-        "max_dialogue_exchanges": 4,  # Nombre max d'allers-retours
+        "max_dialogue_exchanges": 6,  # Nombre max d'allers-retours
         "max_introspection_duration": 120,  # Timeout global en secondes
         "api_timeout": 60,  # Timeout par appel API (1min)
         
@@ -500,11 +500,11 @@ Si cette réflexion a produit un insight que tu dois retenir, ajoute en fin de r
         """Retourne paramètres introspection (compatibilité orchestrateur v2.0)"""
         return {
             # Tokens par rôle (mapping vers clés v2.1)
-            "main_ai_tokens_per_message": self.get("step2_conscious_max_tokens", 300),
-            "archiviste_tokens_per_message": self.get("step2_unconscious_max_tokens", 300),
-            "synthesis_max_tokens": self.get("step3_max_tokens", 500),
+            "main_ai_tokens_per_message": self.get("step2_conscious_max_tokens", 200),
+            "archiviste_tokens_per_message": self.get("step2_unconscious_max_tokens", 200),
+            "synthesis_max_tokens": self.get("step3_max_tokens", 700),
             # Dialogue
-            "max_exchanges": self.get("max_dialogue_exchanges", 4),
+            "max_exchanges": self.get("max_dialogue_exchanges", 6),
             "min_exchanges": self.get("min_dialogue_exchanges", 2),
             "max_duration": self.get("max_introspection_duration", 120),
             # Affichage
