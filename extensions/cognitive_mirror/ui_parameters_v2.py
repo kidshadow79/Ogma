@@ -308,7 +308,7 @@ class IntrospectionParametersUI:
             with ui.column().classes('gap-2'):
                 ui.label('Échanges min').style('color: #e5e7eb;')
                 self.ui_controls['min_exchanges'] = ui.number(
-                    value=self.config.get("min_dialogue_exchanges", 4),
+                    value=self.config.get("min_dialogue_exchanges", 2),
                     min=1,
                     max=8,
                     on_change=lambda e: self._on_setting_changed("min_dialogue_exchanges", e.value)
@@ -321,7 +321,7 @@ class IntrospectionParametersUI:
                 ui.label('Échanges max').style('color: #e5e7eb;')
                 self.ui_controls['max_exchanges'] = ui.number(
                     value=self.config.get("max_dialogue_exchanges", 4),
-                    min=1,
+                    min=2,
                     max=10,
                     on_change=lambda e: self._on_setting_changed("max_dialogue_exchanges", e.value)
                 ).props('outlined dark dense').style('width: 100px;').tooltip(
@@ -332,7 +332,7 @@ class IntrospectionParametersUI:
             with ui.column().classes('gap-2'):
                 ui.label('Timeout (sec)').style('color: #e5e7eb;')
                 self.ui_controls['timeout'] = ui.number(
-                    value=self.config.get("max_introspection_duration", 180),
+                    value=self.config.get("max_introspection_duration", 120),
                     min=30,
                     max=600,
                     step=30,

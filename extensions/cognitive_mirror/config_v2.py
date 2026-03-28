@@ -240,15 +240,15 @@ Si cette réflexion a produit un insight que tu dois retenir, ajoute en fin de r
         "introspection_mode": "on_demand",  # "always" ou "on_demand"
         
         # Tokens par étape (configurables)
-        "step1_max_tokens": 600,
-        "step2_conscious_max_tokens": 800,
-        "step2_unconscious_max_tokens": 900,
-        "step3_max_tokens": 3500,  # Augmenté : synthèse longue après dialogue multi-échanges
+        "step1_max_tokens": 400,
+        "step2_conscious_max_tokens": 300,
+        "step2_unconscious_max_tokens": 300,
+        "step3_max_tokens": 500,
         
         # Dialogue - échanges Conscient↔Archiviste
-        "min_dialogue_exchanges": 4,  # Minimum allers-retours OBLIGATOIRES
-        "max_dialogue_exchanges": 8,  # Nombre max d'allers-retours
-        "max_introspection_duration": 300,  # Timeout global en secondes (5min pour 8 échanges)
+        "min_dialogue_exchanges": 2,  # Minimum allers-retours OBLIGATOIRES
+        "max_dialogue_exchanges": 4,  # Nombre max d'allers-retours
+        "max_introspection_duration": 120,  # Timeout global en secondes
         "api_timeout": 60,  # Timeout par appel API (1min)
         
         # Mémoire
@@ -500,13 +500,13 @@ Si cette réflexion a produit un insight que tu dois retenir, ajoute en fin de r
         """Retourne paramètres introspection (compatibilité orchestrateur v2.0)"""
         return {
             # Tokens par rôle (mapping vers clés v2.1)
-            "main_ai_tokens_per_message": self.get("step2_conscious_max_tokens", 800),
-            "archiviste_tokens_per_message": self.get("step2_unconscious_max_tokens", 900),
-            "synthesis_max_tokens": self.get("step3_max_tokens", 3500),
+            "main_ai_tokens_per_message": self.get("step2_conscious_max_tokens", 300),
+            "archiviste_tokens_per_message": self.get("step2_unconscious_max_tokens", 300),
+            "synthesis_max_tokens": self.get("step3_max_tokens", 500),
             # Dialogue
-            "max_exchanges": self.get("max_dialogue_exchanges", 8),
-            "min_exchanges": self.get("min_dialogue_exchanges", 4),
-            "max_duration": self.get("max_introspection_duration", 300),
+            "max_exchanges": self.get("max_dialogue_exchanges", 4),
+            "min_exchanges": self.get("min_dialogue_exchanges", 2),
+            "max_duration": self.get("max_introspection_duration", 120),
             # Affichage
             "show_dialogue": self.get("show_dialogue_details", True),
             "streaming": self.get("typing_animation", True),
