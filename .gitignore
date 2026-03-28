@@ -5,6 +5,7 @@
 # ========================================
 data/conversations/
 data/memory/
+!data/memory/memories.seed.db
 data/uploads/
 data/ego_prompt.txt
 data/ego_prompt_synthesized.json

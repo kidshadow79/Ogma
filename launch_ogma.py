@@ -98,7 +98,16 @@ def create_directories():
         import shutil
         shutil.copy2(context_default, context_path)
         print("✅ persistent_context.txt créé depuis le fichier par défaut")
-    
+
+    # Auto-copie memories.seed.db -> memories.db au 1er démarrage (seeds fondateurs)
+    memories_path = Path("data/memory/memories.db")
+    memories_seed = Path("data/memory/memories.seed.db")
+    if not memories_path.exists() and memories_seed.exists():
+        import shutil
+        memories_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(memories_seed, memories_path)
+        print("✅ memories.db créé depuis memories.seed.db (15 mémoires fondatrices)")
+
     print("✅ Structure de dossiers créée")
 
 def check_backend_files():
