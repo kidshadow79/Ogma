@@ -45,7 +45,7 @@ No formal collaboration needed. A remark, a critique, or a simple exchange is en
 
 - 💬 GitHub Issues: [github.com/kidshadow79/Ogma/issues](https://github.com/kidshadow79/Ogma/issues)
 - 📧 Email: ogma.contact@etik.com — security vulnerability reports, private requests
-- ☕ Ko-fi: [ko-fi.com/ogma_corp](https://ko-fi.com/ogma_corp) — support the project
+- ☕ Ko-fi: [ko-fi.com/ogma_corp](https://ko-fi.com/R6R71WW6HI) — support the project
 
 ---
 
