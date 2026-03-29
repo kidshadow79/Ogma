@@ -1412,10 +1412,16 @@ input::placeholder,
     overflow: hidden !important;
 }
 
+.settings-glassmorphism .btn-fermer-hub {
+    width: auto !important;
+    overflow: visible !important;
+    min-width: 80px !important;
+}
+
 .settings-glassmorphism .btn-fermer-hub .q-btn__wrapper {
     padding: 8px 28px !important;
-    min-width: 80px !important;
     min-height: 36px !important;
+    overflow: visible !important;
 }
 
 .settings-glassmorphism .btn-fermer-hub .q-btn__content {
