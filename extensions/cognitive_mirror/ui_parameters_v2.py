@@ -275,8 +275,8 @@ class IntrospectionParametersUI:
                     ui.label(description).style('color: #9ca3af; font-size: 13px;')
                 
                 with ui.row().classes('items-center gap-2'):
-                    # Tokens configurables
-                    ui.label('Tokens:').style('color: #9ca3af; font-size: 13px;')
+                    # Mots configurables
+                    ui.label('Mots:').style('color: #9ca3af; font-size: 13px;')
                     token_input = ui.number(
                         value=default_tokens,
                         min=100,
@@ -284,7 +284,7 @@ class IntrospectionParametersUI:
                         step=100,
                         on_change=lambda e, k=step_key: self._on_tokens_changed(k, e.value)
                     ).props('dense outlined dark').style('width: 80px;').tooltip(
-                        'Longueur cible de la réponse en tokens. '
+                        'Longueur cible de la réponse en mots. '
                         'L\'IA reçoit une instruction pour calibrer sa verbosité naturellement et conclure dans cette limite. '
                         'La limite API réelle est 2× cette valeur pour le dialogue, 5× pour la synthèse (filet anti-troncature).'
                     )
