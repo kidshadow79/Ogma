@@ -21,6 +21,12 @@ data/backups/
 data/ego_compiled.json
 extensions/journal_de_bord/data/
 
+# Fichiers générés au runtime par les extensions (recréés automatiquement au démarrage)
+data/organic_planner_settings.json
+data/agenda.db
+data/archiviste_tokens_debug.jsonl
+data/capability_advisor_prompt.txt
+
 # Profils sauvegardés (données personnelles)
 profils_sauvegardes/*/data/
 
