@@ -11,7 +11,8 @@ OGMA est un assistant conversationnel personnel doté d'une **mémoire hybride p
 ![Licence](https://img.shields.io/badge/Licence-AGPL--3.0-22c55e)
 ![Version](https://img.shields.io/badge/Version-2.2-f97316)
 ![UI](https://img.shields.io/badge/UI-NiceGUI-0ea5e9)
-![Statut](https://img.shields.io/badge/Statut-Expérimental-8b5cf6)
+![Statut](https://img.shields.io/badge/Statut-Exp%C3%A9rimental-8b5cf6)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R6R71WW6HI)
 
 ---
 
@@ -308,7 +309,7 @@ OGMA suit une méthodologie collaborative stricte :
 
 - **Issues GitHub** : [github.com/kidshadow79/Ogma/issues](https://github.com/kidshadow79/Ogma/issues) — bugs, suggestions, questions
 - **Email** : [ogma.contact@etik.com](mailto:ogma.contact@etik.com) — signalement de failles de sécurité, demandes privées
-- **Ko-fi** : [ko-fi.com/ogma_corp](https://ko-fi.com/ogma_corp) — soutenir le projet
+- **Ko-fi** : [ko-fi.com/ogma_corp](https://ko-fi.com/R6R71WW6HI) — soutenir le projet
 
 ---
 
