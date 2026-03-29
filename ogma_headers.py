@@ -456,12 +456,12 @@ def _header():
                 
                 # Paramètres techniques
                 step1_tokens = config.get("step1_max_tokens", 400)
-                step2_conscious_tokens = config.get("step2_conscious_max_tokens", 500)
-                step2_unconscious_tokens = config.get("step2_unconscious_max_tokens", 600)
-                step3_tokens = config.get("step3_max_tokens", 800)
-                min_exchanges = config.get("min_dialogue_exchanges", 4)
+                step2_conscious_tokens = config.get("step2_conscious_max_tokens", 200)
+                step2_unconscious_tokens = config.get("step2_unconscious_max_tokens", 200)
+                step3_tokens = config.get("step3_max_tokens", 700)
+                min_exchanges = config.get("min_dialogue_exchanges", 2)
                 max_exchanges = config.get("max_dialogue_exchanges", 6)
-                max_duration = config.get("max_introspection_duration", 300)
+                max_duration = config.get("max_introspection_duration", 120)
                 memory_threshold = config.get("memory_search_threshold", 0.5)
                 memory_results = config.get("memory_max_results", 5)
                 auto_save = config.get("auto_save_enabled", False)
