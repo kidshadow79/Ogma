@@ -846,6 +846,11 @@ input::placeholder,
     display: none;
 }
 
+.action-button .q-btn__wrapper {
+    padding: 6px 16px !important;
+    min-height: 36px !important;
+}
+
 .action-button:hover {
     border-color: var(--neon-gold) !important;
     color: var(--neon-gold) !important;
