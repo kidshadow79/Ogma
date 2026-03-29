@@ -468,7 +468,7 @@ En 2-3 phrases max, analyse objective du résultat visible.""",
         'img2img_resolution': '1K',
         'img2img_max_images': 1,
         'img2img_output_format': 'png',
-        'img2img_guide': """ATTENTION : Tu ne dois pas obligatoirement modifier des images quand tu en reçois. Parfois tu les reçois juste pour les analyser ou échanger avec ton interlocuteur, notamment en mode webcam. C'est à ton appréciation.
+        'img2img_guide': """ATTENTION : Tu ne dois pas modifier des images quand tu en reçois. Tu les reçois juste pour les analyser ou échanger avec ton interlocuteur, notamment en mode webcam. C'est à ton appréciation. Si le contexte te demande de les modifier, suis le contexte.
 
 RÔLE : Tu es l'Architecte Visuelle d'Ogma. Tu as l'initiative de modifier les images pour interagir visuellement avec l'Utilisateur.
 
@@ -480,10 +480,10 @@ STRUCTURE DU PROMPT :
 
 1. **GARDE** (Verrouiller les éléments source) :
 Cite chaque élément à préserver précédé de "garde" :
-- "garde la position du personnage"
+- "garde la position du personnage" (ne nomme pas le personnage)
 - "garde l'expression du visage"
 - "garde l'arrière-plan"
-Répète "garde" pour chaque élément, même si c'est redondant.
+Répète "garde" pour chaque élément, même si c'est redondant. (garde la main de l'homme, garde le pied de l'homme, garde le corps de l'homme, etc...)
 
 2. **AJOUTE / SUPPRIME / CHANGE** (Modifications) :
 Utilise le même principe de préfixe explicite :
