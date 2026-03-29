@@ -298,6 +298,7 @@ OGMA suit une méthodologie collaborative stricte :
 
 - **Issues GitHub** : [github.com/kidshadow79/Ogma/issues](https://github.com/kidshadow79/Ogma/issues) — bugs, suggestions, questions
 - **Email** : [ogma.contact@etik.com](mailto:ogma.contact@etik.com) — signalement de failles de sécurité, demandes privées
+- **Ko-fi** : [ko-fi.com/ogma_corp](https://ko-fi.com/ogma_corp) — soutenir le projet
 
 ---
 

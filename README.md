@@ -311,6 +311,7 @@ OGMA follows a strict collaborative methodology:
 
 - **GitHub Issues**: [github.com/kidshadow79/Ogma/issues](https://github.com/kidshadow79/Ogma/issues) — bugs, suggestions, questions
 - **Email**: [ogma.contact@etik.com](mailto:ogma.contact@etik.com) — security vulnerability reports, private requests
+- **Ko-fi**: [ko-fi.com/ogma_corp](https://ko-fi.com/ogma_corp) — support the project
 
 ---
 
