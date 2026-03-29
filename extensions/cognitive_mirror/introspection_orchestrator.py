@@ -330,7 +330,7 @@ class IntrospectionOrchestrator:
             prompt = instruction.format_map(vars_map)
 
             settings = self.config.get_introspection_settings()
-            max_tokens = settings["main_ai_tokens_per_message"]
+            max_tokens = settings["synthesis_max_tokens"]
 
             # Synthèse = étape la plus lourde : filet ×5 pour ne jamais tronquer
             response = await self._call_main_ai(prompt, max_tokens, multiplier=5.0)
