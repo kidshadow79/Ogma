@@ -637,6 +637,28 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                 # Sinon utiliser le template par défaut
                 return instruction['template']
 
+        def _load_default_content():
+            """Charge le contenu par défaut depuis instructions_defaults.json ou le template embarqué."""
+            try:
+                if instruction['source'] == 'file':
+                    default_path = instruction['file_path'].parent / (instruction['file_path'].stem + '.default' + instruction['file_path'].suffix)
+                    if default_path.exists():
+                        return default_path.read_text(encoding='utf-8')
+                    return ""
+                elif instruction['source'] == 'settings':
+                    import json as _json
+                    defaults_path = DATA_DIR / "instructions_defaults.json"
+                    if defaults_path.exists():
+                        with open(defaults_path, 'r', encoding='utf-8') as f:
+                            defaults_data = _json.load(f)
+                        return defaults_data.get('prompts_defaults', {}).get(instruction['settings_key'], '')
+                    return ""
+                else:  # template
+                    return instruction.get('template', '')
+            except Exception as e:
+                _notify_safe(f"Erreur chargement défaut: {e}", 'warning')
+                return ""
+
         def _save_content(content):
             if instruction['source'] == 'file':
                 try:
@@ -705,6 +727,14 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                     textarea.value = _load_content()
                     _notify_safe(f"MAJ {instruction['title']} rechargé", 'info')
 
+                def _restore_default():
+                    default_content = _load_default_content()
+                    if default_content:
+                        textarea.value = default_content
+                        _notify_safe(f"Valeur par défaut chargée — cliquez Sauvegarder pour appliquer", 'warning')
+                    else:
+                        _notify_safe("Aucune valeur par défaut disponible", 'warning')
+
                 def _save():
                     success = _save_content(textarea.value or "")
                     if success:
@@ -733,6 +763,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                     except Exception as e:
                         _notify_safe(f'❌ Erreur application: {e}', 'negative')
 
+                ui.button('Défaut', icon='restore', on_click=_restore_default).classes('action-button').tooltip('Charger la valeur par défaut (ne sauvegarde pas automatiquement)')
                 ui.button('Recharger', icon='refresh', on_click=_reload).classes('action-button')
                 
                 # Bouton Appliquer pour Temporal Guardian
