@@ -13,9 +13,9 @@ ARCHITECTURE 3 ÉTAPES (au lieu de 5):
 2. DIALOGUE CONSCIENT ↔ INCONSCIENT (visible, streaming)
 3. SYNTHÈSE + RÉPONSE (visible)
 
-CONTRÔLE TOKENS:
-- Instructions courtes avec limite tokens explicite
-- Configurable par étape
+CONTRÔLE LONGUEUR:
+- Instructions courtes avec limite en mots explicite
+- Configurable par étape (valeur = nombre de mots cible)
 """
 
 from typing import Dict, Any, List
