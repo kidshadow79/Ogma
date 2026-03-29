@@ -286,7 +286,7 @@ class IntrospectionParametersUI:
                     ).props('dense outlined dark').style('width: 80px;').tooltip(
                         'Longueur cible de la réponse en tokens. '
                         'L\'IA reçoit une instruction pour calibrer sa verbosité naturellement et conclure dans cette limite. '
-                        'La limite API réelle est 2× cette valeur pour le dialogue, 5× pour la synthèse (filet anti-troncature).')
+                        'La limite API réelle est 2× cette valeur pour le dialogue, 5× pour la synthèse (filet anti-troncature).'
                     )
                     self.ui_controls[f'{step_key}_tokens'] = token_input
                     
