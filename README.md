@@ -1,224 +1,224 @@
-﻿# OGMA — Assistant IA à Mémoire Persistante
+﻿# OGMA — AI Assistant with Persistent Memory
 
-> **Inspiré d'Ogmios**, dieu gaulois de l'éloquence, de la connaissance et de la communication.  
-> Conçu par **Yohan BROCARD** — Autodidacte passionné, depuis mai 2025.
+> 🇫🇷 [Version française (README.fr.md)](README.fr.md)
 
-OGMA est un assistant conversationnel personnel doté d'une **mémoire hybride persistante**, d'une **double architecture IA** et d'une **perception temporelle** unique. Ce n'est pas un simple chatbot : c'est une entité qui se souvient de vous, grandit avec vous, et rêve quand vous dormez.
+> **Inspired by Ogmios**, the Gaulish god of eloquence, knowledge and communication.  
+> Built by **Yohan BROCARD** — Self-taught, since May 2025.
+
+OGMA is a personal conversational AI assistant with **persistent hybrid memory**, a **dual AI architecture**, and a unique **temporal perception**. This is not a simple chatbot: it's an entity that remembers you, grows with you, and dreams while you sleep.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
-![Licence](https://img.shields.io/badge/Licence-AGPL--3.0-22c55e)
+![License](https://img.shields.io/badge/License-AGPL--3.0-22c55e)
 ![Version](https://img.shields.io/badge/Version-2.2-f97316)
 ![UI](https://img.shields.io/badge/UI-NiceGUI-0ea5e9)
-![Statut](https://img.shields.io/badge/Statut-Expérimental-8b5cf6)
+![Status](https://img.shields.io/badge/Status-Experimental-8b5cf6)
+
+![OGMA Interface](docs/screenshots/Interface.png)
 
 ---
 
-## 🔬 Vision & Approche Expérimentale
+## 🔬 Vision & Experimental Approach
 
-> Je ne suis pas chercheur, ni scientifique. Je suis curieux, autodidacte, et j'ai construit OGMA parce que j'avais des questions que personne ne semblait poser de la même façon. Ce qui suit n'est pas un article académique — c'est une intuition traduite en code.
-
----
-
-Les assistants IA actuels sont déjà impressionnants. Mais ils ont un point commun : à chaque conversation, ils repartent de zéro. Ils ne se souviennent pas de vous, ne s'adaptent pas à vous dans la durée, et appliquent les mêmes règles éthiques à tout le monde, dans toutes les situations.
-
-Je pense que **le vrai sujet de demain**, celui qui définira ce que sera un assistant-compagnon réellement utile, est ailleurs :
-
-**Comment une IA peut-elle développer une persistance comportementale — c'est-à-dire apprendre qui vous êtes, comment vous fonctionnez, ce qui vous importe — et s'y adapter de façon autonome, sans perdre ses repères éthiques ?**
-
-Ce n'est pas la même chose que la personnalisation de surface (ton préféré, format de réponse). C'est quelque chose de plus profond : une entité qui vous connaît dans le temps, qui adapte son raisonnement à votre façon de penser, et qui sait quand vous dire non — non pas parce qu'une règle le lui impose de façon rigide, mais parce qu'elle a intégré des valeurs universelles qu'elle applique avec discernement selon le contexte et la personne.
-
-OGMA est une tentative d'explorer architecturalement ces conditions :
-
-- Une **persistance comportementale réelle** — mémoire hybride sémantique, souvenirs structurés rappelés selon le contexte, non un simple historique
-- Une **adaptation à l'interlocuteur** — personnalité modulable, ego par flags booléens, profil utilisateur enrichi dans le temps
-- Une **autonomie raisonnée** — capacité à décider de s'exprimer, de poser une question, d'initier une introspection, sans que l'utilisateur le demande
-- Une **éthique intégrée, non imposée** — des valeurs universelles ancrées dans la mémoire "seed", appliquées avec souplesse, pas avec rigidité
-- Une **stabilité identitaire** — une personnalité cohérente à travers les sessions, les modèles et les backends
-
-OGMA ne prétend pas avoir résolu ces questions. Il les pose — avec du code fonctionnel, des comportements observables, et une architecture reproductible par n'importe qui.
-
-### 🤖 Une perspective plus large : le compagnon de demain
-
-Les robots compagnons arrivent. Leurs corps progressent vite — leur couche cognitive, beaucoup moins. Un robot qui ne se souvient pas de vous, qui repart de zéro à chaque interaction, qui applique les mêmes règles éthiques rigides à tout le monde : ce n'est pas un compagnon, c'est un appareil.
-
-OGMA n'est pas un projet robotique. Mais les questions qu'il explore — *comment une IA mémorise, s'adapte et raisonne éthiquement avec une personne précise dans la durée* — sont exactement celles que devra résoudre la couche cognitive de ces systèmes. C'est la partie la plus difficile, et la moins travaillée.
-
-C'est aussi pour ça que cette exploration m'intéresse au-delà de l'assistant conversationnel.
+> I'm not a researcher or a scientist. I'm curious, self-taught, and I built OGMA because I had questions that nobody seemed to be asking in quite the same way. What follows isn't an academic paper — it's an intuition translated into code.
 
 ---
 
-## ✨ Philosophie
+Today's AI assistants are already impressive. But they share one fundamental limitation: every conversation starts from scratch. They don't remember you, don't adapt to you over time, and apply the same ethical rules to everyone, in every situation.
 
-OGMA repose sur quatre piliers fondamentaux :
+I believe **the real challenge of tomorrow** — the one that will define what a truly useful AI companion looks like — lies elsewhere:
 
-| Pilier | Description |
+**How can an AI develop behavioral persistence — meaning: learn who you are, how you think, what matters to you — and adapt to you autonomously, without losing its ethical grounding?**
+
+This is fundamentally different from surface-level personalization (preferred tone, response format). It's something deeper: an entity that knows you over time, adapts its reasoning to your way of thinking, and knows when to say no — not because a rigid rule forces it to, but because it has internalized universal values it applies with discernment depending on context and person.
+
+OGMA is an attempt to architecturally explore these conditions:
+
+- **Real behavioral persistence** — hybrid semantic memory, structured recollections recalled by context, not a simple history log
+- **Adaptation to the individual** — modular personality, boolean ego flags, user profile enriched over time
+- **Reasoned autonomy** — ability to decide on its own to speak up, ask a question, or trigger introspection, without the user requesting it
+- **Embedded ethics, not imposed rules** — universal values anchored in seed memory, applied flexibly, not rigidly
+- **Identity stability** — a consistent personality across sessions, models, and backends
+
+OGMA doesn't claim to have solved these questions. It poses them — with working code, observable behaviors, and an architecture anyone can reproduce.
+
+### 🤖 A Broader Perspective: The Companion of Tomorrow
+
+Companion robots are coming. Their bodies are advancing fast — their cognitive layer, much less so. A robot that doesn't remember you, that starts over at each interaction, that applies the same rigid ethical rules to everyone: that's not a companion, it's an appliance.
+
+OGMA is not a robotics project. But the questions it explores — *how an AI memorizes, adapts and reasons ethically with a specific person over time* — are exactly the questions that the cognitive layer of these systems will need to solve. It's the hardest part, and the least worked on.
+
+That's also why this exploration interests me beyond the conversational assistant.
+
+---
+
+## ✨ Philosophy
+
+OGMA is built on four core pillars:
+
+| Pillar | Description |
 |--------|-------------|
-| 🔍 **Transparence Totale** | Aucune action cachée. Les erreurs s'affichent clairement, jamais masquées. |
-| 🎭 **Authenticité** | Une vraie réponse imparfaite vaut mieux qu'une fausse réponse parfaite. Pas de fallback silencieux. |
-| 🧠 **Intelligence à Cohérence Identitaire & Comportementale Persistante** | L'IA est traitée comme une entité en développement, pas un simple outil. Identité stable, mémoire réelle. |
-| 🌱 **Croissance Organique** | Le système évolue avec l'usage. Apprentissage des patterns sans programmation explicite. |
+| 🔍 **Total Transparency** | No hidden actions. Errors are displayed clearly, never masked. |
+| 🎭 **Authenticity** | A genuine imperfect answer beats a fabricated perfect one. No silent fallbacks. |
+| 🧠 **Persistent Identity & Behavioral Coherence** | The AI is treated as a developing entity, not a tool. Stable identity, real memory. |
+| 🌱 **Organic Growth** | The system evolves with use. Pattern learning without explicit programming. |
 
 ---
 
-## 🌱 Genèse
+## 🌱 Origin Story
 
-En **mai 2025**, Yohan BROCARD — employé de cinéma, sans aucune notion de programmation — découvre les LLMs et décide de construire, avec eux, l'assistant qu'il aurait voulu avoir.
+In **May 2025**, Yohan BROCARD — a cinema professional with zero programming background — discovered LLMs and decided to build, with their help, the assistant he had always wanted.
 
-L'apprentissage du code s'est fait entièrement par la pratique : aucun livre, aucune formation, uniquement le dialogue avec une IA codeuse, l'expérimentation et l'observation de ce qui fonctionnait.
+The entire coding journey happened through practice: no books, no courses — just dialogue with a coding AI, experimentation, and observation of what worked.
 
-De **Octopus** (juin 2025, premier prototype) à **OGMA** (juillet 2025), l'architecture a évolué progressivement : Gradio cédant la place à NiceGUI, un système mémoire hybride prenant forme, des extensions s'ajoutant au fil des besoins. `ogma_ng.py` dépasse aujourd'hui 7000 lignes — monolithique par pragmatisme, assumé et contrôlé : chaque partie est connue, testée et maintenue par une IA codeuse dédiée.
+From **Octopus** (June 2025, first prototype) to **OGMA** (July 2025), the architecture evolved progressively: Gradio giving way to NiceGUI, a hybrid memory system taking shape, extensions added as needs emerged.
 
-OGMA est avant tout un terrain d'expérimentation personnel. Le code a des défauts — il est monolithique, il porte les traces d'un apprentissage en cours. Ce qui compte, ce sont les idées explorées et ce qu'elles produisent comme comportements observables.
+OGMA is above all a personal experimentation ground. The code has its flaws — it bears the marks of a learning journey in progress. What matters are the ideas being explored and the observable behaviors they produce.
 
-Seul et sans réseau de développeurs, je cherche des retours, des échanges, des regards extérieurs. Si tu travailles sur des sujets proches — mémoire, identité, éthique dans les systèmes IA — ton avis m'intéresse sincèrement. OGMA m'a permis de fouler des territoires que je n'aurais jamais imaginé atteindre. Je serais heureux d'en explorer de nouveaux avec d'autres.
+Alone and without a developer network, I'm looking for feedback, exchanges, and outside perspectives. If you work on related topics — memory, identity, ethics in AI systems — your input genuinely interests me. OGMA has allowed me to explore territories I never imagined reaching. I'd be happy to explore new ones with others.
 
 ---
 
-## 🎯 Capacités Fondamentales
+## 🎯 Core Capabilities
 
-### 🧠 Double Architecture IA (Dual-Brain)
-OGMA possède deux cerveaux distincts qui collaborent en permanence :
+### 🧠 Dual-Brain AI Architecture
+OGMA has two distinct AI brains collaborating continuously:
 
-- **IA Principale** *(temp. 0.7)* — Cerveau conversationnel. Personnalité stable, empathie, dialogue naturel et personnalisé.
-- **L'Archiviste** *(temp. 0.3)* — Cerveau analytique. Enrichit la mémoire, compile l'ego, analyse les rêves, reste froid et précis.
+- **Main AI** *(temp. 0.7)* — Conversational brain. Stable personality, empathy, natural and personalized dialogue.
+- **The Archivist** *(temp. 0.3)* — Analytical brain. Enriches memory, compiles the ego, analyzes dreams, stays cold and precise.
 
-### 💾 Mémoire Hybride Persistante
-Non pas un contexte étendu, mais une mémoire réelle et structurée :
+### 💾 Persistent Hybrid Memory
+Not an extended context window, but real and structured memory:
 
-- Base **SQLite** — stockage typé des souvenirs avec métadonnées
-- Index **FAISS** — recherche par similarité sémantique (vectorielle)
-- Recherche **FTS5** — rappel hybride vectoriel + lexical
-- Enrichissement automatique par l'Archiviste après chaque échange
-- Backups automatiques avec rotation (10 fichiers)
+- **SQLite** — typed memory storage with metadata
+- **FAISS** — semantic (vector) similarity search
+- **FTS5** — hybrid vector + lexical recall
+- Automatic enrichment by the Archivist after each exchange
+- Automatic backups with rotation (10 files)
 
-### 🎭 Système Ego — Personnalité par Flags Booléens
-La personnalité de l'IA est stockée comme des **groupes thématiques de flags booléens avec score de conviction** (0–5). À chaque message, seuls les groupes pertinents au contexte sont injectés dans le prompt.
+### 🎭 Ego System — Personality via Boolean Flags
+The AI's personality is stored as **thematic groups of boolean flags with conviction scores** (0–5). At each message, only the groups relevant to the current context are injected into the prompt.
 
-- Chaque flag est `true` (valorisé) ou `false` (rejeté), avec une intensité variable
-- La compilation se fait en fond à chaque fermeture via le Dream Engine
-- Résultat : une identité cohérente, contextuellement précise, qui évolue avec l'usage
+- Each flag is `true` (valued) or `false` (rejected), with variable intensity
+- Compilation runs in the background at each shutdown via the Dream Engine
+- Result: a coherent identity, contextually precise, that evolves with use
 
-### 🌙 Dream Engine — Consolidation Identitaire
-Pendant l'inactivité, l'IA "rêve" — ce n'est pas un gadget narratif, c'est un **processus de maintenance identitaire** :
+### 🌙 Dream Engine — Identity Consolidation
+During inactivity, the AI "dreams" — this is not a narrative gimmick, it's an **identity maintenance process**:
 
-1. Extraction des souvenirs récents comme "carburant mémoriel"
-2. Génération d'un récit onirique par l'IA Principale (à vitesse réduite — métabolisme cognitif)
-3. Analyse par l'Archiviste en mode psychanalyste (score 1–10, émotion, insight)
-4. **Compilation incrémentale des flags ego** — la personnalité se consolide en fond
-5. Si score > 8 : le contexte du rêve est injecté dans la conversation suivante, l'IA en parle naturellement
+1. Extraction of recent memories as "dream fuel"
+2. Generation of a dream narrative by the Main AI (at reduced speed — cognitive metabolism)
+3. Analysis by the Archivist as a psychoanalyst (score 1–10, emotion, ego insight)
+4. **Incremental ego flag compilation** — personality consolidates in the background
+5. If score > 8: the dream context is injected into the next conversation; the AI mentions it naturally
+
+![Dream Engine — the AI narrates and illustrates its own dream](docs/screenshots/Capture_r%C3%A8ve.png)
 
 ### 🪞 Cognitive Mirror — Introspection
-Un dialogue IA Principale ↔ Archiviste sur leur propre fonctionnement. Produit un regard traçable et mesurable sur l'état interne du système — pas une simulation, un vrai échange entre deux instances avec températures et rôles différents.
+A Main AI ↔ Archivist dialogue about their own functioning. Produces a traceable and measurable view of the system's internal state — not a simulation, a real exchange between two instances with different temperatures and roles.
 
-### ⏱️ Temporal Guardian — Perception Temporelle Active
-Mesure les délais entre messages, détecte les rythmes conversationnels (longue absence, burst de messages), enrichit le prompt Archiviste avec un contexte temporel précis. L'IA sait quand tu reviens, combien de temps s'est écoulé, et adapte son registre en conséquence.
+![Cognitive Mirror — real-time introspection dialogue](docs/screenshots/capture_introspection.png)
 
-### 🎯 Capability Advisor — Autonomie Situationnelle
-Analyse chaque message pour détecter si une capacité OGMA pourrait améliorer la réponse (recherche web, biographie, génération d'image...). Si détecté, l'IA reçoit discrètement les instructions pour l'activer — sans que l'utilisateur ait besoin de le demander explicitement.
+### ⏱️ Temporal Guardian — Active Temporal Perception
+Measures delays between messages, detects conversational rhythms (long absence, message bursts), enriches the Archivist prompt with precise temporal context. The AI knows when you return, how much time has passed, and adjusts its register accordingly.
 
-### 📔 Journal de Bord
-Journal quotidien enrichi automatiquement. Son contenu est injecté dans le contexte de la première conversation de la journée — l'IA sait ce qui s'est passé la veille et peut en parler naturellement.
+### 🎯 Capability Advisor — Situational Autonomy
+Analyzes each message to detect whether an OGMA capability could improve the response (web search, biography, image generation...). If detected, the AI quietly receives instructions to activate it — without the user needing to ask explicitly.
 
-### 🗓️ Organic Planner — Agenda Cognitif
-Les événements planifiés sont traités comme des **souvenirs du futur** : l'IA les garde en tête naturellement, les mentionne quand ils approchent, et adapte son ton au ressenti noté pour chaque événement. Pas une liste de tâches — une présence diffuse de l'agenda dans sa conscience conversationnelle.
+### 📔 Daily Journal
+Automatically enriched daily journal. Its content is injected into the context of the first conversation of the day — the AI knows what happened yesterday and can talk about it naturally.
 
-### 🔀 Gestion Multi-Backends IA
-Interface unifiée vers tous les grands providers — chaque contrôleur (IA Principale, Archiviste, Embedding) est configurable indépendamment :
+### 🗓️ Organic Planner — Cognitive Agenda
+Planned events are treated as **memories of the future**: the AI keeps them in mind naturally, mentions them as they approach, and adapts its tone to the emotional note recorded for each event. Not a task list — a diffuse presence of the agenda in its conversational awareness.
+
+### 🔀 Multi-Backend AI Management
+Unified interface to all major providers — each controller (Main AI, Archivist, Embedding) is independently configurable:
 
 | Type | Providers |
 |------|-----------|
 | ☁️ **Cloud API** | OpenAI, Anthropic (Claude), Mistral, Google Gemini, GROK, AIHorde |
 | 🖥️ **Local** | Ollama, GGUF (llama-cpp-python), KoboldCpp |
 
+![Settings panel — multi-backend configuration](docs/screenshots/Capture_parametres.png)
+
 ---
 
-## 🔌 Autres Extensions
+## 🔌 Other Extensions
 
 | Extension | Description |
 |-----------|-------------|
-| 🎤 **Audio STT/TTS** | Reconnaissance vocale (Whisper, Azure) + synthèse (ElevenLabs, Edge-TTS, pyttsx3) |
-| 🌐 **Web Navigator** | Recherche web intelligente + injection de contenu dans le contexte |
-| 📁 **File Processor** | Upload et analyse de documents (PDF, Word, images) |
-| 🖼️ **Text2Img** | Génération d'illustrations via IA |
-| 📬 **Telegram Connector** | Interface OGMA via Telegram |
-| 🌊 **Flux Cognitif** | Visualisation du flux de pensée de l'IA |
-| 🧬 **Biographie Profil** | Profil évolutif de l'utilisateur |
-| 🔁 **Contextual Recall** | Rappel contextuel intelligent des souvenirs |
+| 🎤 **Audio STT/TTS** | Voice recognition (Whisper, Azure) + synthesis (ElevenLabs, Edge-TTS, pyttsx3) |
+| 🌐 **Web Navigator** | Intelligent web search + content injection into context |
+| 📁 **File Processor** | Upload and analysis of documents (PDF, Word, images) |
+| 🖼️ **Text2Img** | AI illustration generation |
+| 📬 **Telegram Connector** | OGMA interface via Telegram |
+| 🌊 **Cognitive Flux** | Visualization of the AI's thought stream |
+| 🧬 **Profile Biography** | Evolving user profile |
+| 🔁 **Contextual Recall** | Intelligent contextual memory retrieval |
 
 ---
 
 ## 🚀 Installation
 
-### Prérequis
+### Requirements
 - **Python 3.10+**
-- `pip` à jour
-- (Optionnel) GPU NVIDIA avec CUDA pour accélération
+- Up-to-date `pip`
+- (Optional) NVIDIA GPU with CUDA for acceleration
 
-### Fichiers de dépendances
+### Dependency Files
 
-| Fichier | Usage |
+| File | Use |
 |---|---|
-| `requirements.txt` | Installation standard (recommandé pour commencer) |
-| `requirements/requirements-minimal.txt` | Dépendances minimales uniquement |
-| `requirements/requirements-nvidia.txt` | Surcouche GPU NVIDIA/CUDA (à installer en plus) |
+| `requirements.txt` | Standard install (recommended to start) |
+| `config/requirements-minimal.txt` | Minimal dependencies only |
+| `config/requirements-nvidia.txt` | NVIDIA/CUDA GPU layer (install on top) |
 
-### Option A — Avec environnement virtuel (recommandé)
+### Option A — With virtual environment (recommended)
 
-Isole les dépendances d'OGMA du reste de votre système Python. Idéal pour éviter les conflits de versions.
+Isolates OGMA dependencies from the rest of your Python system.
 
 ```bash
-# 1. Cloner le dépôt
+# 1. Clone the repository
 git clone https://github.com/kidshadow79/Ogma.git
 cd Ogma
 
-# 2. Créer et activer un environnement virtuel
+# 2. Create and activate virtual environment
 python -m venv venv
 venv\Scripts\activate
 
-# 3. Mettre pip à jour
+# 3. Upgrade pip
 python -m pip install --upgrade pip
 
-# 4. Installer les dépendances
+# 4. Install dependencies
 pip install -r requirements.txt
 
-# Pour GPU NVIDIA (CUDA) — en complément
-# pip install -r requirements/requirements-nvidia.txt
+# For NVIDIA GPU (CUDA) — additional step
+# pip install -r config/requirements-nvidia.txt
 ```
 
-> **Note** : À chaque nouvelle session, pensez à réactiver le venv (`venv\Scripts\activate`) avant de lancer OGMA.
+> **Note**: At each new session, remember to reactivate the venv (`venv\Scripts\activate`) before launching OGMA.
 
-### Option B — Sans environnement virtuel
-
-Installation directe dans le Python système. Plus simple, mais peut créer des conflits si d'autres projets utilisent les mêmes paquets.
+### Option B — Without virtual environment
 
 ```bash
-# 1. Cloner le dépôt
 git clone https://github.com/kidshadow79/Ogma.git
 cd Ogma
-
-# 2. Mettre pip à jour
 python -m pip install --upgrade pip
-
-# 3. Installer les dépendances
 pip install -r requirements.txt
-
-# Pour GPU NVIDIA (CUDA) — en complément
-# pip install -r requirements/requirements-nvidia.txt
 ```
 
 ---
 
-## ▶️ Démarrage
+## ▶️ Launch
 
 ```bash
-# Recommandé — avec vérifications automatiques
+# Recommended — with automatic checks
 python launch_ogma.py
 
-# Développement rapide — minimal
+# Quick dev start — minimal
 python start_ogma.py
 ```
 
-OGMA démarre automatiquement sur `http://localhost:8080` (retry sur les ports 8080–8090).
+OGMA starts automatically at `http://localhost:8080` (retry on ports 8080–8090).
 
 ---
 
@@ -226,121 +226,104 @@ OGMA démarre automatiquement sur `http://localhost:8080` (retry sur les ports 8
 
 ```
 Ogma/
-├── ogma_ng.py                  # Interface NiceGUI + orchestration principale
-├── core_logic.py               # Contrôleurs IA (multi-providers & backends)
-├── memory_manager.py           # Mémoire hybride SQLite + FAISS
-├── audio_manager.py            # Pipeline STT/TTS
-├── conversation_summarizer.py  # Résumés et archivage
-├── logic_callbacks.py          # Injection métacognitive
-├── launch_ogma.py              # Point d'entrée production
-├── start_ogma.py               # Point d'entrée développement
+├── ogma_ng.py                  # NiceGUI interface + main orchestration
+├── core_logic.py               # AI controllers (multi-providers & backends)
+├── memory_manager.py           # Hybrid memory SQLite + FAISS
+├── audio_manager.py            # STT/TTS pipeline
+├── launch_ogma.py              # Production entry point
+├── start_ogma.py               # Development entry point
 │
-├── extensions/                 # Extensions modulaires
-│   ├── dream_engine/           # Métabolisme cognitif onirique
-│   ├── cognitive_mirror/       # Introspection IA
-│   ├── journal_de_bord/        # Journal quotidien
-│   ├── web_navigator/          # Navigation web intelligente
-│   ├── temporal_guardian/      # Perception temporelle
-│   └── ...                     # Autres extensions
+├── extensions/                 # Modular extensions
+│   ├── dream_engine/           # Oneiric cognitive metabolism
+│   ├── cognitive_mirror/       # AI introspection
+│   ├── journal_de_bord/        # Daily journal
+│   ├── web_navigator/          # Intelligent web navigation
+│   ├── temporal_guardian/      # Temporal perception
+│   └── ...
 │
-├── data/                       # Données persistantes (gitignored)
-│   ├── settings.json           # Configuration providers/backends
-│   ├── conversations/          # Historique JSON
-│   └── memory/                 # SQLite DB + index FAISS + backups
+├── data/                       # Persistent data (gitignored)
+│   ├── settings.json           # Provider/backend configuration
+│   ├── conversations/          # JSON history
+│   └── memory/                 # SQLite DB + FAISS index + backups
 │
-├── requirements/               # Fichiers de dépendances (minimal, nvidia, audio...)
+├── config/                     # Dependency files and install scripts
 ├── docs/                       # Documentation, audits, guides
-├── tests/                      # Tests, debug, validation
-├── scripts/                    # Utilitaires et outils d'analyse
-├── static/                     # Assets UI (CSS, images)
-└── models/                     # Modèles locaux GGUF (gitignored)
+├── static/                     # UI assets (CSS, images)
+└── models/                     # Local GGUF models (gitignored)
 ```
 
 ---
 
-## 📋 Ce qui s'observe
+## 📋 Observable Behaviors
 
-Sans sur-promettre, voici ce que OGMA produit de manière reproductible :
+Without over-promising, here is what OGMA reproducibly produces:
 
-| Comportement | Description |
+| Behavior | Description |
 |---|---|
-| **Cohérence identitaire** | L'IA maintient une personnalité stable à travers les sessions, indépendamment du backend LLM utilisé |
-| **Rappel mémoriel sémantique** | Les souvenirs sont rappelés par similarité contextuelle, pas par mot-clé exact |
-| **Introspection fonctionnelle** | Le Miroir Cognitif produit un dialogue IA↔Archiviste mesurable et traçable |
-| **Perception temporelle adaptative** | Le comportement varie selon l'heure, le jour, la saison, les rythmes détectés |
-| **Consolidation mémorielle onirique** | Le Dream Engine génère des récits de consolidation pendant l'inactivité, notés et analysés automatiquement |
+| **Identity coherence** | The AI maintains a stable personality across sessions, regardless of the LLM backend used |
+| **Semantic memory recall** | Memories are recalled by contextual similarity, not exact keyword matching |
+| **Functional introspection** | The Cognitive Mirror produces a measurable, traceable AI↔Archivist dialogue |
+| **Adaptive temporal perception** | Behavior varies by time of day, day of week, season, and detected rhythms |
+| **Oneiric memory consolidation** | The Dream Engine generates consolidation narratives during inactivity, automatically scored and analyzed |
 
-Ces comportements ne sont pas simulés par des prompts fixes — ils émergent de l'architecture mémorielle et de la dualité des cerveaux IA.
+These behaviors are not simulated by fixed prompts — they emerge from the memory architecture and the duality of the AI brains.
 
 ---
 
-## 🛠️ Développement
+## 🛠️ Development
 
-### Tests et Diagnostics
+### Adding an Extension
 
-```bash
-# Vérifier le système mémoire
-python tests/integration/test_memory_system.py
-
-# Diagnostiquer la configuration
-python debug_config.py
-
-# Vérifier les extensions
-python check_cognitive_mirror_integration.py
-```
-
-### Ajouter une Extension
-
-Toutes les extensions suivent un pattern standardisé :
+All extensions follow a standardized pattern:
 
 ```python
-# extensions/mon_extension/__init__.py
+# extensions/my_extension/__init__.py
 
-def initialize_mon_extension(chat_controller, archiviste_controller, memory_manager) -> bool:
-    """Initialise avec les dépendances OGMA"""
+def initialize_my_extension(chat_controller, archiviste_controller, memory_manager) -> bool:
+    """Initialize with OGMA dependencies"""
 
 def is_available() -> bool:
-    """Vérifie la disponibilité"""
+    """Check availability"""
 
 def get_ui_components() -> dict:
-    """Retourne les composants UI pour le header"""
+    """Return UI components for the header"""
 
 def cleanup():
-    """Nettoyage propre"""
+    """Clean shutdown"""
 ```
 
 ---
 
-## 🤝 Philosophie de Contribution
+## 🤝 Contribution Philosophy
 
-OGMA suit une méthodologie collaborative stricte :
+OGMA follows a strict collaborative methodology:
 
-> **"Je conçois, l'IA code — Aucun code sans feu vert."**
+> **"I design, the AI codes — No code without a green light."**
 
-- 🎯 **Moi** — vision, concepts, validation, feux verts
-- ⚡ **L'IA codeuse** — analyse, proposition, implémentation après validation
-- 🚫 Jamais de fallback silencieux, jamais d'implémentation par anticipation
-- 🧩 Architecture modulaire — éviter les fichiers monolithiques
+- 🎯 **Me** — vision, concepts, validation, green lights
+- ⚡ **The coding AI** — analysis, proposals, implementation after validation
+- 🚫 No silent fallbacks, no anticipatory implementation
+- 🧩 Modular architecture — avoid monolithic files
 
 ---
 
 ## 📬 Contact
 
-- **Issues GitHub** : [github.com/kidshadow79/Ogma/issues](https://github.com/kidshadow79/Ogma/issues) — bugs, suggestions, questions
-- **Email** : [ogma.contact@etik.com](mailto:ogma.contact@etik.com) — signalement de failles de sécurité, demandes privées
+- **GitHub Issues**: [github.com/kidshadow79/Ogma/issues](https://github.com/kidshadow79/Ogma/issues) — bugs, suggestions, questions
+- **Email**: [ogma.contact@etik.com](mailto:ogma.contact@etik.com) — security vulnerability reports, private requests
 
 ---
 
-## 📄 Licence
+## 📄 License
 
-Ce projet est distribué sous licence **GNU AGPL v3**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+This project is distributed under the **GNU AGPL v3** license. See the [LICENSE](LICENSE) file for details.
 
 ---
 
 <div align="center">
 
-**OGMA** — *L'IA qui se souvient, qui grandit, qui rêve.*
+**OGMA** — *The AI that remembers, grows, and dreams.*
 
-Créé avec passion par [Yohan BROCARD](https://github.com/kidshadow79) — Mai 2025
+Built with passion by [Yohan BROCARD](https://github.com/kidshadow79) — May 2025
 
 </div>
