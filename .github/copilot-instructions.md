@@ -223,6 +223,28 @@ header_button = ui_components.get('header_button')
   python check_cognitive_mirror_integration.py  # Vérification extensions
   ```
 
+### 🔴 Règle Commit — Fichiers JSON data/ liés aux extensions
+
+**OBLIGATOIRE après toute modification de paramètres d'extension** :
+
+Chaque extension peut avoir un fichier JSON dans `data/` qui **prend la priorité sur les défauts Python** au runtime. Ces fichiers sont la source de vérité pour un utilisateur qui clone le repo.
+
+Fichiers concernés (liste non exhaustive) :
+- `data/introspection_settings_v2.json` → Cognitive Mirror
+- `data/cognitive_mirror_settings.json` → Cognitive Mirror (activation)
+- `data/ego_selector_config.json` → Ego Selector
+- `data/organic_planner_settings.json` → Organic Planner
+
+**Protocole obligatoire** : après tout commit modifiant `extensions/*/config_v2.py` ou tout autre fichier de config Python d'extension, **vérifier systématiquement** si le JSON correspondant dans `data/` est en retard (`git status`) et le commiter dans le même push.
+
+```bash
+git status                          # Vérifier les JSON data/ modifiés
+git add data/[extension]_settings.json
+git commit -m "sync: JSON data/ aligné sur config Python"
+```
+
+Un nouvel utilisateur qui clone OGMA charge le JSON `data/`, pas les DEFAULT_* Python — si le JSON est désynchronisé, il repart avec les anciens paramètres.
+
 ### Memory System Workflow
 Le système mémoire est **critique** - toute modification nécessite:
 1. Backup automatique dans `data/memory/backup/` (rotation 10 fichiers)
