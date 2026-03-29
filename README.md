@@ -6,7 +6,7 @@
 OGMA est un assistant conversationnel personnel doté d'une **mémoire hybride persistante**, d'une **double architecture IA** et d'une **perception temporelle** unique. Ce n'est pas un simple chatbot : c'est une entité qui se souvient de vous, grandit avec vous, et rêve quand vous dormez.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
-![Licence](https://img.shields.io/badge/Licence-MIT-22c55e)
+![Licence](https://img.shields.io/badge/Licence-AGPL--3.0-22c55e)
 ![Version](https://img.shields.io/badge/Version-2.2-f97316)
 ![UI](https://img.shields.io/badge/UI-NiceGUI-0ea5e9)
 ![Statut](https://img.shields.io/badge/Statut-Expérimental-8b5cf6)
