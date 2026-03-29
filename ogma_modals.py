@@ -1385,7 +1385,13 @@ def _memory_modal():
                                 ui.label('Vous êtes sur le point de supprimer DÉFINITIVEMENT :').classes('mb-2')
                                 with ui.column().classes('gap-1 mb-3'):
                                     try:
-                                        total_memories = len(mm.get_all_memories_data() or [])
+                                        import json as _json
+                                        try:
+                                            with open('data/settings.json', 'r', encoding='utf-8') as _sf:
+                                                _show_seeds = _json.load(_sf).get('show_seed_memories', False)
+                                        except Exception:
+                                            _show_seeds = False
+                                        total_memories = len(mm.get_all_memories_data(include_seeds=_show_seeds) or [])
                                         ui.label(f'• {total_memories} souvenirs mémorisés').classes('text-bold')
                                     except:
                                         ui.label('• TOUS les souvenirs mémorisés').classes('text-bold')
@@ -1573,7 +1579,13 @@ def _memory_modal():
 
     def refresh_list():
             try:
-                data = mm.get_all_memories_data() or []
+                import json as _json
+                try:
+                    with open('data/settings.json', 'r', encoding='utf-8') as _sf:
+                        _show_seeds = _json.load(_sf).get('show_seed_memories', False)
+                except Exception:
+                    _show_seeds = False
+                data = mm.get_all_memories_data(include_seeds=_show_seeds) or []
             except Exception as e:
                 data = []
                 ui.notify(f'Erreur chargement liste: {e}', type='warning')

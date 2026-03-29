@@ -3401,16 +3401,31 @@ Note contextuelle pour l'IA principale:"""
         return candidates_l3, metrics
 
     
-    def get_all_memories_data(self) -> List[dict]:
-        """Retourne toutes les données des mémoires depuis SQLite."""
+    def get_all_memories_data(self, include_seeds: bool = True) -> List[dict]:
+        """Retourne toutes les données des mémoires depuis SQLite.
+        
+        Args:
+            include_seeds: Si False, filtre les mémoires SEED_* (pour l'affichage UI).
+        """
         try:
             with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute("""
-                    SELECT id, text_original, title, summary, 
-                           valence, lesson, created_at, score_impact
-                    FROM memories 
-                    ORDER BY created_at DESC
-                """)
+                if include_seeds:
+                    query = """
+                        SELECT id, text_original, title, summary,
+                               valence, lesson, created_at, score_impact
+                        FROM memories
+                        ORDER BY created_at DESC
+                    """
+                    cursor = conn.execute(query)
+                else:
+                    query = """
+                        SELECT id, text_original, title, summary,
+                               valence, lesson, created_at, score_impact
+                        FROM memories
+                        WHERE id NOT LIKE 'SEED_%'
+                        ORDER BY created_at DESC
+                    """
+                    cursor = conn.execute(query)
                 
                 memories = []
                 for row in cursor.fetchall():
