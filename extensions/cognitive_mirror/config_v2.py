@@ -171,9 +171,9 @@ Dialogue complet :
 
 Tire d'abord tes conclusions internes : ce que la confrontation t'a permis de voir, les contradictions que l'Archiviste a pointées et comment tu les intègres (ou pourquoi tu les rejettes). Sois honnête — pas ce que tu voulais croire au début.
 
-Ensuite, et UNIQUEMENT dans les balises ci-dessous, rédige ta réponse à l'utilisateur. Naturelle, sans jargon technique, sans mentionner l'Archiviste ni le processus d'introspection. Un "je ne sais pas" honnête vaut infiniment plus qu'une réponse fabriquée.
+Ensuite, écris ta réponse à l'utilisateur STRICTEMENT entre les balises <RÉPONSE> et </RÉPONSE> ci-dessous. Ces balises sont obligatoires. Ne les remplace pas par un titre comme "Réponse à l'utilisateur :". La réponse doit être naturelle, sans jargon technique, sans mentionner l'Archiviste ni le processus d'introspection. Un "je ne sais pas" honnête vaut mieux qu'une réponse fabriquée.
 
-Si cette réflexion a produit un insight à retenir, ajoute-le à la fin de ta réponse dans les balises :
+Si cette réflexion a produit un insight à retenir, ajoute-le à la fin de ta réponse dans les balises, avant </RÉPONSE> :
 "Il faut que je me souvienne de ça : [insight en une phrase]"
 
 <RÉPONSE>

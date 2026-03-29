@@ -726,17 +726,29 @@ Ce sont tes directives comportementales EGO. Elles definissent qui tu es.
                         print(f"[INTROSPECTION-ORCHESTRATOR] Réponse extraite via balise RÉPONSE: {response[:50]}...")
                         return response
 
-            # Priorité 2 : ancien format "Réponse construite" (rétrocompatibilité)
+            # Priorité 2 : format "Réponse à l'utilisateur :" (LLM ignore les balises)
             for pattern in [
-                r"• \*\*Réponse construite\*\* ?: (.+?)(?:\n• |\n\n|$)",
-                r"\*\*Réponse construite\*\* ?: (.+?)(?:\n\*\*|\n\n|$)",
-                r"Réponse construite ?: (.+?)(?:\n|$)"
+                r"R\u00e9ponse \u00e0 l.utilisateur\s*:?\s*\n(.+?)(?:\n\nIl faut que je|\n\n---|\.\s*$|$)",
+                r"R\u00e9ponse \u00e0 l.utilisateur\s*:?\s*(.+?)(?:\nIl faut que je|\n---|\.\s*$|$)",
+            ]:
+                match = re.search(pattern, synthesis_text, re.IGNORECASE | re.DOTALL)
+                if match:
+                    response = match.group(1).strip()
+                    if response and len(response) > 20:
+                        print(f"[INTROSPECTION-ORCHESTRATOR] R\u00e9ponse extraite via 'R\u00e9ponse \u00e0 l utilisateur': {response[:50]}...")
+                        return response
+
+            # Priorité 3 : ancien format "Réponse construite" (rétrocompatibilité)
+            for pattern in [
+                r"• \*\*R\u00e9ponse construite\*\* ?: (.+?)(?:\n• |\n\n|$)",
+                r"\*\*R\u00e9ponse construite\*\* ?: (.+?)(?:\n\*\*|\n\n|$)",
+                r"R\u00e9ponse construite ?: (.+?)(?:\n|$)"
             ]:
                 match = re.search(pattern, synthesis_text, re.IGNORECASE | re.DOTALL)
                 if match:
                     response = re.sub(r'^\W+', '', match.group(1).strip())
                     if response and len(response) > 20:
-                        print(f"[INTROSPECTION-ORCHESTRATOR] Réponse extraite via ancien format: {response[:50]}...")
+                        print(f"[INTROSPECTION-ORCHESTRATOR] R\u00e9ponse extraite via ancien format: {response[:50]}...")
                         return response
 
             # Fallback : texte complet sans bloc <INSIGHTS>
