@@ -1413,7 +1413,7 @@ input::placeholder,
 }
 
 .settings-glassmorphism .action-button .q-btn__content {
-    justify-content: flex-start !important;
+    justify-content: center !important;
     align-items: center !important;
     gap: 8px !important;
     width: 100% !important;
