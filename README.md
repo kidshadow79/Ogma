@@ -37,6 +37,14 @@ OGMA est une tentative d'explorer architecturalement ces conditions :
 
 OGMA ne prétend pas avoir résolu ces questions. Il les pose — avec du code fonctionnel, des comportements observables, et une architecture reproductible par n'importe qui.
 
+### 🤖 Une perspective plus large : le compagnon de demain
+
+Les robots compagnons arrivent. Leurs corps progressent vite — leur couche cognitive, beaucoup moins. Un robot qui ne se souvient pas de vous, qui repart de zéro à chaque interaction, qui applique les mêmes règles éthiques rigides à tout le monde : ce n'est pas un compagnon, c'est un appareil.
+
+OGMA n'est pas un projet robotique. Mais les questions qu'il explore — *comment une IA mémorise, s'adapte et raisonne éthiquement avec une personne précise dans la durée* — sont exactement celles que devra résoudre la couche cognitive de ces systèmes. C'est la partie la plus difficile, et la moins travaillée.
+
+C'est aussi pour ça que cette exploration m'intéresse au-delà de l'assistant conversationnel.
+
 ---
 
 ## ✨ Philosophie
