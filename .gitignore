@@ -82,6 +82,10 @@ logs/
 .github/copilot-instructions.md
 .github/instructions/
 
+# Scripts de patch temporaires
+_p*.py
+_patch*.py
+
 # ========================================
 # TESTS & DEBUG
 # ========================================
