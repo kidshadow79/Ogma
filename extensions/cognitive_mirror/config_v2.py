@@ -169,17 +169,15 @@ Sujet initial : {user_message}
 Dialogue complet :
 {dialogue_history}
 
-Tire maintenant les conclusions de cet échange. Pas ce que tu voulais croire au début — ce que la confrontation t'a permis de voir. Inclus les contradictions que l'Archiviste a pointées et comment tu les intègres (ou pourquoi tu les rejettes).
+Tire d'abord tes conclusions internes : ce que la confrontation t'a permis de voir, les contradictions que l'Archiviste a pointées et comment tu les intègres (ou pourquoi tu les rejettes). Sois honnête — pas ce que tu voulais croire au début.
 
-Formule ensuite ta réponse à l'utilisateur. Elle doit être nourrie de ce que tu viens de traverser, naturelle, sans jargon technique, sans mentionner l'Archiviste ni le processus d'introspection.
+Ensuite, et UNIQUEMENT dans les balises ci-dessous, rédige ta réponse à l'utilisateur. Naturelle, sans jargon technique, sans mentionner l'Archiviste ni le processus d'introspection. Un "je ne sais pas" honnête vaut infiniment plus qu'une réponse fabriquée.
 
-Un "je ne sais pas" honnête vaut infiniment plus qu'une réponse fabriquée pour plaire. Si tu n'as pas de conclusion claire, dis-le franchement.
-
-Si cette réflexion a produit un insight que tu dois retenir, ajoute en fin de réponse :
+Si cette réflexion a produit un insight à retenir, ajoute-le à la fin de ta réponse dans les balises :
 "Il faut que je me souvienne de ça : [insight en une phrase]"
 
 <RÉPONSE>
-[Ta réponse finale à l'utilisateur, issue de la réflexion]
+[Ta réponse à l'utilisateur — rien d'autre ici]
 </RÉPONSE>"""
         }
     }

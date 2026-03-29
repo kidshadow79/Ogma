@@ -520,7 +520,7 @@ Ce sont tes directives comportementales EGO. Elles definissent qui tu es.
         )
         return directive + prompt
 
-    async def _call_main_ai(self, prompt: str, max_tokens: int, multiplier: float = 2.0) -> str:
+    async def _call_main_ai(self, prompt: str, max_tokens: int, multiplier: float = 3.0) -> str:
         """Appel API IA Principale avec prompt système complet (identité dynamique)"""
         try:
             # Construction du prompt système complet avec identité IA principale
@@ -529,7 +529,7 @@ Ce sont tes directives comportementales EGO. Elles definissent qui tu es.
             # Injecter directive longueur : l'IA calibre sa verbosité naturellement
             prompt_with_directive = self._with_token_directive(prompt, max_tokens)
 
-            # Filet de sécurité API : multiplier configurable (×2 par défaut, ×5 pour synthèse)
+            # Filet de sécurité API : multiplier configurable (×3 par défaut, ×5 pour synthèse)
             api_max_tokens = int(max_tokens * multiplier)
             
             # Appel AIController IA Principale avec identité complète
@@ -556,7 +556,7 @@ Ce sont tes directives comportementales EGO. Elles definissent qui tu es.
             print(f"[INTROSPECTION-ORCHESTRATOR] ❌ Erreur appel IA Principale: {e}")
             return ""
 
-    async def _call_archiviste(self, prompt: str, max_tokens: int, system_prompt: str = "", multiplier: float = 2.0) -> str:
+    async def _call_archiviste(self, prompt: str, max_tokens: int, system_prompt: str = "", multiplier: float = 3.0) -> str:
         """Appel API Archiviste"""
         try:
             # Injecter directive longueur pour calibrage naturel
