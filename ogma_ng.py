@@ -2156,33 +2156,8 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
     # Variables pour contexte IA enrichi
     is_automatic_introspection = False
 
-    # 🧠 INTROSPECTION v2.0: Vérification mode automatique (ALWAYS)
-    try:
-        if COGNITIVE_MIRROR_AVAILABLE:
-            from extensions.cognitive_mirror import get_introspection, is_enabled
-            
-            if is_enabled():
-                introspection_core = get_introspection()
-                if introspection_core and hasattr(introspection_core, 'config'):
-                    # Vérifier si mode "always" activé
-                    mode = introspection_core.config.get('introspection_mode', 'on_demand')
-                    if mode == 'always':
-                        print("[INTROSPECTION] 🔄 Mode ALWAYS détecté - déclenchement automatique")
-                        
-                        # Déclencher introspection automatique pour ce message
-                        # (sera traité plus loin dans le flux)
-                        is_automatic_introspection = True
-                    else:
-                        is_automatic_introspection = False
-                else:
-                    is_automatic_introspection = False
-            else:
-                is_automatic_introspection = False
-        else:
-            is_automatic_introspection = False
-    except Exception as e:
-        print(f"[INTROSPECTION] ❌ Erreur vérification mode automatique: {e}")
-        is_automatic_introspection = False
+    # Mode automatique supprimé (always → autonomous via Capability Advisor)
+    is_automatic_introspection = False
 
     # 🎨 PHRASE MAGIQUE: Restructuration guide i2i
     _i2i_enrich_patterns = [
@@ -3455,11 +3430,27 @@ setTimeout(()=>{
     capability_suggestion = None
     
     # Priorité 1: Utiliser le résultat du Unified Meta-Analyzer (déjà calculé en parallèle)
+    # Vérifier le mode introspection pour bloquer le Capability Advisor en on_demand
+    _introspection_mode_for_advisor = 'on_demand'
+    try:
+        if COGNITIVE_MIRROR_AVAILABLE:
+            from extensions.cognitive_mirror import get_introspection_config as _get_icfg
+            _icfg = _get_icfg()
+            if _icfg:
+                _introspection_mode_for_advisor = _icfg.get_introspection_mode()
+    except Exception:
+        pass
+
     if unified_capability and isinstance(unified_capability, dict):
         try:
             from extensions.capability_advisor.advisor_core import CapabilitySuggestion
             from extensions.capability_advisor.capability_catalog import get_capability
             cap_id = unified_capability.get('capability_id', '')
+            # Bloquer introspection si mode on_demand
+            if cap_id == 'introspection' and _introspection_mode_for_advisor == 'on_demand':
+                print("[CAPABILITY-ADVISOR] Mode on_demand: suggestion introspection bloquée")
+                unified_capability = None
+                cap_id = ''
             cap_info = get_capability(cap_id)
             if cap_info:
                 confidence = unified_capability.get('confidence', 0.8)
@@ -3507,6 +3498,11 @@ setTimeout(()=>{
                     user_message=text,
                     conversation_history=_chat_history
                 )
+                # Bloquer introspection si mode on_demand
+                if capability_suggestion and capability_suggestion.capability_id == 'introspection' \
+                        and _introspection_mode_for_advisor == 'on_demand':
+                    print("[CAPABILITY-ADVISOR] Mode on_demand: suggestion introspection séquentielle bloquée")
+                    capability_suggestion = None
                 
                 if capability_suggestion:
                     print(f"[CAPABILITY-ADVISOR] Suggestion: {capability_suggestion.capability_id}")
@@ -5385,11 +5381,24 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
             is_ia_introspection_trigger = any(re.search(pattern, reply_text, re.IGNORECASE) for pattern in introspection_self_patterns)
             
             if is_ia_introspection_trigger and COGNITIVE_MIRROR_AVAILABLE:
-                print(f"[INTROSPECTION-IA] 🧠 L'IA déclenche elle-même une introspection!")
-                
+                # Bloquer l'auto-déclenchement IA en mode on_demand
+                _ia_introspection_mode = 'on_demand'
+                try:
+                    from extensions.cognitive_mirror import get_introspection_config as _get_icfg2
+                    _icfg2 = _get_icfg2()
+                    if _icfg2:
+                        _ia_introspection_mode = _icfg2.get_introspection_mode()
+                except Exception:
+                    pass
+
+                if _ia_introspection_mode == 'on_demand':
+                    print("[INTROSPECTION-IA] Mode on_demand: auto-déclenchement IA bloqué")
+                else:
+                    print(f"[INTROSPECTION-IA] 🧠 L'IA déclenche elle-même une introspection!")
+
                 from extensions.cognitive_mirror import is_enabled as cm_is_enabled
                 
-                if cm_is_enabled():
+                if cm_is_enabled() and _ia_introspection_mode != 'on_demand':
                     # Extraire le sujet de réflexion depuis la phrase magique exacte
                     subject_match = re.search(
                         r"il\s+faut\s+que\s+je\s+r[ée]fl[ée]chiss?e\s+sur\s*:?\s*(.+?)(?:\n|$)",

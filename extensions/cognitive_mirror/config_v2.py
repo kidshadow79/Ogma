@@ -237,7 +237,7 @@ Si cette réflexion a produit un insight que tu dois retenir, ajoute en fin de r
     DEFAULT_SETTINGS = {
         # Configuration générale
         "extension_enabled": False,
-        "introspection_mode": "on_demand",  # "always" ou "on_demand"
+        "introspection_mode": "on_demand",  # "on_demand" ou "autonomous"
         
         # Tokens par étape (configurables)
         "step1_max_tokens": 400,
@@ -394,7 +394,7 @@ Si cette réflexion a produit un insight que tu dois retenir, ajoute en fin de r
         return self.get("extension_enabled", False)
     
     def get_introspection_mode(self) -> str:
-        """Retourne mode ('always' ou 'on_demand')"""
+        """Retourne mode ('on_demand' ou 'autonomous')"""
         return self.get("introspection_mode", "on_demand")
     
     def get_magic_phrases(self, category: str) -> List[str]:

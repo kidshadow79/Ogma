@@ -157,20 +157,25 @@ class IntrospectionParametersUI:
         current_mode = self.config.get_introspection_mode()
         
         with ui.column().classes('gap-3').style('margin-bottom: 24px;'):
+            # Migration: ancienne valeur 'always' → 'autonomous'
+            if current_mode == 'always':
+                current_mode = 'autonomous'
+                self.config.set('introspection_mode', 'autonomous')
             self.ui_controls['mode'] = ui.radio(
                 options={
-                    'on_demand': '📝 À la demande (phrases magiques)',
-                    'always': '🔄 Systématique (chaque message)'
+                    'on_demand': '📝 À la demande (phrases magiques uniquement)',
+                    'autonomous': '🤖 Autonome (Capability Advisor décide)'
                 },
                 value=current_mode,
                 on_change=self._on_mode_changed
             ).props('inline').style('color: #e5e7eb;').tooltip(
-                'À la demande : se déclenche uniquement sur les phrases clés ("réfléchis", "introspection"...). '
-                'Systématique : chaque message de l\'utilisateur passe par le dialogue intérieur — plus lent mais plus profond.'
+                'À la demande : introspection uniquement si tu écris une phrase magique. '
+                'Le Capability Advisor est bloqué pour ce mode. '
+                'Autonome : le Capability Advisor décide seul quand une introspection est pertinente.'
             )
             
             ui.label(
-                'À la demande: Utilise les phrases comme "réfléchis", "introspection"...'
+                'À la demande : phrases magiques seulement — Autonome : Capability Advisor gère'
             ).style('color: #9ca3af; font-size: 13px; margin-left: 8px;')
         
         # Section Phrases Magiques (lecture seule pour référence)
