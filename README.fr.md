@@ -1,6 +1,6 @@
 # OGMA — Assistant IA à Mémoire Persistante
 
-> 🇬🇧 [English version (README.md)](README.md)
+> 🇺🇸 [English version (README.md)](README.md)
 
 > **Inspiré d'Ogmios**, dieu gaulois de l'éloquence, de la connaissance et de la communication.  
 > Conçu par **Yohan BROCARD** — Autodidacte passionné, depuis mai 2025.
