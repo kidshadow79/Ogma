@@ -1412,6 +1412,16 @@ input::placeholder,
     overflow: hidden !important;
 }
 
+.settings-glassmorphism .btn-fermer-hub .q-btn__wrapper {
+    padding: 8px 28px !important;
+    min-width: 80px !important;
+    min-height: 36px !important;
+}
+
+.settings-glassmorphism .btn-fermer-hub .q-btn__content {
+    justify-content: center !important;
+}
+
 .settings-glassmorphism .action-button .q-btn__content {
     justify-content: center !important;
     align-items: center !important;

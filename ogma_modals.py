@@ -1046,7 +1046,7 @@ def _settings_hub_modal():
                     ''')
 
             with ui.row().classes('justify-end gap-2 mt-4'):
-                ui.button('Fermer', on_click=lambda: overlay.classes(add='hidden')).classes('action-button').props('padding="8px 20px"').style('''
+                ui.button('Fermer', on_click=lambda: overlay.classes(add='hidden')).classes('action-button btn-fermer-hub').style('''
                     background: rgba(255, 140, 0, 0.12) !important;
                     border: 1px solid rgba(255, 140, 0, 0.3) !important;
                     backdrop-filter: blur(15px) !important;
