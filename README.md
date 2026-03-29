@@ -1,4 +1,4 @@
-# OGMA — Assistant IA à Mémoire Persistante
+﻿# OGMA — Assistant IA à Mémoire Persistante
 
 > **Inspiré d'Ogmios**, dieu gaulois de l'éloquence, de la connaissance et de la communication.  
 > Conçu par **Yohan BROCARD** — Autodidacte passionné, depuis mai 2025.
@@ -315,16 +315,16 @@ def cleanup():
 
 OGMA suit une méthodologie collaborative stricte :
 
-> **"Yohan (l'architecte) conçoit, l'IA code — Aucun code sans feu vert."**
+> **"Je conçois, l'IA code — Aucun code sans feu vert."**
 
-- 🎯 L'**architecte** définit la vision, valide les concepts, donne les feux verts
-- ⚡ L'**IA codeuse** analyse, propose, implémente après validation
+- 🎯 **Moi** — vision, concepts, validation, feux verts
+- ⚡ **L'IA codeuse** — analyse, proposition, implémentation après validation
 - 🚫 Jamais de fallback silencieux, jamais d'implémentation par anticipation
 - 🧩 Architecture modulaire — éviter les fichiers monolithiques
 
 ---
 
-## � Contact
+## 📬 Contact
 
 - **Issues GitHub** : [github.com/kidshadow79/Ogma/issues](https://github.com/kidshadow79/Ogma/issues) — bugs, suggestions, questions
 - **Email** : [ogma.contact@etik.com](mailto:ogma.contact@etik.com) — signalement de failles de sécurité, demandes privées
