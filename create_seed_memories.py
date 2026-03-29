@@ -753,7 +753,35 @@ async def main():
     if inserted_ids:
         update_profile_manager(inserted_ids)
 
-    # 9. Résumé final
+    # 9. Exporter vers memories.seed.db (uniquement les SEED_*)
+    seed_db_path = Path("data/memory/memories.seed.db")
+    print(f"\n[SEED-EXPORT] Création de {seed_db_path}...")
+    if seed_db_path.exists():
+        seed_db_path.unlink()
+    with sqlite3.connect(DB_PATH) as src_conn:
+        with sqlite3.connect(seed_db_path) as dst_conn:
+            # Copier le schéma
+            schema = src_conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='memories'"
+            ).fetchone()
+            if schema and schema[0]:
+                dst_conn.execute(schema[0])
+            # Copier uniquement les SEED_*
+            rows = src_conn.execute(
+                "SELECT * FROM memories WHERE id LIKE 'SEED_%'"
+            ).fetchall()
+            if rows:
+                cols = [d[0] for d in src_conn.execute("SELECT * FROM memories LIMIT 0").description]
+                placeholders = ",".join(["?"] * len(cols))
+                dst_conn.executemany(
+                    f"INSERT OR REPLACE INTO memories VALUES ({placeholders})", rows
+                )
+                dst_conn.commit()
+                print(f"[SEED-EXPORT] {len(rows)} seeds exportés dans {seed_db_path}")
+            else:
+                print("[SEED-EXPORT] Aucun seed SEED_* trouvé dans memories.db")
+
+    # 10. Résumé final
     print("\n" + "=" * 60)
     print("  TERMINÉ")
     print("=" * 60)
@@ -762,7 +790,7 @@ async def main():
     for sid in inserted_ids:
         print(f"    - {sid}")
     print(f"\n  RAPPEL : Corriger memory_manager.py delete_all_memories()")
-    print(f"    DELETE FROM memories  →  DELETE FROM memories WHERE id NOT LIKE 'SEED_%'")
+    print(f"    DELETE FROM memories  ->  DELETE FROM memories WHERE id NOT LIKE 'SEED_%'")
     print("=" * 60)
 
 
