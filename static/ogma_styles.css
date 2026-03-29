@@ -1407,7 +1407,7 @@ input::placeholder,
 }
 
 .settings-glassmorphism .action-button .q-btn__wrapper {
-    padding: 10px 16px !important;
+    padding: 10px 20px !important;
     min-height: 44px !important;
     overflow: hidden !important;
 }
