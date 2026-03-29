@@ -132,6 +132,16 @@ Interface unifiée vers tous les grands providers — chaque contrôleur (IA Pri
 | ☁️ **Cloud API** | OpenAI, Anthropic (Claude), Mistral, Google Gemini, GROK, AIHorde |
 | 🖥️ **Local** | Ollama, GGUF (llama-cpp-python), KoboldCpp |
 
+### 💡 Modèles recommandés
+
+OGMA est un **bac à sable pour expérimenter des concepts IA** — les résultats dépendent fortement du modèle choisi. Quelques observations issues de la pratique :
+
+- **Archiviste** — préfère des modèles rapides, peu coûteux et à contexte long. [Grok 4 / 4.1 (non-reasoning)](https://x.ai) sont particulièrement adaptés : hautes performances, coût très faible et fenêtre de contexte native 128k+ qui absorbe de longues sessions mémoire sans troncature.
+- **IA principale** — bénéficie de modèles à contexte long pour assimiler toutes les instructions injectées (mémoire, ego, contexte temporel). Surveiller les coûts : un modèle bavard sur un contexte court se dégrade rapidement.
+- **Bon point de départ** — [Mistral Small 4](https://mistral.ai) offre un bon équilibre qualité/coût pour expérimenter sans brûler les crédits API.
+
+> OGMA est avant tout un terrain d'exploration et de questionnement. Le "meilleur" modèle n'existe pas — tout dépend du comportement que l'on cherche à observer.
+
 ---
 
 ## 🔌 Autres Extensions

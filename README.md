@@ -140,6 +140,16 @@ Unified interface to all major providers — each controller (Main AI, Archivist
 
 ![Settings panel — multi-backend configuration](docs/screenshots/Capture_parametres.png)
 
+### 💡 Recommended Models
+
+OGMA is a **sandbox for experimenting with AI concepts** — results depend heavily on the model you choose. A few observations from practice:
+
+- **Archivist** — prefers fast, low-cost models with long context. [Grok 4 / 4.1 (non-reasoning)](https://x.ai) are particularly well-suited: high performance, very low cost, and a native 128k+ context window that handles long memory sessions without truncation.
+- **Main AI** — benefits from long-context models to absorb all injected instructions (memory, ego, temporal context). Watch costs: a chatty model on a short context degrades quickly.
+- **Good starting point** — [Mistral Small 4](https://mistral.ai) offers a solid balance of quality and cost for initial experimentation without burning through API credits.
+
+> OGMA is first and foremost a place to explore and question. The "best" model doesn't exist — it depends on what behavior you're trying to observe.
+
 ---
 
 ## 🔌 Other Extensions
