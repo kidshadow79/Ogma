@@ -77,6 +77,11 @@ logs/
 *.old
 *.tmp
 
+# Outils de développement internes
+.claude/
+.github/copilot-instructions.md
+.github/instructions/
+
 # ========================================
 # TESTS & DEBUG
 # ========================================
