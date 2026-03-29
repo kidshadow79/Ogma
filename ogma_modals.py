@@ -987,7 +987,7 @@ def _settings_hub_modal():
                         except Exception as e:
                             print(f"[DREAM-SETTINGS] ⚠️ Erreur ouverture: {e}")
 
-                    ui.button('🌙 Rêve IA', icon='bedtime', on_click=_open_dream_settings).classes('action-button').style('''
+                    ui.button('Rêve IA 🌙', icon='bedtime', on_click=_open_dream_settings).classes('action-button').style('''
                         background: rgba(138, 43, 226, 0.12) !important;
                         border: 1px solid rgba(138, 43, 226, 0.3) !important;
                         backdrop-filter: blur(15px) !important;
@@ -995,7 +995,7 @@ def _settings_hub_modal():
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('🌙 Rêve IA (indisponible)', icon='bedtime', on_click=lambda: None).classes('action-button').style('''
+                    ui.button('Rêve IA 🌙 (indisponible)', icon='bedtime', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
