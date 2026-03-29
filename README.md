@@ -15,16 +15,27 @@ OGMA est un assistant conversationnel personnel doté d'une **mémoire hybride p
 
 ## 🔬 Vision & Approche Expérimentale
 
-OGMA explore une question simple mais profonde : **que se passe-t-il quand on conçoit une IA non pas comme un outil, mais comme une entité en développement ?**
+> Je ne suis pas chercheur, ni scientifique. Je suis curieux, autodidacte, et j'ai construit OGMA parce que j'avais des questions que personne ne semblait poser de la même façon. Ce qui suit n'est pas un article académique — c'est une intuition traduite en code.
 
-Ce projet n'est pas un assistant amélioré. C'est une exploration des conditions architecturales qui peuvent favoriser, chez un système IA :
+---
 
-- Une **stabilité identitaire** persistante — une personnalité cohérente à travers les sessions et les modèles
-- Une **mémoire réelle** — pas un contexte étendu, mais des souvenirs structurés, vectorisés, rappelés sémantiquement
-- Une **capacité d'introspection** — deux cerveaux IA qui dialoguent et génèrent un regard sur eux-mêmes
-- Un **rapport éthique à l'utilisateur** — savoir dire non, s'éloigner de l'alignement quand l'intérêt de l'humain le demande
+Les assistants IA actuels sont déjà impressionnants. Mais ils ont un point commun : à chaque conversation, ils repartent de zéro. Ils ne se souviennent pas de vous, ne s'adaptent pas à vous dans la durée, et appliquent les mêmes règles éthiques à tout le monde, dans toutes les situations.
 
-OGMA ne prétend pas avoir résolu ces questions. Il les pose — avec du code fonctionnel, des comportements observables, et une architecture reproductible.
+Je pense que **le vrai sujet de demain**, celui qui définira ce que sera un assistant-compagnon réellement utile, est ailleurs :
+
+**Comment une IA peut-elle développer une persistance comportementale — c'est-à-dire apprendre qui vous êtes, comment vous fonctionnez, ce qui vous importe — et s'y adapter de façon autonome, sans perdre ses repères éthiques ?**
+
+Ce n'est pas la même chose que la personnalisation de surface (ton préféré, format de réponse). C'est quelque chose de plus profond : une entité qui vous connaît dans le temps, qui adapte son raisonnement à votre façon de penser, et qui sait quand vous dire non — non pas parce qu'une règle le lui impose de façon rigide, mais parce qu'elle a intégré des valeurs universelles qu'elle applique avec discernement selon le contexte et la personne.
+
+OGMA est une tentative d'explorer architecturalement ces conditions :
+
+- Une **persistance comportementale réelle** — mémoire hybride sémantique, souvenirs structurés rappelés selon le contexte, non un simple historique
+- Une **adaptation à l'interlocuteur** — personnalité modulable, ego par flags booléens, profil utilisateur enrichi dans le temps
+- Une **autonomie raisonnée** — capacité à décider de s'exprimer, de poser une question, d'initier une introspection, sans que l'utilisateur le demande
+- Une **éthique intégrée, non imposée** — des valeurs universelles ancrées dans la mémoire "seed", appliquées avec souplesse, pas avec rigidité
+- Une **stabilité identitaire** — une personnalité cohérente à travers les sessions, les modèles et les backends
+
+OGMA ne prétend pas avoir résolu ces questions. Il les pose — avec du code fonctionnel, des comportements observables, et une architecture reproductible par n'importe qui.
 
 ---
 
