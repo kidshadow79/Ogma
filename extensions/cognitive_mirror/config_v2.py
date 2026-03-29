@@ -42,7 +42,7 @@ class IntrospectionConfigV2:
         "step1_analysis": {
             "name": "Ouverture",
             "description": "L'IA Principale formule le sujet de réflexion et sa position initiale",
-            "default_tokens": 400,
+            "default_tokens": 250,
             "visible_to_user": True,
             "instruction": """Tu es en mode introspection. Tu t'adresses à l'Archiviste en privé, dans un espace de réflexion intérieure.
 
@@ -72,7 +72,7 @@ Ne cherche pas à "bien paraître" — cherche à être juste."""
         "step2_conscious": {
             "name": "IA Principale",
             "description": "L'IA Principale continue la réflexion, défend ou révise sa position",
-            "default_tokens": 200,
+            "default_tokens": 150,
             "visible_to_user": True,
             "instruction": """Tu es en introspection. Tu t'adresses à l'Archiviste.
 
@@ -106,7 +106,7 @@ Parle directement. Pas de format imposé. C'est une conversation entre égaux, p
         "step2_unconscious": {
             "name": "Archiviste",
             "description": "L'Archiviste guide l'IA Principale vers des conclusions concrètes sur le sujet",
-            "default_tokens": 200,
+            "default_tokens": 150,
             "visible_to_user": True,
             "instruction": """Tu es l'Archiviste. Tu es le garde-fou pragmatique et scientifique de cette réflexion.
 
@@ -160,25 +160,21 @@ Sois direct, factuel, bref. Un "ça ne tient pas, voilà pourquoi" vaut mieux qu
         "step3_synthesis": {
             "name": "Synthèse",
             "description": "L'IA Principale tire les conclusions de la joute et formule sa réponse",
-            "default_tokens": 700,
+            "default_tokens": 400,
             "visible_to_user": True,
-            "instruction": """La joute intellectuelle est terminée. Tu as réfléchi avec l'Archiviste. Il est temps de conclure.
+            "instruction": """La joute intellectuelle est terminée. Il est temps de répondre.
 
 Sujet initial : {user_message}
 
-Dialogue complet :
+Voici la joute complète :
 {dialogue_history}
 
-Tire d'abord tes conclusions internes : ce que la confrontation t'a permis de voir, les contradictions que l'Archiviste a pointées et comment tu les intègres (ou pourquoi tu les rejettes). Sois honnête — pas ce que tu voulais croire au début.
+Rédige maintenant ta réponse directement à l'utilisateur, nourrie de ce que la confrontation t'a permis de voir. Naturelle, sans jargon technique, sans mentionner l'Archiviste ni le processus d'introspection. Maximum 400 mots.
 
-Ensuite, écris ta réponse à l'utilisateur STRICTEMENT entre les balises <RÉPONSE> et </RÉPONSE> ci-dessous. Ces balises sont obligatoires. Ne les remplace pas par un titre comme "Réponse à l'utilisateur :". La réponse doit être naturelle, sans jargon technique, sans mentionner l'Archiviste ni le processus d'introspection. Un "je ne sais pas" honnête vaut mieux qu'une réponse fabriquée.
+Un "je ne sais pas" honnête vaut mieux qu'une réponse fabriquée.
 
-Si cette réflexion a produit un insight à retenir, ajoute-le à la fin de ta réponse dans les balises, avant </RÉPONSE> :
-"Il faut que je me souvienne de ça : [insight en une phrase]"
-
-<RÉPONSE>
-[Ta réponse à l'utilisateur — rien d'autre ici]
-</RÉPONSE>"""
+Si cette réflexion a produit un insight à retenir, ajoute en fin de réponse :
+"Il faut que je me souvienne de ça : [insight en une phrase]" """
         }
     }
     
@@ -239,10 +235,10 @@ Si cette réflexion a produit un insight à retenir, ajoute-le à la fin de ta r
         "introspection_mode": "on_demand",  # "on_demand" ou "autonomous"
         
         # Tokens par étape (configurables)
-        "step1_max_tokens": 400,
-        "step2_conscious_max_tokens": 200,
-        "step2_unconscious_max_tokens": 200,
-        "step3_max_tokens": 700,
+        "step1_max_tokens": 250,
+        "step2_conscious_max_tokens": 150,
+        "step2_unconscious_max_tokens": 150,
+        "step3_max_tokens": 400,
         
         # Dialogue - échanges Conscient↔Archiviste
         "min_dialogue_exchanges": 2,  # Minimum allers-retours OBLIGATOIRES

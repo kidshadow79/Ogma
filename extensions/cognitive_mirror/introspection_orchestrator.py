@@ -303,11 +303,10 @@ class IntrospectionOrchestrator:
             return ""
 
     async def _main_ai_generate_synthesis(self, user_message: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """ÉTAPE 4: IA Principale génère synthèse structurée + décision sauvegarde"""
+        """ÉTAPE 3: IA Principale génère la réponse directe à l'utilisateur (sans extraction, sans balises)"""
         try:
             dialogue_history = self._format_dialogue_history()
-            
-            # Utiliser template synthèse (step3_synthesis v2.1)
+
             instruction = self.config.get_instruction_text("step3_synthesis")
             ai_name = context.get("main_ai_identity", "IA Principale")
 
@@ -317,53 +316,41 @@ class IntrospectionOrchestrator:
             if len(dialogue_history) > MAX_DIALOGUE_CHARS:
                 dialogue_truncated = dialogue_history[-MAX_DIALOGUE_CHARS:]
                 dialogue_truncated = f"[...dialogue tronqué pour synthèse...]\n{dialogue_truncated}"
-            
-            memory_context = await self._get_memory_context_for_question(user_message)
 
             vars_map = defaultdict(str,
                 dialogue_history=dialogue_truncated,
-                full_dialogue=dialogue_truncated,
                 user_message=user_message,
                 ai_name=ai_name,
-                memory_context=memory_context,
             )
             prompt = instruction.format_map(vars_map)
 
             settings = self.config.get_introspection_settings()
             max_tokens = settings["synthesis_max_tokens"]
 
-            # Synthèse = étape la plus lourde : filet ×5 pour ne jamais tronquer
-            response = await self._call_main_ai(prompt, max_tokens, multiplier=5.0)
+            # Synthèse : filet ×3 (400 mots × 3 = 1200 tokens, largement suffisant)
+            response = await self._call_main_ai(prompt, max_tokens, multiplier=3.0)
 
             # Fallback Archiviste si main AI échoue (ex: filtre sécurité 403)
             if not response:
                 print(f"[INTROSPECTION-ORCHESTRATOR] ⚠️ Main AI sans réponse pour synthèse - fallback Archiviste")
-                fallback_prompt = f"""Résume ce dialogue d'introspection en une synthèse empathique pour l'utilisateur.
-
-Sujet initial: {user_message}
-
-Dialogue (extrait):
-{dialogue_truncated[-2000:] if len(dialogue_truncated) > 2000 else dialogue_truncated}
-
-Rédige une réponse naturelle et chaleureuse intégrant les insights clés du dialogue. Pas de balises techniques."""
-                response = await self._call_archiviste(fallback_prompt, max_tokens if max_tokens > 0 else 1500)
+                fallback_prompt = (
+                    f"Résume ce dialogue d'introspection en une réponse empathique pour l'utilisateur.\n\n"
+                    f"Sujet : {user_message}\n\nDialogue :\n"
+                    f"{dialogue_truncated[-2000:] if len(dialogue_truncated) > 2000 else dialogue_truncated}\n\n"
+                    f"Réponse naturelle, sans mentionner l'Archiviste ni le processus. Maximum 400 mots."
+                )
+                response = await self._call_archiviste(fallback_prompt, max_tokens if max_tokens > 0 else 600)
                 if response:
                     print(f"[INTROSPECTION-ORCHESTRATOR] ✅ Synthèse fallback Archiviste: {len(response)} chars")
 
-            # Extraction métadonnées JSON
-            metadata = self._extract_save_metadata(response)
+            # La réponse est directement la réponse utilisateur — pas d'extraction nécessaire
+            final_response = response.strip() if response else ""
 
-            # Nettoyage réponse (retirer JSON)
-            synthesis_text = re.sub(r'\{.*?"save_decision".*?\}', '', response, flags=re.DOTALL).strip()
-
-            # Extraire la réponse finale pour l'utilisateur depuis la section "Réponse construite"
-            final_response = self._extract_final_response_from_synthesis(synthesis_text)
-
-            print(f"[INTROSPECTION-ORCHESTRATOR] ✨ Synthèse: {len(synthesis_text)} chars, réponse: {len(final_response)} chars, save={metadata.get('save_decision')}, importance={metadata.get('importance')}")
+            print(f"[INTROSPECTION-ORCHESTRATOR] ✨ Synthèse: {len(final_response)} chars")
 
             return {
-                "synthesis_text": synthesis_text,
-                "metadata": metadata,
+                "synthesis_text": final_response,
+                "metadata": {"save_decision": "no", "importance": 5, "reason": ""},
                 "final_response": final_response
             }
 
