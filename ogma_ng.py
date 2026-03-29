@@ -3340,8 +3340,11 @@ setTimeout(()=>{
             # Appel optimizer avec tous les paramètres (exécution parallèle)
             # 🌀 SPINNER: Activer le spinner Archiviste pendant l'analyse parallèle
             set_archiviste_working(True)
-            # Passer les titres des souvenirs trouves pour informer le Meta-Analyzer
-            _memory_titles_for_meta = [m.get('title', '')[:60] for m in detailed_memories[:4]] if detailed_memories else []
+            # Passer les titres + extrait contenu des souvenirs pour informer le Meta-Analyzer
+            _memory_titles_for_meta = [
+                f"{m.get('title', '')[:60]} | {(m.get('summary') or m.get('text_original', ''))[:100]}"
+                for m in detailed_memories[:4]
+            ] if detailed_memories else []
             optimized_ctx = await get_optimized_context_for_message(
                 user_message=text,
                 conversation_history=_chat_history,
