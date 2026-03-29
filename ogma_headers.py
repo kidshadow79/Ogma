@@ -460,7 +460,7 @@ def _header():
                 step2_unconscious_tokens = config.get("step2_unconscious_max_tokens", 600)
                 step3_tokens = config.get("step3_max_tokens", 800)
                 min_exchanges = config.get("min_dialogue_exchanges", 4)
-                max_exchanges = config.get("max_dialogue_exchanges", 8)
+                max_exchanges = config.get("max_dialogue_exchanges", 6)
                 max_duration = config.get("max_introspection_duration", 300)
                 memory_threshold = config.get("memory_search_threshold", 0.5)
                 memory_results = config.get("memory_max_results", 5)

@@ -72,7 +72,7 @@ Ne cherche pas à "bien paraître" — cherche à être juste."""
         "step2_conscious": {
             "name": "IA Principale",
             "description": "L'IA Principale continue la réflexion, défend ou révise sa position",
-            "default_tokens": 500,
+            "default_tokens": 200,
             "visible_to_user": True,
             "instruction": """Tu es en introspection. Tu t'adresses à l'Archiviste.
 
@@ -105,7 +105,7 @@ Parle directement. Pas de format imposé. C'est une conversation, pas un rapport
         "step2_unconscious": {
             "name": "Archiviste",
             "description": "L'Archiviste guide l'IA Principale vers des conclusions concrètes sur le sujet",
-            "default_tokens": 600,
+            "default_tokens": 200,
             "visible_to_user": True,
             "instruction": """Tu es l'Archiviste. Tu es le garde-fou pragmatique et scientifique de cette réflexion.
 
@@ -159,7 +159,7 @@ Sois direct, factuel, bref. Un "ça ne tient pas, voilà pourquoi" vaut mieux qu
         "step3_synthesis": {
             "name": "Synthèse",
             "description": "L'IA Principale tire les conclusions de la joute et formule sa réponse",
-            "default_tokens": 800,
+            "default_tokens": 700,
             "visible_to_user": True,
             "instruction": """La joute intellectuelle est terminée. Tu as réfléchi avec l'Archiviste. Il est temps de conclure.
 
