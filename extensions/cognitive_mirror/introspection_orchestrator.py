@@ -503,7 +503,8 @@ Ce sont tes directives comportementales EGO. Elles definissent qui tu es.
         directive = (
             f"**LONGUEUR CIBLE : environ {max_tokens} mots.** "
             f"Rédige une réponse complète qui se termine naturellement dans cette limite. "
-            f"Sois concis et précis — va à l'essentiel sans sacrifier la cohérence.\n\n"
+            f"Sois concis et précis — va à l'essentiel sans sacrifier la cohérence. "
+            f"Ne compte pas tes mots et ne reporte jamais le décompte.\n\n"
         )
         return directive + prompt
 

@@ -2447,11 +2447,13 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                                 """Callback pour afficher les messages en temps réel"""
                                 global _introspection_md_widget
                                 try:
+                                    # La synthèse s'affiche dans la conversation — pas dans la boîte thinking
+                                    if role == "synthesis":
+                                        return
                                     # Mapper les rôles aux labels
                                     role_labels = {
                                         "main_ai": "🗣️ IA Principale",
                                         "archiviste": "⚔️ Archiviste",
-                                        "synthesis": "✨ Synthèse",
                                         # legacy
                                         "analysis": "🔍 Analyse",
                                         "conscious": "🗣️ IA Principale",
@@ -5492,11 +5494,13 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                             """Callback pour afficher les messages en temps réel"""
                             global _introspection_md_widget
                             try:
+                                # La synthèse s'affiche dans la conversation — pas dans la boîte thinking
+                                if role == "synthesis":
+                                    return
                                 role_labels = {
                                     "analysis": "🔍 Analyse",
                                     "conscious": "💡 Conscient (IA principale)",
                                     "unconscious": "🌙 Inconscient (Archiviste)",
-                                    "synthesis": "✨ Synthèse"
                                 }
                                 label = role_labels.get(role, role)
                                 ia_dialogue_messages.append(f"**{label}:**\n{content}")
