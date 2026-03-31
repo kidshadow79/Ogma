@@ -5987,7 +5987,67 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                             
                             print("[CONTEXTUAL-RECALL-IA] STATS Injection et régénération réussie")
                         else:
-                            print("[CONTEXTUAL-RECALL-IA] Pas de contexte trouvé pour la période demandée")
+                            # Fallback: pas de résumé → lire la dernière conversation directement
+                            print("[CONTEXTUAL-RECALL-IA] ⚠️ Pas de résumé trouvé, fallback lecture directe...")
+                            try:
+                                import json as _json_rc
+                                conv_dir = DATA_DIR / "conversations"
+                                conv_files = sorted(
+                                    [f for f in conv_dir.glob("*.json") if f.name != "index.json"],
+                                    key=lambda f: f.stat().st_mtime,
+                                    reverse=True
+                                )
+                                # Exclure la conversation courante
+                                current_fname = f"{_current_conversation_id}.json" if _current_conversation_id else None
+                                fallback_file = next(
+                                    (f for f in conv_files if f.name != current_fname),
+                                    None
+                                )
+                                if fallback_file:
+                                    raw = _json_rc.loads(fallback_file.read_text(encoding='utf-8'))
+                                    msgs_raw = raw if isinstance(raw, list) else raw.get('messages', [])
+                                    transcript_lines = []
+                                    for m in msgs_raw:
+                                        m_role = m.get('role', '')
+                                        m_content = m.get('content', '')
+                                        if m_role == 'user':
+                                            m_content = re.sub(r'^\[.*?\]\s*', '', m_content)
+                                            transcript_lines.append(f"Utilisateur: {m_content[:300]}")
+                                        elif m_role == 'assistant':
+                                            transcript_lines.append(f"IA: {m_content[:400]}")
+                                    if transcript_lines:
+                                        fallback_ctx = (
+                                            f"--- DERNIÈRE CONVERSATION DU {fallback_file.stem[:10]} ---\n"
+                                            + "\n".join(transcript_lines[:40])
+                                        )
+                                        print(f"[CONTEXTUAL-RECALL-IA] 📖 Fallback: '{fallback_file.name}' ({len(transcript_lines)} msgs)")
+                                        fb_messages = messages.copy()
+                                        fb_addon = f"\n\n--- CONTEXTE HISTORIQUE (lecture directe) ---\n{fallback_ctx}\n--- FIN ---"
+                                        if fb_messages and fb_messages[0]['role'] == 'system':
+                                            fb_messages[0]['content'] += fb_addon
+                                        else:
+                                            fb_messages.insert(0, {'role': 'system', 'content': fb_addon})
+                                        fb_controller = _ensure_chat_controller()
+                                        if fb_controller:
+                                            fb_response, fb_error = await fb_controller.call_chat_api(
+                                                messages=fb_messages,
+                                                max_tokens=1024,
+                                                context_length=fb_controller.context_length if hasattr(fb_controller, 'context_length') else 128000,
+                                                temperature=0.8,
+                                                is_json=False
+                                            )
+                                            if fb_response and not fb_error:
+                                                cleaned_reply = fb_response
+                                                reply_text = fb_response
+                                                print(f"[CONTEXTUAL-RECALL-IA] ✅ Fallback réponse: {len(fb_response)} chars")
+                                            else:
+                                                print(f"[CONTEXTUAL-RECALL-IA] ❌ Fallback erreur: {fb_error}")
+                                    else:
+                                        print("[CONTEXTUAL-RECALL-IA] ⚠️ Fallback: conversation vide (aucun message user/assistant)")
+                                else:
+                                    print("[CONTEXTUAL-RECALL-IA] ⚠️ Aucune conversation précédente disponible pour le fallback")
+                            except Exception as e_fb:
+                                print(f"[CONTEXTUAL-RECALL-IA] ⚠️ Erreur fallback lecture directe: {e_fb}")
                     else:
                         print("[CONTEXTUAL-RECALL-IA] SKIP Extension non disponible")
                         
