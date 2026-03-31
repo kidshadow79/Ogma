@@ -70,8 +70,6 @@ class ParallelExecutor:
                       preanalysis_results: Dict[str, Any] = None,
                       memory_manager=None, archiviste_controller=None,
                       memory_optimizer=None,
-                      temporal_guardian=None,
-                      temporal_data=None,
                       memory_titles_found: list = None) -> Dict[str, Any]:
         """
         Exécute toutes les analyses en parallèle.
@@ -80,7 +78,6 @@ class ParallelExecutor:
         1. Memory Optimizer (si pré-analyses pas ready)
         2. Ego Selector final
         3. Capability Advisor
-        4. Temporal Guardian (NOUVEAU - analyse temporelle via Archiviste)
         
         Args:
             user_message: Message utilisateur
@@ -89,8 +86,6 @@ class ParallelExecutor:
             memory_manager: Gestionnaire mémoire
             archiviste_controller: Contrôleur Archiviste
             memory_optimizer: Optimizer mémoire
-            temporal_guardian: Instance Temporal Guardian (optionnel)
-            temporal_data: Données temporelles (optionnel)
             
         Returns:
             dict: Résultats combinés de toutes les tâches
@@ -112,12 +107,12 @@ class ParallelExecutor:
             ))
             task_names.append('memory')
         
-        # TÂCHE 2: UNIFIED META-ANALYZER (remplace Capability + Temporal + ArchiSensor)
-        # Fusion 3-en-1 pour économiser tokens et latence
+        # TÂCHE 2: UNIFIED META-ANALYZER (remplace Capability + ArchiSensor)
+        # Fusion 2-en-1 pour économiser tokens et latence
         if archiviste_controller:
             tasks.append(self._run_unified_meta_analyzer(
                 user_message, conversation_history, archiviste_controller,
-                memory_manager, temporal_guardian, temporal_data,
+                memory_manager,
                 memory_titles_found=memory_titles_found
             ))
             task_names.append('unified_meta')
@@ -225,68 +220,23 @@ class ParallelExecutor:
             self._stats['failed_tasks'] += 1
             return {'capability_suggestion': None, 'error': str(e)}
     
-    async def _run_temporal_guardian(self, temporal_guardian, temporal_data,
-                                      archiviste_controller) -> Dict[str, Any]:
-        """
-        Exécute l'analyse Temporal Guardian en async.
-        
-        Appelle analyze_with_archiviste() pour obtenir une instruction temporelle.
-        
-        Args:
-            temporal_guardian: Instance TemporalGuardian
-            temporal_data: TemporalMeasurement avec les données temporelles
-            archiviste_controller: Contrôleur Archiviste pour l'analyse
-            
-        Returns:
-            dict: {'temporal_instruction': str|None}
-        """
-        try:
-            print("[PARALLEL-EXECUTOR] 🕒 Temporal Guardian: lancement analyse...")
-            
-            # analyze_with_archiviste est déjà async
-            temporal_instruction = await asyncio.wait_for(
-                temporal_guardian.analyze_with_archiviste(temporal_data, archiviste_controller),
-                timeout=self._config['task_timeout_seconds']
-            )
-            
-            if temporal_instruction:
-                print(f"[PARALLEL-EXECUTOR] 🕒 Temporal Guardian: instruction reçue ({len(temporal_instruction)} chars)")
-                return {'temporal_instruction': temporal_instruction}
-            else:
-                print("[PARALLEL-EXECUTOR] 🕒 Temporal Guardian: rythme normal")
-                return {'temporal_instruction': None}
-                
-        except asyncio.TimeoutError:
-            print("[PARALLEL-EXECUTOR] ⏰ Temporal Guardian timeout")
-            self._stats['failed_tasks'] += 1
-            return {'temporal_instruction': None, 'error': 'timeout'}
-        except Exception as e:
-            print(f"[PARALLEL-EXECUTOR] ❌ Temporal Guardian erreur: {e}")
-            import traceback
-            traceback.print_exc()
-            self._stats['failed_tasks'] += 1
-            return {'temporal_instruction': None, 'error': str(e)}
-    
     async def _run_unified_meta_analyzer(self, user_message: str, conversation_history: list,
                                           archiviste_controller, memory_manager,
-                                          temporal_guardian=None, temporal_data=None,
                                           memory_titles_found: list = None) -> Dict[str, Any]:
         """
-        Exécute l'analyseur unifié (3-en-1) : Temporal + ArchiSensor + Capability.
+        Exécute l'analyseur unifié (2-en-1) : ArchiSensor + Capability.
         
-        FUSION des 3 appels API en 1 seul pour économiser tokens et latence.
+        FUSION des 2 appels API en 1 seul pour économiser tokens et latence.
         
         Args:
             user_message: Message utilisateur
             conversation_history: Historique conversation
             archiviste_controller: Contrôleur Archiviste
             memory_manager: Gestionnaire mémoire
-            temporal_guardian: Instance TemporalGuardian (optionnel)
-            temporal_data: Données temporelles (optionnel)
             memory_titles_found: Titres des souvenirs deja trouves par FAISS (optionnel)
             
         Returns:
-            dict: Résultats fusionnés (temporal, affinity, capability)
+            dict: Résultats fusionnés (affinity, capability)
         """
         try:
             print("[PARALLEL-EXECUTOR] 🔮 Unified Meta-Analyzer: lancement analyse 3-en-1...")
@@ -302,17 +252,13 @@ class ParallelExecutor:
             
             # Exécuter l'analyse unifiée (avec info souvenirs trouves)
             result = await asyncio.wait_for(
-                analyzer.analyze(user_message, conversation_history, temporal_data,
+                analyzer.analyze(user_message, conversation_history,
                                  memory_titles_found=memory_titles_found),
                 timeout=self._config['task_timeout_seconds']
             )
             
             # Convertir le dataclass en dict pour combine_results
             unified_result = {
-                # Temporal
-                'temporal_instruction': result.temporal_instruction,
-                'temporal_pattern': result.temporal_pattern,
-                
                 # Capability
                 'capability_suggested': result.suggested_capability,
                 'capability_confidence': result.capability_confidence,
@@ -342,8 +288,6 @@ class ParallelExecutor:
     def _get_empty_unified_result(self, error: str = None) -> Dict[str, Any]:
         """Résultat vide pour l'analyseur unifié en cas d'erreur"""
         result = {
-            'temporal_instruction': None,
-            'temporal_pattern': None,
             'capability_suggested': None,
             'capability_confidence': 0.0,
             'capability_phrase': None,
@@ -365,11 +309,10 @@ class ParallelExecutor:
         combined = {
             'memory_context': '',
             'memory_details': [],
-            'ego_injection': None,  # None par défaut pour permettre fallback
+            'ego_injection': None,
             'capability_suggestion': None,
             'archi_guidance': preanalysis_results.get('archi_guidance', ''),
-            'temporal_instruction': None,  # Instruction Temporal Guardian
-            'archiviste_directive': None,   # Directive conscience critique
+            'archiviste_directive': None,
             'unified_duration_ms': 0,
             'errors': []
         }
@@ -393,12 +336,8 @@ class ParallelExecutor:
                     combined['memory_details'] = result.get('memory_details', [])
                 elif name == 'capability':
                     combined['capability_suggestion'] = result.get('capability_suggestion')
-                elif name == 'temporal':
-                    # Résultat Temporal Guardian (mode séparé - legacy)
-                    combined['temporal_instruction'] = result.get('temporal_instruction')
                 elif name == 'unified_meta':
-                    # NOUVEAU: Résultat analyseur unifié 3-en-1 (Temporal + Capability + Directive)
-                    combined['temporal_instruction'] = result.get('temporal_instruction')
+                    # Résultat analyseur unifié 2-en-1 (Capability + Directive)
                     combined['archiviste_directive'] = result.get('archiviste_directive')
                     combined['unified_duration_ms'] = result.get('unified_duration_ms', 0)
                     

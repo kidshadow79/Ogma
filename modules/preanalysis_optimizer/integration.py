@@ -99,8 +99,6 @@ async def get_optimized_context_for_message(
     memory_optimizer=None,
     fallback_ego_fn=None,
     fallback_capability_fn=None,
-    temporal_guardian=None,
-    temporal_data=None,
     memory_titles_found: list = None
 ) -> Dict[str, Any]:
     """
@@ -152,8 +150,6 @@ async def get_optimized_context_for_message(
             memory_manager=memory_manager,
             archiviste_controller=archiviste_controller,
             memory_optimizer=memory_optimizer,
-            temporal_guardian=temporal_guardian,
-            temporal_data=temporal_data,
             memory_titles_found=memory_titles_found
         )
         

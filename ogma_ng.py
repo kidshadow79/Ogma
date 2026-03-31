@@ -2760,8 +2760,12 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
         print(f"[PERCEPTION] ❌ Erreur capture automatique: {e}")
 
     # � Initialisation des variables temporelles (scope global de la fonction)
-    temporal_final_alert = None
-    temporal_context_enriched = None
+    # LOG TEMPOREL: Enregistrer l'heure du message avant tout traitement
+    try:
+        from extensions.temporal_guardian.temporal_log_builder import register_message_time
+        register_message_time()
+    except Exception:
+        pass
     
     # �📚 NOUVEAU: Détection des commandes de conversation archivée
     conversation_command_result = await _handle_conversation_commands(text)
@@ -3188,13 +3192,7 @@ setTimeout(()=>{
     if show_injection and _chat_inner is not None:
         try:
             with _chat_inner:
-                # 1. Afficher l'instruction temporelle si présente
-                if temporal_final_alert:
-                    temporal_display = f"🕒 **Instruction Temporelle Archiviste** ({len(temporal_final_alert)} chars)\n\n{temporal_final_alert}"
-                    _message('system', temporal_display)
-                    print(f"[DEBUG-INJECTION] OK Instruction temporelle affichée dans le chat")
-                
-                # 2. Afficher la synthèse de l'Archiviste
+                # Afficher la synthèse de l'Archiviste
                 if context_note:
                     _message('system', f"BRAIN **Synthèse Archiviste** ({len(context_note)} chars)\n\n{context_note}")
                 
@@ -3214,86 +3212,15 @@ setTimeout(()=>{
         except Exception as e:
             print(f"[DEBUG-INJECTION] Erreur affichage: {e}")
             # Fallback: afficher via notification
-            if temporal_final_alert:
-                ui.notify(f'🕒 Temporal: {temporal_final_alert[:100]}...', type='info')
             if context_note:
                 ui.notify(f'BRAIN Archiviste: {context_note[:100]}...', type='info')
     elif show_injection:
         print(f"[DEBUG-INJECTION] PROBLÈME: _chat_inner est None - impossible d'afficher dans le chat")
         # Fallback: notification uniquement
-        if temporal_final_alert:
-            ui.notify(f'🕒 Temporal: {temporal_final_alert[:100]}...', type='info')
         if context_note:
             ui.notify(f'BRAIN Archiviste: {context_note[:100]}...', type='info')
 
-    # 🕒 TEMPORAL GUARDIAN - Gestion temporelle organique via l'Archiviste
-    
-    try:
-        temporal_guardian = _ensure_temporal_guardian()
-        
-        # Préparer le prompt archiviste de base (sera enrichi avec contexte temporel)
-        base_archiviste_prompt = f"Note de l'Archiviste : {context_note}" if context_note else ""
-        
-        # Traiter le message utilisateur avec Temporal Guardian
-        temporal_result = temporal_guardian.process_user_message(
-            user_message=final_message,
-            archiviste_prompt=base_archiviste_prompt
-        )
-        
-        # Récupérer le contexte temporel enrichi et les données brutes
-        temporal_context_enriched = temporal_result.get("enriched_archiviste_prompt")
-        temporal_data = temporal_result.get("temporal_data")
-        
-        # BRAIN ANALYSE TEMPORELLE VIA L'ARCHIVISTE
-        # Déléguer l'analyse à l'Archiviste selon l'architecture OGMA
-        # SKIP si PREANALYSIS_AVAILABLE: sera fait en parallèle plus tard
-        if temporal_data and not PREANALYSIS_AVAILABLE:  # Séquentiel seulement si optimizer indisponible
-            try:
-                archiviste_ctrl = _ensure_archiviste_controller()
-                if archiviste_ctrl:
-                    # 🌀 SPINNER: Activer le spinner Archiviste pendant l'analyse temporelle
-                    set_archiviste_working(True)
-                    # Demander à l'Archiviste d'analyser les données temporelles (SÉQUENTIEL FALLBACK)
-                    temporal_instruction = await temporal_guardian.analyze_with_archiviste(
-                        temporal_data, archiviste_ctrl
-                    )
-                    set_archiviste_working(False)
-                    
-                    if temporal_instruction and temporal_instruction.strip():
-                        temporal_final_alert = temporal_instruction
-                        print(f"[TEMPORAL-GUARDIAN] BRAIN Instruction Archiviste (séquentiel): {temporal_instruction[:100]}...")
-                    else:
-                        print(f"[TEMPORAL-GUARDIAN] OK Archiviste: rythme normal, pas d'instruction")
-                else:
-                    print(f"[TEMPORAL-GUARDIAN] WARN Archiviste indisponible")
-            except Exception as analysis_error:
-                set_archiviste_working(False)
-                print(f"[TEMPORAL-GUARDIAN] ERROR Erreur analyse Archiviste: {analysis_error}")
-        elif PREANALYSIS_AVAILABLE:
-            print("[TEMPORAL-GUARDIAN] ⚡ Skip analyse séquentielle (sera parallélisé par optimizer)")
-        
-        # Debug si activé
-        if temporal_data and sm.settings.get('debug', {}).get('show_temporal_debug', False):
-            delay_str = f"{temporal_data.delay_since_last:.1f}s" if temporal_data.delay_since_last else "Premier message"
-            print(f"[TEMPORAL-GUARDIAN] Message #{temporal_data.message_count} | Délai: {delay_str}")
-            
-    except Exception as e:
-        print(f"[TEMPORAL-GUARDIAN] WARN Erreur traitement temporel: {e}")
-        # Fallback: utiliser contexte archiviste original
-        temporal_context_enriched = f"Note de l'Archiviste : {context_note}" if context_note else None
-
-    # 🕒 AFFICHAGE INJECTION TEMPORELLE - Si option debug activée
-    if show_injection and temporal_final_alert and _chat_inner is not None:
-        try:
-            with _chat_inner:
-                temporal_display = f"🕒 **Instruction Temporelle Archiviste** ({len(temporal_final_alert)} chars)\n\n{temporal_final_alert}"
-                _message('system', temporal_display)
-                print(f"[DEBUG-INJECTION] OK Instruction temporelle affichée dans le chat")
-        except Exception as e:
-            print(f"[DEBUG-INJECTION] Erreur affichage temporal: {e}")
-            ui.notify(f'🕒 Temporal: {temporal_final_alert[:100]}...', type='info')
-
-    # 🚨 INJECTION PRIORITÉ ABSOLUE: Instructions de base + Instruction temporelle fusionnées
+    #  INJECTION PRIORITÉ ABSOLUE: Instructions de base + Instruction temporelle fusionnées
     sm = _ensure_settings_manager()
     base_instructions = sm.settings.get('prompts', {}).get('instructions', '')
     
@@ -3316,7 +3243,6 @@ setTimeout(()=>{
     ego_injection = None
     
     # Variables pour résultats parallèles
-    parallel_temporal_instruction = None  # Résultat Temporal Guardian (parallélisé)
     parallel_archiviste_directive = None  # Directive conscience critique Archiviste
     unified_capability = None  # Résultat Capability du Unified Meta-Analyzer
     
@@ -3325,19 +3251,6 @@ setTimeout(()=>{
         try:
             memory_mgr = _ensure_memory_manager()
             archiviste_ctrl = _ensure_archiviste_controller()
-            
-            # Préparer temporal_data pour parallélisation (process_user_message est sync, rapide)
-            temporal_guardian_instance = _ensure_temporal_guardian()
-            temporal_data_for_parallel = None
-            if temporal_guardian_instance:
-                try:
-                    temporal_result = temporal_guardian_instance.process_user_message(
-                        user_message=text,
-                        archiviste_prompt=""  # Prompt sera construit par l'Archiviste
-                    )
-                    temporal_data_for_parallel = temporal_result.get("temporal_data")
-                except Exception as te:
-                    print(f"[PREANALYSIS] ⚠️ Temporal prep error: {te}")
             
             # Appel optimizer avec tous les paramètres (exécution parallèle)
             # 🌀 SPINNER: Activer le spinner Archiviste pendant l'analyse parallèle
@@ -3352,8 +3265,6 @@ setTimeout(()=>{
                 conversation_history=_chat_history,
                 memory_manager=memory_mgr,
                 archiviste_controller=archiviste_ctrl,
-                temporal_guardian=temporal_guardian_instance,
-                temporal_data=temporal_data_for_parallel,
                 memory_titles_found=_memory_titles_for_meta
             )
             set_archiviste_working(False)
@@ -3365,13 +3276,10 @@ setTimeout(()=>{
                 else:
                     print("[PREANALYSIS] ⚡ Contexte optimisé sans ego injection")
                 
-                # Récupérer résultats parallèles Temporal + Directive + Capability
-                parallel_temporal_instruction = optimized_ctx.get('temporal_instruction')
+                # Récupérer résultats parallèles Directive + Capability
                 parallel_archiviste_directive = optimized_ctx.get('archiviste_directive')
                 unified_capability = optimized_ctx.get('capability_suggestion')
                 
-                if parallel_temporal_instruction:
-                    print(f"[PREANALYSIS] 🕒 Temporal instruction parallèle ({len(parallel_temporal_instruction)} chars)")
                 if parallel_archiviste_directive:
                     print(f"[PREANALYSIS] 🧭 Directive Archiviste ({len(parallel_archiviste_directive)} chars)")
                 if unified_capability:
@@ -3408,11 +3316,6 @@ setTimeout(()=>{
             print(f"[EGO-INJECT] ❌ Erreur: {e}")
             import traceback
             traceback.print_exc()
-    
-    # 🕒 UTILISER RÉSULTAT PARALLÈLE TEMPORAL GUARDIAN si disponible
-    if parallel_temporal_instruction:
-        temporal_final_alert = parallel_temporal_instruction
-        print(f"[TEMPORAL-GUARDIAN] ⚡ Instruction parallèle utilisée ({len(temporal_final_alert)} chars)")
     
     # Appliquer l'injection ego si disponible
     if ego_injection:
@@ -3521,29 +3424,25 @@ setTimeout(()=>{
             traceback.print_exc()
     
     # Construire le message système prioritaire unifié
-    if temporal_final_alert:
-        # PRIORITÉ ABSOLUE: Instruction temporelle en tête des instructions de base
-        priority_instructions = f"""╔══════════════════════════════════════════════════════════════╗
-║                    FAST PRIORITÉ ABSOLUE FAST                      ║
-║           INSTRUCTION TEMPORELLE OBLIGATOIRE                  ║
-╚══════════════════════════════════════════════════════════════╝
+    # 🕒 LOG TEMPOREL - Injection données temps réelles (Python pur, 0 appel API)
+    _temporal_log_block = ""
+    try:
+        from extensions.temporal_guardian.temporal_log_builder import build_temporal_log
+        _temporal_instruction = sm.settings.get('prompts', {}).get('temporal_guardian', '')
+        _temporal_log_json = build_temporal_log(
+            conv_index=_conv_index,
+            current_conversation_id=_current_conversation_id
+        )
+        if _temporal_instruction and _temporal_log_json:
+            _temporal_log_block = f"{_temporal_instruction}\n\n{_temporal_log_json}"
+            print(f"[TEMPORAL-LOG] Log temporel injecte ({len(_temporal_log_json)} chars)")
+    except Exception as e:
+        print(f"[TEMPORAL-LOG] Erreur: {e}")
 
-TARGET ADAPTATION COMPORTEMENTALE IMMÉDIATE:
-{temporal_final_alert}
-
-WARN  CETTE INSTRUCTION PRÉEMPTE TOUT AUTRE STYLE WARN
-Applique cette adaptation AVANT toute autre considération.
-
-═══════════════════════════════════════════════════════════════
-
-{base_instructions if base_instructions else 'Instructions de base non définies.'}"""
-        
-        print(f"[TEMPORAL-GUARDIAN] 🚨 PRIORITÉ ABSOLUE: Instruction temporelle FUSIONNÉE en tête")
-        print(f"[TEMPORAL-GUARDIAN] EDIT Contenu: {temporal_final_alert[:100]}...")
+    if _temporal_log_block:
+        priority_instructions = f"{_temporal_log_block}\n\n{base_instructions}" if base_instructions else _temporal_log_block
     else:
-        # Mode normal sans instruction temporelle
         priority_instructions = base_instructions if base_instructions else ""
-        print(f"[TEMPORAL-GUARDIAN] ⚪ Mode normal: pas d'instruction temporelle")
     
     # 🕒 INJECTION HORODATAGE - L'IA connaît l'heure et la date actuelles
     from datetime import datetime
@@ -3702,80 +3601,11 @@ Applique cette adaptation AVANT toute autre considération.
         # Vider la liste après injection (application unique)
         _pending_behavioral_injections.clear()
     
-    # 🕒 TEMPORAL GUARDIAN - Gestion temporelle organique via l'Archiviste
-    temporal_alert_for_main_ai = False
-    
-    try:
-        temporal_guardian = _ensure_temporal_guardian()
-        
-        # Préparer le prompt archiviste de base (sera enrichi avec contexte temporel)
-        base_archiviste_prompt = f"Note de l'Archiviste : {context_note}" if context_note else ""
-        
-        # Traiter le message utilisateur avec Temporal Guardian
-        temporal_result = temporal_guardian.process_user_message(
-            user_message=final_message,
-            archiviste_prompt=base_archiviste_prompt
-        )
-        
-        # Récupérer le contexte temporel enrichi et les données brutes
-        temporal_context_enriched = temporal_result.get("enriched_archiviste_prompt")
-        temporal_data = temporal_result.get("temporal_data")
-        
-        # Le traitement temporel est maintenant fait plus haut dans le flux
-            
-    except Exception as e:
-        print(f"[TEMPORAL-GUARDIAN] WARN Erreur traitement temporel: {e}")
-        # Fallback: utiliser contexte archiviste original
-        temporal_context_enriched = f"Note de l'Archiviste : {context_note}" if context_note else None
-    
-    # 🕰️ DÉLAI INTER-SESSIONS - Calculer temps depuis dernière conversation (premier message uniquement)
-    inter_session_line = ""
-    if not _current_conversation_id:
-        try:
-            if _conv_index:
-                sorted_convs = sorted(_conv_index.values(), key=lambda x: x.get('updated', ''), reverse=True)
-                if sorted_convs:
-                    last_updated = sorted_convs[0].get('updated', '')
-                    if last_updated:
-                        from datetime import datetime as _dt_inter
-                        last_dt = _dt_inter.fromisoformat(last_updated)
-                        delta_sec = (_dt_inter.now() - last_dt).total_seconds()
-                        if delta_sec < 60:
-                            delay_txt = "il y a moins d'une minute"
-                        elif delta_sec < 3600:
-                            m = int(delta_sec / 60)
-                            delay_txt = f"il y a {m} minute{'s' if m > 1 else ''}"
-                        elif delta_sec < 86400:
-                            h = int(delta_sec / 3600)
-                            delay_txt = f"il y a {h} heure{'s' if h > 1 else ''}"
-                        elif delta_sec < 172800:
-                            delay_txt = "hier"
-                        elif delta_sec < 604800:
-                            d = int(delta_sec / 86400)
-                            delay_txt = f"il y a {d} jours"
-                        elif delta_sec < 1209600:
-                            delay_txt = "la semaine dernière"
-                        elif delta_sec < 2592000:
-                            w = int(delta_sec / 604800)
-                            delay_txt = f"il y a {w} semaines"
-                        else:
-                            mo = int(delta_sec / 2592000)
-                            delay_txt = f"il y a {mo} mois"
-                        inter_session_line = f"\nDernière conversation : {delay_txt}."
-                        print(f"[INTER-SESSION] 🕰️ Délai inter-sessions: {delay_txt}")
-        except Exception as _e_inter:
-            print(f"[INTER-SESSION] ⚠️ Erreur calcul délai: {_e_inter}")
-
     # --- CONTEXTE MÉMORIEL (P2: Ce que tu as vécu) ---
-    if temporal_context_enriched:
-        messages.append({'role': 'system', 'content': f"--- CONTEXTE MÉMORIEL ---\n{temporal_context_enriched}{inter_session_line}"})
-    elif context_note:
-        # Fallback si temporal guardian a échoué
-        messages.append({'role': 'system', 'content': f"--- CONTEXTE MÉMORIEL ---\nNote de l'Archiviste : {context_note}{inter_session_line}"})
-    elif inter_session_line:
-        messages.append({'role': 'system', 'content': f"--- CONTEXTE MÉMORIEL ---{inter_session_line}"})
+    if context_note:
+        messages.append({'role': 'system', 'content': f"--- CONTEXTE MÉMORIEL ---\nNote de l'Archiviste : {context_note}"})
     else:
-        print(f"[DEBUG-INJECTION] Aucun contexte à injecter")
+        print(f"[DEBUG-INJECTION] Aucun contexte mémoriel à injecter")
     
     # 📅 ORGANIC PLANNER - Gestion de la charge mentale et des évènements futurs
     try:
@@ -6425,14 +6255,6 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                     # Inclut : souvenirs + contexte temporel + conversation
                     doc_context_parts = []
                     
-                    # Ajouter contexte temporel enrichi (si disponible dans la portée)
-                    try:
-                        if 'temporal_context_enriched' in dir() and temporal_context_enriched:
-                            doc_context_parts.append("=== CONTEXTE TEMPOREL ===")
-                            doc_context_parts.append(temporal_context_enriched)
-                    except:
-                        pass
-                    
                     # Ajouter les souvenirs pertinents depuis detailed_memories
                     try:
                         if 'detailed_memories' in dir() and detailed_memories:
@@ -8753,14 +8575,11 @@ async def process_external_message(
             print("[EXTERNAL-API] Utilisation PREANALYSIS pour contexte complet...")
             
             # Récupérer contexte optimisé (ego + mémoires en parallèle)
-            temporal_guardian_instance = _ensure_temporal_guardian()
             optimized_ctx = await get_optimized_context_for_message(
                 user_message=user_text,
                 conversation_history=external_history or [],  # Historique réel (Telegram, etc.)
                 memory_manager=mem,
-                archiviste_controller=archiviste_ctrl,
-                temporal_guardian=temporal_guardian_instance,
-                temporal_data=None
+                archiviste_controller=archiviste_ctrl
             )
             
             if optimized_ctx.get('optimized'):

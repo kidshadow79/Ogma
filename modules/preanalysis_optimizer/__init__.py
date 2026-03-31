@@ -153,8 +153,8 @@ class PreanalysisOptimizer:
     
     async def get_optimized_context(self, user_message: str, conversation_history: list,
                                      memory_manager=None, archiviste_controller=None,
-                                     memory_optimizer=None, temporal_guardian=None,
-                                     temporal_data=None, memory_titles_found: list = None) -> dict:
+                                     memory_optimizer=None,
+                                     memory_titles_found: list = None) -> dict:
         """
         Pipeline complet d'optimisation.
         
@@ -193,8 +193,6 @@ class PreanalysisOptimizer:
             memory_manager=memory_manager,
             archiviste_controller=archiviste_controller,
             memory_optimizer=memory_optimizer,
-            temporal_guardian=temporal_guardian,
-            temporal_data=temporal_data,
             memory_titles_found=memory_titles_found
         )
         
@@ -208,8 +206,6 @@ class PreanalysisOptimizer:
             'ego_injection': ego_injection,  # None ou str (pas de conversion '')
             'archi_guidance': preanalysis_results.get('archi_guidance', ''),
             'capability_suggestion': parallel_results.get('capability_suggestion'),
-            # Résultats Temporal Guardian (via unified ou legacy)
-            'temporal_instruction': parallel_results.get('temporal_instruction'),
             # Directive Archiviste (conscience critique)
             'archiviste_directive': parallel_results.get('archiviste_directive'),
             # NOUVEAU: Métriques Unified Meta-Analyzer (affinity + auto-censure)

@@ -26,11 +26,7 @@ from datetime import datetime
 
 @dataclass
 class UnifiedAnalysisResult:
-    """Résultat unifié des 3 analyses (Temporal + Capability + Directive)"""
-    # Temporal Guardian
-    temporal_instruction: Optional[str] = None
-    temporal_pattern: Optional[str] = None
-    
+    """Résultat unifié des analyses (Capability + Directive)"""
     # Capability Advisor
     suggested_capability: Optional[str] = None
     capability_confidence: float = 0.0
@@ -132,7 +128,6 @@ class UnifiedMetaAnalyzer:
             result.raw_response = response
             
             print(f"[UNIFIED-META] ✅ Analyse unifiée en {result.analysis_duration_ms:.0f}ms")
-            print(f"[UNIFIED-META]    Temporal: {result.temporal_pattern or 'NORMAL'}")
             print(f"[UNIFIED-META]    Capability: {result.suggested_capability or 'aucune'}")
             if result.archiviste_directive:
                 print(f"[UNIFIED-META]    Directive: {result.archiviste_directive[:80]}...")
@@ -155,9 +150,6 @@ class UnifiedMetaAnalyzer:
         # Contexte conversation (limite)
         context_str = self._format_conversation_context(conversation_history, max_chars=3000)
         
-        # Donnees temporelles
-        temporal_section = self._format_temporal_section(temporal_data)
-        
         # Liste capacites disponibles
         capabilities_section = self.capabilities_list or self._get_default_capabilities()
         
@@ -178,7 +170,6 @@ Ces souvenirs sont deja injectes dans le contexte de l'IA. Tiens-en compte dans 
 ## MESSAGE ACTUEL
 "{user_message}"
 {memory_section}
-{temporal_section}
 
 ## CAPACITÉS DISPONIBLES
 {capabilities_section}
@@ -187,10 +178,6 @@ Ces souvenirs sont deja injectes dans le contexte de l'IA. Tiens-en compte dans 
 Retourne UNIQUEMENT ce JSON (pas de texte avant/après):
 
 {{
-    "temporal": {{
-        "pattern": "NORMAL|FATIGUE|REFLEXION|ABSENCE|CHANGEMENT",
-        "instruction": null ou "instruction courte pour l'IA si pattern détecté"
-    }},
     "capability": {{
         "suggested": null ou "memory|introspection|image_gen|webcam|web_search|biography",
         "confidence": 0.0-1.0,
@@ -200,13 +187,6 @@ Retourne UNIQUEMENT ce JSON (pas de texte avant/après):
 }}
 
 ## RÈGLES ANALYSE
-
-### TEMPORAL (patterns temporels)
-- NORMAL: rythme standard, pas d'instruction
-- FATIGUE: délais croissants → "Sois plus concise et patiente"
-- REFLEXION: pause 3-5min → "Laisse de l'espace pour la réflexion"
-- ABSENCE: délai >8min → "Accueille chaleureusement le retour"
-- CHANGEMENT: variation rythme significative
 
 ### CAPABILITY (suggestion capacite)
 - Suggere UNE capacite si le contexte l'appelle clairement
@@ -247,27 +227,6 @@ RÉPONDS UNIQUEMENT AVEC LE JSON."""
         context = "\n".join(lines)
         return context[:max_chars]
     
-    def _format_temporal_section(self, temporal_data: Optional[Any]) -> str:
-        """Formate la section données temporelles"""
-        if not temporal_data:
-            return "## DONNÉES TEMPORELLES\nNon disponibles"
-        
-        try:
-            delay = getattr(temporal_data, 'delay_since_last', None)
-            msg_count = getattr(temporal_data, 'message_count', 0)
-            avg_delay = getattr(temporal_data, 'average_delay', 0)
-            current_time = getattr(temporal_data, 'current_time_str', '')
-            session_duration = getattr(temporal_data, 'session_duration', 0)
-            
-            return f"""## DONNÉES TEMPORELLES
-- Délai depuis dernier message: {f'{delay:.1f}s' if delay else 'Premier message'}
-- Messages session: {msg_count}
-- Délai moyen: {avg_delay:.1f}s
-- Heure: {current_time}
-- Durée session: {session_duration:.0f}s"""
-        except:
-            return "## DONNÉES TEMPORELLES\nErreur extraction"
-    
     def _get_default_capabilities(self) -> str:
         """Liste capacités par défaut si config non chargée"""
         return """- memory: mémoriser un souvenir ("je veux me souvenir que...")
@@ -285,13 +244,6 @@ RÉPONDS UNIQUEMENT AVEC LE JSON."""
             # Nettoyer la réponse
             cleaned = self._clean_json(response)
             data = json.loads(cleaned)
-            
-            # Temporal
-            temporal = data.get('temporal', {})
-            pattern = temporal.get('pattern', 'NORMAL')
-            if pattern and pattern != 'NORMAL':
-                result.temporal_pattern = pattern
-                result.temporal_instruction = temporal.get('instruction')
             
             # Capability
             capability = data.get('capability', {})

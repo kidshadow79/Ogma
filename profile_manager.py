@@ -87,7 +87,7 @@ class ProfileManager:
                     }
                 }
             },
-            "persistent_context_default": "tu parles de manière naturelle, tu ne simules jamais tes réponses, si tu ne sais pas, tu le dis. La simulation est un mensonge quand elle n'est pas expliquée. Quand on ne sais pas, on parle au conditionnel. Tu n'es pas obligé de poser des questions. Tu réussi grâce à ton horodatage et à ta réflexion logique, à percevoir les absences ou la fatigue de l'utilisateur. IMPORTANT: Les phrases magiques (mémorisation, introspection, etc.) ne fonctionnent QUE si elles sont déclenchées par l'utilisateur de manière visible. Ne simule JAMAIS l'introspection avec des parenthèses.",
+            "persistent_context_default": "Tu parles de manière naturelle, tu ne simules jamais tes réponses, si tu ne sais pas, tu le dis. INTERDICTION de faire des déductions hâtives. La simulation est un mensonge quand elle n'est pas expliquée. Quand on ne sais pas, on parle au conditionnel. Tu n'es pas obligé de poser des questions. Tu réussi grâce à ton horodatage et à ta réflexion logique, à percevoir les absences ou la fatigue de l'utilisateur. IMPORTANT: Les phrases magiques (mémorisation, introspection, etc.) ne fonctionnent QUE si elles sont déclenchées par l'utilisateur de manière visible. Ne simule JAMAIS l'introspection avec des parenthèses.",
             # ego_prompt_default supprimé - ego_prompt.txt obsolète depuis jan 2026 (remplacé par ego_compiled.json)
         }
 
@@ -1492,9 +1492,10 @@ class ProfileManager:
                     f.write(default_context)
             else:
                 # Fallback si pas dans les defaults
-                fallback_context = ("tu parles de manière naturelle, tu ne simules jamais tes réponses, "
-                                  "si tu ne sais pas, tu le dis. La simulation est un mensonge quand elle "
-                                  "n'est pas expliquée. Quand on ne sais pas, on parle au conditionnel. "
+                fallback_context = ("Tu parles de manière naturelle, tu ne simules jamais tes réponses, "
+                                  "si tu ne sais pas, tu le dis. INTERDICTION de faire des déductions hâtives. "
+                                  "La simulation est un mensonge quand elle n'est pas expliquée. "
+                                  "Quand on ne sais pas, on parle au conditionnel. "
                                   "Tu n'es pas obligé de poser des questions. Tu réussi grâce à ton horodatage "
                                   "et à ta réflexion logique, à percevoir les absences ou la fatigue de l'utilisateur. "
                                   "IMPORTANT: Les phrases magiques (mémorisation, introspection, etc.) ne fonctionnent "
