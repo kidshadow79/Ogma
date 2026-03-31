@@ -3728,12 +3728,52 @@ Applique cette adaptation AVANT toute autre considération.
         # Fallback: utiliser contexte archiviste original
         temporal_context_enriched = f"Note de l'Archiviste : {context_note}" if context_note else None
     
+    # 🕰️ DÉLAI INTER-SESSIONS - Calculer temps depuis dernière conversation (premier message uniquement)
+    inter_session_line = ""
+    if not _current_conversation_id:
+        try:
+            if _conv_index:
+                sorted_convs = sorted(_conv_index.values(), key=lambda x: x.get('updated', ''), reverse=True)
+                if sorted_convs:
+                    last_updated = sorted_convs[0].get('updated', '')
+                    if last_updated:
+                        from datetime import datetime as _dt_inter
+                        last_dt = _dt_inter.fromisoformat(last_updated)
+                        delta_sec = (_dt_inter.now() - last_dt).total_seconds()
+                        if delta_sec < 60:
+                            delay_txt = "il y a moins d'une minute"
+                        elif delta_sec < 3600:
+                            m = int(delta_sec / 60)
+                            delay_txt = f"il y a {m} minute{'s' if m > 1 else ''}"
+                        elif delta_sec < 86400:
+                            h = int(delta_sec / 3600)
+                            delay_txt = f"il y a {h} heure{'s' if h > 1 else ''}"
+                        elif delta_sec < 172800:
+                            delay_txt = "hier"
+                        elif delta_sec < 604800:
+                            d = int(delta_sec / 86400)
+                            delay_txt = f"il y a {d} jours"
+                        elif delta_sec < 1209600:
+                            delay_txt = "la semaine dernière"
+                        elif delta_sec < 2592000:
+                            w = int(delta_sec / 604800)
+                            delay_txt = f"il y a {w} semaines"
+                        else:
+                            mo = int(delta_sec / 2592000)
+                            delay_txt = f"il y a {mo} mois"
+                        inter_session_line = f"\nDernière conversation : {delay_txt}."
+                        print(f"[INTER-SESSION] 🕰️ Délai inter-sessions: {delay_txt}")
+        except Exception as _e_inter:
+            print(f"[INTER-SESSION] ⚠️ Erreur calcul délai: {_e_inter}")
+
     # --- CONTEXTE MÉMORIEL (P2: Ce que tu as vécu) ---
     if temporal_context_enriched:
-        messages.append({'role': 'system', 'content': f"--- CONTEXTE MÉMORIEL ---\n{temporal_context_enriched}"})
+        messages.append({'role': 'system', 'content': f"--- CONTEXTE MÉMORIEL ---\n{temporal_context_enriched}{inter_session_line}"})
     elif context_note:
         # Fallback si temporal guardian a échoué
-        messages.append({'role': 'system', 'content': f"--- CONTEXTE MÉMORIEL ---\nNote de l'Archiviste : {context_note}"})
+        messages.append({'role': 'system', 'content': f"--- CONTEXTE MÉMORIEL ---\nNote de l'Archiviste : {context_note}{inter_session_line}"})
+    elif inter_session_line:
+        messages.append({'role': 'system', 'content': f"--- CONTEXTE MÉMORIEL ---{inter_session_line}"})
     else:
         print(f"[DEBUG-INJECTION] Aucun contexte à injecter")
     
