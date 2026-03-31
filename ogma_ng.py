@@ -5883,9 +5883,9 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
             try:
                 # Patterns synchronisés avec temporal_parser.py
                 recall_ia_patterns = [
-                    r"il\s+faut\s+que\s+je\s+consulte\s+notre\s+conversation\s+de",
-                    r"je\s+dois\s+consulter\s+notre\s+conversation\s+de",
-                    r"laisse-?moi\s+consulter\s+notre\s+conversation\s+de",
+                    r"il\s+faut\s+que\s+je\s+consulte\s+notre\s+conversation\s+d(?:e\b|')",
+                    r"je\s+dois\s+consulter\s+notre\s+conversation\s+d(?:e\b|')",
+                    r"laisse-?moi\s+consulter\s+notre\s+conversation\s+d(?:e\b|')",
                     # Nouveaux patterns pour "mes/la/les conversations"
                     r"il\s+faut\s+que\s+je\s+consulte\s+mes\s+conversations?\s*(?:avec\s+\w+)?",
                     r"je\s+dois\s+consulter\s+mes\s+conversations?\s*(?:avec\s+\w+)?",

@@ -44,8 +44,8 @@ class TemporalParser:
         self.patterns = {
             # Phrase magique IA
             'ia_magic_phrase': [
-                r'il\s+faut\s+que\s+je\s+consulte\s+notre\s+conversation\s+de\s+(.+?)(?:\.|$|,|\n)',
-                r'je\s+dois\s+consulter\s+notre\s+conversation\s+de\s+(.+?)(?:\.|$|,|\n)',
+                r"il\s+faut\s+que\s+je\s+consulte\s+notre\s+conversation\s+d(?:e\s+|')(.+?)(?:\.|$|,|\n)",
+                r"je\s+dois\s+consulter\s+notre\s+conversation\s+d(?:e\s+|')(.+?)(?:\.|$|,|\n)",
                 r'il\s+faut\s+que\s+je\s+consulte\s+mes\s+conversations?\s*(?:avec\s+(\w+))?',  # mes conversations (avec Bob)
                 r'je\s+dois\s+consulter\s+mes\s+conversations?\s*(?:avec\s+(\w+))?',
                 r'il\s+faut\s+que\s+je\s+consulte\s+(?:la|les)\s+conversations?\s*(?:avec\s+(\w+))?',
