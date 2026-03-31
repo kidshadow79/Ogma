@@ -1641,10 +1641,11 @@ Réponds UNIQUEMENT avec le titre, sans guillemets."""
                 
                 print(f"OK [SMART-TITLE] Titre mis à jour: '{old_title}' → '{title}'")
                 
-                # Notifier l'interface si possible
+                # Rafraîchir la sidebar avec le nouveau titre
                 try:
-                    _notify_safe(f"EDIT Titre intelligent: {title}", type='info')
-                except:
+                    if _get_ogma()._sidebar_render_cb:
+                        _get_ogma()._sidebar_render_cb(conv_id)
+                except Exception:
                     pass
         else:
             print("WARN [SMART-TITLE] Titre généré vide ou trop court")
@@ -1934,7 +1935,7 @@ def _persist_conversation(initial_text_for_title: Optional[str] = None) -> None:
         # Rafraîchit la barre latérale si disponible
         try:
             if _get_ogma()._sidebar_render_cb:
-                _get_ogma()._sidebar_render_cb(_current_conversation_id)
+                _get_ogma()._sidebar_render_cb(cid)
         except Exception:
             pass
     except Exception as e:
@@ -2019,7 +2020,7 @@ async def _maybe_update_conv_title() -> None:
             _save_conversation_index()
             try:
                 if _get_ogma()._sidebar_render_cb:
-                    _get_ogma()._sidebar_render_cb(_current_conversation_id)
+                    _get_ogma()._sidebar_render_cb(cid)
             except Exception:
                 pass
     finally:
