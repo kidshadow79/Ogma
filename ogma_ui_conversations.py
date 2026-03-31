@@ -4282,7 +4282,8 @@ async def _update_ia_status_indicators():
                 is_ok = ia_data['configured'] and ia_data['available']
                 color = '#16a34a' if is_ok else '#dc2626'  # Vert si OK, rouge sinon
                 try:
-                    dot_el.style(f'background: {color};')
+                    if dot_el is not None:
+                        dot_el.style(f'background: {color};')
                 except Exception as e:
                     print(f"[STATUS-UPDATE] Erreur mise à jour voyant {dot_key}: {e}")
             

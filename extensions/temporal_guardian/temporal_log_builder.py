@@ -152,8 +152,10 @@ def build_temporal_log(conv_index: dict, is_new_session: bool = False,
     }
     if conv_index:
         try:
+            # Gérer la structure {'conversations': {conv_id: {...}}} ou {conv_id: {...}}
+            convs_dict = conv_index.get('conversations', conv_index) if isinstance(conv_index, dict) else {}
             past_convs = [
-                v for k, v in conv_index.items()
+                v for k, v in convs_dict.items()
                 if k != current_conversation_id and v.get('updated')
             ]
             sorted_convs = sorted(

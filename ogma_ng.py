@@ -8223,8 +8223,7 @@ def main_page():
         settings_dialog = _settings_hub_modal()
         settings_btn = ui.button(icon='settings').classes('settings-floating-btn').props('title="Paramètres généraux"')
         settings_btn.on('click', settings_dialog.open)
-        # Logo OGMA à droite des boutons (58px)
-        ui.html('<img src="/static/OGMAlogopet.png" style="height: 58px; width: auto; opacity: 0.8; margin-left: 8px;" alt="OGMA Logo">')
+        ui.label('OGMA').style('font-size: 1.3rem; font-weight: 700; letter-spacing: 0.12em; margin-left: 10px; opacity: 0.85;')
     
     # Disposition: barre latérale à gauche + panneau de chat à droite
     with ui.element('div').classes('app-body') as app_body:

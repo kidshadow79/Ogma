@@ -104,8 +104,8 @@ def _header():
             # Indicateurs d'état IA dans le header
             with ui.element('div').classes('ia-status-container').style('display: flex; align-items: center; gap: 16px; position: absolute; left: 50%; transform: translateX(-50%); justify-content: center;'):
                 # IA PRINCIPALE (Chat)
-                with ui.element('div').classes('ia-status-item').style('display: flex; align-items: center; gap: 6px;'):
-                    chat_dot = _status_dot(initial='#dc2626')  # Rouge par défaut
+                with ui.element('div').classes('ia-status-item').style('display: flex; align-items: center;'):
+                    chat_dot = None
                     # Spinner d'activité IA Principale (vert)
                     chat_spinner = ui.spinner('audio', size='md').props('color="green"').style('display: none;')
                     with ui.element('div').style('display: flex; flex-direction: column; font-size: 12px;'):
@@ -113,8 +113,8 @@ def _header():
                         chat_model = ui.label('Aucun modèle').classes('text-xs').style('color: var(--text-muted); margin: 0; line-height: 1.2;')
 
                 # ARCHIVISTE
-                with ui.element('div').classes('ia-status-item').style('display: flex; align-items: center; gap: 6px;'):
-                    archiviste_dot = _status_dot(initial='#dc2626')  # Rouge par défaut
+                with ui.element('div').classes('ia-status-item').style('display: flex; align-items: center;'):
+                    archiviste_dot = None
                     # Spinner d'activité Archiviste (vert)
                     archiviste_spinner = ui.spinner('audio', size='md').props('color="green"').style('display: none;')
                     with ui.element('div').style('display: flex; flex-direction: column; font-size: 12px;'):
@@ -122,8 +122,8 @@ def _header():
                         archiviste_model = ui.label('Aucun modèle').classes('text-xs').style('color: var(--text-muted); margin: 0; line-height: 1.2;')
 
                 # IA EMBED
-                with ui.element('div').classes('ia-status-item').style('display: flex; align-items: center; gap: 6px;'):
-                    embeddings_dot = _status_dot(initial='#dc2626')  # Rouge par défaut
+                with ui.element('div').classes('ia-status-item').style('display: flex; align-items: center;'):
+                    embeddings_dot = None
                     with ui.element('div').style('display: flex; flex-direction: column; font-size: 12px;'):
                         ui.label('IA EMBED').classes('text-xs font-semibold').style('color: var(--text-primary); margin: 0; line-height: 1.2;')
                         embeddings_model = ui.label('Aucun modèle').classes('text-xs').style('color: var(--text-muted); margin: 0; line-height: 1.2;')
