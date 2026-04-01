@@ -1,0 +1,661 @@
+/*
+ * OGMA — Thèmes alternatifs
+ * =========================
+ * classic : sombre sobre, sans néon (dark élégant)
+ * light   : fond clair chaud, typographie lisible
+ * Appliqués via data-ogma-theme="classic"|"light" sur <body> ET <html>
+ *   — <html> est set de façon synchrone (avant rendering Quasar)
+ *   — <body> est set au DOMContentLoaded (pour Quasar.Dark)
+ */
+
+/* ══ Anti-FOUC ════════════════════════════════════════════════════
+ * Appliqué immédiatement car data-ogma-theme est mis sur <html>
+ * via un script synchrone avant que Quasar ne rende le DOM.
+ * Empêche le flash blanc de la zone historique au chargement.
+ * ══════════════════════════════════════════════════════════════════ */
+html:not([data-ogma-theme="light"]) .q-page-container,
+html:not([data-ogma-theme="light"]) .q-layout,
+html:not([data-ogma-theme="light"]) .messages-container,
+html:not([data-ogma-theme="light"]) .nicegui-content {
+    background: #05090f !important;
+}
+
+[data-ogma-theme="classic"] {
+
+    /* ═══ Palette Classique ═══ */
+    --bg-main:        #1a1a1f;
+    --bg-secondary:   #22222a;
+    --bg-card:        #2a2a34;
+    --bg-input:       #1e1e26;
+
+    /* ═══ Texte ═══ */
+    --text-primary:   #e8e4dd;
+    --text-offwhite:  #f0ece4;
+    --text-secondary: #a09880;
+    --text-muted:     #6b6558;
+
+    /* ═══ Accents Or (conservés, moins brillants) ═══ */
+    --accent-gold:          #c9a227;
+    --accent-gold-hover:    #dbb840;
+    --accent-gold-subtle:   #252010;
+    --accent-gold-thin:     rgba(201, 162, 39, 0.2);
+
+    /* ═══ Néons désactivés — remplacés par teintes douces ═══ */
+    --neon-gold:      #c9a227;
+    --neon-gold-dim:  rgba(201, 162, 39, 0.12);
+    --neon-gold-glow: none;
+    --neon-gold-glow-hover: 0 2px 8px rgba(201, 162, 39, 0.3);
+    --neon-pink:      #c0748a;
+    --neon-pink-glow: none;
+    --neon-pink-glow-hover: 0 2px 8px rgba(192, 116, 138, 0.3);
+    --neon-cyan:      #7ab8c8;
+    --neon-cyan-glow: none;
+    --neon-galactic:  #6a7fc8;
+    --neon-galactic-glow: none;
+    --neon-galactic-glow-hover: 0 2px 8px rgba(106, 127, 200, 0.3);
+
+    /* ═══ Accents principaux — bleu ardoise doux ═══ */
+    --accent-cyan:      #7ab8c8;
+    --accent-cyan-dim:  rgba(122, 184, 200, 0.10);
+    --accent-cyan-glow: none;
+    --accent-cyan-line: rgba(122, 184, 200, 0.35);
+
+    /* ═══ Bordures — plus discrètes ═══ */
+    --border-default: rgba(122, 184, 200, 0.12);
+    --border-focus:   rgba(201, 162, 39, 0.35);
+    --border-subtle:  rgba(122, 184, 200, 0.06);
+
+    /* ═══ Police — sans serif propre (pas d'Orbitron) ═══ */
+    --font-cyber: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-hud:   'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ─── Body & fond global ───────────────────────────────── */
+[data-ogma-theme="classic"] body,
+[data-ogma-theme="classic"] .q-page-container,
+[data-ogma-theme="classic"] .nicegui-content {
+    background: var(--bg-main) !important;
+}
+
+/* ─── Suppression animations laser / scan ──────────────── */
+[data-ogma-theme="classic"] body::before,
+[data-ogma-theme="classic"] body::after {
+    display: none !important;
+    animation: none !important;
+}
+
+/* ─── Header ────────────────────────────────────────────── */
+[data-ogma-theme="classic"] .q-header,
+[data-ogma-theme="classic"] header {
+    background: var(--bg-secondary) !important;
+    border-bottom: 1px solid rgba(201, 162, 39, 0.18) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3) !important;
+}
+
+/* ─── Sidebar ───────────────────────────────────────────── */
+[data-ogma-theme="classic"] .conversations-sidebar {
+    background: var(--bg-secondary) !important;
+    border-right: 1px solid var(--border-default) !important;
+}
+
+/* ─── Bulles de chat ────────────────────────────────────── */
+[data-ogma-theme="classic"] .message-ai {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-default) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
+}
+
+[data-ogma-theme="classic"] .message-user {
+    background: rgba(201, 162, 39, 0.08) !important;
+    border: 1px solid rgba(201, 162, 39, 0.18) !important;
+    box-shadow: none !important;
+}
+
+/* ─── Composer (zone de saisie) ─────────────────────────── */
+[data-ogma-theme="classic"] .composer-wrapper,
+[data-ogma-theme="classic"] .chat-input-container {
+    background: var(--bg-secondary) !important;
+    border-top: 1px solid var(--border-default) !important;
+}
+
+[data-ogma-theme="classic"] .q-field__control {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border-default) !important;
+    box-shadow: none !important;
+}
+
+[data-ogma-theme="classic"] .q-field__control:focus-within {
+    border-color: var(--border-focus) !important;
+    box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.12) !important;
+}
+
+/* ─── Boutons ────────────────────────────────────────────── */
+[data-ogma-theme="classic"] .action-button,
+[data-ogma-theme="classic"] .settings-floating-btn {
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+[data-ogma-theme="classic"] .action-button:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+}
+
+/* ─── Suppression glow sur les noms IA ──────────────────── */
+[data-ogma-theme="classic"] .ia-name-label,
+[data-ogma-theme="classic"] [class*="ia-status"] {
+    text-shadow: none !important;
+    animation: none !important;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────── */
+[data-ogma-theme="classic"] ::-webkit-scrollbar-track {
+    background: var(--bg-secondary) !important;
+}
+
+[data-ogma-theme="classic"] ::-webkit-scrollbar-thumb {
+    background: rgba(122, 184, 200, 0.25) !important;
+    border-radius: 4px !important;
+}
+
+[data-ogma-theme="classic"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(201, 162, 39, 0.4) !important;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════
+ *  THÈME CLAIR — Mode inclusif  (data-ogma-theme="light")
+ *
+ *  Conçu pour réduire la charge cognitive :
+ *  · Fond crème doux (jamais blanc pur — trop stimulant)
+ *  · Texte quasi-noir chaud — contraste WCAG AAA (≥ 7:1)
+ *  · Line-height généreux — facilite le suivi de ligne
+ *  · Palette limitée — pas de surcharge colorielle
+ *  · Zéro animation, zéro effet cyber
+ *  · Focus ring visible — repère spatial clair
+ *  · Espacement augmenté — séparation nette des zones
+ * ════════════════════════════════════════════════════════════════════ */
+
+[data-ogma-theme="light"] {
+
+    /* ── Fonds ──────────────────────────────────────────────────── */
+    --bg-main:        #faf7f2;   /* crème très doux */
+    --bg-secondary:   #f0ece3;   /* crème légèrement plus soutenu */
+    --bg-card:        #ffffff;   /* cartes : blanc pur pour le contraste */
+    --bg-input:       #ffffff;
+
+    /* ── Texte ──────────────────────────────────────────────────── */
+    --text-primary:   #1a1410;   /* quasi-noir chaud, pas froid */
+    --text-offwhite:  #2a2420;
+    --text-secondary: #5a5048;   /* secondaire, toujours lisible */
+    --text-muted:     #8a7e74;   /* hints / placeholders */
+
+    /* ── Accents Or — identité OGMA ─────────────────────────────── */
+    --accent-gold:          #a07c0a;   /* assombri pour fond clair */
+    --accent-gold-hover:    #b8920f;
+    --accent-gold-subtle:   #fdf3dc;
+    --accent-gold-thin:     rgba(160, 124, 10, 0.15);
+
+    /* ── Néons → teintes plates, pas de glow ────────────────────── */
+    --neon-gold:              #a07c0a;
+    --neon-gold-dim:          rgba(160, 124, 10, 0.10);
+    --neon-gold-glow:         none;
+    --neon-gold-glow-hover:   none;
+    --neon-pink:              #8a3458;
+    --neon-pink-glow:         none;
+    --neon-pink-glow-hover:   none;
+    --neon-cyan:              #2e6e7e;
+    --neon-cyan-glow:         none;
+    --neon-galactic:          #3d508c;
+    --neon-galactic-glow:     none;
+    --neon-galactic-glow-hover: none;
+
+    /* ── Accent bleu-vert sobre ──────────────────────────────────── */
+    --accent-cyan:      #2e6e7e;
+    --accent-cyan-dim:  rgba(46, 110, 126, 0.08);
+    --accent-cyan-glow: none;
+    --accent-cyan-line: rgba(46, 110, 126, 0.22);
+
+    /* ── Bordures ────────────────────────────────────────────────── */
+    --border-default: rgba(0, 0, 0, 0.09);
+    --border-focus:   #a07c0a;          /* focus visible et contrasté */
+    --border-subtle:  rgba(0, 0, 0, 0.05);
+
+    /* ── Typographie ─────────────────────────────────────────────── */
+    --font-cyber: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-hud:   'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── Body, fond global, couleur de texte héritée ────────────────── */
+[data-ogma-theme="light"],
+[data-ogma-theme="light"] body,
+[data-ogma-theme="light"] .q-page-container,
+[data-ogma-theme="light"] .nicegui-content {
+    background: var(--bg-main) !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-cyber) !important;
+}
+
+/* ── Suppression totale des effets cyber / animations ───────────── */
+[data-ogma-theme="light"] body::before,
+[data-ogma-theme="light"] body::after,
+[data-ogma-theme="light"] #cyber-scan-overlay,
+[data-ogma-theme="light"] [class*="scan"],
+[data-ogma-theme="light"] [class*="laser"],
+[data-ogma-theme="light"] [class*="glow"] {
+    display: none !important;
+    animation: none !important;
+    transition: none !important;
+}
+
+[data-ogma-theme="light"] * {
+    text-shadow: none !important;
+}
+
+/* ── Sélection de texte ─────────────────────────────────────────── */
+[data-ogma-theme="light"] ::selection {
+    background: rgba(160, 124, 10, 0.20);
+    color: var(--text-primary);
+}
+
+/* ── Focus ring accessible (hors champs texte) ──────────────────── */
+[data-ogma-theme="light"] *:focus-visible {
+    outline: 2px solid var(--border-focus) !important;
+    outline-offset: 2px !important;
+}
+
+/* Supprimer outline sur tous les inputs/textareas Quasar */
+[data-ogma-theme="light"] .q-field *:focus-visible,
+[data-ogma-theme="light"] .q-field *:focus,
+[data-ogma-theme="light"] .q-field__native:focus,
+[data-ogma-theme="light"] .q-field__native textarea:focus,
+[data-ogma-theme="light"] textarea:focus,
+[data-ogma-theme="light"] input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Supprimer TOUS les pseudo-éléments Quasar (underline animé au focus)
+   dans l'ensemble de l'interface en mode Clarté */
+[data-ogma-theme="light"] .q-field__control::before,
+[data-ogma-theme="light"] .q-field__control::after,
+[data-ogma-theme="light"] .q-field--focused .q-field__control::before,
+[data-ogma-theme="light"] .q-field--focused .q-field__control::after,
+[data-ogma-theme="light"] .q-field__bottom::before,
+[data-ogma-theme="light"] .q-field__bottom::after,
+[data-ogma-theme="light"] .q-field--focused .q-field__bottom::before,
+[data-ogma-theme="light"] .q-field--focused .q-field__bottom::after {
+    display: none !important;
+    opacity: 0 !important;
+    border: none !important;
+}
+
+/* À la place : focus ring doré discret sur le contrôle parent */
+[data-ogma-theme="light"] .q-field--focused .q-field__control {
+    box-shadow: 0 0 0 2px rgba(160, 124, 10, 0.25) !important;
+    border-color: var(--border-focus) !important;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+[data-ogma-theme="light"] .q-header,
+[data-ogma-theme="light"] header,
+[data-ogma-theme="light"] .app-header {
+    background: #f0ece3 !important;
+    border-bottom: 2px solid rgba(160, 124, 10, 0.25) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07) !important;
+    color: var(--text-primary) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-ogma-theme="light"] .app-header::after {
+    display: none !important;
+}
+
+[data-ogma-theme="light"] .q-toolbar__title,
+[data-ogma-theme="light"] .q-toolbar .q-btn,
+[data-ogma-theme="light"] .q-toolbar label,
+[data-ogma-theme="light"] .q-toolbar span,
+[data-ogma-theme="light"] .q-btn__content {
+    color: var(--text-primary) !important;
+    text-shadow: none !important;
+}
+
+/* ── Boutons header (hamburger, paramètres, extensions) ─────────── */
+[data-ogma-theme="light"] .header-btn {
+    background: #e4dfd5 !important;
+    border: 1px solid rgba(0, 0, 0, 0.13) !important;
+    color: var(--text-secondary) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10) !important;
+    text-shadow: none !important;
+}
+
+[data-ogma-theme="light"] .header-btn:hover {
+    background: #d8d2c5 !important;
+    border-color: rgba(160, 124, 10, 0.40) !important;
+    color: var(--accent-gold) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-ogma-theme="light"] .sidebar-toggle,
+[data-ogma-theme="light"] .settings-floating-btn {
+    background: #e4dfd5 !important;
+    border: 1px solid rgba(0, 0, 0, 0.13) !important;
+    color: var(--text-secondary) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10) !important;
+    backdrop-filter: none !important;
+}
+
+[data-ogma-theme="light"] .sidebar-toggle:hover,
+[data-ogma-theme="light"] .settings-floating-btn:hover {
+    background: #d8d2c5 !important;
+    border-color: rgba(160, 124, 10, 0.40) !important;
+    color: var(--accent-gold) !important;
+    box-shadow: none !important;
+}
+
+/* ── Sidebar — tous les wrappers possibles ──────────────────────── */
+[data-ogma-theme="light"] .conversations-sidebar,
+[data-ogma-theme="light"] aside.sidebar,
+[data-ogma-theme="light"] .sidebar,
+[data-ogma-theme="light"] .q-drawer,
+[data-ogma-theme="light"] .q-drawer__content,
+[data-ogma-theme="light"] .q-drawer--left,
+[data-ogma-theme="light"] .q-drawer--left .q-drawer__content,
+[data-ogma-theme="light"] .q-layout__section--marginal {
+    background: #ede9e0 !important;
+    color: var(--text-primary) !important;
+    border-right: 2px solid rgba(0, 0, 0, 0.07) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-ogma-theme="light"] .sidebar::before,
+[data-ogma-theme="light"] .sidebar::after,
+[data-ogma-theme="light"] .q-drawer::before,
+[data-ogma-theme="light"] .q-drawer::after {
+    display: none !important;
+}
+
+/* Liste scrollable — fond identique, pas de dark Quasar */
+[data-ogma-theme="light"] .sidebar-list,
+[data-ogma-theme="light"] .sidebar-bottom,
+[data-ogma-theme="light"] .sidebar-header {
+    background: transparent !important;
+}
+
+/* ── Items de la sidebar (.sidebar-item = classe réelle) ────────── */
+[data-ogma-theme="light"] .sidebar-item {
+    background: rgba(255, 255, 255, 0.55) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-ogma-theme="light"] .sidebar-item:hover {
+    background: rgba(160, 124, 10, 0.08) !important;
+    border-color: rgba(160, 124, 10, 0.25) !important;
+}
+
+[data-ogma-theme="light"] .sidebar-item.active {
+    background: rgba(160, 124, 10, 0.13) !important;
+    border-color: rgba(160, 124, 10, 0.40) !important;
+    border-left: 2px solid var(--accent-gold) !important;
+}
+
+[data-ogma-theme="light"] .sidebar-item-title {
+    color: var(--text-primary) !important;
+}
+
+[data-ogma-theme="light"] .sidebar-item-badge {
+    background: rgba(0, 0, 0, 0.06) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Compat .conversation-item si utilisé ailleurs */
+[data-ogma-theme="light"] .conversation-item {
+    background: rgba(255, 255, 255, 0.55) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-ogma-theme="light"] .conversation-item:hover {
+    background: rgba(160, 124, 10, 0.08) !important;
+    border-color: rgba(160, 124, 10, 0.25) !important;
+}
+
+[data-ogma-theme="light"] .conversation-item.active {
+    background: rgba(160, 124, 10, 0.13) !important;
+    border-color: rgba(160, 124, 10, 0.40) !important;
+    border-left: 3px solid var(--accent-gold) !important;
+}
+
+/* ── Zone de chat — espacements TDAH-friendly ───────────────────── */
+[data-ogma-theme="light"] .message-ai {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.07) !important;
+    border-left: 3px solid rgba(46, 110, 126, 0.35) !important; /* repère visuel IA */
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+    color: var(--text-primary) !important;
+    line-height: 1.70 !important;
+    margin-bottom: 16px !important;
+}
+
+[data-ogma-theme="light"] .message-user {
+    background: #fdf5e0 !important;     /* crème légèrement doré */
+    border: 1px solid rgba(160, 124, 10, 0.18) !important;
+    border-right: 3px solid rgba(160, 124, 10, 0.45) !important; /* repère visuel user */
+    box-shadow: none !important;
+    color: var(--text-primary) !important;
+    line-height: 1.70 !important;
+    margin-bottom: 16px !important;
+}
+
+/* Line-height et lisibilité sur tout le texte de chat */
+[data-ogma-theme="light"] .message-ai p,
+[data-ogma-theme="light"] .message-ai li,
+[data-ogma-theme="light"] .message-user p,
+[data-ogma-theme="light"] .message-user li {
+    line-height: 1.70 !important;
+    letter-spacing: 0.012em !important;
+}
+
+/* ── Composer — pied de page ────────────────────────────────────── */
+[data-ogma-theme="light"] .composer-wrapper,
+[data-ogma-theme="light"] .chat-input-container,
+[data-ogma-theme="light"] .message-input-footer {
+    background: #f0ece3 !important;
+    border-top: 2px solid rgba(0, 0, 0, 0.07) !important;
+}
+
+/* ── Composer — grille principale (hardcodé rgba(11,21,32)) ──────── */
+[data-ogma-theme="light"] .input-grid-container {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(0, 0, 0, 0.14) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-ogma-theme="light"] .input-grid-container:focus-within {
+    border-color: var(--border-focus) !important;
+    box-shadow: 0 0 0 3px rgba(160, 124, 10, 0.14), 0 2px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ── Textarea — forcer texte sombre (hardcodé #f1eee6) ───────────── */
+[data-ogma-theme="light"] .input-grid-container .input-center-col textarea,
+[data-ogma-theme="light"] .input-grid-container .input-center-col .q-field__native,
+[data-ogma-theme="light"] .input-grid-container .input-center-col .q-field__native textarea,
+[data-ogma-theme="light"] .input-grid-container .q-textarea textarea,
+[data-ogma-theme="light"] .input-overlay .input-center-col textarea,
+[data-ogma-theme="light"] .input-overlay .q-textarea textarea,
+[data-ogma-theme="light"] .input-center-col textarea,
+[data-ogma-theme="light"] .input-center-col .q-field__native textarea {
+    color: var(--text-primary) !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    caret-color: var(--text-primary) !important;
+    font-size: 15px !important;
+    line-height: 1.60 !important;
+}
+
+[data-ogma-theme="light"] .input-grid-container textarea::placeholder,
+[data-ogma-theme="light"] .input-center-col textarea::placeholder,
+[data-ogma-theme="light"] .input-grid-container .q-field__native textarea::placeholder {
+    color: var(--text-muted) !important;
+    -webkit-text-fill-color: var(--text-muted) !important;
+}
+
+[data-ogma-theme="light"] .q-field__control {
+    background: #ffffff !important;
+    border: 1.5px solid rgba(0, 0, 0, 0.14) !important;
+    box-shadow: none !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+}
+
+[data-ogma-theme="light"] .q-field__control:focus-within {
+    border-color: var(--border-focus) !important;
+    box-shadow: 0 0 0 3px rgba(160, 124, 10, 0.14) !important;
+}
+
+[data-ogma-theme="light"] .q-field__native,
+[data-ogma-theme="light"] .q-field__input {
+    color: var(--text-primary) !important;
+    font-size: 15px !important;
+    line-height: 1.60 !important;
+}
+
+[data-ogma-theme="light"] .q-field__label {
+    color: var(--text-muted) !important;
+}
+
+[data-ogma-theme="light"] .q-field__marginal {
+    color: var(--text-secondary) !important;
+}
+
+/* ── Boutons d'action (hardcodé gradient sombre) ────────────────── */
+[data-ogma-theme="light"] .action-button {
+    background: #e4dfd5 !important;
+    border: 1px solid rgba(0, 0, 0, 0.13) !important;
+    color: var(--text-secondary) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+    text-shadow: none !important;
+}
+
+[data-ogma-theme="light"] .action-button:hover {
+    background: #d8d2c5 !important;
+    border-color: rgba(160, 124, 10, 0.40) !important;
+    color: var(--accent-gold) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* ── Bouton Envoyer ──────────────────────────────────────────────── */
+[data-ogma-theme="light"] .send-button {
+    background: var(--accent-gold) !important;
+    border: 1px solid rgba(160, 124, 10, 0.50) !important;
+    color: #ffffff !important;
+    box-shadow: 0 1px 4px rgba(160, 124, 10, 0.30) !important;
+    text-shadow: none !important;
+}
+
+[data-ogma-theme="light"] .send-button:hover {
+    background: var(--accent-gold-hover) !important;
+    box-shadow: 0 2px 8px rgba(160, 124, 10, 0.40) !important;
+    transform: translateY(-1px);
+}
+
+/* ── Modals / Overlays ──────────────────────────────────────────── */
+[data-ogma-theme="light"] .q-dialog__inner > div,
+[data-ogma-theme="light"] .glassmorphism-modal {
+    background: #faf7f2 !important;
+    border: 1px solid rgba(0, 0, 0, 0.09) !important;
+    box-shadow: 0 6px 32px rgba(0, 0, 0, 0.12) !important;
+    color: var(--text-primary) !important;
+    backdrop-filter: none !important;
+}
+
+/* ── Nom de l'IA (header) ───────────────────────────────────────── */
+[data-ogma-theme="light"] .ia-name-label,
+[data-ogma-theme="light"] [class*="ia-status"] {
+    color: var(--text-secondary) !important;
+    text-shadow: none !important;
+    animation: none !important;
+}
+
+/* ── Textes hérités (forcer couleur partout dans le light) ──────── */
+[data-ogma-theme="light"] .q-item__label--header,
+[data-ogma-theme="light"] .q-item__label,
+[data-ogma-theme="light"] .q-item,
+[data-ogma-theme="light"] .q-list,
+[data-ogma-theme="light"] label {
+    color: var(--text-primary) !important;
+}
+
+/* ── Zone d'historique chat — toute la pile de layers ───────────── */
+/* Sans !important, var(--bg-main) peut être écrasé par Quasar Dark  */
+[data-ogma-theme="light"] .conversation-area,
+[data-ogma-theme="light"] [data-role="chat-viewport"],
+[data-ogma-theme="light"] [data-role="chat-scroll"],
+[data-ogma-theme="light"] .chat-viewport-layer,
+[data-ogma-theme="light"] .chat-centering-layer,
+[data-ogma-theme="light"] .chat-panel,
+[data-ogma-theme="light"] .chat-inner {
+    background: var(--bg-main) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ── Flux Cognitif — panel overlay (CSS injecté par stream_ui.py) ── */
+[data-ogma-theme="light"] .flux-cognitif-overlay {
+    background: #f5f2eb !important;
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.10) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-ogma-theme="light"] .flux-header {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-ogma-theme="light"] .flux-cognitif-overlay .flux-item,
+[data-ogma-theme="light"] .flux-cognitif-overlay .flux-text,
+[data-ogma-theme="light"] .flux-cognitif-overlay span,
+[data-ogma-theme="light"] .flux-cognitif-overlay label,
+[data-ogma-theme="light"] .flux-cognitif-overlay p {
+    color: var(--text-primary) !important;
+    text-shadow: none !important;
+}
+
+/* ── Capability Advisor — panel overlay (background Python sans !important) ── */
+[data-ogma-theme="light"] .capability-advisor-overlay {
+    background: #f5f2eb !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.10) !important;
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+}
+
+[data-ogma-theme="light"] .capability-advisor-overlay label,
+[data-ogma-theme="light"] .capability-advisor-overlay span,
+[data-ogma-theme="light"] .capability-advisor-overlay .q-separator {
+    color: var(--text-primary) !important;
+}
+
+[data-ogma-theme="light"] .capability-advisor-overlay .q-btn,
+[data-ogma-theme="light"] .capability-advisor-overlay .q-btn__content {
+    color: var(--text-secondary) !important;
+}
+
+/* ── Scrollbar discrète ─────────────────────────────────────────── */
+[data-ogma-theme="light"] ::-webkit-scrollbar {
+    width: 7px !important;
+}
+
+[data-ogma-theme="light"] ::-webkit-scrollbar-track {
+    background: var(--bg-secondary) !important;
+}
+
+[data-ogma-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.16) !important;
+    border-radius: 6px !important;
+}
+
+[data-ogma-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(160, 124, 10, 0.40) !important;
+}

@@ -1077,6 +1077,54 @@ def _settings_hub_modal():
                     ''')
 
             with ui.row().classes('justify-end gap-2 mt-4'):
+                # ─── Sélecteur thème interface ──────────────────────────
+                sm_theme = _get_settings_manager()
+                _current_theme = sm_theme.settings.get('ui', {}).get('theme', 'neon') if sm_theme else 'neon'
+
+                _theme_labels = {'neon': 'Néon', 'classic': 'Soir', 'light': 'Clarté'}
+                _theme_values = ['neon', 'classic', 'light']
+                _theme_initial = _theme_labels.get(_current_theme, 'Néon')
+
+                async def _apply_theme(e):
+                    label_to_key = {'Néon': 'neon', 'Soir': 'classic', 'Clarté': 'light'}
+                    theme_val = label_to_key.get(e.value, 'neon')
+                    sm_t = _get_settings_manager()
+                    if sm_t:
+                        if 'ui' not in sm_t.settings:
+                            sm_t.settings['ui'] = {}
+                        sm_t.settings['ui']['theme'] = theme_val
+                        sm_t.save_settings()
+                    is_dark_js = 'false' if theme_val == 'light' else 'true'
+                    # Capability Advisor : style inline sans !important → CSS suffit mais on nettoie quand même
+                    sidebar_js = (
+                        'var sb=document.querySelector("aside.sidebar");'
+                        'if(sb){sb.style.removeProperty("box-shadow");sb.style.removeProperty("border");sb.style.setProperty("border-right","2px solid rgba(160,124,10,0.55)","important");}'
+                        'var ca=document.querySelector(".capability-advisor-overlay");'
+                        'if(ca){ca.style.removeProperty("background");ca.style.removeProperty("box-shadow");}'
+                    ) if theme_val == 'light' else (
+                        # Retour Néon/Soir : remettre l'effet enfoncement sidebar
+                        'var sb=document.querySelector("aside.sidebar");'
+                        'if(sb){sb.style.boxShadow="inset 8px 8px 20px rgba(0,0,0,0.6),inset -2px -2px 12px rgba(0,0,0,0.5),inset 0 4px 16px rgba(0,0,0,0.7),inset -1px 0 2px rgba(100,100,120,0.1)";}'
+                        'var ca=document.querySelector(".capability-advisor-overlay");'
+                        'if(ca){ca.style.background="linear-gradient(145deg,#1a1a1a 0%,#2d2d2d 100%)";'
+                        'ca.style.boxShadow="0 8px 32px rgba(0,0,0,0.6)";}'
+                    )
+                    await ui.run_javascript(
+                        f'document.body.setAttribute("data-ogma-theme","{theme_val}");'
+                        f'if(typeof Quasar!=="undefined")Quasar.Dark.set({is_dark_js});'
+                        f'{sidebar_js}'
+                    )
+
+                with ui.row().classes('items-center').style('gap:10px; margin-right: auto; padding: 4px 0;'):
+                    ui.label('Thème').style(
+                        'color: var(--text-secondary); font-size: 12px; letter-spacing: 0.5px;'
+                    )
+                    ui.toggle(
+                        ['Néon', 'Soir', 'Clarté'],
+                        value=_theme_initial,
+                        on_change=_apply_theme
+                    ).style('font-size: 11px;').props('dense')
+
                 ui.button('Fermer', on_click=lambda: overlay.classes(add='hidden')).classes('action-button btn-fermer-hub').style('''
                     background: rgba(255, 140, 0, 0.12) !important;
                     border: 1px solid rgba(255, 140, 0, 0.3) !important;

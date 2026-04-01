@@ -2316,12 +2316,12 @@ def _sidebar():
     # Charger l'index depuis le disque au démarrage
     _load_conversation_index()
     with ui.element('aside').classes('sidebar').style(
-        'background: #05090f !important;'
-        ' border: none !important;'
+        'background: var(--bg-main);'
+        ' border: none;'
         ' box-shadow: inset 8px 8px 20px rgba(0,0,0,0.6),'
         ' inset -2px -2px 12px rgba(0,0,0,0.5),'
         ' inset 0 4px 16px rgba(0,0,0,0.7),'
-        ' inset -1px 0 2px rgba(100,100,120,0.1) !important;'
+        ' inset -1px 0 2px rgba(100,100,120,0.1);'
     ):
         # Actions disponibles dans l'entête
         def do_rename():

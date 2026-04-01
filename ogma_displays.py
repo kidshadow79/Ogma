@@ -507,16 +507,63 @@ def _link_styles():
     import os as _os
     _css_v = int(_os.path.getmtime('static/ogma_styles.css'))
     ui.add_head_html(f'<link rel="stylesheet" href="/static/ogma_styles.css?v={_css_v}" />')
-    
+
+    # Thème interface (classique / néon) — lire le setting et l'appliquer via data-attribute
+    try:
+        import sys as _sys
+        _ogma_ng_ref = _sys.modules.get('ogma_ng')
+        _sm_ref = _ogma_ng_ref._ensure_settings_manager() if (_ogma_ng_ref and hasattr(_ogma_ng_ref, '_ensure_settings_manager')) else None
+        _ui_theme = _sm_ref.settings.get('ui', {}).get('theme', 'neon') if _sm_ref else 'neon'
+    except Exception:
+        _ui_theme = 'neon'
+    _theme_css_v = int(_os.path.getmtime('static/ogma_theme_classic.css'))
+    ui.add_head_html(f'<link rel="stylesheet" href="/static/ogma_theme_classic.css?v={_theme_css_v}" />')
+    _is_dark_js = 'false' if _ui_theme == 'light' else 'true'
+
+    # ── Script SYNCHRONE (avant parsing <body>) ──────────────────────────────
+    # Met data-ogma-theme sur <html> immédiatement → le CSS s'applique avant
+    # le premier affichage, évitant le flash blanc→noir (FOUC).
+    ui.add_head_html(
+        f'<script>document.documentElement.setAttribute("data-ogma-theme","{_ui_theme}");</script>'
+    )
+
+    # ── MutationObserver en mode Clarté ─────────────────────────────────────
+    # Retire le box-shadow de l'effet enfoncement sidebar (background géré par CSS var(--bg-main))
+    if _ui_theme == 'light':
+        _observer_js = (
+            'var _ogmaObs=new MutationObserver(function(){'
+            'var sb=document.querySelector("aside.sidebar");'
+            'if(sb){sb.style.removeProperty("box-shadow");sb.style.removeProperty("border");sb.style.setProperty("border-right","2px solid rgba(160,124,10,0.55)","important");_ogmaObs.disconnect();}'
+            '});'
+            '_ogmaObs.observe(document.documentElement,{childList:true,subtree:true});'
+        )
+        ui.add_head_html(f'<script>{_observer_js}</script>')
+
+    # ── DOMContentLoaded : Quasar.Dark + body attribute ─────────────────────
+    _sidebar_light_js = (
+        'var sb=document.querySelector("aside.sidebar");'
+        'if(sb){sb.style.removeProperty("box-shadow");sb.style.removeProperty("border");sb.style.setProperty("border-right","2px solid rgba(160,124,10,0.55)","important");}'
+        'var ca=document.querySelector(".capability-advisor-overlay");'
+        'if(ca){ca.style.removeProperty("background");ca.style.removeProperty("box-shadow");}'
+    ) if _ui_theme == 'light' else ''
+    ui.add_head_html(
+        f'<script>document.addEventListener("DOMContentLoaded",function(){{'
+        f'document.body.setAttribute("data-ogma-theme","{_ui_theme}");'
+        f'if(typeof Quasar!=="undefined")Quasar.Dark.set({_is_dark_js});'
+        f'{_sidebar_light_js}'
+        f'}});</script>'
+    )
+
     # ═══════════════════════════════════════════════════════════════════════════
     # Sidebar : fond enfoncement profond Flux Cognitif — injection JS forcée
     # ═══════════════════════════════════════════════════════════════════════════
-    ui.add_head_html('''<style>
+    _sidebar_bg_js_value = 'var(--bg-main)' if True else '#05090f'  # toujours via variable CSS
+    ui.add_head_html(f'''<style>
     /* Sidebar : fond sombre profond opaque — esthétique Flux Cognitif */
     aside.sidebar,
     .app-body > aside.sidebar,
     .app-body > .sidebar,
-    .sidebar {
+    .sidebar {{
         background: var(--bg-main) !important;
         backdrop-filter: blur(12px) saturate(120%) !important;
         -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
@@ -526,32 +573,57 @@ def _link_styles():
             inset -2px -2px 12px rgba(0, 0, 0, 0.5),
             inset 0 4px 16px rgba(0, 0, 0, 0.7),
             inset -1px 0 2px rgba(100, 100, 120, 0.1) !important;
-    }
-    .sidebar::before {
-        display: none !important;
-    }
-    .sidebar[data-collapsed="true"] {
+    }}
+    /* Clarté : supprimer les ombres enfoncement + bordure droite visible */
+    [data-ogma-theme="light"] aside.sidebar,
+    [data-ogma-theme="light"] .app-body > aside.sidebar,
+    [data-ogma-theme="light"] .sidebar {{
         box-shadow: none !important;
-    }
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        border: none !important;
+        border-right: 2px solid rgba(160, 124, 10, 0.55) !important;
+    }}
+    .sidebar::before {{
+        display: none !important;
+    }}
+    .sidebar[data-collapsed="true"] {{
+        box-shadow: none !important;
+    }}
     </style>
     <script>
     // Force le style sidebar au chargement — bypass cache CSS
-    document.addEventListener('DOMContentLoaded', function() {
-        function forceSidebarStyle() {
+    // Ignoré en mode Clarté pour laisser le thème CSS prendre la main
+    document.addEventListener('DOMContentLoaded', function() {{
+        function forceSidebarStyle() {{
+            var theme = document.documentElement.getAttribute('data-ogma-theme')
+                     || document.body.getAttribute('data-ogma-theme')
+                     || 'neon';
+            if (theme === 'light') {{
+                // En Clarté : retirer inline styles + forcer bordure droite visible
+                var el = document.querySelector('.sidebar');
+                if (el) {{
+                    el.style.removeProperty('background');
+                    el.style.removeProperty('box-shadow');
+                    el.style.removeProperty('border');
+                    el.style.setProperty('border-right', '2px solid rgba(160,124,10,0.55)', 'important');
+                }}
+                return;
+            }}
             var el = document.querySelector('.sidebar');
-            if (el) {
+            if (el) {{
                 el.style.setProperty('background', '#05090f', 'important');
                 el.style.setProperty('border', 'none', 'important');
                 el.style.setProperty('box-shadow',
                     'inset 8px 8px 20px rgba(0,0,0,0.6), inset -2px -2px 12px rgba(0,0,0,0.5), inset 0 4px 16px rgba(0,0,0,0.7)',
                     'important');
                 console.log('[OGMA-SIDEBAR] Style force applique: background=#05090f, no border');
-            } else {
+            }} else {{
                 setTimeout(forceSidebarStyle, 500);
-            }
-        }
+            }}
+        }}
         setTimeout(forceSidebarStyle, 300);
-    });
+    }});
     </script>''')
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -653,7 +725,41 @@ def _link_styles():
     .sidebar {
         border-right: none !important;
     }
-    
+    /* Clarté : bordure droite visible + tooltip lisible */
+    [data-ogma-theme="light"] .sidebar {
+        border-right: 2px solid rgba(160, 124, 10, 0.55) !important;
+    }
+    [data-ogma-theme="light"] .q-tooltip {
+        background: #f0ece3 !important;
+        color: #1a1410 !important;
+        font-weight: 500 !important;
+        border: 1px solid rgba(0,0,0,0.15) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+    }
+    [data-ogma-theme="light"] .q-tooltip * {
+        color: #1a1410 !important;
+    }
+
+    /* Noms modèles IA dans le header — marron doré cohérent avec bouton Envoyer */
+    [data-ogma-theme="light"] .ia-status-container .text-xs {
+        color: #a07c0a !important;
+    }
+    /* Titres (IA PRINCIPALE, ARCHIVISTE, IA EMBED) restent en texte primaire */
+    [data-ogma-theme="light"] .ia-status-container .font-semibold {
+        color: var(--text-primary) !important;
+    }
+
+    /* Dialogs/modals — textes hardcodés (gold, #f5f5dc, #ccc) illisibles sur fond crème */
+    [data-ogma-theme="light"] .q-dialog .q-card label,
+    [data-ogma-theme="light"] .q-dialog .q-card span:not(.q-icon),
+    [data-ogma-theme="light"] .q-dialog .q-card p,
+    [data-ogma-theme="light"] .q-dialog .q-card div {
+        color: var(--text-primary) !important;
+    }
+    /* Séparateurs dans les dialogs */
+    [data-ogma-theme="light"] .q-dialog .q-separator {
+        background: rgba(0,0,0,0.12) !important;
+    }    
     /* Animation supprimée - Sidebar en gris simple */
     
     /* Sidebar style overlay sophistiqué - Header */
