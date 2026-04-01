@@ -713,3 +713,35 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
     color: #6b4fa0 !important;
     opacity: 1 !important;
 }
+
+/* ══ Cognitive Mirror — Box introspection ═══════════════════════ */
+
+/* Conteneur expansion */
+[data-ogma-theme="light"] .thinking-expansion {
+    background: rgba(59, 130, 246, 0.06) !important;
+    border: 1px solid rgba(59, 130, 246, 0.15) !important;
+    border-radius: 10px !important;
+}
+
+/* Header "introspection ia-principale-archiviste" */
+[data-ogma-theme="light"] .thinking-expansion .q-expansion-item__toggle-icon {
+    color: #6b4fa0 !important;
+}
+
+/* Contenu markdown dialogue (blanc → foncé) */
+[data-ogma-theme="light"] .thinking-expansion .nicegui-markdown,
+[data-ogma-theme="light"] .thinking-expansion .introspection-dialogue,
+[data-ogma-theme="light"] .thinking-expansion .introspection-dialogue p,
+[data-ogma-theme="light"] .thinking-expansion .introspection-dialogue li {
+    color: var(--text-primary) !important;
+}
+
+/* Noms intervenants (strong) — doré foncé lisible */
+[data-ogma-theme="light"] .thinking-expansion .introspection-dialogue strong {
+    color: #8b6914 !important;
+}
+
+/* Séparateur hr — visible sur fond clair */
+[data-ogma-theme="light"] .thinking-expansion .introspection-dialogue hr {
+    background: rgba(0, 0, 0, 0.12) !important;
+}
