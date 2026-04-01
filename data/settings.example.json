@@ -286,5 +286,8 @@
   "profile": {
     "user_name": "Utilisateur"
   },
-  "show_seed_memories": true
+  "show_seed_memories": true,
+  "ui": {
+    "theme": "neon"
+  }
 }
