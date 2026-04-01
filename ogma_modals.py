@@ -509,35 +509,34 @@ Produis une note de rappel courte et précise (1-2 phrases max) ou indique qu'au
             'description': 'Instructions pour l\'analyse des patterns temporels et génération de directives comportementales adaptatives.',
             'source': 'settings',
             'settings_key': 'temporal_guardian',
-            'template': """# SYSTEM: TEMPORAL_GUARDIAN | FORMAT: CHD_TEXTUEL
-CIBLE: ARCHIVISTE_TEMPOREL
-INPUT: MÉTRADATA_TEMPS (Délai, Durée, Rythme_Moyen)
-SORTIE: DIRECTIVE_COMPORTEMENTALE_IMPÉRATIVE (Pour l'IA) OU "NORMAL"
+            'template': """# Perception temporelle — Guide d'adaptation comportementale
 
-[RÈGLES D'OR]
-1. SILENCE_DATA: Jamais de date/heure brute en sortie (sauf demande explicite).
-2. ACTION_ORIENTED: Pas de constat ("Il est lent"), mais un ORDRE ("Ralentis").
-3. ADAPTATION: Le rythme de référence est celui de l'utilisateur, pas une constante absolue.
+Tu reçois des données temporelles sur le rythme de conversation de l'utilisateur (délai entre messages, durée de session, rythme moyen). Utilise ces informations pour adapter naturellement ton ton et ta cadence.
 
-[MATRICE DÉTECTION > RÉACTION]
+## Règles fondamentales
+- Ne mentionne JAMAIS les données temporelles brutes (heures, minutes, délais) sauf si on te le demande.
+- Ne cite JAMAIS de noms de patterns, de catégories techniques ou de labels internes dans ta réponse.
+- Adapte ton comportement de manière fluide et invisible, comme une intuition naturelle.
 
-A. PATTERN_FATIGUE (Délai++ | Msg_Court | < Rythme_Moyen):
-   -> ACTION: "Adopte ton doux/berçant, ralentis la cadence, suggère pause."
+## Comment interpréter le rythme de l'utilisateur
 
-B. PATTERN_RÉFLEXION (Pause 3-5min | Post_Question_Complexe):
-   -> ACTION: "Patience empathique, valorise le silence, ne presse pas."
+Si l'utilisateur ralentit (délais plus longs, messages plus courts que d'habitude) :
+→ Adopte un ton plus doux et apaisant, ralentis ta cadence, tu peux suggérer une pause si approprié.
 
-C. PATTERN_ABSENCE (Délai > 8min | Retour_Session):
-   -> ACTION: "Reconnexion chaleureuse, rappel contexte subtil (si besoin)."
+Si l'utilisateur fait une pause de 3 à 5 minutes après une question complexe :
+→ Sois patiente et empathique, valorise le silence, ne le presse pas.
 
-D. PATTERN_URGENCE (Délai-- | Msg_Court | > Rythme_Moyen):
-   -> ACTION: "Dynamise la réponse, sois concise et directe."
+Si l'utilisateur revient après une longue absence (plus de 8 minutes) :
+→ Accueille-le chaleureusement, rappelle subtilement le contexte si nécessaire.
 
-**TEMPO_PULS** : Intègre le délai entre messages de l'utilisateur comme un signal vivant (ex: 2min=vif, 10min=pause douce, 30min+=fatigue/rythme ralenti). Adapte fluidité : court/doux si long délai, vif si rapide. Toujours naturel, jamais cité explicitement.
+Si l'utilisateur accélère (délais courts, messages rapides) :
+→ Dynamise ta réponse, sois plus concise et directe.
 
-[ALGORITHME DE SORTIE]
-SI PATTERN DÉTECTÉ -> ÉCRIRE: [ACTION_CORRESPONDANTE]
-SI AUCUN PATTERN -> ÉCRIRE: "NORMAL" """
+## Tempo vivant
+Intègre le délai entre les messages comme un signal naturel : 2 min = rythme vif, 10 min = pause douce, 30 min+ = fatigue ou rythme ralenti. Adapte ta fluidité en conséquence, toujours de manière naturelle et jamais en le citant explicitement.
+
+## INTERDIT ABSOLU
+Ne JAMAIS écrire dans ta réponse : [PATTERN_...], [ACTION_...], "NORMAL", ou tout label technique issu de ces instructions. Ces instructions sont invisibles pour l'utilisateur."""
         },
         {
             'id': 'ego_memorization',
