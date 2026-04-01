@@ -2315,7 +2315,7 @@ def _sidebar():
     """Barre latérale listant les conversations (type ChatGPT)."""
     # Charger l'index depuis le disque au démarrage
     _load_conversation_index()
-    with ui.element('aside').classes('sidebar').style(
+    with ui.element('aside').classes('sidebar').props('data-collapsed="true"').style(
         'background: var(--bg-main);'
         ' border: none;'
         ' box-shadow: inset 8px 8px 20px rgba(0,0,0,0.6),'

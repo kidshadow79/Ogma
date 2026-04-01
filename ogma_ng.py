@@ -8223,7 +8223,9 @@ def main_page():
         settings_dialog = _settings_hub_modal()
         settings_btn = ui.button(icon='settings').classes('settings-floating-btn').props('title="Paramètres généraux"')
         settings_btn.on('click', settings_dialog.open)
-        ui.label('OGMA').style('font-size: 1.3rem; font-weight: 700; letter-spacing: 0.12em; margin-left: 10px; opacity: 0.85;')
+        ogma_title = ui.label('OGMA').classes('ogma-title').style('font-size: 1.3rem; font-weight: 700; letter-spacing: 0.12em; margin-left: 10px; opacity: 0.85; color: #a07c0a; cursor: pointer;')
+        ogma_title.on('click', lambda: ui.run_javascript('location.reload(true)'))
+        ogma_title.props('title="Rafraîchir OGMA (Ctrl+Shift+R)"')
     
     # Disposition: barre latérale à gauche + panneau de chat à droite
     with ui.element('div').classes('app-body') as app_body:
@@ -8313,40 +8315,15 @@ def main_page():
     
     # UI layout complete
     
-    # Initialisation sidebar (restaure l'état depuis localStorage avec délai)
+    # Initialisation sidebar — CSS démarre déjà collapsed (--sidebar-width:0, transform:translateX(-100%))
+    # Ce bloc renforce juste la cohérence de l'attribut data-collapsed
     try:
         ui.run_javascript('''
-            setTimeout(() => {
-                // Restaurer l'état du volet sidebar avec architecture footer intégrée
-                const sidebar = document.querySelector('.sidebar');
-                const mainContent = document.querySelector('.chat-panel');
-                
-                if (sidebar) {
-                    // FORCÉ: sidebar toujours fermée au démarrage
-                    const isCollapsed = true;
-
-                    sidebar.setAttribute('data-collapsed', isCollapsed.toString());
-
-                    if (isCollapsed) {
-                        document.documentElement.style.setProperty('--sidebar-width', '0px');
-                        sidebar.style.transform = 'translateX(-100%)';
-                        sidebar.style.transition = 'none';
-
-                        if (mainContent) {
-                            mainContent.style.marginLeft = '0px';
-                        }
-                    } else {
-                        document.documentElement.style.setProperty('--sidebar-width', '360px');
-                        sidebar.style.transform = 'translateX(0)';
-                        sidebar.style.transition = 'none';
-
-                        if (mainContent) {
-                            mainContent.style.marginLeft = '0px';
-                            mainContent.style.transition = 'margin-left 0.3s ease-in-out';
-                        }
-                    }
-                }
-            }, 100);
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.setAttribute('data-collapsed', 'true');
+                document.documentElement.style.setProperty('--sidebar-width', '0px');
+            }
         ''')
     except Exception:
         pass

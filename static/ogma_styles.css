@@ -80,7 +80,7 @@ Design system CYBER / TECH — fond spatial, accents cyan laser + or
     --transition-slow: all 0.35s ease;
 
     /* ═══ Layout ═══ */
-    --sidebar-width: 360px;
+    --sidebar-width: 0px;
     --sidebar-collapsed-width: 0px;
     --header-height: 80px;
     --chat-width: 800px;
@@ -255,13 +255,15 @@ body::after {
     height: 100%;
     top: 0 !important;
     overflow: hidden;
-    width: var(--sidebar-width) !important;
-    min-width: var(--sidebar-width) !important;
-    max-width: var(--sidebar-width) !important;
+    width: 360px !important;
+    min-width: 360px !important;
+    max-width: 360px !important;
     display: flex;
     flex-direction: column;
     padding-bottom: 14px;
     flex-shrink: 0 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
 }
 
 /* Pseudo-élément désactivé — fond opaque */
