@@ -437,6 +437,8 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
     color: var(--text-primary) !important;
     line-height: 1.70 !important;
     margin-bottom: 16px !important;
+    padding: 12px 18px !important;
+    border-radius: 10px !important;
 }
 
 [data-ogma-theme="light"] .message-user {
@@ -447,6 +449,8 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
     color: var(--text-primary) !important;
     line-height: 1.70 !important;
     margin-bottom: 16px !important;
+    padding: 12px 18px !important;
+    border-radius: 10px !important;
 }
 
 /* Line-height et lisibilité sur tout le texte de chat */
@@ -658,4 +662,51 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
 
 [data-ogma-theme="light"] ::-webkit-scrollbar-thumb:hover {
     background: rgba(160, 124, 10, 0.40) !important;
+}
+
+/* ══ Dream Engine — Box rêve ════════════════════════════════════ */
+
+/* Conteneur principal (render_dream_wake_box + ogma_ng wake) */
+[data-ogma-theme="light"] .dream-wake-box,
+[data-ogma-theme="light"] .dream-illustration-wake {
+    background: linear-gradient(135deg, rgba(147, 112, 219, 0.18), rgba(120, 80, 180, 0.10)) !important;
+    border-left: 3px solid #7c5cbf !important;
+}
+
+/* Titres ("X a rêvé...", "Rêve de cette nuit") */
+[data-ogma-theme="light"] .dream-wake-box label,
+[data-ogma-theme="light"] .dream-illustration-wake label {
+    color: #5b3d8f !important;
+}
+
+/* Score [8/10] — un peu plus discret */
+[data-ogma-theme="light"] .dream-wake-box .q-label:nth-child(n),
+[data-ogma-theme="light"] .dream-wake-box label {
+    color: #5b3d8f !important;
+    opacity: 1 !important;
+}
+
+/* Message de réveil + contenu du rêve (markdown) */
+[data-ogma-theme="light"] .dream-wake-box .nicegui-markdown,
+[data-ogma-theme="light"] .dream-wake-box .nicegui-markdown * {
+    color: #2d1f4e !important;
+}
+
+/* Expansion "Lire le rêve complet..." */
+[data-ogma-theme="light"] .dream-wake-box .dream-expansion,
+[data-ogma-theme="light"] .dream-wake-box .dream-expansion .q-item__label,
+[data-ogma-theme="light"] .dream-wake-box .dream-expansion .q-expansion-item__toggle-icon {
+    color: #5b3d8f !important;
+}
+
+/* Contenu markdown dans l'expansion */
+[data-ogma-theme="light"] .dream-wake-box .dream-expansion .nicegui-markdown,
+[data-ogma-theme="light"] .dream-wake-box .dream-expansion .nicegui-markdown * {
+    color: #3a2660 !important;
+}
+
+/* Insight ego (bas de la box) */
+[data-ogma-theme="light"] .dream-wake-box label[style*="font-style: italic"] {
+    color: #6b4fa0 !important;
+    opacity: 1 !important;
 }

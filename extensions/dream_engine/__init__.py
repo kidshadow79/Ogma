@@ -329,7 +329,7 @@ def render_dream_wake_box(
         insight_text = dream_analysis.get('insight_ego', '')
         score_text = f"{score}/10"
 
-    with ui.element('div').classes('ia-message-container').style(
+    with ui.element('div').classes('ia-message-container dream-wake-box').style(
         'background: linear-gradient(135deg, rgba(147, 112, 219, 0.15), rgba(75, 0, 130, 0.1)); '
         'border-left: 3px solid #9370db; padding: 16px; border-radius: 12px; margin: 8px 0;'
     ):
