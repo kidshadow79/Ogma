@@ -221,8 +221,8 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
     --border-subtle:  rgba(0, 0, 0, 0.05);
 
     /* ── Typographie ─────────────────────────────────────────────── */
-    --font-cyber: 'Inter', 'Segoe UI', system-ui, sans-serif;
-    --font-hud:   'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-cyber: 'Lexend', 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-hud:   'Lexend', 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
 /* ── Body, fond global, couleur de texte héritée ────────────────── */
@@ -435,6 +435,7 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
     border-left: 3px solid rgba(46, 110, 126, 0.35) !important; /* repère visuel IA */
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
     color: var(--text-primary) !important;
+    font-size: 17px !important;
     line-height: 1.70 !important;
     margin-bottom: 16px !important;
     padding: 12px 18px !important;
@@ -447,6 +448,7 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
     border-right: 3px solid rgba(160, 124, 10, 0.45) !important; /* repère visuel user */
     box-shadow: none !important;
     color: var(--text-primary) !important;
+    font-size: 17px !important;
     line-height: 1.70 !important;
     margin-bottom: 16px !important;
     padding: 12px 18px !important;
@@ -458,6 +460,7 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
 [data-ogma-theme="light"] .message-ai li,
 [data-ogma-theme="light"] .message-user p,
 [data-ogma-theme="light"] .message-user li {
+    font-size: 17px !important;
     line-height: 1.70 !important;
     letter-spacing: 0.012em !important;
 }
@@ -494,7 +497,7 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
     color: var(--text-primary) !important;
     -webkit-text-fill-color: var(--text-primary) !important;
     caret-color: var(--text-primary) !important;
-    font-size: 15px !important;
+    font-size: 17px !important;
     line-height: 1.60 !important;
 }
 

@@ -503,7 +503,7 @@ def _link_styles():
 # Polices cyber : Orbitron (HUD/titres) + Rajdhani (corps)
     ui.add_head_html('<link rel="preconnect" href="https://fonts.googleapis.com">')
     ui.add_head_html('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>')
-    ui.add_head_html('<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500&family=Inter:wght@400;600&display=swap" rel="stylesheet">')
+    ui.add_head_html('<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500&family=Inter:wght@400;600&family=Lexend:wght@300;400;500&display=swap" rel="stylesheet">')
     import os as _os
     _css_v = int(_os.path.getmtime('static/ogma_styles.css'))
     ui.add_head_html(f'<link rel="stylesheet" href="/static/ogma_styles.css?v={_css_v}" />')
