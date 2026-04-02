@@ -359,13 +359,19 @@ class IntrospectionParametersUI:
                         '0.1 = récupère beaucoup (large, moins précis). 0.9 = récupère peu (strict, très pertinent). '
                         'Recommandé : 0.5–0.6.'
                     )
+                # Style CSS inline pour forcer le pin du slider lisible (fond sombre hardcodé)
+                ui.html('''<style>
+                    .q-slider__pin-value-marker { background: #6366f1 !important; }
+                    .q-slider__pin-value-marker-text { color: #fff !important; }
+                    .q-slider__thumb-shape { fill: #6366f1 !important; }
+                </style>''')
                 self.ui_controls['memory_threshold'] = ui.slider(
                     value=self.config.get("memory_search_threshold", 0.5),
                     min=0.1,
                     max=0.9,
                     step=0.1,
                     on_change=lambda e: self._on_setting_changed("memory_search_threshold", e.value)
-                ).props('label-always color=deep-purple-5').style('width: 200px;')
+                ).props('label-always').style('width: 200px;')
         
         # Sauvegarde
         self._section_title("💾 Sauvegarde Automatique", "#f59e0b")
