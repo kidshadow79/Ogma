@@ -1224,7 +1224,7 @@ def _memory_modal():
 
         with ui.row().classes('items-start gap-3').style('height: calc(82vh - 96px); width: 100%;'):
             # Colonne gauche: Recherche + Liste
-            with ui.column().style('height:100%; flex: 0 0 420px; max-width: 520px;'):
+            with ui.column().style('height:100%; flex: 1 1 380px; min-width: 300px; max-width: 520px;'):
                 # Barre de recherche sticky
                 search_bar_wrap = ui.element('div').style('position: sticky; top: 0; background: var(--bg-secondary); z-index: 2; padding-bottom: 6px;')
                 with search_bar_wrap, ui.row().classes('items-end gap-2'):
@@ -1240,31 +1240,35 @@ def _memory_modal():
                 editor_scroll = ui.element('div').classes('editor-scroll w-full').style('max-height: calc(82vh - 170px); overflow-y: auto;')
                 with editor_scroll:
                     selected_id: Dict[str, Optional[str]] = {'value': None}
+                    editor_placeholder = ui.label('Sélectionnez un souvenir pour l\'éditer').classes('text-muted').style(
+                        'text-align: center; padding: 40px 0; font-style: italic; opacity: 0.6; width: 100%;')
                     id_label = ui.label('').classes('text-muted mb-1')
                     title_in = ui.input(label='Titre').classes('form-input mb-2')
                     original_in = ui.textarea(label='Texte original').props('autogrow').classes('form-input mb-2')
                     summary_in = ui.textarea(label='Résumé').props('autogrow').classes('form-input mb-2')
-                # Valence en select (positive / neutre / négative)
-                valence_map = {'positive': 1, 'neutre': 0, 'négative': -1}
-                valence_options = ['positive', 'neutre', 'négative']
-                valence_sel = ui.select(valence_options, value='neutre', label='Valence').classes('form-select mb-2')
-                score_nb = ui.number(label="Score d'impact", value=50.0).classes('form-input mb-2')
-                auto_calc_switch = ui.switch('Calcul automatique (formule)', value=False).classes('mb-2')
-                ui.label("Si activé, le serveur recalculera le score d'impact à partir des métriques. ATTENTION: Désactivé par défaut pour préserver les valeurs de l'archiviste.")\
-                    .classes('text-muted text-xs mb-2')
-
-                # Champs additionnels (stockés dans multiplicateur_impact en JSON)
-                # Grille compacte pour les métriques (2 colonnes)
-                # Valeurs par défaut harmonisées avec le backend
-                metrics_grid = ui.element('div').classes('metrics-grid').style('width:100%;')
-                with metrics_grid:
-                    intensite_nb = ui.number(label='Intensité', value=1.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                    liberte_nb = ui.number(label='Liberté', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                    creation_nb = ui.number(label='Création', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                    procreation_nb = ui.number(label='Procréation', value=0.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                    intensite_ctx_nb = ui.number(label='Intensité Ctx', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                # Base factor (exposé maintenant, influe la magnitude du score)
-                base_factor_nb = ui.number(label='Base factor', value=100, min=50, max=125, step=1).classes('form-input mb-2')
+                    # Métriques avancées dans expansion repliable (INSIDE editor_scroll)
+                    valence_map = {'positive': 1, 'neutre': 0, 'négative': -1}
+                    valence_options = ['positive', 'neutre', 'négative']
+                    with ui.expansion('Métriques avancées', icon='analytics').classes('w-full mb-2').style('''
+                        background: rgba(255, 193, 7, 0.08) !important;
+                        border: 1px solid rgba(255, 193, 7, 0.25) !important;
+                        border-radius: 8px !important;
+                    '''):
+                        valence_sel = ui.select(valence_options, value='neutre', label='Valence').classes('form-select mb-2')
+                        score_nb = ui.number(label="Score d'impact", value=50.0).classes('form-input mb-2')
+                        auto_calc_switch = ui.switch('Calcul automatique (formule)', value=False).classes('mb-2')
+                        ui.label("Si activé, le serveur recalculera le score d'impact à partir des métriques. ATTENTION: Désactivé par défaut pour préserver les valeurs de l'archiviste.")\
+                            .classes('text-muted text-xs mb-2')
+                        # Grille compacte pour les métriques (2 colonnes)
+                        metrics_grid = ui.element('div').classes('metrics-grid').style('width:100%;')
+                        with metrics_grid:
+                            intensite_nb = ui.number(label='Intensité', value=1.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                            liberte_nb = ui.number(label='Liberté', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                            creation_nb = ui.number(label='Création', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                            procreation_nb = ui.number(label='Procréation', value=0.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                            intensite_ctx_nb = ui.number(label='Intensité Ctx', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                        # Base factor
+                        base_factor_nb = ui.number(label='Base factor', value=100, min=50, max=125, step=1).classes('form-input mb-2')
 
                 # Facteur de base (stockage interne; synchronisé avec base_factor_nb)
                 _base_factor = {'value': 100.0}
@@ -1377,6 +1381,7 @@ def _memory_modal():
                                     print(f"[MEMORY-DELETE] Sync sidebar: {e}")
                             ui.notify('Souvenir supprimé (index FAISS compacté ultérieurement).', type='positive')
                             selected_id['value'] = None
+                            editor_placeholder.set_visibility(True)
                             id_label.text = ''
                             title_in.value = ''
                             original_in.value = ''
@@ -1590,6 +1595,7 @@ def _memory_modal():
                 ui.notify('Souvenir introuvable', type='warning')
                 return
             selected_id['value'] = mid
+            editor_placeholder.set_visibility(False)
             id_label.text = f'ID: {mid}'
             title_in.value = (mem.get('title') or '')
             original_in.value = (mem.get('text_original') or '')
@@ -1728,6 +1734,7 @@ def _memory_modal():
                                     if selected_id['value'] == mid:
                                         # Déjà sélectionné → désélectionner
                                         selected_id['value'] = None
+                                        editor_placeholder.set_visibility(True)
                                         id_label.text = ''
                                         title_in.value = ''
                                         original_in.value = ''
@@ -1797,7 +1804,7 @@ def _memory_modal():
     # Hooks UI et initialisation de la liste
     base_factor_nb.on('change', _bf_change)
 
-    search_box.on('change', refresh_list)
+    search_box.on('input', refresh_list)
     reload_btn.on('click', refresh_list)
     ui.timer(0.05, refresh_list, once=True)
 
