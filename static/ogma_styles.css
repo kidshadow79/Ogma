@@ -3630,9 +3630,9 @@ body .input-container .q-field--focused .q-field__bottom,
 /* ===== THEME CLARTÉ - CORRECTIONS SLIDER ===== */
 /* Label "label-always" du slider Quasar lisible en thème clair */
 [data-ogma-theme="light"] .q-slider__pin-value-marker-text {
-    color: #1a1a2e !important;
+    color: #ffffff !important;
 }
 [data-ogma-theme="light"] .q-slider__pin-value-marker {
-    background: rgba(99, 102, 241, 0.15) !important;
+    background: #6366f1 !important;
 }
 
