@@ -1314,7 +1314,7 @@ def _memory_modal():
                         ui.notify('Sélectionnez un souvenir', type='warning')
                         return
                     if mid.startswith('SEED_'):
-                        ui.notify('Les mémoires fondatrices (SEED) sont protégées et ne peuvent pas être modifiées.', type='warning')
+                        ui.notify('Refus modification seed fondateur', type='info')
                         return
                     try:
                         # snap avant envoi
@@ -1407,7 +1407,7 @@ def _memory_modal():
                             ui.notify('Sélectionnez un souvenir', type='warning')
                             return
                         if mid.startswith('SEED_'):
-                            ui.notify('Les mémoires fondatrices (SEED) sont protégées et ne peuvent pas être ré-enrichies.', type='warning')
+                            ui.notify('Refus modification seed fondateur', type='info')
                             return
                         
                         async def _run():
