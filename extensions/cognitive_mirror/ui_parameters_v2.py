@@ -365,7 +365,7 @@ class IntrospectionParametersUI:
                     max=0.9,
                     step=0.1,
                     on_change=lambda e: self._on_setting_changed("memory_search_threshold", e.value)
-                ).props('label-always').style('width: 200px;').classes('text-primary')
+                ).props('label-always color=deep-purple-5').style('width: 200px;')
         
         # Sauvegarde
         self._section_title("💾 Sauvegarde Automatique", "#f59e0b")
