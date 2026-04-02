@@ -1991,6 +1991,11 @@ input::placeholder,
     transition: var(--transition-fast);
 }
 .mem-card:hover { border-color: var(--accent-gold-thin) !important; background: #343434 !important; }
+.mem-card-selected {
+    border-color: var(--accent-gold, #d4af37) !important;
+    background: rgba(212, 175, 55, 0.12) !important;
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.25) !important;
+}
 
 .mem-card-title {
     color: var(--text-offwhite) !important;

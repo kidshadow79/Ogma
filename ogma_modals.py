@@ -1361,6 +1361,20 @@ def _memory_modal():
                     try:
                         ok = mm.delete_memory(mid)
                         if ok:
+                            # Si c'est une mémorisation de conversation, synchroniser la sidebar
+                            if mid.startswith('conv-'):
+                                conv_id = mid[5:]  # Retirer le préfixe "conv-"
+                                try:
+                                    import ogma_ng
+                                    if conv_id in ogma_ng._conv_index:
+                                        ogma_ng._conv_index[conv_id]['memorized'] = False
+                                        ogma_ng._conv_index[conv_id].pop('memorized_msg_count', None)
+                                        from ogma_ui_conversations import _save_conversation_index
+                                        _save_conversation_index()
+                                    if hasattr(ogma_ng, '_sidebar_render_cb') and ogma_ng._sidebar_render_cb:
+                                        ogma_ng._sidebar_render_cb(ogma_ng._current_conversation_id)
+                                except Exception as e:
+                                    print(f"[MEMORY-DELETE] Sync sidebar: {e}")
                             ui.notify('Souvenir supprimé (index FAISS compacté ultérieurement).', type='positive')
                             selected_id['value'] = None
                             id_label.text = ''
@@ -1695,15 +1709,37 @@ def _memory_modal():
                 if not data:
                     ui.label('Aucun souvenir.').classes('text-muted p-2')
                 else:
+                    # Dict des cartes pour gestion sélection visuelle
+                    _card_refs = {}
+                    _default_card_style = 'cursor:pointer; padding:8px 10px; border-radius:8px;'
+                    _selected_card_style = 'cursor:pointer; padding:8px 10px; border-radius:8px; border: 2px solid #d4af37 !important; background: rgba(212, 175, 55, 0.15) !important; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3) !important;'
+                    _deselected_card_style = 'cursor:pointer; padding:8px 10px; border-radius:8px; border: none !important; background: none !important; box-shadow: none !important;'
+                    
                     # Grille responsive (déjà définie en CSS sur .mem-list)
                     for m in data[:400]:
                         # Container avec position relative pour le crayon
                         with ui.element('div').style('position: relative; margin-bottom: 8px;'):
                             # Carte principale (cliquable)
-                            card = ui.card().classes('q-dark mem-card').style('cursor:pointer; padding:8px 10px; border-radius:8px;')
-                            def _on_click(mid=(m.get('id') or '')):
+                            mid_val = m.get('id') or ''
+                            card = ui.card().classes('q-dark mem-card').style(_default_card_style)
+                            _card_refs[mid_val] = card
+                            def _on_click(mid=mid_val, cards=_card_refs, desel=_deselected_card_style, sel=_selected_card_style):
                                 if mid:
-                                    load_into_form(str(mid))
+                                    if selected_id['value'] == mid:
+                                        # Déjà sélectionné → désélectionner
+                                        selected_id['value'] = None
+                                        id_label.text = ''
+                                        title_in.value = ''
+                                        original_in.value = ''
+                                        summary_in.value = ''
+                                        cards[mid].style(desel)
+                                    else:
+                                        load_into_form(str(mid))
+                                        for cid, cref in cards.items():
+                                            if cid == mid:
+                                                cref.style(sel)
+                                            else:
+                                                cref.style(desel)
                             card.on('click', _on_click)
                             
                             # Contenu de la carte
