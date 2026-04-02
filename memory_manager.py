@@ -3569,6 +3569,9 @@ Note contextuelle pour l'IA principale:"""
 
         Retourne { 'score_impact': float, 'signed_score': float } en cas de succès, sinon None.
         """
+        if memory_id.startswith("SEED_"):
+            print(f"[UPDATE] Refus modification seed fondateur : {memory_id}")
+            return None
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
@@ -3816,6 +3819,9 @@ Note contextuelle pour l'IA principale:"""
 
         Retourne un dict avec quelques champs clés mis à jour, sinon None.
         """
+        if memory_id.startswith("SEED_"):
+            print(f"[REENRICH] Refus ré-enrichissement seed fondateur : {memory_id}")
+            return None
         try:
             # 1) Charger le texte original (et éventuellement champs utiles) depuis SQLite
             with sqlite3.connect(self.db_path) as conn:
