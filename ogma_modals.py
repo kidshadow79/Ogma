@@ -1313,6 +1313,9 @@ def _memory_modal():
                     if not mid:
                         ui.notify('Sélectionnez un souvenir', type='warning')
                         return
+                    if mid.startswith('SEED_'):
+                        ui.notify('Les mémoires fondatrices (SEED) sont protégées et ne peuvent pas être modifiées.', type='warning')
+                        return
                     try:
                         # snap avant envoi
                         intensite_nb.value = _snap_01(intensite_nb.value)
@@ -1402,6 +1405,9 @@ def _memory_modal():
                         mid = selected_id['value']
                         if not mid:
                             ui.notify('Sélectionnez un souvenir', type='warning')
+                            return
+                        if mid.startswith('SEED_'):
+                            ui.notify('Les mémoires fondatrices (SEED) sont protégées et ne peuvent pas être ré-enrichies.', type='warning')
                             return
                         
                         async def _run():
