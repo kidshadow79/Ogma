@@ -2146,6 +2146,9 @@ def _edit_memory_popup(memory_id: str, refresh_callback=None):
         
         async def save_changes():
             try:
+                if memory_id.startswith('SEED_'):
+                    ui.notify('Refus modification seed fondateur', type='info')
+                    return
                 # Préparer les données mises à jour
                 updated_data = {
                     'title': title_input.value.strip(),
