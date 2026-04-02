@@ -117,6 +117,7 @@ try:
         _sidebar,
         _load_conversation_index,
         _save_conversation_index,
+        _reconcile_memorized_flags,
         _load_conversation,
         _new_conversation,
         _persist_conversation,
@@ -7565,6 +7566,13 @@ async def _async_awakening(notif):
         notif.message = 'Restauration de la mémoire émotionnelle... 🧬'
         _ensure_memory_manager()
         await asyncio.sleep(0.1)
+
+        # Réconciliation index conversations ↔ mémoires conv-* (nettoyage flags orphelins)
+        try:
+            _reconcile_memorized_flags()
+        except Exception as _e:
+            print(f"[INIT] Réconciliation index (non bloquant): {_e}")
+        await asyncio.sleep(0.05)
 
         # Vague 5 : Système Audio & Vocal
         notif.message = 'Activation des sens (Audio & Voix)... 🎙️'

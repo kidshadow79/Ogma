@@ -1421,6 +1421,43 @@ def _load_conversation_index() -> Dict[str, Dict]:
     return _get_ogma()._conv_index
 
 
+def _reconcile_memorized_flags() -> int:
+    """Croise les flags 'memorized: True' de l'index avec les mémoires conv-* réelles en base.
+    Nettoie les flags orphelins (mémoire supprimée mais flag resté True).
+    Retourne le nombre de corrections effectuées.
+    """
+    try:
+        ogma = _get_ogma()
+        if not hasattr(ogma, '_ensure_memory_manager'):
+            return 0
+        mm = ogma._ensure_memory_manager()
+        if not mm:
+            return 0
+
+        conv_index = _get_ogma()._conv_index
+        corrections = 0
+        for conv_id, entry in conv_index.items():
+            if not entry.get('memorized'):
+                continue
+            memory_id = f'conv-{conv_id}'
+            mem = mm.get_memory_by_id(memory_id)
+            if not mem:
+                entry['memorized'] = False
+                entry.pop('memorized_msg_count', None)
+                corrections += 1
+                print(f"[CONV-RECONCILE] Flag orphelin nettoyé: {conv_id}")
+
+        if corrections > 0:
+            _save_conversation_index()
+            print(f"[CONV-RECONCILE] {corrections} flag(s) orphelin(s) corrigé(s) et index sauvegardé")
+        else:
+            print("[CONV-RECONCILE] Index cohérent, aucune correction nécessaire")
+        return corrections
+    except Exception as e:
+        print(f"[CONV-RECONCILE] Erreur réconciliation: {e}")
+        return 0
+
+
 def _save_conversation_index() -> Tuple[bool, str]:
     """
     Sauvegarde l'index des conversations sur disque.
