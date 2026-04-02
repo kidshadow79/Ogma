@@ -266,6 +266,10 @@ def _create_edit_interface(dialog, conversation_id: str, title: str, summary: st
                     if success:
                         ui.notify('Conversation mémorisée avec succès', type='positive')
                         dialog.close()
+                        # Rafraîchir la sidebar pour mettre à jour l'icône
+                        if hasattr(ogma_ng, '_sidebar_render_cb') and ogma_ng._sidebar_render_cb:
+                            ogma_ng._sidebar_render_cb(ogma_ng._current_conversation_id)
+                        _trigger_memory_update()
                     else:
                         ui.notify('Erreur lors de la mémorisation', type='negative')
 
