@@ -359,19 +359,21 @@ class IntrospectionParametersUI:
                         '0.1 = récupère beaucoup (large, moins précis). 0.9 = récupère peu (strict, très pertinent). '
                         'Recommandé : 0.5–0.6.'
                     )
-                # Style CSS inline pour forcer le pin du slider lisible (fond sombre hardcodé)
-                ui.html('''<style>
-                    .q-slider__pin-value-marker { background: #6366f1 !important; }
-                    .q-slider__pin-value-marker-text { color: #fff !important; }
-                    .q-slider__thumb-shape { fill: #6366f1 !important; }
-                </style>''')
-                self.ui_controls['memory_threshold'] = ui.slider(
-                    value=self.config.get("memory_search_threshold", 0.5),
-                    min=0.1,
-                    max=0.9,
-                    step=0.1,
-                    on_change=lambda e: self._on_setting_changed("memory_search_threshold", e.value)
-                ).props('label-always').style('width: 200px;')
+                with ui.row().classes('items-center gap-2'):
+                    initial_mem = self.config.get("memory_search_threshold", 0.5)
+                    mem_label = ui.label(str(initial_mem)).style(
+                        'color: #e5e7eb; font-weight: 600; font-size: 14px; min-width: 32px; text-align: center;'
+                    )
+                    def _on_mem_change(e, lbl=mem_label):
+                        lbl.set_text(str(round(e.value, 1)))
+                        self._on_setting_changed("memory_search_threshold", e.value)
+                    self.ui_controls['memory_threshold'] = ui.slider(
+                        value=initial_mem,
+                        min=0.1,
+                        max=0.9,
+                        step=0.1,
+                        on_change=_on_mem_change
+                    ).style('width: 200px;')
         
         # Sauvegarde
         self._section_title("💾 Sauvegarde Automatique", "#f59e0b")
@@ -394,13 +396,20 @@ class IntrospectionParametersUI:
                         '1 = tout sauvegarder. 10 = sauvegarder uniquement les insights majeurs. '
                         'Recommandé : 6–7.'
                     )
+                initial_imp = self.config.get("importance_threshold", 6)
+                imp_label = ui.label(str(initial_imp)).style(
+                    'color: #e5e7eb; font-weight: 600; font-size: 14px; min-width: 32px; text-align: center;'
+                )
+                def _on_imp_change(e, lbl=imp_label):
+                    lbl.set_text(str(int(e.value)))
+                    self._on_setting_changed("importance_threshold", e.value)
                 self.ui_controls['importance_threshold'] = ui.slider(
-                    value=self.config.get("importance_threshold", 6),
+                    value=initial_imp,
                     min=1,
                     max=10,
                     step=1,
-                    on_change=lambda e: self._on_setting_changed("importance_threshold", e.value)
-                ).props('label-always').style('width: 200px;')
+                    on_change=_on_imp_change
+                ).style('width: 200px;')
         
         # Affichage
         self._section_title("👁️ Affichage", "#3b82f6")

@@ -760,16 +760,6 @@ def _link_styles():
     [data-ogma-theme="light"] .q-dialog .q-separator {
         background: rgba(0,0,0,0.12) !important;
     }
-    /* Pin des sliders (label-always) dans les dialogs en thème Clarté */
-    body[data-ogma-theme="light"] .q-slider__pin-value-marker,
-    html[data-ogma-theme="light"] .q-slider__pin-value-marker {
-        background: #6366f1 !important;
-        color: #ffffff !important;
-    }
-    body[data-ogma-theme="light"] .q-slider__pin-value-marker-text,
-    html[data-ogma-theme="light"] .q-slider__pin-value-marker-text {
-        color: #ffffff !important;
-    }    
     /* Animation supprimée - Sidebar en gris simple */
     
     /* Sidebar style overlay sophistiqué - Header */
