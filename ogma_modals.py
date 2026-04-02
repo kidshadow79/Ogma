@@ -1744,9 +1744,33 @@ def _memory_modal():
                             
                             # Contenu de la carte
                             with card:
-                                ui.label((m.get('title') or '(Sans titre)')).classes('mem-card-title').style('margin-right: 32px;')  # Espace pour le crayon
+                                # Boutons action intégrés dans la carte (coin haut droit)
+                                with ui.element('div').style('position: absolute; top: 8px; right: 8px; z-index: 1;'):
+                                    with ui.row().classes('gap-1'):
+                                        # Bouton redondance
+                                        def _on_redundancy(mid=(m.get('id') or '')):
+                                            if mid:
+                                                _find_redundant_memories_popup(str(mid), refresh_list)
+                                        
+                                        redundancy_btn = ui.button('🔍', on_click=_on_redundancy).classes('text-xs').style(
+                                            'padding: 4px; min-width: 24px; height: 24px; background: rgba(100, 149, 237, 0.2); '
+                                            'border: 1px solid #6495ED; border-radius: 4px; color: #6495ED;'
+                                        ).tooltip('Rechercher redondances')
+                                        redundancy_btn.props('dense flat')
+                                        
+                                        # Bouton édition
+                                        def _on_edit(mid=(m.get('id') or '')):
+                                            if mid:
+                                                _edit_memory_popup(str(mid), refresh_list)
+                                        
+                                        edit_btn = ui.button('✏️', on_click=_on_edit).classes('text-xs').style(
+                                            'padding: 4px; min-width: 24px; height: 24px; background: rgba(212, 175, 55, 0.2); '
+                                            'border: 1px solid var(--accent-color); border-radius: 4px; color: var(--accent-color);'
+                                        ).tooltip('Éditer')
+                                        edit_btn.props('dense flat')
+                                
+                                ui.label((m.get('title') or '(Sans titre)')).classes('mem-card-title').style('margin-right: 32px;')
                                 _sum = m.get('summary') or ''
-                                # Clamp 2 lignes via style inline si la CSS n'est pas chargée
                                 ui.label(_sum).classes('mem-card-summary').style('-webkit-line-clamp:2; display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden;')
                                 with ui.element('div').classes('mem-card-footer'):
                                     ui.label(m.get('id', '')).classes('text-xs')
@@ -1755,31 +1779,6 @@ def _memory_modal():
                                     except Exception:
                                         sc = 0.0
                                     ui.label(f'Score: {sc:.2f}')
-                            
-                            # Boutons action HORS de la carte (même niveau hiérarchique)
-                            with ui.element('div').style('position: absolute; top: 8px; right: 8px; z-index: 10;'):
-                                with ui.row().classes('gap-1'):
-                                    # Bouton redondance
-                                    def _on_redundancy(mid=(m.get('id') or '')):
-                                        if mid:
-                                            _find_redundant_memories_popup(str(mid), refresh_list)
-                                    
-                                    redundancy_btn = ui.button('🔍', on_click=_on_redundancy).classes('text-xs').style(
-                                        'padding: 4px; min-width: 24px; height: 24px; background: rgba(100, 149, 237, 0.2); '
-                                        'border: 1px solid #6495ED; border-radius: 4px; color: #6495ED;'
-                                    ).tooltip('Rechercher redondances')
-                                    redundancy_btn.props('dense flat')
-                                    
-                                    # Bouton édition
-                                    def _on_edit(mid=(m.get('id') or '')):
-                                        if mid:
-                                            _edit_memory_popup(str(mid), refresh_list)
-                                    
-                                    edit_btn = ui.button('✏️', on_click=_on_edit).classes('text-xs').style(
-                                        'padding: 4px; min-width: 24px; height: 24px; background: rgba(212, 175, 55, 0.2); '
-                                        'border: 1px solid var(--accent-color); border-radius: 4px; color: var(--accent-color);'
-                                    ).tooltip('Éditer')
-                                    edit_btn.props('dense flat')
 
     # Recalcul auto du score sur changements
     intensite_nb.on('change', _recompute_score)
