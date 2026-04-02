@@ -353,7 +353,7 @@ class IntrospectionParametersUI:
         with ui.row().classes('gap-6').style('margin-bottom: 24px;'):
             with ui.column().classes('gap-2'):
                 with ui.row().classes('items-center gap-1'):
-                    ui.label('Seuil similarité').style('color: #e5e7eb;')
+                    ui.label('Seuil similarité').style('color: var(--text-primary, #e5e7eb);')
                     ui.icon('help_outline', size='16px').style('color: #9ca3af; cursor: help;').tooltip(
                         'Seuil de similarité FAISS pour la recherche mémorielle. '
                         '0.1 = récupère beaucoup (large, moins précis). 0.9 = récupère peu (strict, très pertinent). '
@@ -365,7 +365,7 @@ class IntrospectionParametersUI:
                     max=0.9,
                     step=0.1,
                     on_change=lambda e: self._on_setting_changed("memory_search_threshold", e.value)
-                ).props('label-always').style('width: 200px;')
+                ).props('label-always').style('width: 200px;').classes('text-primary')
         
         # Sauvegarde
         self._section_title("💾 Sauvegarde Automatique", "#f59e0b")
