@@ -193,7 +193,7 @@ try:
     from ogma_profile import *
     from ogma_headers import *
     # Imports explicites pour fonctions _ (non exportées par import *)
-    from ogma_modals import _models_modal, _manual_memorize_current_input, _settings_hub_modal, _list_models
+    from ogma_modals import _models_modal, _manual_memorize_current_input, _settings_hub_modal, _list_models, _memorization_popup, _update_memorization_popup
     from ogma_displays import _link_styles
     from ogma_headers import _header
     from ogma_profile import _profile_modal  # Fix: import explicite pour le modal profil

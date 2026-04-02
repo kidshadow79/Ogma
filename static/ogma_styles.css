@@ -496,6 +496,12 @@ body::after {
     50%       { opacity: 0.55; }
 }
 
+/* Pulsation pour mémorisation obsolète */
+@keyframes pulse-stale {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+}
+
 /* Laser qui balaie horizontalement */
 @keyframes laser-sweep-x {
     0%   { transform: translateX(-120%); opacity: 0; }

@@ -290,6 +290,20 @@ def _trigger_memory_update(*args, **kwargs):
         return func(*args, **kwargs)
     return None
 
+async def _update_memorized_conversation(*args, **kwargs):
+    """Alias dynamique vers _update_memorized_conversation dans ogma_ng"""
+    func = _get_ogma_ng_function('_update_memorized_conversation')
+    if func:
+        return await func(*args, **kwargs)
+    return False
+
+def _mark_conversation_memorized(*args, **kwargs):
+    """Alias dynamique vers _mark_conversation_memorized dans ogma_ng"""
+    func = _get_ogma_ng_function('_mark_conversation_memorized')
+    if func:
+        return func(*args, **kwargs)
+    return None
+
 async def _manual_memorize_current_input(input_el) -> None:
     """Mémorise manuellement le contenu actuel du champ de saisie utilisateur."""
     try:
@@ -2160,8 +2174,7 @@ def _memorization_popup(conversation_id: str, title: str):
         
         # Affichage du compteur de conversations mémorisées
         memorized_count = _count_memorized_conversations()
-        counter_color = 'text-orange-400' if memorized_count >= 13 else 'text-green-400' if memorized_count < 10 else 'text-yellow-400'
-        ui.label(f'📊 Conversations mémorisées: {memorized_count}/15').classes(f'text-sm {counter_color} mb-2')
+        ui.label(f'📊 Conversations mémorisées: {memorized_count}').classes('text-sm text-green-400 mb-2')
         
         ui.label('Voulez-vous mémoriser cette conversation dans le système de mémoire ?').classes('mb-4')
         ui.label('Un résumé de 150 mots sera généré et indexé pour les futures recherches.').classes('text-xs text-muted mb-4')
@@ -2171,6 +2184,98 @@ def _memorization_popup(conversation_id: str, title: str):
             ui.button('Générer résumé', on_click=confirm_memorization).classes('send-button')
     
     dialog.open()
+
+def _update_memorization_popup(conversation_id: str, title: str):
+    """Popup d'actualisation pour une mémorisation obsolète."""
+    dialog = ui.dialog()
+    
+    async def confirm_update():
+        try:
+            ui.notify('Régénération du résumé...', type='info')
+            summary = await _generate_conversation_summary(conversation_id)
+            
+            if not summary:
+                ui.notify('Impossible de générer le résumé', type='negative')
+                return
+            
+            with dialog:
+                dialog.clear()
+                _create_update_edit_interface(dialog, conversation_id, title, summary)
+            
+        except Exception as e:
+            ui.notify(f'Erreur: {e}', type='negative')
+    
+    with dialog, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(400px, 90vw);'):
+        ui.label('Actualiser la mémorisation').classes('popup-title')
+        ui.label(f'Conversation: {title}').classes('text-sm text-muted mb-4')
+        ui.label('Cette conversation a évolué depuis sa dernière mémorisation.').classes('text-sm text-orange-400 mb-2')
+        ui.label('Un nouveau résumé sera généré et remplacera l\'ancien.').classes('text-xs text-muted mb-4')
+        
+        with ui.row().classes('justify-end gap-2'):
+            ui.button('Annuler', on_click=dialog.close).classes('action-button')
+            ui.button('Actualiser', on_click=confirm_update).classes('send-button')
+    
+    dialog.open()
+
+def _create_update_edit_interface(dialog, conversation_id: str, title: str, summary: str):
+    """Interface d'édition pour l'actualisation d'une mémorisation existante."""
+    with dialog, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(600px, 90vw); max-height: 80vh;'):
+        ui.label('Édition du résumé actualisé').classes('popup-title')
+        ui.label(f'Conversation: {title}').classes('text-sm text-muted mb-4')
+        
+        summary_input = ui.textarea(
+            'Résumé (150 mots max)', 
+            value=summary,
+        ).classes('w-full').style('min-height: 200px;')
+        
+        word_count = ui.label('').classes('text-xs text-muted')
+        
+        def update_word_count():
+            words = len(summary_input.value.split()) if summary_input.value else 0
+            word_count.text = f'{words}/150 mots'
+            if words > 150:
+                word_count.classes(remove='text-muted', add='text-red-400')
+            else:
+                word_count.classes(remove='text-red-400', add='text-muted')
+        
+        summary_input.on('input', update_word_count)
+        update_word_count()
+        
+        async def finalize_update():
+            if not summary_input.value.strip():
+                ui.notify('Le résumé ne peut pas être vide', type='negative')
+                return
+            
+            words = len(summary_input.value.split())
+            if words > 150:
+                ui.notify('Le résumé dépasse 150 mots', type='negative')
+                return
+            
+            ui.notify('Actualisation en cours...', type='info')
+            
+            try:
+                success = await _update_memorized_conversation(conversation_id, summary_input.value.strip())
+                
+                if success:
+                    _mark_conversation_memorized(conversation_id, True)
+                    ui.notify('Mémorisation actualisée', type='positive')
+                    dialog.close()
+                    try:
+                        import ogma_ng
+                        if hasattr(ogma_ng, '_sidebar_render_cb') and ogma_ng._sidebar_render_cb:
+                            ogma_ng._sidebar_render_cb(ogma_ng._current_conversation_id)
+                    except Exception:
+                        pass
+                    _trigger_memory_update()
+                else:
+                    ui.notify('Erreur lors de l\'actualisation', type='negative')
+                    
+            except Exception as e:
+                ui.notify(f'Erreur: {e}', type='negative')
+        
+        with ui.row().classes('justify-end gap-2 mt-4'):
+            ui.button('Annuler', on_click=dialog.close).classes('action-button')
+            ui.button('Actualiser', on_click=finalize_update).classes('send-button')
 
 def _open_other_backends_popup():
     """Popup isolé pour configuration des backends non-API (Ollama/GGUF/KoboldCpp)"""

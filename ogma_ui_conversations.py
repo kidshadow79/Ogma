@@ -175,6 +175,10 @@ def _memorization_popup(conv_id: str, conv_title: str):
     """Wrapper pour _memorization_popup depuis ogma_ng"""
     _get_ogma()._memorization_popup(conv_id, conv_title)
 
+def _update_memorization_popup(conv_id: str, conv_title: str):
+    """Wrapper pour _update_memorization_popup depuis ogma_ng"""
+    _get_ogma()._update_memorization_popup(conv_id, conv_title)
+
 def _ensure_archiviste_controller():
     """Wrapper pour _ensure_archiviste_controller depuis ogma_ng"""
     return _get_ogma()._ensure_archiviste_controller()
@@ -198,6 +202,10 @@ def _ensure_audio_manager():
 def _get_conv_index():
     """Wrapper thread-safe pour _conv_index depuis ogma_ng"""
     return _get_ogma()._conv_index
+
+def _trigger_memory_update():
+    """Wrapper pour _trigger_memory_update depuis ogma_ng"""
+    _get_ogma()._trigger_memory_update()
 
 def _get_chat_history():
     """Wrapper thread-safe pour _chat_history depuis ogma_ng"""
@@ -2382,10 +2390,6 @@ def _sidebar():
                             try:
                                 deleted = 0
                                 for conv_id in ids_to_delete:
-                                    # Supprimer la mémoire associée si elle existe
-                                    if _is_conversation_memorized(conv_id):
-                                        _delete_memorized_conversation(conv_id)
-                                    
                                     path = DATA_DIR / 'conversations' / f'{conv_id}.json'
                                     if path.exists():
                                         path.unlink()
@@ -2424,10 +2428,6 @@ def _sidebar():
                         ui.button('Annuler', on_click=d.close).classes('action-button')
                         def _apply_delete():
                             try:
-                                # Supprimer la mémoire associée si elle existe
-                                if _is_conversation_memorized(cid):
-                                    _delete_memorized_conversation(cid)
-                                
                                 path = DATA_DIR / 'conversations' / f'{cid}.json'
                                 if path.exists():
                                     path.unlink()
@@ -2968,31 +2968,37 @@ def _sidebar():
                             
                             def _on_memorize_click(conv_id=cid, conv_title=title):
                                 if _is_conversation_memorized(conv_id):
-                                    # Conversation déjà mémorisée → la supprimer
-                                    _delete_memorized_conversation(conv_id)
-                                    _mark_conversation_memorized(conv_id, False)
-                                    _trigger_memory_update()  # Actualiser la liste des mémoires
-                                    # Recharger la sidebar pour mettre à jour l'icône
-                                    if _get_ogma()._sidebar_render_cb:
-                                        _get_ogma()._sidebar_render_cb(_get_ogma()._current_conversation_id)
-                                    ui.notify(f'💔 Conversation "{conv_title}" supprimée de la mémoire', type='info')
-                                else:
-                                    # Vérifier la limite de 15 conversations mémorisées
-                                    memorized_count = _count_memorized_conversations()
-                                    if memorized_count >= 15:
-                                        ui.notify('WARN Limite de 15 conversations mémorisées atteinte. Supprimez-en une avant d\'en ajouter.', type='warning')
+                                    if _is_memorization_stale(conv_id):
+                                        # Mémorisation obsolète → actualiser directement
+                                        _update_memorization_popup(conv_id, conv_title)
                                     else:
-                                        _memorization_popup(conv_id, conv_title)
+                                        # Mémorisation à jour → supprimer
+                                        _delete_memorized_conversation(conv_id)
+                                        _mark_conversation_memorized(conv_id, False)
+                                        _trigger_memory_update()
+                                        if _get_ogma()._sidebar_render_cb:
+                                            _get_ogma()._sidebar_render_cb(_get_ogma()._current_conversation_id)
+                                        ui.notify(f'Conversation "{conv_title}" supprimée de la mémoire', type='info')
+                                else:
+                                    _memorization_popup(conv_id, conv_title)
                             
-                            # Style et symbole selon l'état : normale (gris) ou mémorisée (cercle orange)
-                            if is_memorized:
-                                memory_symbol = '●'  # Cercle plein orange
+                            # Style et symbole selon l'état : 3 états
+                            is_stale = _is_memorization_stale(cid) if is_memorized else False
+                            if is_memorized and is_stale:
+                                memory_symbol = '●'  # Cercle plein rouge = obsolète
+                                icon_style = (
+                                    'padding: 4px; min-width: 20px; height: 20px; border-radius: 4px; '
+                                    'background: rgba(128, 128, 128, 0.2); border: 1px solid #666; '
+                                    'color: #FF4444 !important; animation: pulse-stale 1.5s ease-in-out infinite;'
+                                )
+                            elif is_memorized:
+                                memory_symbol = '●'  # Cercle plein orange = à jour
                                 icon_style = (
                                     'padding: 4px; min-width: 20px; height: 20px; border-radius: 4px; '
                                     'background: rgba(128, 128, 128, 0.2); border: 1px solid #666; color: #FF8C00 !important;'
                                 )
                             else:
-                                memory_symbol = '○'  # Cercle vide gris
+                                memory_symbol = '○'  # Cercle vide gris = non mémorisée
                                 icon_style = (
                                     'padding: 4px; min-width: 20px; height: 20px; border-radius: 4px; '
                                     'background: rgba(128, 128, 128, 0.2); border: 1px solid #666; color: #888888 !important;'
@@ -3125,7 +3131,12 @@ async def _generate_conversation_summary(conversation_id: str) -> Optional[str]:
     try:
         # Charger la conversation
         from utils import load_conversation
-        history = load_conversation(conversation_id)
+        data = load_conversation(conversation_id)
+        if not data:
+            return None
+        
+        # Extraire les messages (nouveau format dict vs ancien format liste)
+        history = data.get('messages', []) if isinstance(data, dict) else data
         if not history:
             return None
         
@@ -3239,16 +3250,29 @@ ID: {conversation_id}
 
 
 def _mark_conversation_memorized(conversation_id: str, memorized: bool):
-    """Marque une conversation comme mémorisée dans l'index."""
+    """Marque une conversation comme mémorisée dans l'index, avec le compteur de messages."""
     conv_index = _get_conv_index()
     if conversation_id in conv_index:
         _get_ogma()._conv_index[conversation_id]['memorized'] = memorized
+        if memorized:
+            _get_ogma()._conv_index[conversation_id]['memorized_msg_count'] = \
+                _get_ogma()._conv_index[conversation_id].get('message_count', 0)
         _save_conversation_index()
 
 
 def _is_conversation_memorized(conversation_id: str) -> bool:
     """Vérifie si une conversation est déjà mémorisée."""
     return _get_conv_index().get(conversation_id, {}).get('memorized', False)
+
+
+def _is_memorization_stale(conversation_id: str) -> bool:
+    """Vérifie si la mémorisation est obsolète (plus de messages que lors de la mémorisation)."""
+    conv = _get_conv_index().get(conversation_id, {})
+    if not conv.get('memorized', False):
+        return False
+    memorized_count = conv.get('memorized_msg_count', 0)
+    current_count = conv.get('message_count', 0)
+    return current_count > memorized_count and memorized_count > 0
 
 
 def _count_memorized_conversations() -> int:
