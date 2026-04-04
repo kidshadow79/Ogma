@@ -53,6 +53,57 @@ class ProjectUI:
         self._stats_label = None
         self._toggle_switch = None
         self._overlay = None
+        self._th = {}  # Palette thème courante (définie dans show_overlay)
+
+    def _get_theme(self) -> dict:
+        """Retourne la palette de couleurs selon le thème OGMA actif (neon/classic/light)."""
+        try:
+            ogma_ng = sys.modules.get('ogma_ng')
+            sm = ogma_ng._ensure_settings_manager() if ogma_ng else None
+            theme_name = sm.settings.get('ui', {}).get('theme', 'neon') if sm else 'neon'
+        except Exception:
+            theme_name = 'neon'
+
+        if theme_name == 'light':
+            return {
+                'q_dark':        '',
+                'bg_card':       '#fdfaf5',
+                'bg_item':       '#f0ece3',
+                'border_left':   '2px solid rgba(160, 124, 10, 0.28)',
+                'shadow':        '-4px 0 16px rgba(0, 0, 0, 0.10)',
+                'text':          '#1a1410',
+                'text2':         '#5a5048',
+                'muted':         '#8a7e74',
+                'accent':        '#1565c0',
+                'sep':           'rgba(0, 0, 0, 0.12)',
+                'exp_bg':        '#f0ece3',
+                'exp_border':    '1px solid rgba(0, 0, 0, 0.12)',
+                'upload_border': 'rgba(21, 101, 192, 0.28)',
+                'upload_bg':     'rgba(21, 101, 192, 0.04)',
+                'item_bg':       '#ffffff',
+                'item_border':   '#e8e2d8',
+                'del_icon':      '#b91c1c',
+            }
+        # neon + classic → thème sombre
+        return {
+            'q_dark':        'q-dark',
+            'bg_card':       '#1e2433',
+            'bg_item':       '#252d3d',
+            'border_left':   '2px solid #3b82f6',
+            'shadow':        '-4px 0 24px rgba(0, 0, 0, 0.5)',
+            'text':          '#e5e7eb',
+            'text2':         '#9ca3af',
+            'muted':         '#6b7280',
+            'accent':        '#3b82f6',
+            'sep':           'rgba(59, 130, 246, 0.2)',
+            'exp_bg':        '#252d3d',
+            'exp_border':    '1px solid #3b82f6',
+            'upload_border': 'rgba(59, 130, 246, 0.3)',
+            'upload_bg':     'rgba(59, 130, 246, 0.03)',
+            'item_bg':       '#252d3d',
+            'item_border':   '#2d3b55',
+            'del_icon':      '#ef4444',
+        }
 
     def show_overlay(self):
         """Affiche le panneau latéral projet (dialog Quasar positionné à droite)."""
@@ -72,6 +123,7 @@ class ProjectUI:
             self._stats_label = None
             self._toggle_switch = None
 
+        self._th = self._get_theme()
         self._create_overlay()
 
     def _create_overlay(self):
@@ -88,27 +140,27 @@ class ProjectUI:
         self._overlay = dialog
         dialog.open()
 
+        th = self._th
         with dialog:
-            with ui.card().classes('q-dark').style('''
-                background: #1e2433 !important;
+            with ui.card().classes(th['q_dark']).style(f'''
+                background: {th['bg_card']} !important;
                 border: none !important;
-                border-left: 2px solid #3b82f6 !important;
+                border-left: {th['border_left']} !important;
                 border-radius: 0 !important;
-                box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5) !important;
+                box-shadow: {th['shadow']} !important;
                 width: 480px !important;
                 min-height: 100vh !important;
                 overflow-y: auto !important;
                 padding: 24px !important;
-                color: #e5e7eb !important;
+                color: {th['text']} !important;
             '''):
                 # Header
                 with ui.row().classes('w-full items-center justify-between mb-4'):
                     with ui.row().classes('items-center gap-3'):
-                        ui.icon('folder_open', size='28px').style('color: #3b82f6;')
-                        ui.label('Projet RAG').style('''
+                        ui.icon('folder_open', size='28px').style(f'color: {th["accent"]};')
+                        ui.label('Projet RAG').style(f'''
                             font-size: 1.4rem; font-weight: 600;
-                            color: #3b82f6 !important;
-                            text-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+                            color: {th['accent']} !important;
                         ''')
 
                     with ui.row().classes('items-center gap-2'):
@@ -117,30 +169,30 @@ class ProjectUI:
                             'Actif',
                             value=self.config.active,
                             on_change=self._on_toggle
-                        ).style('color: #e5e7eb;')
+                        ).style(f'color: {th["text"]};')
 
                         # Bouton fermer
                         ui.button(icon='close', on_click=self._close_overlay).props(
                             'flat round'
-                        ).style('color: #e5e7eb;')
+                        ).style(f'color: {th["text2"]};')
 
-                ui.separator().style('background: rgba(59, 130, 246, 0.2);')
+                ui.separator().style(f'background: {th["sep"]};')
 
                 # Stats
                 stats = self.memory.get_stats()
                 self._stats_label = ui.label(
                     f"{stats['files']} fichiers | {stats['chunks']} chunks"
-                ).classes('text-sm mb-3').style('color: #9ca3af;')
+                ).classes('text-sm mb-3').style(f'color: {th["text2"]};')
 
                 # === Zone instruction projet ===
-                with ui.expansion('Instructions projet', icon='edit_note', value=bool(self.config.instruction)).classes('w-full mb-4').style('''
-                    background: #252d3d !important;
-                    border: 1px solid #3b82f6 !important;
+                with ui.expansion('Instructions projet', icon='edit_note', value=bool(self.config.instruction)).classes('w-full mb-4').style(f'''
+                    background: {th['exp_bg']} !important;
+                    border: {th['exp_border']} !important;
                     border-radius: 8px !important;
                 '''):
                     ui.label(
                         'Ces instructions remplacent le contexte permanent quand le projet est actif.'
-                    ).classes('text-xs mb-2').style('color: #9ca3af;')
+                    ).classes('text-xs mb-2').style(f'color: {th["muted"]};')
 
                     instruction_area = ui.textarea(
                         value=self.config.instruction,
@@ -152,15 +204,15 @@ class ProjectUI:
                         ui.notify('Instruction projet sauvegardée', type='positive')
 
                     ui.button('Sauvegarder instruction', icon='save',
-                              on_click=_save_instruction).classes('mt-2').style('''
-                        background: #2563eb !important;
-                        border: 1px solid #3b82f6 !important;
+                              on_click=_save_instruction).classes('mt-2').style(f'''
+                        background: {th['accent']} !important;
+                        border: 1px solid {th['accent']} !important;
                         color: #ffffff !important;
                     ''')
 
                 # === Zone upload fichiers ===
                 ui.label('Documents du projet').classes('text-sm font-bold mb-2').style(
-                    'color: #3b82f6;'
+                    f'color: {th["accent"]};'
                 )
 
                 # Upload zone
@@ -169,10 +221,10 @@ class ProjectUI:
                     multiple=True,
                     auto_upload=True,
                     on_upload=self._on_file_upload,
-                ).classes('w-full mb-3').style('''
-                    border: 2px dashed rgba(59, 130, 246, 0.3) !important;
+                ).classes('w-full mb-3').style(f'''
+                    border: 2px dashed {th['upload_border']} !important;
                     border-radius: 12px !important;
-                    background: rgba(59, 130, 246, 0.03) !important;
+                    background: {th['upload_bg']} !important;
                     min-height: 80px !important;
                 ''')
                 # Extensions acceptées
@@ -182,15 +234,15 @@ class ProjectUI:
                 self._file_list_container = ui.column().classes('w-full gap-1')
                 self._refresh_file_list()
 
-                ui.separator().classes('my-3').style('background: rgba(59, 130, 246, 0.15);')
+                ui.separator().classes('my-3').style(f'background: {th["sep"]};')
 
                 # Boutons bas
                 with ui.row().classes('w-full justify-between items-center'):
                     ui.button('Vider le projet', icon='delete_sweep',
-                              on_click=self._confirm_clear_all).style('''
-                        background: rgba(239, 68, 68, 0.15) !important;
-                        border: 1px solid rgba(239, 68, 68, 0.3) !important;
-                        color: #ef4444 !important;
+                              on_click=self._confirm_clear_all).style(f'''
+                        background: rgba(185, 28, 28, 0.10) !important;
+                        border: 1px solid rgba(185, 28, 28, 0.25) !important;
+                        color: {th['del_icon']} !important;
                     ''')
 
                     with ui.row().classes('gap-2'):
@@ -198,12 +250,12 @@ class ProjectUI:
                         cache_stats = self.retriever.get_stats()
                         ui.label(f"Cache: {cache_stats.get('cache_hit_rate', '0%')}").classes(
                             'text-xs'
-                        ).style('color: #6b7280;')
+                        ).style(f'color: {th["muted"]};')
 
-                        ui.button('Fermer', on_click=self._close_overlay).style('''
-                            background: #374151 !important;
-                            border: 1px solid #4b5563 !important;
-                            color: #e5e7eb !important;
+                        ui.button('Fermer', on_click=self._close_overlay).style(f'''
+                            background: {th['bg_item']} !important;
+                            border: 1px solid {th['item_border']} !important;
+                            color: {th['text']} !important;
                         ''')
 
     def _close_overlay(self):
@@ -339,9 +391,10 @@ class ProjectUI:
 
     def _render_file_card(self, file_data: dict):
         """Affiche une carte pour un fichier indexé."""
-        with ui.row().classes('w-full items-center justify-between py-1 px-2').style('''
-            background: #252d3d;
-            border: 1px solid #2d3b55;
+        th = self._th
+        with ui.row().classes('w-full items-center justify-between py-1 px-2').style(f'''
+            background: {th['item_bg']};
+            border: 1px solid {th['item_border']};
             border-radius: 6px;
         '''):
             with ui.row().classes('items-center gap-2'):
@@ -353,23 +406,23 @@ class ProjectUI:
                     '.json': 'data_object', '.html': 'web',
                 }
                 icon = icon_map.get(file_data.get('file_type', ''), 'insert_drive_file')
-                ui.icon(icon, size='18px').style('color: #3b82f6;')
+                ui.icon(icon, size='18px').style(f'color: {th["accent"]};')
 
                 with ui.column().classes('gap-0'):
                     ui.label(file_data['filename']).classes('text-sm').style(
-                        'color: #e5e7eb; line-height: 1.2;'
+                        f'color: {th["text"]}; line-height: 1.2;'
                     )
                     size_kb = (file_data.get('file_size', 0) or 0) / 1024
                     ui.label(
                         f"{file_data.get('chunk_count', 0)} chunks | {size_kb:.1f} KB"
-                    ).classes('text-xs').style('color: #6b7280; line-height: 1.2;')
+                    ).classes('text-xs').style(f'color: {th["muted"]}; line-height: 1.2;')
 
             # Bouton supprimer
             file_id = file_data['id']
             ui.button(
                 icon='delete',
                 on_click=lambda fid=file_id: self._remove_file(fid)
-            ).props('flat round size=sm').style('color: #ef4444;')
+            ).props('flat round size=sm').style(f'color: {th["del_icon"]};')
 
     async def _remove_file(self, file_id: str):
         """Supprime un fichier et ses chunks."""
@@ -385,15 +438,16 @@ class ProjectUI:
 
     def _confirm_clear_all(self):
         """Confirmation avant de vider tout le projet."""
+        th = self._th
         with ui.dialog() as confirm_dialog:
-            with ui.card().classes('q-dark').style(
-                'background: #1e2433; color: #e5e7eb; padding: 20px;'
+            with ui.card().classes(th['q_dark']).style(
+                f'background: {th["bg_card"]}; color: {th["text"]}; padding: 20px; border: 1px solid {th["item_border"]};'
             ):
                 ui.label('Vider le projet ?').classes('text-lg font-bold mb-2')
-                ui.label('Tous les fichiers et chunks seront supprimés. Cette action est irréversible.').classes('text-sm mb-4').style('color: #9ca3af;')
+                ui.label('Tous les fichiers et chunks seront supprimés. Cette action est irréversible.').classes('text-sm mb-4').style(f'color: {th["text2"]};')
                 with ui.row().classes('justify-end gap-2'):
                     ui.button('Annuler', on_click=confirm_dialog.close).style(
-                        'color: #e5e7eb;'
+                        f'color: {th["text"]};'
                     )
 
                     async def _do_clear():
@@ -413,10 +467,10 @@ class ProjectUI:
                         self._refresh_file_list()
                         self._update_stats()
 
-                    ui.button('Confirmer', on_click=_do_clear).style('''
-                        background: rgba(239, 68, 68, 0.2) !important;
-                        border: 1px solid rgba(239, 68, 68, 0.4) !important;
-                        color: #ef4444 !important;
+                    ui.button('Confirmer', on_click=_do_clear).style(f'''
+                        background: rgba(185, 28, 28, 0.12) !important;
+                        border: 1px solid rgba(185, 28, 28, 0.30) !important;
+                        color: {th['del_icon']} !important;
                     ''')
         confirm_dialog.open()
 
