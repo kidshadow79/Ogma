@@ -30,8 +30,8 @@ data/capability_advisor_prompt.txt
 # Project RAG (données personnelles : fichiers uploadés + DB vectorielle)
 data/projects/
 
-# Profils sauvegardés (données personnelles)
-profils_sauvegardes/*/data/
+# Profils sauvegardés (données personnelles - générés au démarrage)
+profils_sauvegardes/
 
 # Backups racine
 backups/
