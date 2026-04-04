@@ -2868,6 +2868,26 @@ def _sidebar():
                 ui.button(icon='add', on_click=_new_conversation).classes('header-btn')
                 ui.button(icon='edit', on_click=do_rename).classes('header-btn')
                 
+                # Bouton Projet RAG
+                def _open_project_rag():
+                    try:
+                        from extensions.project_rag import is_initialized, show_ui, initialize_project_rag
+                        if not is_initialized():
+                            ogma = _get_ogma()
+                            ensure_emb = getattr(ogma, '_ensure_embedding_controller', None)
+                            emb = ensure_emb() if ensure_emb else None
+                            if emb:
+                                initialize_project_rag(emb)
+                        if is_initialized():
+                            show_ui()
+                        else:
+                            _notify_safe('Project RAG: embedding controller indisponible', 'warning')
+                    except ImportError:
+                        _notify_safe('Extension Project RAG non disponible', 'warning')
+                    except Exception as ex:
+                        _notify_safe(f'Erreur Project RAG: {ex}', 'negative')
+                ui.button(icon='folder_open', on_click=_open_project_rag).classes('header-btn').tooltip('Projet RAG')
+
                 # Bouton delete avec badge pour sélection multiple
                 delete_container = ui.element('div').style('position: relative; display: inline-block;')
                 with delete_container:

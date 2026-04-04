@@ -2,7 +2,7 @@
   "version": "2.1.0",
   "settings": {
     "extension_enabled": true,
-    "introspection_mode": "autonomous",
+    "introspection_mode": "on_demand",
     "step1_max_tokens": 250,
     "step2_conscious_max_tokens": 150,
     "step2_unconscious_max_tokens": 150,
@@ -11,7 +11,7 @@
     "max_dialogue_exchanges": 6,
     "max_introspection_duration": 120,
     "api_timeout": 60,
-    "memory_search_threshold": 0.5,
+    "memory_search_threshold": 0.6,
     "auto_save_enabled": false,
     "importance_threshold": 6,
     "show_dialogue_details": true,

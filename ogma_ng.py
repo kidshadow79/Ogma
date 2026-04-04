@@ -3464,15 +3464,32 @@ setTimeout(()=>{
     print(f"[HORODATAGE] 🕒 Injecté: {horodatage}")
     
     # 🛡️ PROTOCOLES RUNTIME - Position P0 (premier après horodatage = attention maximale)
-    persistent_context_file = DATA_DIR / "persistent_context.txt"
-    if persistent_context_file.exists():
-        try:
-            persistent_content = persistent_context_file.read_text(encoding='utf-8').strip()
-            if persistent_content:
-                messages.append({'role': 'system', 'content': persistent_content})
-                print(f"[RUNTIME-PROTOCOLS] ✅ Protocoles runtime injectés en P0: {len(persistent_content)} chars")
-        except Exception as e:
-            print(f"[RUNTIME-PROTOCOLS] WARN Erreur lecture protocoles: {e}")
+    # Si Project RAG actif, son contexte remplace le persistent_context.txt
+    _project_rag_override = None
+    try:
+        from extensions.project_rag import is_active, get_project_injector
+        if is_active():
+            _prag_injector = get_project_injector()
+            if _prag_injector:
+                _project_rag_override = await _prag_injector.get_override_persistent_context(text)
+    except ImportError:
+        pass
+    except Exception as _prag_err:
+        print(f"[PROJECT-RAG] Erreur injection: {_prag_err}")
+
+    if _project_rag_override:
+        messages.append({'role': 'system', 'content': _project_rag_override})
+        print(f"[PROJECT-RAG] Contexte projet injecte en P0: {len(_project_rag_override)} chars")
+    else:
+        persistent_context_file = DATA_DIR / "persistent_context.txt"
+        if persistent_context_file.exists():
+            try:
+                persistent_content = persistent_context_file.read_text(encoding='utf-8').strip()
+                if persistent_content:
+                    messages.append({'role': 'system', 'content': persistent_content})
+                    print(f"[RUNTIME-PROTOCOLS] Protocoles runtime injectes en P0: {len(persistent_content)} chars")
+            except Exception as e:
+                print(f"[RUNTIME-PROTOCOLS] WARN Erreur lecture protocoles: {e}")
     
     if priority_instructions:
         messages.append({'role': 'system', 'content': priority_instructions})
@@ -7703,6 +7720,25 @@ async def _async_awakening(notif):
         except Exception as e:
             print(f"[INIT] ⚠️ Telegram Connector: {e}")
         
+        # Project RAG (auto-init si données existantes dans SQLite)
+        try:
+            from extensions.project_rag import initialize_project_rag, is_initialized
+            from extensions.project_rag.project_config import ProjectConfig
+            from pathlib import Path
+            _prag_db = Path("data/projects/default/project_memory.db")
+            if _prag_db.exists() and not is_initialized():
+                _prag_emb = _ensure_embedding_controller()
+                if _prag_emb and _prag_emb.is_available:
+                    ok = initialize_project_rag(_prag_emb)
+                    if ok:
+                        from extensions.project_rag import get_project_memory
+                        _prag_stats = get_project_memory().get_stats()
+                        print(f"[INIT] ✅ Project RAG auto-initialisé ({_prag_stats['chunks']} chunks chargés depuis SQLite)")
+                    else:
+                        print("[INIT] ⚠️ Project RAG: échec initialisation auto")
+        except Exception as e:
+            print(f"[INIT] ⚠️ Project RAG: {e}")
+
         # Cognitive Mirror (initialisation légère)
         try:
             _ensure_cognitive_mirror()

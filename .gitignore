@@ -27,6 +27,9 @@ data/agenda.db
 data/archiviste_tokens_debug.jsonl
 data/capability_advisor_prompt.txt
 
+# Project RAG (données personnelles : fichiers uploadés + DB vectorielle)
+data/projects/
+
 # Profils sauvegardés (données personnelles)
 profils_sauvegardes/*/data/
 
