@@ -30,6 +30,9 @@ data/capability_advisor_prompt.txt
 # Project RAG (données personnelles : fichiers uploadés + DB vectorielle)
 data/projects/
 
+# Cognitive Cache (fichiers JSON générés au runtime)
+data/cognitive_cache/*.json
+
 # Profils sauvegardés (données personnelles - générés au démarrage)
 profils_sauvegardes/
 
