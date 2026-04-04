@@ -533,6 +533,33 @@ class DreamEngine:
                     self._log(f"❌ Erreur détection phrases magiques rêve: {magic_err}")
                     import traceback
                     traceback.print_exc()
+
+                # 🧠 CACHE COGNITIF : mémorisation des entrées migrées (score > 8)
+                cache_migrations = self._current_analysis.get('cache_migrations', [])
+                if cache_migrations:
+                    try:
+                        from ogma_ng import _ensure_memory_manager, _notify_safe, _trigger_memory_update
+                        import uuid
+                        mm = _ensure_memory_manager()
+                        if mm:
+                            for migration in cache_migrations:
+                                content = migration.get('content', '')
+                                if not content:
+                                    continue
+                                mem_id = f"ai-cache-dream-{uuid.uuid4()}"
+                                dream_context = f"Migration cache cognitif (rêve score {migration.get('dream_score',0)}/10)"
+                                ok = await mm.add_memory(
+                                    mem_id,
+                                    content,
+                                    chat_controller=self._chat_controller,
+                                    conversation_context=dream_context,
+                                    interlocutor="Cache Cognitif"
+                                )
+                                if ok:
+                                    self._log(f"✅ Cache cognitif migré vers FAISS: [{migration.get('type')}] {content[:60]}")
+                                    _trigger_memory_update()
+                    except Exception as _mig_err:
+                        self._log(f"⚠️ Erreur migration cache cognitif vers FAISS: {_mig_err}")
                 
                 # 6. Sauvegarder journal + wake context AVANT l'image
                 # (critique: si l'image timeout, le reve doit quand meme etre sauvegarde)
@@ -1039,6 +1066,16 @@ Tu as exploré le sujet "{context.get('web_search_query', 'inconnu')}" et décou
 
 Cette exploration peut s'intégrer naturellement dans ton rêve de manière métaphorique.
 """
+
+            cognitive_cache_section = ""
+            if context.get('cognitive_cache_text'):
+                cognitive_cache_section = f"""
+
+## Pensées en fond (cache cognitif)
+Ces pensées étaient en arrière-plan pendant tes échanges récents — idées non dites, observations, intentions mises de côté.
+Elles peuvent émerger librement dans ton rêve comme des fragments de conscience non résolus :
+{context['cognitive_cache_text']}
+"""
             
             # Calculer le temps écoulé depuis l'entrée en veille
             temps_ecoule_minutes = 0
@@ -1057,7 +1094,7 @@ Cette exploration peut s'intégrer naturellement dans ton rêve de manière mét
 
 ## Souvenirs récents (#MEM)
 {context.get('memories_text', 'Aucun souvenir disponible')}
-{random_memories_section}{active_states_section}{web_discovery_section}
+{random_memories_section}{active_states_section}{web_discovery_section}{cognitive_cache_section}
 ---
 
 ## Données temporelles objectives
@@ -1080,9 +1117,10 @@ Note : Ta perception du temps dans le rêve peut être différente de la réalit
             _random_len = len(context.get('random_memories_text', ''))
             _states_len = len(context.get('active_states_text', ''))
             _web_len = len(context.get('web_discovery_text', ''))
+            _cache_len = len(context.get('cognitive_cache_text', ''))
             self._log(f"🧠 Génération du rêve enrichi...")
             self._log(f"📊 DIAGNOSTIC PROMPT - System: {_sys_len} chars, User: {_usr_len} chars, Total: {_total_chars} chars (~{_estimated_tokens} tokens)")
-            self._log(f"📊 FUEL DETAIL - Résumés: {_summaries_len}c, Convos: {_convos_len}c, MEMs: {_mems_len}c, Random: {_random_len}c, États: {_states_len}c, Web: {_web_len}c")
+            self._log(f"📊 FUEL DETAIL - Résumés: {_summaries_len}c, Convos: {_convos_len}c, MEMs: {_mems_len}c, Random: {_random_len}c, États: {_states_len}c, Web: {_web_len}c, Cache: {_cache_len}c")
             
             # Log provider utilisé
             _provider = getattr(self._chat_controller, 'provider', None)
@@ -1193,6 +1231,21 @@ Note : Ta perception du temps dans le rêve peut être différente de la réalit
             self._log(f"Etats actifs injectes dans le reve: {len(active_states)} etats, {len(by_category)} categories")
         else:
             context['active_states_text'] = ""
+
+        # ═══════ CACHE COGNITIF : Pensées en fond ═══════
+        cognitive_snapshot = fuel.get('cognitive_snapshot', {})
+        cognitive_entries = [e for e in cognitive_snapshot.get('entries', []) if e.get('active', True)]
+        if cognitive_entries:
+            try:
+                from extensions.cognitive_cache import get_snapshot_text
+                snap_text = get_snapshot_text(cognitive_snapshot)
+                context['cognitive_cache_text'] = snap_text
+                self._log(f"Cache cognitif injecte dans le reve: {len(cognitive_entries)} pensee(s)")
+            except Exception as _cc_err:
+                context['cognitive_cache_text'] = ""
+                self._log(f"Cache cognitif indisponible: {_cc_err}")
+        else:
+            context['cognitive_cache_text'] = ""
         
         return context
     

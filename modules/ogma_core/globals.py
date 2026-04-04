@@ -78,6 +78,7 @@ _sidebar_render_cb: Optional[Callable[[Optional[str]], None]] = None
 _title_updating: bool = False
 _auto_send_audio: bool = False
 _pending_behavioral_injections: List = []
+_startup_warnings: List[str] = []  # Avertissements à afficher dès connexion UI
 
 
 # ============================================================================

@@ -139,6 +139,11 @@ Si des prompts d'illustration sont fournis, intégrez leur analyse dans votre ve
             print(f"  - recommandation: {result['recommandation']}")
             
             print(f"[DREAM-ANALYSIS] ✅ Analyse terminée - Score: {result['score_importance']}/10")
+
+            # Migration FAISS des entrées cache cognitif si score > 8
+            # Les pensées importantes méritent d'être mémorisées définitivement
+            _migrate_cache_to_faiss(result, fuel)
+
         else:
             result['error'] = "Pas de réponse de l'Archiviste"
         
@@ -364,6 +369,56 @@ def _parse_psy_verdict(response: str) -> Dict[str, Any]:
         print(f"[DREAM-ANALYSIS] ⚠️ Erreur parsing: {e}")
     
     return result
+
+
+def _migrate_cache_to_faiss(result: Dict[str, Any], fuel: Dict[str, Any]):
+    """
+    Migration des entrées cache cognitif vers FAISS si score du rêve > 8.
+    Les pensées mises de côté et validées par un rêve fort méritent une mémoire permanente.
+    
+    Args:
+        result: Résultat de l'analyse PSY (contient score_importance)
+        fuel: Carburant mémoriel (contient cognitive_snapshot)
+    """
+    try:
+        score = result.get('score_importance', 0)
+        if score <= 8:
+            return  # Seulement pour les rêves majeurs (9-10)
+
+        snapshot = fuel.get('cognitive_snapshot', {})
+        entries = [e for e in snapshot.get('entries', []) if e.get('active', True)]
+
+        if not entries:
+            return
+
+        # Filtrer les types pertinents pour la mémorisation permanente
+        migratable_types = {'directive', 'context_anchor'}
+        to_migrate = [e for e in entries if e.get('type') in migratable_types]
+
+        if not to_migrate:
+            print(f"[DREAM-ANALYSIS] Cache cognitif: aucune entrée migratable (score={score}/10)")
+            return
+
+        print(f"[DREAM-ANALYSIS] Score {score}/10 >= 9 — migration {len(to_migrate)} entrée(s) cache vers mémoire")
+
+        # Importer le module de mémorisation via la phrase magique système
+        # (On logge simplement pour que l'Archiviste mémorise via le workflow normal)
+        for entry in to_migrate:
+            content = entry.get('content', '')
+            entry_type = entry.get('type', '?')
+            print(f"[DREAM-ANALYSIS] MIGRATION [{entry_type}]: {content[:80]}")
+            # Stocker dans result pour que dream_core puisse mémoriser
+            if 'cache_migrations' not in result:
+                result['cache_migrations'] = []
+            result['cache_migrations'].append({
+                'type': entry_type,
+                'content': content,
+                'source': 'cognitive_cache',
+                'dream_score': score
+            })
+
+    except Exception as e:
+        print(f"[DREAM-ANALYSIS] Erreur migration cache: {e}")
 
 
 def _generate_mock_analysis(dream_content: str) -> str:

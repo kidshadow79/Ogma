@@ -164,6 +164,26 @@ except ImportError as e:
     COGNITIVE_MIRROR_AVAILABLE = False
     print(f"[COGNITIVE-MIRROR] ERROR Extension non disponible: {e}")
 
+# COGNITIVE CACHE EXTENSION
+try:
+    from extensions.cognitive_cache import (
+        initialize_cognitive_cache,
+        is_available as cognitive_cache_available,
+        set_current_conv as cache_set_conv,
+        apply_cache_operations,
+        get_cache_summary,
+        get_cache_snapshot,
+        get_snapshot_text,
+        strip_commands_from_response,
+        cleanup_cognitive_cache,
+        get_continuation_context,
+    )
+    COGNITIVE_CACHE_AVAILABLE = True
+    print("[COGNITIVE-CACHE] OK Extension disponible")
+except ImportError as e:
+    COGNITIVE_CACHE_AVAILABLE = False
+    print(f"[COGNITIVE-CACHE] WARN Extension non disponible: {e}")
+
 # BIOGRAPHIE PROFIL EXTENSION
 try:
     from extensions.biographie_profil import initialize_biography_extension, is_available as biography_available, get_biography_ui
@@ -3498,6 +3518,24 @@ setTimeout(()=>{
         print(f"[DEDUP] 🔍 Ego prompt enregistré ({len(priority_instructions)} chars)")
     else:
         print(f"[DEBUG-INJECTION] WARN AUCUNE instruction trouvée!")
+
+    # 🧠 INJECTION CACHE COGNITIF (instruction + contenu actif)
+    if COGNITIVE_CACHE_AVAILABLE:
+        try:
+            sm_cc = _ensure_settings_manager()
+            cc_settings = sm_cc.settings.get('cognitive_cache', {}) if sm_cc else {}
+            if cc_settings.get('enabled', True):
+                # Instruction (comment utiliser le cache)
+                cc_instruction = cc_settings.get('instruction', '')
+                if cc_instruction:
+                    messages.append({'role': 'system', 'content': cc_instruction})
+                # Contenu actif du cache (entrées en cours)
+                cc_summary = get_cache_summary()
+                if cc_summary:
+                    messages.append({'role': 'system', 'content': cc_summary})
+                    print(f"[COGNITIVE-CACHE] Cache injecté: {len(cc_summary)} chars")
+        except Exception as _cc_err:
+            print(f"[COGNITIVE-CACHE] Erreur injection: {_cc_err}")
     
     # 🎥 INJECTION INSTRUCTIONS DE PERCEPTION si images détectées
     # Vérifier aussi les images dans l'historique de conversation
@@ -6395,6 +6433,35 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
         else:
             print("[MAGIC-DEBUG] Aucune phrase magique détectée dans la réponse IA")
         
+        # 1b. Détection commandes CACHE_* dans la réponse IA
+        if COGNITIVE_CACHE_AVAILABLE:
+            try:
+                # Fallback: dériver le conv_id depuis le filename si le cache ne l'a pas encore
+                _cc_fallback_id = None
+                if _loaded_conversation_filename:
+                    _cc_fallback_id = _loaded_conversation_filename.replace('.json', '')
+                elif _current_conversation_id:
+                    _cc_fallback_id = _current_conversation_id
+                cache_ops = apply_cache_operations(cleaned_reply, conv_id=_cc_fallback_id)
+                if cache_ops:
+                    from extensions.flux_cognitif import log_cognitive_event
+                    for op in cache_ops:
+                        if op['op'] == 'add':
+                            log_cognitive_event('cache', f"CACHE_ADD [{op.get('type','?')}]: {op.get('content','')[:60]}", event_level=1)
+                        elif op['op'] == 'delete':
+                            log_cognitive_event('cache', f"CACHE_DELETE: {op.get('id','?')}", event_level=1)
+                        elif op['op'] == 'update':
+                            log_cognitive_event('cache', f"CACHE_UPDATE [{op.get('id','?')}]: {op.get('content','')[:60]}", event_level=1)
+                        elif op['op'] == 'clear':
+                            log_cognitive_event('cache', "CACHE_CLEAR: cache vidé", event_level=1)
+                    print(f"[COGNITIVE-CACHE] {len(cache_ops)} opération(s) appliquée(s)")
+                # Toujours nettoyer les commandes du texte visible, même si aucune op appliquée
+                cleaned_reply = strip_commands_from_response(cleaned_reply)
+                if cache_ops:
+                    print(f"[COGNITIVE-CACHE] Commandes retirées du texte visible")
+            except Exception as _cache_err:
+                print(f"[COGNITIVE-CACHE] Erreur détection commandes: {_cache_err}")
+
         # 2. Traitement des évènements Organic Planner (IA)
         organic_events_ai = _extract_organic_events(cleaned_reply)
         organic_updates_ai = _extract_organic_updates(cleaned_reply)
@@ -6491,7 +6558,14 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
         # --- FIN DÉTECTIONS ---
 
         # 🧹 NETTOYAGE HISTORIQUE - Préparer version propre pour l'historique JSON
-        history_content = cleaned_reply
+        # Strip préventif des commandes CACHE_* (peut déjà être fait, idempotent)
+        if COGNITIVE_CACHE_AVAILABLE:
+            try:
+                history_content = strip_commands_from_response(cleaned_reply)
+            except Exception:
+                history_content = cleaned_reply
+        else:
+            history_content = cleaned_reply
         
         # Pattern 1: Blocs d'images text2img générées avec phrase magique cachée
         image_block_pattern = r'🖼️ \*\*Image générée :\*\* "(.*?)".*?<img src=.*?/>.*?🎨.*?via.*?💾.*?(?:Sauvegardée|Échec sauvegarde).*?(?:\n|$)'
@@ -7681,6 +7755,18 @@ async def _async_awakening(notif):
                 print("[INIT] ✅ Flux Cognitif initialisé")
         except Exception as e:
             print(f"[INIT] ⚠️ Flux Cognitif: {e}")
+
+        # Cache Cognitif - Pensées persistantes de l'IA
+        try:
+            if COGNITIVE_CACHE_AVAILABLE:
+                _cc_conv_id = _current_conversation_id or ""
+                initialize_cognitive_cache(_cc_conv_id)
+                # Injecter contexte de continuité inter-sessions si disponible
+                _cc_continuity = get_continuation_context(max_convs=3)
+                if _cc_continuity:
+                    print(f"[INIT] ✅ Cache cognitif: continuité inter-sessions chargée")
+        except Exception as e:
+            print(f"[INIT] ⚠️ Cache Cognitif: {e}")
         
         # Telegram Connector
         try:
@@ -8251,7 +8337,15 @@ def main_page():
                                 print(f"[SHUTDOWN] Erreur compilation ego (non bloquant): {e}")
                                 import traceback
                                 traceback.print_exc()
-                            
+
+                            # 🧠 CACHE COGNITIF - Elagage top 10 a la fermeture
+                            try:
+                                if COGNITIVE_CACHE_AVAILABLE:
+                                    print("[SHUTDOWN] Elagage cache cognitif...")
+                                    await cleanup_cognitive_cache(max_conversations=10)
+                            except Exception as e:
+                                print(f"[SHUTDOWN] Erreur elagage cache (non bloquant): {e}")
+
                             os._exit(0)  # Arrêt immédiat et propre
                         
                         asyncio.create_task(delayed_shutdown())
@@ -8500,6 +8594,14 @@ def run_ogma(host: str = 'localhost', port: int = 8080):
         # 🛡️ TRACKING: Enregistrer l'activité à la connexion
         try:
             track_client_activity(client.id)
+        except Exception:
+            pass
+        # ⚠️ Afficher les warnings de démarrage (ex: fallback dimension embedding)
+        try:
+            from modules.ogma_core import globals as _g
+            for _warn in getattr(_g, '_startup_warnings', []):
+                _notify_safe(f"⚠️ {_warn}", type='warning', timeout=8000)
+            _g._startup_warnings = []
         except Exception:
             pass
     

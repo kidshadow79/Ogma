@@ -1896,6 +1896,15 @@ def _persist_conversation(initial_text_for_title: Optional[str] = None) -> None:
         if not current_id:
             _get_ogma()._current_conversation_id = _make_conv_id()
         cid = _get_current_conversation_id()
+
+        # 🧠 CACHE COGNITIF: Synchronise le conv_id dès qu'il est connu
+        try:
+            from extensions.cognitive_cache import is_available as cc_available, set_current_conv as cc_set_conv
+            if cc_available():
+                cc_set_conv(cid)
+        except Exception:
+            pass
+
         # Met à jour/Crée l'entrée index
         from datetime import datetime
         now_iso = datetime.now().isoformat(timespec='seconds')
@@ -2322,6 +2331,16 @@ def _new_conversation():
         print(f"[BIOGRAPHY-EXTENSION] ERROR Erreur reset conversation: {e}")
 
     print(f"[NEW-CONVERSATION] 🆕 Nouvelle conversation démarrée - Protection phrases magiques réinitialisée")
+
+    # 🧠 CACHE COGNITIF: Nouveau conv_id pour la nouvelle conversation
+    try:
+        from extensions.cognitive_cache import is_available as cc_available, set_current_conv as cc_set_conv
+        if cc_available():
+            import datetime
+            new_cc_id = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            cc_set_conv(new_cc_id)
+    except Exception as e:
+        print(f"[COGNITIVE-CACHE] Erreur reset conv: {e}")
 
     _render_full_history()
 

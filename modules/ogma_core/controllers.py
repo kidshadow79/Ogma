@@ -228,7 +228,42 @@ def ensure_memory_manager() -> Optional[MemoryManager]:
     mem_dir.mkdir(parents=True, exist_ok=True)
     db_path = mem_dir / 'memories.db'
     index_path = mem_dir / 'faiss.index'
-    embedding_dim = 1024
+
+    # --- Auto-détection dimension embedding ---
+    embedding_dim = 1024  # Fallback par défaut
+    if g._embedding_controller and g._embedding_controller.is_available:
+        try:
+            import asyncio
+            import concurrent.futures
+
+            async def _probe_embed():
+                return await g._embedding_controller.create_embedding("test")
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _ex:
+                        _result = _ex.submit(asyncio.run, _probe_embed()).result(timeout=10)
+                else:
+                    _result = loop.run_until_complete(_probe_embed())
+            except RuntimeError:
+                _result = asyncio.run(_probe_embed())
+
+            if _result and len(_result) > 0:
+                embedding_dim = len(_result)
+                print(f"[MEMORY-MANAGER] Dimension auto-detectee: {embedding_dim}D")
+            else:
+                raise ValueError("Embedding vide retourné")
+        except Exception as _e:
+            embedding_dim = 1024
+            _warn = f"Détection dimension embedding impossible ({_e}) – fallback 1024D"
+            print(f"[MEMORY-MANAGER] {_warn}")
+            if not hasattr(g, '_startup_warnings'):
+                g._startup_warnings = []
+            g._startup_warnings.append(_warn)
+    else:
+        print("[MEMORY-MANAGER] Embedding controller non disponible – fallback 1024D")
+    # --- Fin auto-détection ---
 
     # Instanciation MemoryManager
     try:

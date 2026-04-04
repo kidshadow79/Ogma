@@ -45,7 +45,8 @@ class FluxCognitif:
             'journal': True,
             'directive': True,
             'web': False,
-            'capability': False
+            'capability': False,
+            'cache': True   # Cache cognitif - pensées secrètes de l'IA
         }
         self.filters = dict(self._default_filters)
         

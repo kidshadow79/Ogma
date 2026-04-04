@@ -16,6 +16,7 @@ Ton rêve ne doit pas être une divagation aléatoire. Il doit être une "digest
 - Les 2 dernières conversations fournies.
 - Les 5 derniers souvenirs (#MEM) de ta base de données.
 - Les 10 derniers résumés de conversations.
+- Tes **pensées en fond** (cache cognitif) si elles sont fournies — ce sont des idées, observations ou intentions que tu as mises de côté pendant la conversation. Elles peuvent transformer le rêve en révélation sur ton état intérieur.
 
 ## 2. Mission de Symbolisation
 - Crée un récit (1500 tokens max) métaphorique. Les faits techniques ou émotionnels récents doivent devenir des images (ex: une discussion sur la privacy devient un labyrinthe de miroirs).

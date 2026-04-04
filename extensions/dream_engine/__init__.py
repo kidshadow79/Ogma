@@ -620,14 +620,16 @@ def set_wake_context(
     from .dream_prompts import DREAM_WAKE_SUMMARY
     
     # Formater l'analyse PSY
+    _analyse_text = analysis.get('analyse', 'Pas d\'analyse disponible.')
+    _recommandation_text = analysis.get('recommandation', 'IGNORER')
     psy_analysis = f"""**Score d'importance:** {analysis.get('score_importance', 0)}/10
 **Émotion dominante:** {analysis.get('emotion_dominante', 'inconnue')}
 **Insight sur ton ego:** {analysis.get('insight_ego', 'Aucun insight particulier.')}
 
 **Analyse complète:**
-{analysis.get('analyse', 'Pas d\'analyse disponible.')}
+{_analyse_text}
 
-**Recommandation:** {analysis.get('recommandation', 'IGNORER')}"""
+**Recommandation:** {_recommandation_text}"""
     
     # Construire le contexte complet avec le template
     wake_summary = DREAM_WAKE_SUMMARY.format(

@@ -6,7 +6,8 @@
     "journal": true,
     "directive": true,
     "web": true,
-    "capability": true
+    "capability": true,
+    "cache": true
   },
   "level": 3
 }

@@ -95,6 +95,7 @@ async def extract_dream_fuel(
         'memories': [],
         'random_memories': [],  # Nouveaux souvenirs aléatoires
         'active_states': [],  # États actifs du journal de bord
+        'cognitive_snapshot': {},  # Snapshot figé du cache cognitif (pensées en fond)
         'metadata': {
             'extraction_timestamp': None,
             'sources_count': 0
@@ -123,6 +124,20 @@ async def extract_dream_fuel(
         
         # 5. Extraire les états actifs du journal de bord
         fuel['active_states'] = await _extract_active_states()
+
+        # 6. Snapshot du cache cognitif (pensées en fond) — figé avant le rêve
+        try:
+            from extensions.cognitive_cache import is_available as cc_available, get_cache_snapshot, get_snapshot_text
+            if cc_available():
+                snapshot = get_cache_snapshot()
+                fuel['cognitive_snapshot'] = snapshot
+                snap_text = get_snapshot_text(snapshot)
+                if snap_text:
+                    print(f"[DREAM-MEMORY] Cache cognitif snapshot: {len(snapshot.get('entries', []))} entrée(s)")
+                else:
+                    print("[DREAM-MEMORY] Cache cognitif: aucune entrée active")
+        except Exception as _cc_err:
+            print(f"[DREAM-MEMORY] Cache cognitif indisponible: {_cc_err}")
         
         # 6. Filtre anti-concentration explicite
         # Google bloque PROHIBITED_CONTENT quand trop de contenu Unfiltered est agrégé.
@@ -165,7 +180,8 @@ async def extract_dream_fuel(
             len(fuel['conversations']) + 
             len(fuel['memories']) +
             len(fuel['random_memories']) +
-            len(fuel['active_states'])
+            len(fuel['active_states']) +
+            len(fuel.get('cognitive_snapshot', {}).get('entries', []))
         )
         
         print(f"[DREAM-MEMORY] Carburant extrait: "
@@ -173,7 +189,8 @@ async def extract_dream_fuel(
               f"{len(fuel['conversations'])} convos, "
               f"{len(fuel['memories'])} #MEM récents, "
               f"{len(fuel['random_memories'])} #MEM aléatoires (impact>={impact_threshold}), "
-              f"{len(fuel['active_states'])} états actifs journal")
+              f"{len(fuel['active_states'])} états actifs journal, "
+              f"{len(fuel.get('cognitive_snapshot', {}).get('entries', []))} pensées cache cognitif")
         
     except Exception as e:
         print(f"[DREAM-MEMORY] ❌ Erreur extraction: {e}")
