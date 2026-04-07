@@ -3906,11 +3906,15 @@ def _models_modal():
             sm.settings['embedding_api'] = emb_settings
 
             # Utiliser la nouvelle structure other_backends.gguf
-            if 'other_backends' not in sm.settings:
-                sm.settings['other_backends'] = {}
-            if 'gguf' not in sm.settings['other_backends']:
-                sm.settings['other_backends']['gguf'] = {}
-            sm.settings['other_backends']['gguf']['gpu_layers'] = int(gguf_gpu_layers.value or -1)
+            # NE sauvegarder depuis ce widget QUE si le backend embedding est GGUF,
+            # pour éviter d'écraser la valeur définie dans le popup "Autres Backends"
+            # (le cas chat=GGUF est déjà géré dans son propre bloc ci-dessus)
+            if emb_backend.value == 'GGUF':
+                if 'other_backends' not in sm.settings:
+                    sm.settings['other_backends'] = {}
+                if 'gguf' not in sm.settings['other_backends']:
+                    sm.settings['other_backends']['gguf'] = {}
+                sm.settings['other_backends']['gguf']['gpu_layers'] = int(gguf_gpu_layers.value or -1)
             
             msg = sm.save_settings()
             ui.notify(msg or 'Paramètres sauvegardés', type='positive')

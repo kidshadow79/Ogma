@@ -599,6 +599,9 @@ _pending_behavioral_injections = []
 # Variable globale pour l'extension Web Navigator (éviter les recréations)
 _web_navigator_ext = None
 
+# Diagnostic archiviste : notifier une seule fois par session si indisponible
+_archiviste_warned = False
+
 # Variable globale pour l'extension Capability Advisor
 _capability_advisor = None
 
@@ -2155,8 +2158,9 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
         try:
             print(f"[EDIT-MESSAGE] 🔄 MODE ÉDITION DÉTECTÉ - Message #{_editing_message_index}")
 
-            # 1. Supprimer le message édité ET tous ceux après
+            # 1. Supprimer le message édité ET tous ceux après (chat_history ET chat_history_ui)
             _chat_history = _chat_history[:_editing_message_index]
+            _chat_history_ui = _chat_history_ui[:_editing_message_index]
             print(f"[EDIT-MESSAGE] 🗑️ Messages #{_editing_message_index} et suivants supprimés, historique réduit à {len(_chat_history)} messages")
 
             # 2. Marquer qu'on était en mode édition pour réaffichage complet
@@ -3272,41 +3276,54 @@ setTimeout(()=>{
         try:
             memory_mgr = _ensure_memory_manager()
             archiviste_ctrl = _ensure_archiviste_controller()
-            
-            # Appel optimizer avec tous les paramètres (exécution parallèle)
-            # 🌀 SPINNER: Activer le spinner Archiviste pendant l'analyse parallèle
-            set_archiviste_working(True)
-            # Passer les titres + extrait contenu des souvenirs pour informer le Meta-Analyzer
-            _memory_titles_for_meta = [
-                f"{m.get('title', '')[:60]} | {(m.get('summary') or m.get('text_original', ''))[:100]}"
-                for m in detailed_memories[:4]
-            ] if detailed_memories else []
-            optimized_ctx = await get_optimized_context_for_message(
-                user_message=text,
-                conversation_history=_chat_history,
-                memory_manager=memory_mgr,
-                archiviste_controller=archiviste_ctrl,
-                memory_titles_found=_memory_titles_for_meta
-            )
-            set_archiviste_working(False)
-            
-            if optimized_ctx.get('optimized'):
-                ego_injection = optimized_ctx.get('ego_injection', '')
-                if ego_injection:
-                    print(f"[PREANALYSIS] ⚡ Ego optimisé utilisé ({len(ego_injection)} chars)")
-                else:
-                    print("[PREANALYSIS] ⚡ Contexte optimisé sans ego injection")
-                
-                # Récupérer résultats parallèles Directive + Capability
-                parallel_archiviste_directive = optimized_ctx.get('archiviste_directive')
-                unified_capability = optimized_ctx.get('capability_suggestion')
-                
-                if parallel_archiviste_directive:
-                    print(f"[PREANALYSIS] 🧭 Directive Archiviste ({len(parallel_archiviste_directive)} chars)")
-                if unified_capability:
-                    print(f"[PREANALYSIS] 🎯 Capability suggestion: {unified_capability.get('capability_id', '?')}")
+
+            # ⚠️ DIAGNOSTIC: Vérifier disponibilité effective de l'archiviste
+            global _archiviste_warned
+            if archiviste_ctrl and archiviste_ctrl.get_active_manager() is None:
+                if not _archiviste_warned:
+                    _archiviste_warned = True
+                    _notify_safe(
+                        "⚠️ Archiviste indisponible (backend non chargé ou GGUF en erreur) — analyses et mémorisations désactivées",
+                        'warning',
+                        timeout=8000
+                    )
+                print("[PREANALYSIS] ⚠️ Archiviste get_active_manager()=None — skip preanalysis")
+                set_archiviste_working(False)
             else:
-                print("[PREANALYSIS] 🔄 Fallback vers système séquentiel")
+                # Appel optimizer avec tous les paramètres (exécution parallèle)
+                # 🌀 SPINNER: Activer le spinner Archiviste pendant l'analyse parallèle
+                set_archiviste_working(True)
+                # Passer les titres + extrait contenu des souvenirs pour informer le Meta-Analyzer
+                _memory_titles_for_meta = [
+                    f"{m.get('title', '')[:60]} | {(m.get('summary') or m.get('text_original', ''))[:100]}"
+                    for m in detailed_memories[:4]
+                ] if detailed_memories else []
+                optimized_ctx = await get_optimized_context_for_message(
+                    user_message=text,
+                    conversation_history=_chat_history,
+                    memory_manager=memory_mgr,
+                    archiviste_controller=archiviste_ctrl,
+                    memory_titles_found=_memory_titles_for_meta
+                )
+                set_archiviste_working(False)
+
+                if optimized_ctx.get('optimized'):
+                    ego_injection = optimized_ctx.get('ego_injection', '')
+                    if ego_injection:
+                        print(f"[PREANALYSIS] ⚡ Ego optimisé utilisé ({len(ego_injection)} chars)")
+                    else:
+                        print("[PREANALYSIS] ⚡ Contexte optimisé sans ego injection")
+
+                    # Récupérer résultats parallèles Directive + Capability
+                    parallel_archiviste_directive = optimized_ctx.get('archiviste_directive')
+                    unified_capability = optimized_ctx.get('capability_suggestion')
+
+                    if parallel_archiviste_directive:
+                        print(f"[PREANALYSIS] 🧭 Directive Archiviste ({len(parallel_archiviste_directive)} chars)")
+                    if unified_capability:
+                        print(f"[PREANALYSIS] 🎯 Capability suggestion: {unified_capability.get('capability_id', '?')}")
+                else:
+                    print("[PREANALYSIS] 🔄 Fallback vers système séquentiel")
         except Exception as e:
             print(f"[PREANALYSIS] ⚠️ Erreur optimizer, fallback: {e}")
     
@@ -6423,7 +6440,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                             ai_memorized = True
                         else:
                             print(f"[MAGIC-DEBUG] Échec mémorisation (ok=False)")
-                            _notify_safe("Échec de la mémorisation (voir logs)", 'warning')
+                            _notify_safe("⚠️ Mémorisation impossible — Archiviste indisponible (GGUF en erreur ?)", 'warning')
                     except Exception as e:
                         set_archiviste_working(False)
                         print(f"[MAGIC-DEBUG] EXCEPTION mémorisation: {e}")

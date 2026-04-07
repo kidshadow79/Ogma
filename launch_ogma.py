@@ -11,6 +11,15 @@ import subprocess
 import traceback
 from pathlib import Path
 
+# Force UTF-8 pour les emojis dans les prints (encodage Windows cp1252 sinon)
+if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 def check_dependencies():
     """Vérifie et installe les dépendances manquantes"""
     print("🔍 Vérification des dépendances...")

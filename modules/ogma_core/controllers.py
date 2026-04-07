@@ -200,8 +200,9 @@ def ensure_memory_manager() -> Optional[MemoryManager]:
         model = arch.get('gguf_model', '')
         gguf_cfg = sm.settings.get('other_backends', {}).get('gguf', {})
         n_gpu_layers = int(gguf_cfg.get('gpu_layers', -1))
+        gguf_ctx = int(gguf_cfg.get('context_size', 4096))
         if model and not cast(GGUFManager, g._gguf_mgr).is_available:
-            cast(GGUFManager, g._gguf_mgr).load_model(model, g._archiviste_controller.context_length, n_gpu_layers)
+            cast(GGUFManager, g._gguf_mgr).load_model(model, gguf_ctx, n_gpu_layers)
     elif arch_backend == 'KoboldCpp':
         url = arch.get('kobold_url') or 'http://localhost:5001'
         cast(KoboldManager, g._kobold_mgr).api_url = str(url).rstrip('/')
@@ -385,8 +386,9 @@ def ensure_chat_controller() -> AIController:
         model = chat.get('gguf_model', '')
         gguf_cfg = sm.settings.get('other_backends', {}).get('gguf', {})
         n_gpu_layers = int(gguf_cfg.get('gpu_layers', -1))
+        gguf_ctx = int(gguf_cfg.get('context_size', 4096))
         if model and not cast(GGUFManager, g._gguf_mgr).is_available:
-            cast(GGUFManager, g._gguf_mgr).load_model(model, g._chat_controller.context_length, n_gpu_layers)
+            cast(GGUFManager, g._gguf_mgr).load_model(model, gguf_ctx, n_gpu_layers)
     elif backend == 'KoboldCpp':
         url = chat.get('kobold_url') or 'http://localhost:5001'
         cast(KoboldManager, g._kobold_mgr).api_url = str(url).rstrip('/')
