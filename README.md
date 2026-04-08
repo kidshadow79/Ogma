@@ -131,7 +131,33 @@ Automatically enriched daily journal. Its content is injected into the context o
 ### 🗓️ Organic Planner — Cognitive Agenda
 Planned events are treated as **memories of the future**: the AI keeps them in mind naturally, mentions them as they approach, and adapts its tone to the emotional note recorded for each event. Not a task list — a diffuse presence of the agenda in its conversational awareness.
 
-### 🔀 Multi-Backend AI Management
+### �️ Project RAG — Isolated Document Memory
+Each project has its own semantic memory, completely isolated from personal memory:
+
+- Documents indexed per project (PDF, text, code, Word...)
+- Adaptive chunking by file type
+- Semantic search via dedicated FAISS index + SQLite
+- Relevant chunks injected automatically into context when working on a project
+- Multiple simultaneous projects, each with independent configuration
+
+Useful for sustained collaborative work: code review, manuscript writing, research — the AI only accesses documents relevant to the active project.
+
+### 🧠 Cognitive Cache — Conversational Working Memory
+A personal scratchpad the AI controls directly via magic phrases:
+
+```
+CACHE_ADD:[type]:[content]    # Write a note
+CACHE_DELETE:[id]             # Delete
+CACHE_UPDATE:[id]:[content]   # Update
+CACHE_CLEAR                   # Reset
+```
+
+- Persisted per conversation (`data/cognitive_cache/`), invisible to the user
+- The AI can note intermediate hypotheses, track a reasoning thread, remember an element to revisit later
+- Injected into context on each turn, automatically cleaned up after the conversation
+- Not a user-facing memory — a tool for the AI's own reasoning continuity
+
+### �🔀 Multi-Backend AI Management
 Unified interface to all major providers — each controller (Main AI, Archivist, Embedding) is independently configurable:
 
 | Type | Providers |
@@ -143,13 +169,35 @@ Unified interface to all major providers — each controller (Main AI, Archivist
 
 ### 💡 Recommended Models
 
-OGMA is a **sandbox for experimenting with AI concepts** — results depend heavily on the model you choose. A few observations from practice:
+OGMA is a **sandbox for experimenting with AI concepts** — results depend heavily on the model you choose.
 
-- **Archivist** — prefers fast, low-cost models with long context. [Grok 4 / 4.1 (non-reasoning)](https://x.ai) are particularly well-suited: high performance, very low cost, and a native 128k+ context window that handles long memory sessions without truncation.
-- **Main AI** — benefits from long-context models to absorb all injected instructions (memory, ego, temporal context). Watch costs: a chatty model on a short context degrades quickly.
-- **Good starting point** — [Mistral Small 4](https://mistral.ai) offers a solid balance of quality and cost for initial experimentation without burning through API credits.
+> ⚠️ **Minimum context window**: OGMA injects significant context at each turn (memory, ego, temporal log, journal, instructions). Count on **16k tokens minimum**, **32k recommended**. A model with 4k–8k context will truncate and degrade quickly.
 
-> OGMA is first and foremost a place to explore and question. The "best" model doesn't exist — it depends on what behavior you're trying to observe.
+#### 🌸 Main AI — Conversational Brain
+
+| Model | Provider | Context | Notes |
+|-------|----------|---------|-------|
+| **Mistral Small 4** | [Mistral](https://mistral.ai) | 128k | ⭐ Best quality/cost ratio — recommended starting point |
+| **grok-4-1-fast (non-reasoning)** | [xAI](https://x.ai) | 131k | Very fast, very cheap, excellent on instruction-following |
+| **Gemma 3 27B** | Google / Ollama | 128k | High quality local (Ollama), resource-heavy |
+
+#### 📚 Archivist — Analytical Brain
+
+The Archivist performs many background calls (memory filtering, ego compilation, dream analysis). It needs to be **fast and low-cost** above all.
+
+| Model | Provider | Context | Notes |
+|-------|----------|---------|-------|
+| **grok-4-1-fast (non-reasoning)** | [xAI](https://x.ai) | 131k | ⭐ Ideal: extremely cheap, 131k context, fast |
+| **Mistral Small 4** | [Mistral](https://mistral.ai) | 128k | Good fallback if xAI not available |
+
+#### 🔢 Embeddings — Semantic Memory
+
+| Model | Provider | Dimensions | Notes |
+|-------|----------|-----------|-------|
+| **mistral-embed** | [Mistral](https://mistral.ai) | 1024 | ⭐ Recommended — quality, cost, and native French support |
+| **text-embedding-3-small** | OpenAI | 1536 | Solid alternative |
+
+> OGMA is first and foremost a place to explore and question. The "best" model doesn't exist — it depends on what behavior you're trying to observe. But the combination **Mistral Small 4 (Main AI) + grok-4-1-fast (Archivist) + mistral-embed (Embeddings)** is a proven, cost-effective starting point.
 
 ---
 
@@ -165,6 +213,8 @@ OGMA is a **sandbox for experimenting with AI concepts** — results depend heav
 | 🌊 **Cognitive Flux** | Visualization of the AI's thought stream |
 | 🧬 **Profile Biography** | Evolving user profile |
 | 🔁 **Contextual Recall** | Intelligent contextual memory retrieval |
+| 🗂️ **Project RAG** | Isolated document memory per project (SQLite + FAISS) |
+| 🧠 **Cognitive Cache** | Conversational working memory the AI controls itself |
 
 ---
 
@@ -174,6 +224,24 @@ OGMA is a **sandbox for experimenting with AI concepts** — results depend heav
 - **Python 3.10+**
 - Up-to-date `pip`
 - (Optional) NVIDIA GPU with CUDA for acceleration
+
+#### 🖥️ GGUF Local Mode — Hardware Requirements
+
+GGUF (llama-cpp-python) runs models locally on your machine. Performance depends entirely on available hardware.
+
+| Configuration | RAM | GPU | Expected speed |
+|--------------|-----|-----|----------------|
+| ❌ Minimum (not recommended) | 8 GB | None / CPU-only | 5–15 min / response (4B model) |
+| ✅ Comfortable | 16 GB | CUDA GPU 8 GB+ | 5–30s / response |
+| ⭐ Optimal | 32 GB+ | CUDA GPU 12 GB+ | <5s / response |
+
+**Critical notes:**
+- The KV cache consumes ~72 KB per token: a 8192-token context = ~576 MB RAM
+- **CUDA is required for real-time performance.** CPU-only = acceptable wait time only for small models (≤ 4B Q4)
+- RTX 50xx (Blackwell) series: CUDA not yet supported by standard PyPI builds (April 2026). Set `gpu_layers = 0`.
+- For machines without a capable GPU, **cloud APIs (Mistral, xAI, OpenAI...)** are strongly recommended over GGUF
+
+> To compile llama-cpp-python natively for your hardware: `CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python --no-binary llama-cpp-python`
 
 ### Dependency Files
 
