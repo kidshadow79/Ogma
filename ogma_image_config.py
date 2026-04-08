@@ -49,7 +49,7 @@ IMAGE_PROVIDERS = {
     "WaveSpeed": {
         "name": "WaveSpeed.ai (Unfiltered/Spicy)",
         "models": [
-            "wavespeed-ai/z-image-turbo",                    # $0.008 - Ultra-rapide T2I
+            "wavespeed-ai/z-image/turbo",                   # $0.005 - Ultra-rapide T2I
             "wavespeed-ai/female-human",                     # $0.015 - Personnages réalistes
             "wavespeed-ai/prefect-pony-xl",                  # $0.015 - Anime/Pony Unfiltered
             "wavespeed-ai/kolors",                           # $0.015 - Qualité/vitesse

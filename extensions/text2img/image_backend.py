@@ -1218,11 +1218,11 @@ class WaveSpeedImageProvider(ImageProviderBase):
             "type": "text2img",
             "description": "Seedream V4"
         },
-        "wavespeed-ai/z-image-turbo": {
+        "wavespeed-ai/z-image/turbo": {
             "nsfw": True,
-            "credits": 0.008,
+            "credits": 0.005,
             "type": "text2img",
-            "description": "⚡ Z-Image Turbo (ultra-rapide, 0.8 crédits)"
+            "description": "⚡ Z-Image Turbo (ultra-rapide, $0.005)"
         },
         "wavespeed-ai/kolors": {
             "nsfw": True,
