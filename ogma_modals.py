@@ -2639,13 +2639,13 @@ def _open_other_backends_popup():
                     label='GPU Layers (-1 = auto)', 
                     value=gguf_config.get('gpu_layers', -1),
                     min=-1, max=100
-                ).classes('form-input mb-2')
+                ).classes('form-input mb-2').tooltip('Couches déchargées sur GPU.\n0 = CPU pur (recommandé, sûr sur toutes les machines).\n-1 = toutes sur GPU.\n⚠️ RTX 50xx Blackwell : rester à 0 (CUDA non supporté par le build PyPI).')
                 
                 context_size_input = ui.number(
                     label='Context Size', 
                     value=gguf_config.get('context_size', 4096),
                     min=512, max=32768
-                ).classes('form-input mb-2')
+                ).classes('form-input mb-2').tooltip('Fenêtre de tokens allouée en RAM au chargement du modèle (n_ctx).\nDétermine la mémoire consommée.\nEx : 7000 pour 4B Q4_K_M ≈ 1.2 GB.\n⚠️ max_tokens et context_length sont bornés à cette valeur.')
                 
                 # Sauvegarder références inputs
                 interface_data['gguf'] = {
@@ -2777,7 +2777,7 @@ def _open_other_backends_popup():
                     gguf_data = interface_data['gguf']
                     other_backends['gguf'] = {
                         'model_path': gguf_data['model_path_input'].value or '',
-                        'gpu_layers': int(gguf_data['gpu_layers_input'].value or -1),
+                        'gpu_layers': int(gguf_data['gpu_layers_input'].value if gguf_data['gpu_layers_input'].value is not None else -1),
                         'context_size': int(gguf_data['context_size_input'].value or 4096),
                         'selected_model': gguf_data['model_files_select'].value or '',
                         'enabled': True
@@ -3007,9 +3007,9 @@ def _models_modal():
                     ui.label('Paramètres avancés').classes('text-sm font-semibold mb-2')
                     chat_ollama_timeout = ui.number(
                         label='Timeout (secondes)', 
-                        value=30,
-                        min=5, max=300
-                    ).classes('form-input mb-2 narrow-field')
+                        value=sm.settings.get('other_backends', {}).get('ollama', {}).get('timeout', 180),
+                        min=5, max=600
+                    ).classes('form-input mb-2 narrow-field').tooltip('Délai max d\'attente pour une réponse Ollama.\n180s recommandé pour les modèles lourds.\nAugmenter si timeout fréquents sur gros modèles.')
                 with ui.column() as chat_gguf_zone:
                     ui.label('📄 Configuration GGUF').classes('text-md font-semibold mb-2')
                     
@@ -3174,21 +3174,21 @@ def _models_modal():
                         label='GPU Layers (-1 = auto)', 
                         value=gguf_config.get('gpu_layers', -1),
                         min=-1, max=100
-                    ).classes('form-input mb-2 narrow-field')
+                    ).classes('form-input mb-2 narrow-field').tooltip('Couches déchargées sur GPU.\n0 = CPU pur (recommandé, sûr sur toutes les machines).\n-1 = toutes sur GPU.\n⚠️ RTX 50xx Blackwell : rester à 0 (CUDA non supporté par le build PyPI).')
                     
                     chat_gguf_context_size = ui.number(
                         label='Context Size', 
                         value=gguf_config.get('context_size', 4096),
                         min=512, max=32768
-                    ).classes('form-input mb-2 narrow-field')
+                    ).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de tokens allouée en RAM au chargement du modèle (n_ctx).\nDétermine la mémoire consommée.\nEx : 7000 pour 4B Q4_K_M ≈ 1.2 GB.\n⚠️ max_tokens et context_length sont bornés à cette valeur.')
                 with ui.column() as chat_kobold_zone:
                     chat_kobold_url = ui.input(label='URL KoboldCpp', value=chat.get('kobold_url', 'http://localhost:5001')).classes('form-input mb-2 narrow-field')
                     ui.label('KoboldCpp utilise le modèle chargé sur le serveur local').classes('text-sm mb-2')
                     ui.button('Tester', on_click=_test_connection_ui('chat', chat_backend, None, None, service_url_input=lambda: chat_kobold_url)).classes('action-button mb-2')
 
-                chat_max_tokens = ui.number(label='max_tokens (-1 pour auto)', value=chat.get('max_tokens', 512)).classes('form-input mb-2 narrow-field')
-                chat_ctx = ui.number(label='context_length (-1 pour auto)', value=chat.get('context_length', 4096)).classes('form-input mb-2 narrow-field')
-                chat_temp = ui.number(label='temperature', value=chat.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field')
+                chat_max_tokens = ui.number(label='max_tokens (-1 pour auto)', value=chat.get('max_tokens', 512)).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés par réponse.\n-1 = détecté automatiquement via l\'API.\nPour GGUF : plafonné automatiquement à Context Size − 512.')
+                chat_ctx = ui.number(label='context_length (-1 pour auto)', value=chat.get('context_length', 4096)).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte passée à l\'API à chaque appel.\n-1 = détection automatique.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
+                chat_temp = ui.number(label='temperature', value=chat.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe et reproductible.\n0.7 = équilibré (défaut Chat).\n1.5+ = très créatif mais instable.')
 
                 with ui.column().classes('gap-1 mb-2') as chat_thinking_row:
                     with ui.row().classes('items-center gap-2'):
@@ -3216,6 +3216,8 @@ def _models_modal():
                     chat_ollama_zone.visible = (chat_backend.value == 'Ollama')
                     chat_gguf_zone.visible = (chat_backend.value == 'GGUF')
                     chat_kobold_zone.visible = (chat_backend.value == 'KoboldCpp')
+                    # context_length ignoré en GGUF (remplacé par Context Size dans la zone GGUF ci-dessus)
+                    chat_ctx.visible = (chat_backend.value != 'GGUF')
                     # Thinking disponible pour OpenRouter, Google, OpenAI, Anthropic et Mistral (magistral)
                     chat_thinking_row.visible = (chat_backend.value == 'API' and chat_provider.value in ('OpenRouter', 'Google', 'OpenAI', 'Anthropic', 'Mistral'))
                     # Recharger les modèles si demandé (changement de backend)
@@ -3306,6 +3308,11 @@ def _models_modal():
                 with ui.column() as arch_ollama_zone:
                     arch_ollama_url = ui.input(label='URL Ollama', value=arch.get('ollama_url', 'http://localhost:11434')).classes('form-input mb-2 narrow-field')
                     arch_ollama_model = ui.select([], value=None, label='Modèle Ollama').classes('form-select mb-2 narrow-field')
+                    arch_ollama_timeout = ui.number(
+                        label='Timeout (secondes)',
+                        value=sm.settings.get('other_backends', {}).get('ollama', {}).get('timeout', 180),
+                        min=5, max=600
+                    ).classes('form-input mb-2 narrow-field').tooltip('Délai max d\'attente pour une réponse Ollama.\n180s recommandé pour les modèles lourds.')
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
                         ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('arch', arch_backend, None, arch_ollama_model, None, service_url_input=lambda: arch_ollama_url)).classes('action-button')
                         ui.button('Tester', on_click=_test_connection_ui('arch', arch_backend, None, None, service_url_input=lambda: arch_ollama_url)).classes('action-button')
@@ -3454,13 +3461,13 @@ def _models_modal():
                         label='GPU Layers (-1 = auto)', 
                         value=gguf_config.get('gpu_layers', -1),
                         min=-1, max=100
-                    ).classes('form-input mb-2')
+                    ).classes('form-input mb-2').tooltip('Couches déchargées sur GPU.\n0 = CPU pur (recommandé, sûr sur toutes les machines).\n-1 = toutes sur GPU.\n⚠️ RTX 50xx Blackwell : rester à 0 (CUDA non supporté par le build PyPI).')
                     
                     arch_gguf_context_size = ui.number(
                         label='Context Size', 
                         value=gguf_config.get('context_size', 4096),
                         min=512, max=32768
-                    ).classes('form-input mb-2')
+                    ).classes('form-input mb-2').tooltip('Fenêtre de tokens allouée en RAM au chargement du modèle (n_ctx).\nEx : 7000 pour 4B Q4_K_M ≈ 1.2 GB.\n⚠️ max_tokens et context_length sont bornés à cette valeur.')
                     
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
                         ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('arch', arch_backend, None, arch_gguf_model_files, None)).classes('action-button')
@@ -3470,9 +3477,9 @@ def _models_modal():
                     ui.label('KoboldCpp utilise le modèle chargé sur le serveur local').classes('text-sm mb-2')
                     ui.button('Tester', on_click=_test_connection_ui('arch', arch_backend, None, None, service_url_input=lambda: arch_kobold_url)).classes('action-button mb-2')
 
-                arch_max_tokens = ui.number(label='max_tokens (-1 pour auto)', value=arch.get('max_tokens', 512)).classes('form-input mb-2 narrow-field')
-                arch_ctx = ui.number(label='context_length (-1 pour auto)', value=arch.get('context_length', 4096)).classes('form-input mb-2 narrow-field')
-                arch_temp = ui.number(label='temperature', value=arch.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field')
+                arch_max_tokens = ui.number(label='max_tokens (-1 pour auto)', value=arch.get('max_tokens', 512)).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés par réponse.\n-1 = détecté automatiquement via l\'API.\nPour GGUF : plafonné automatiquement à Context Size − 512.')
+                arch_ctx = ui.number(label='context_length (-1 pour auto)', value=arch.get('context_length', 4096)).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte passée à l\'API à chaque appel.\n-1 = détection automatique.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
+                arch_temp = ui.number(label='temperature', value=arch.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe. 0.3 = analytique (défaut Archiviste). 0.7 = équilibré.')
 
                 def _refresh_arch_interface():
                     """Force la mise à jour de l'interface Archiviste selon le backend sélectionné"""
@@ -3489,6 +3496,8 @@ def _models_modal():
                     arch_ollama_zone.visible = (arch_backend.value == 'Ollama')
                     arch_gguf_zone.visible = (arch_backend.value == 'GGUF')
                     arch_kobold_zone.visible = (arch_backend.value == 'KoboldCpp')
+                    # context_length ignoré en GGUF (remplacé par Context Size dans la zone GGUF ci-dessus)
+                    arch_ctx.visible = (arch_backend.value != 'GGUF')
                     # Recharger les modèles si demandé (changement de backend)
                     if reload_models:
                         ui.timer(0.05, lambda: _init_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key, arch_api_zone, arch_ollama_zone, arch_ollama_model, arch_gguf_zone, arch_gguf_model_files, arch_kobold_zone, ollama_url_input=arch_ollama_url, kobold_url_input=arch_kobold_url), once=True)
@@ -3576,6 +3585,11 @@ def _models_modal():
                 with ui.column() as emb_ollama_zone:
                     emb_ollama_url = ui.input(label='URL Ollama', value=emb.get('ollama_url', 'http://localhost:11434')).classes('form-input mb-2 narrow-field')
                     emb_ollama_model = ui.select([], value=None, label='Modèle Ollama').classes('form-select mb-2 narrow-field')
+                    emb_ollama_timeout = ui.number(
+                        label='Timeout (secondes)',
+                        value=sm.settings.get('other_backends', {}).get('ollama', {}).get('timeout', 180),
+                        min=5, max=600
+                    ).classes('form-input mb-2 narrow-field').tooltip('Délai max d\'attente pour une réponse Ollama.\n180s recommandé pour les modèles lourds.')
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
                         ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('embed', emb_backend, None, emb_ollama_model, None, service_url_input=lambda: emb_ollama_url)).classes('action-button')
                         ui.button('Tester', on_click=_test_connection_ui('embed', emb_backend, None, None, service_url_input=lambda: emb_ollama_url)).classes('action-button')
@@ -3724,29 +3738,25 @@ def _models_modal():
                         label='GPU Layers (-1 = auto)', 
                         value=gguf_config.get('gpu_layers', -1),
                         min=-1, max=100
-                    ).classes('form-input mb-2')
+                    ).classes('form-input mb-2').tooltip('Couches déchargées sur GPU.\n0 = CPU pur (recommandé, sûr sur toutes les machines).\n-1 = toutes sur GPU.\n⚠️ RTX 50xx Blackwell : rester à 0 (CUDA non supporté par le build PyPI).')
                     
                     emb_gguf_context_size = ui.number(
                         label='Context Size', 
                         value=gguf_config.get('context_size', 4096),
                         min=512, max=32768
-                    ).classes('form-input mb-2')
+                    ).classes('form-input mb-2').tooltip('Fenêtre de tokens allouée en RAM au chargement du modèle (n_ctx).\nEx : 7000 pour 4B Q4_K_M ≈ 1.2 GB.\n⚠️ max_tokens et context_length sont bornés à cette valeur.')
                     
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
                         ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('embed', emb_backend, None, emb_gguf_model_files, None)).classes('action-button')
                         ui.button('Tester', on_click=_test_connection_ui('embed', emb_backend, None, None)).classes('action-button')
 
-                # Utiliser la nouvelle structure other_backends.gguf
-                gguf_cfg = sm.settings.get('other_backends', {}).get('gguf', {})
-                gguf_gpu_layers = ui.number(label='GGUF GPU layers (-1 = auto)', value=gguf_cfg.get('gpu_layers', -1)).classes('form-input mb-2 narrow-field')
-
                 # Paramètres avancés Embedding
                 ui.separator().classes('mb-2')
                 ui.label('Paramètres avancés Embedding').classes('text-sm font-semibold mb-2')
                 
-                emb_max_tokens = ui.number(label='max_tokens (-1 pour auto)', value=emb.get('max_tokens', 512)).classes('form-input mb-2 narrow-field')
-                emb_ctx = ui.number(label='context_length (-1 pour auto)', value=emb.get('context_length', 4096)).classes('form-input mb-2 narrow-field')
-                emb_temp = ui.number(label='temperature', value=emb.get('temperature', 0.1), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field')
+                emb_max_tokens = ui.number(label='max_tokens (-1 pour auto)', value=emb.get('max_tokens', 512)).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés.\n-1 = détecté automatiquement.\nPour GGUF : plafonné automatiquement à Context Size − 512.')
+                emb_ctx = ui.number(label='context_length (-1 pour auto)', value=emb.get('context_length', 4096)).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte passée à l\'API à chaque appel.\n-1 = détection automatique.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
+                emb_temp = ui.number(label='temperature', value=emb.get('temperature', 0.1), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe. 0.1 = très précis (défaut Embedding). 0.7 = équilibré.')
 
                 def _refresh_embed_interface():
                     """Force la mise à jour de l'interface Embedding selon le backend sélectionné"""
@@ -3762,6 +3772,8 @@ def _models_modal():
                     emb_api_zone.visible = (emb_backend.value == 'API')
                     emb_ollama_zone.visible = (emb_backend.value == 'Ollama')
                     emb_gguf_zone.visible = (emb_backend.value == 'GGUF')
+                    # context_length ignoré en GGUF (remplacé par Context Size dans la zone GGUF ci-dessus)
+                    emb_ctx.visible = (emb_backend.value != 'GGUF')
                     # Recharger les modèles si demandé (changement de backend)
                     if reload_models:
                         ui.timer(0.05, lambda: _init_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key, emb_api_zone, emb_ollama_zone, emb_ollama_model, emb_gguf_zone, emb_gguf_model_files, None, ollama_url_input=emb_ollama_url), once=True)
@@ -3818,7 +3830,7 @@ def _models_modal():
                 'backend_type': chat_backend.value,
                 'max_tokens': int(chat_max_tokens.value or 512),
                 'context_length': int(chat_ctx.value or 4096),
-                'temperature': float(chat_temp.value or 0.7),
+                'temperature': float(chat_temp.value if chat_temp.value is not None else 0.7),
             })
             if chat_backend.value == 'API':
                 chat_settings['provider'] = chat_provider.value or 'Aucun'
@@ -3833,6 +3845,12 @@ def _models_modal():
                 if chat_ollama_model.value:
                     chat_settings['ollama_model'] = chat_ollama_model.value
                 chat_settings['ollama_url'] = chat_ollama_url.value or 'http://localhost:11434'
+                # Sauvegarder timeout dans other_backends.ollama (commun aux 3 contrôleurs)
+                if 'other_backends' not in sm.settings:
+                    sm.settings['other_backends'] = {}
+                if 'ollama' not in sm.settings['other_backends']:
+                    sm.settings['other_backends']['ollama'] = {}
+                sm.settings['other_backends']['ollama']['timeout'] = int(chat_ollama_timeout.value if chat_ollama_timeout.value is not None else 180)
             elif chat_backend.value == 'GGUF':
                 # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
                 if chat_gguf_model_path.value:
@@ -3846,7 +3864,7 @@ def _models_modal():
                 # Sauvegarder dans other_backends pour compatibilité
                 sm.settings['other_backends']['gguf'].update({
                     'model_path': chat_gguf_model_path.value or '',
-                    'gpu_layers': int(chat_gguf_gpu_layers.value or -1),
+                    'gpu_layers': int(chat_gguf_gpu_layers.value if chat_gguf_gpu_layers.value is not None else -1),
                     'context_size': int(chat_gguf_context_size.value or 4096),
                     'enabled': True
                 })
@@ -3859,7 +3877,7 @@ def _models_modal():
                 'backend_type': arch_backend.value,
                 'max_tokens': int(arch_max_tokens.value or 512),
                 'context_length': int(arch_ctx.value or 4096),
-                'temperature': float(arch_temp.value or 0.7),
+                'temperature': float(arch_temp.value if arch_temp.value is not None else 0.7),
             })
             if arch_backend.value == 'API':
                 arch_settings['provider'] = arch_provider.value or 'Aucun'
@@ -3872,10 +3890,26 @@ def _models_modal():
                 if arch_ollama_model.value:
                     arch_settings['ollama_model'] = arch_ollama_model.value
                 arch_settings['ollama_url'] = arch_ollama_url.value or 'http://localhost:11434'
+                # Sauvegarder timeout dans other_backends.ollama
+                if 'other_backends' not in sm.settings:
+                    sm.settings['other_backends'] = {}
+                if 'ollama' not in sm.settings['other_backends']:
+                    sm.settings['other_backends']['ollama'] = {}
+                sm.settings['other_backends']['ollama']['timeout'] = int(arch_ollama_timeout.value if arch_ollama_timeout.value is not None else 180)
             elif arch_backend.value == 'GGUF':
-                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
-                if arch_gguf_model_files.value:
-                    arch_settings['gguf_model'] = arch_gguf_model_files.value
+                # Préférer le champ texte (entrée directe) sur le sélecteur de fichiers
+                _arch_gguf_path = arch_gguf_model_path.value or arch_gguf_model_files.value
+                if _arch_gguf_path:
+                    arch_settings['gguf_model'] = _arch_gguf_path
+                # Synchroniser paramètres GGUF archiviste dans other_backends
+                if 'other_backends' not in sm.settings:
+                    sm.settings['other_backends'] = {}
+                if 'gguf' not in sm.settings['other_backends']:
+                    sm.settings['other_backends']['gguf'] = {}
+                sm.settings['other_backends']['gguf'].update({
+                    'gpu_layers': int(arch_gguf_gpu_layers.value if arch_gguf_gpu_layers.value is not None else -1),
+                    'context_size': int(arch_gguf_context_size.value or 4096),
+                })
             elif arch_backend.value == 'KoboldCpp':
                 arch_settings['kobold_url'] = arch_kobold_url.value or 'http://localhost:5001'
             sm.settings['reasoning_api'] = arch_settings
@@ -3885,7 +3919,7 @@ def _models_modal():
                 'backend_type': emb_backend.value,
                 'max_tokens': int(emb_max_tokens.value or 512),
                 'context_length': int(emb_ctx.value or 4096),
-                'temperature': float(emb_temp.value or 0.1),
+                'temperature': float(emb_temp.value if emb_temp.value is not None else 0.1),
             })
             if emb_backend.value == 'API':
                 emb_settings['provider'] = emb_provider.value or 'Aucun'
@@ -3898,31 +3932,35 @@ def _models_modal():
                 if emb_ollama_model.value:
                     emb_settings['ollama_model'] = emb_ollama_model.value
                 emb_settings['ollama_url'] = emb_ollama_url.value or 'http://localhost:11434'
+                # Sauvegarder timeout dans other_backends.ollama
+                if 'other_backends' not in sm.settings:
+                    sm.settings['other_backends'] = {}
+                if 'ollama' not in sm.settings['other_backends']:
+                    sm.settings['other_backends']['ollama'] = {}
+                sm.settings['other_backends']['ollama']['timeout'] = int(emb_ollama_timeout.value if emb_ollama_timeout.value is not None else 180)
             elif emb_backend.value == 'GGUF':
-                # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
-                if emb_gguf_model_files.value:
-                    emb_settings['gguf_model'] = emb_gguf_model_files.value
-            
-            sm.settings['embedding_api'] = emb_settings
-
-            # Utiliser la nouvelle structure other_backends.gguf
-            # NE sauvegarder depuis ce widget QUE si le backend embedding est GGUF,
-            # pour éviter d'écraser la valeur définie dans le popup "Autres Backends"
-            # (le cas chat=GGUF est déjà géré dans son propre bloc ci-dessus)
-            if emb_backend.value == 'GGUF':
+                # Préférer le champ texte (entrée directe) sur le sélecteur de fichiers
+                _emb_gguf_path = emb_gguf_model_path.value or emb_gguf_model_files.value
+                if _emb_gguf_path:
+                    emb_settings['gguf_model'] = _emb_gguf_path
+                # Synchroniser paramètres GGUF embedding dans other_backends
                 if 'other_backends' not in sm.settings:
                     sm.settings['other_backends'] = {}
                 if 'gguf' not in sm.settings['other_backends']:
                     sm.settings['other_backends']['gguf'] = {}
-                sm.settings['other_backends']['gguf']['gpu_layers'] = int(gguf_gpu_layers.value or -1)
+                sm.settings['other_backends']['gguf'].update({
+                    'gpu_layers': int(emb_gguf_gpu_layers.value if emb_gguf_gpu_layers.value is not None else -1),
+                    'context_size': int(emb_gguf_context_size.value or 4096),
+                })
+            
+            sm.settings['embedding_api'] = emb_settings
+
+            # NE sauvegarder gpu_layers depuis gguf_gpu_layers QUE si backend emb est GGUF
+            # (gestion désormais intégrée dans le bloc elif ci-dessus)
             
             msg = sm.save_settings()
             ui.notify(msg or 'Paramètres sauvegardés', type='positive')
             dialog.close()
-
-        # Bouton AUTRES BACKENDS (système isolé)
-        with ui.row().classes('justify-center mt-4 mb-2'):
-            ui.button('⚙️ AUTRES BACKENDS', on_click=lambda: _open_other_backends_popup()).classes('action-button text-sm')
 
         with ui.row().classes('justify-end gap-2 mt-2'):
             ui.button('Annuler', on_click=dialog.close).classes('action-button')

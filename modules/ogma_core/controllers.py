@@ -201,8 +201,20 @@ def ensure_memory_manager() -> Optional[MemoryManager]:
         gguf_cfg = sm.settings.get('other_backends', {}).get('gguf', {})
         n_gpu_layers = int(gguf_cfg.get('gpu_layers', -1))
         gguf_ctx = int(gguf_cfg.get('context_size', 4096))
-        if model and not cast(GGUFManager, g._gguf_mgr).is_available:
-            cast(GGUFManager, g._gguf_mgr).load_model(model, gguf_ctx, n_gpu_layers)
+        _gguf_mgr = cast(GGUFManager, g._gguf_mgr)
+        _model_changed = _gguf_mgr.model_name != model
+        _ctx_changed = _gguf_mgr._requested_ctx != gguf_ctx
+        if model and (not _gguf_mgr.is_available or _model_changed or _ctx_changed):
+            if _model_changed or _ctx_changed:
+                print(f"[GGUF-ARCH] Rechargement : modèle={'changé' if _model_changed else 'id.'}, ctx={'changé' if _ctx_changed else 'id.'}")
+            _gguf_mgr.load_model(model, gguf_ctx, n_gpu_layers)
+        # Override context_length avec la valeur réelle du modèle GGUF
+        g._archiviste_controller.context_length = gguf_ctx
+        _max_raw = int(arch.get('max_tokens', 2048))
+        if _max_raw <= 0:
+            _max_raw = 2048
+        g._archiviste_controller.max_tokens = min(_max_raw, gguf_ctx - 512)
+        print(f"[GGUF-ARCH] context_length={gguf_ctx}, max_tokens={g._archiviste_controller.max_tokens}")
     elif arch_backend == 'KoboldCpp':
         url = arch.get('kobold_url') or 'http://localhost:5001'
         cast(KoboldManager, g._kobold_mgr).api_url = str(url).rstrip('/')
@@ -387,8 +399,21 @@ def ensure_chat_controller() -> AIController:
         gguf_cfg = sm.settings.get('other_backends', {}).get('gguf', {})
         n_gpu_layers = int(gguf_cfg.get('gpu_layers', -1))
         gguf_ctx = int(gguf_cfg.get('context_size', 4096))
-        if model and not cast(GGUFManager, g._gguf_mgr).is_available:
-            cast(GGUFManager, g._gguf_mgr).load_model(model, gguf_ctx, n_gpu_layers)
+        _gguf_mgr = cast(GGUFManager, g._gguf_mgr)
+        _model_changed = _gguf_mgr.model_name != model
+        _ctx_changed = _gguf_mgr._requested_ctx != gguf_ctx
+        if model and (not _gguf_mgr.is_available or _model_changed or _ctx_changed):
+            if _model_changed or _ctx_changed:
+                print(f"[GGUF-CTRL] Rechargement : modèle={'changé' if _model_changed else 'id.'}, ctx={'changé' if _ctx_changed else 'id.'}")
+            _gguf_mgr.load_model(model, gguf_ctx, n_gpu_layers)
+        # Override context_length et max_tokens avec les valeurs GGUF réelles
+        # (évite d'utiliser les valeurs détectées pour Google/API qui peuvent dépasser n_ctx)
+        g._chat_controller.context_length = gguf_ctx
+        _max_raw = int(chat.get('max_tokens', 2048))
+        if _max_raw <= 0:
+            _max_raw = 2048
+        g._chat_controller.max_tokens = min(_max_raw, gguf_ctx - 512)
+        print(f"[GGUF-CTRL] context_length={gguf_ctx}, max_tokens={g._chat_controller.max_tokens}")
     elif backend == 'KoboldCpp':
         url = chat.get('kobold_url') or 'http://localhost:5001'
         cast(KoboldManager, g._kobold_mgr).api_url = str(url).rstrip('/')

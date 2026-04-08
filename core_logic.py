@@ -321,6 +321,13 @@ class OllamaManager:
         if self.settings_manager:
             return self.settings_manager.settings.get('other_backends', {}).get('ollama', {}).get('low_vram', True)
         return False  # Par défaut, utiliser GPU (low_vram=False)
+
+    def get_timeout_setting(self) -> int:
+        """Récupère le timeout Ollama depuis les settings."""
+        if self.settings_manager:
+            return int(self.settings_manager.settings.get('other_backends', {}).get('ollama', {}).get('timeout', 180))
+        return 180
+
     def check_service(self) -> bool:
         print("[SEARCH] Vérification du service Ollama...")
         try:
@@ -383,7 +390,7 @@ class OllamaManager:
         print(f"[OLLAMA-DEBUG] Payload: {payload}")
         
         try:
-            response = await asyncio.to_thread(requests.post, f'{self.api_url}/api/chat', json=payload, timeout=180)  # Augmenté à 180s pour requêtes lourdes
+            response = await asyncio.to_thread(requests.post, f'{self.api_url}/api/chat', json=payload, timeout=self.get_timeout_setting())
             response.raise_for_status()
             return response.json().get('message', {}).get('content', ''), None
         except Exception as e:
@@ -422,9 +429,12 @@ class OllamaManager:
 class GGUFManager:
     def __init__(self):
         self.is_available, self.model_name, self.llm = False, "Aucun", None
+        self._requested_ctx = 0
         self.model_path = Path(__file__).parent / "models"
         self.model_path.mkdir(exist_ok=True)
         self.settings_manager = None  # Sera initialisé depuis ogma_ng.py
+        self._is_generating = False  # Guard contre les appels concurrents (llama.cpp non thread-safe)
+        self._current_stop_event = None  # Event pour stopper le thread producteur en cours
 
     def set_settings_manager(self, settings_manager):
         """Configure le gestionnaire de paramètres pour accéder aux settings."""
@@ -457,6 +467,7 @@ class GGUFManager:
         elif projector_filename: print("[INFO] Un projecteur a été spécifié, mais le support Vision pour GGUF n'est pas disponible.")
         else: print("[INFO] Aucun projecteur multimodal spécifié. Chargement en mode texte seul.")
         print(f"[OK] Chargement du modèle GGUF : {model_filename} avec {n_gpu_layers} couches GPU...")
+        old_llm = self.llm
         try:
             # Optimisations pour RTX 5070 Ti - ÉLIMINATION EMBEDDINGS
             # Paramètres dynamiques selon configuration utilisateur
@@ -470,7 +481,7 @@ class GGUFManager:
                 embedding=False,          # ❌ DÉSACTIVÉ - cause la lenteur !
                 chat_handler=chat_handler,
                 # Optimisations performance RTX 5070 Ti - STABILITÉ
-                n_batch=256,              # Réduit pour stabilité (était 512)
+                n_batch=128,              # 128×vocab×4B = 128MB (safe CPU single-load, 2× plus rapide que 64)
                 n_threads=6,              # Réduit pour stabilité (était 8)
                 use_mmap=True,            # Memory mapping pour vitesse
                 use_mlock=False,          # DÉSACTIVÉ pour stabilité
@@ -489,12 +500,14 @@ class GGUFManager:
                 seed=-1                   # Seed aléatoire
             )
             self.model_name, self.is_available = model_filename, True
+            self._requested_ctx = context_length
             print(f"[OK] Modèle GGUF '{self.model_name}' chargé avec optimisations RTX 5070 Ti.")
             return True
         except Exception as e:
             print(f"[ERREUR] Erreur chargement GGUF : {e}")
             traceback.print_exc()
-            self.is_available = False
+            self.llm = old_llm
+            self.is_available = old_llm is not None
             return False
     async def call_chat_api(self, messages: List[Dict], max_tokens: int, context_length: int, temperature: float, is_json: bool = True) -> tuple[Optional[str], Optional[str]]:
         if not self.is_available or not self.llm: return None, "Modèle GGUF non disponible ou non chargé."
@@ -502,6 +515,13 @@ class GGUFManager:
         try:
             # Gestion max_tokens = -1 pour maximum automatique
             final_max_tokens = max_tokens if max_tokens != -1 else 4096  # Valeur par défaut pour GGUF
+
+            # Sécurité : cap max_tokens au contexte réel du modèle pour éviter l'overflow
+            model_ctx = self.llm.n_ctx()
+            max_safe = max(64, model_ctx - 512)  # 512 tokens réservés pour l'input
+            if final_max_tokens > max_safe:
+                print(f"[GGUF-DEBUG] max_tokens {final_max_tokens} réduit à {max_safe} (n_ctx={model_ctx})")
+                final_max_tokens = max_safe
             
             # Correction pour Gemma : Restructurer pour alternance user/assistant stricte
             processed_messages = []
@@ -539,29 +559,154 @@ class GGUFManager:
                     processed_messages.append({'role': 'assistant', 'content': content})
                     last_role = 'assistant'
             
-            print(f"[GGUF-DEBUG] Messages originaux: {len(messages)}, après correction: {len(processed_messages)}")
+            total_input_chars = sum(len(m['content']) for m in processed_messages)
+            print(f"[GGUF-DEBUG] Messages originaux: {len(messages)}, apres correction: {len(processed_messages)} (~{total_input_chars//4} tokens entree)")
             for i, msg in enumerate(processed_messages):
                 print(f"[GGUF-DEBUG] [{i}] {msg['role']}: {msg['content'][:50]}...")
+            print(f"[GGUF-DEBUG] Inference CPU en cours (peut prendre 30s-3min)...")
             
-            # Paramètres optimisés pour RTX 5070 Ti
+            # Paramètres optimisés
             response_format = {"type": "json_object"} if is_json else {"type": "text"}
+            _t0 = asyncio.get_event_loop().time()
             response = await asyncio.to_thread(
                 self.llm.create_chat_completion, 
                 messages=processed_messages, 
                 response_format=response_format, 
                 temperature=temperature, 
                 max_tokens=final_max_tokens,
-                # Optimisations performance
-                repeat_penalty=1.1,       # Évite répétitions
-                top_p=0.95,              # Nucleus sampling optimisé
-                top_k=40,                # Top-K sampling
-                stream=False             # Pas de streaming pour rapidité
+                repeat_penalty=1.1,
+                top_p=0.95,
+                top_k=40,
+                stream=False
             )
-            return response['choices'][0]['message']['content'], None
+            _elapsed = asyncio.get_event_loop().time() - _t0
+            result_text = response['choices'][0]['message']['content']
+            print(f"[GGUF-DEBUG] Inference terminee en {_elapsed:.1f}s, reponse: {len(result_text)} chars")
+            return result_text, None
         except Exception as e:
             error_msg = f"Erreur lors de l'appel au modèle GGUF : {e}"
             print(f"[ERREUR] {error_msg}")
             return None, error_msg
+
+    async def call_chat_api_streaming(self, messages: List[Dict], max_tokens: int, context_length: int,
+                                      temperature: float, callback=None) -> tuple[Optional[str], Optional[str]]:
+        """Variante streaming de call_chat_api - appelle callback(chunk) pour chaque token."""
+        if not self.is_available or not self.llm:
+            return None, "Modèle GGUF non disponible ou non chargé."
+
+        # Guard: llama.cpp n'est pas thread-safe, un seul appel à la fois
+        if self._is_generating:
+            print("[GGUF-STREAM] Appel rejeté: génération déjà en cours (llama.cpp non thread-safe)")
+            return None, "Le modèle GGUF est déjà en cours de génération. Veuillez patienter."
+
+        print(f"[AI] Appel streaming GGUF '{self.model_name}'...")
+        import threading as _threading
+        import queue as _queue_mod
+
+        stop_event = _threading.Event()
+        self._current_stop_event = stop_event
+        self._is_generating = True
+
+        try:
+            final_max_tokens = max_tokens if max_tokens > 0 else 2048
+            model_ctx = self.llm.n_ctx()
+            max_safe = max(64, model_ctx - 512)
+            if final_max_tokens > max_safe:
+                final_max_tokens = max_safe
+
+            processed_messages = []
+            system_content = []
+            for msg in messages:
+                if msg.get('role') == 'system':
+                    system_content.append(msg.get('content', ''))
+            if system_content:
+                processed_messages.append({'role': 'system', 'content': '\n\n'.join(system_content)})
+            last_role = 'system'
+            for msg in messages:
+                role = msg.get('role')
+                content = msg.get('content', '')
+                if role == 'system':
+                    continue
+                if role == 'user':
+                    if last_role == 'user':
+                        processed_messages.append({'role': 'assistant', 'content': 'Je comprends.'})
+                    processed_messages.append({'role': 'user', 'content': content})
+                    last_role = 'user'
+                elif role == 'assistant':
+                    if last_role == 'assistant':
+                        processed_messages.append({'role': 'user', 'content': 'Continue.'})
+                    processed_messages.append({'role': 'assistant', 'content': content})
+                    last_role = 'assistant'
+
+            total_input_chars = sum(len(m['content']) for m in processed_messages)
+            print(f"[GGUF-STREAM] {len(processed_messages)} messages (~{total_input_chars//4} tokens entree), max_tokens={final_max_tokens}")
+            print(f"[GGUF-STREAM] Prefill en cours...")
+
+            loop = asyncio.get_event_loop()
+            accumulated = ""
+            _t0 = loop.time()
+
+            q = _queue_mod.Queue()
+
+            def _producer():
+                try:
+                    gen = self.llm.create_chat_completion(
+                        messages=processed_messages,
+                        temperature=temperature,
+                        max_tokens=final_max_tokens,
+                        repeat_penalty=1.1,
+                        top_p=0.95,
+                        top_k=40,
+                        stream=True
+                    )
+                    for chunk_data in gen:
+                        if stop_event.is_set():
+                            print("[GGUF-STREAM] Thread producteur interrompu (stop_event)")
+                            break
+                        delta = chunk_data.get('choices', [{}])[0].get('delta', {})
+                        text = delta.get('content', '')
+                        if text:
+                            q.put(text)
+                    q.put(None)  # Sentinel fin
+                except Exception as ex:
+                    q.put(ex)
+
+            producer_thread = _threading.Thread(target=_producer, daemon=True)
+            producer_thread.start()
+
+            # Timeout par token: 900s pour le prefill, 60s après le premier token
+            first_token_received = False
+            while True:
+                token_timeout = 900.0 if not first_token_received else 60.0
+                try:
+                    item = await asyncio.wait_for(
+                        loop.run_in_executor(None, q.get),
+                        timeout=token_timeout
+                    )
+                except asyncio.TimeoutError:
+                    label = "prefill" if not first_token_received else "token suivant"
+                    print(f"[GGUF-STREAM] Timeout attente {label} ({token_timeout:.0f}s)")
+                    stop_event.set()  # Signaler au thread de s'arrêter proprement
+                    break
+                if item is None:
+                    break  # Fin normale
+                if isinstance(item, Exception):
+                    raise item
+                first_token_received = True
+                accumulated += item
+                if callback:
+                    await callback(item)
+
+            _elapsed = loop.time() - _t0
+            print(f"[GGUF-STREAM] Termine en {_elapsed:.1f}s, {len(accumulated)} chars")
+            return accumulated, None
+        except Exception as e:
+            error_msg = f"Erreur streaming GGUF : {e}"
+            print(f"[ERREUR] {error_msg}")
+            return None, error_msg
+        finally:
+            self._is_generating = False
+            self._current_stop_event = None
     async def create_embedding(self, text: str) -> Optional[List[float]]:
         # GGUF en mode chat pur - pas d'embeddings pour éviter la lenteur
         print(f"[WARN] Embeddings désactivés sur GGUF pour performance. Utiliser l'API Mistral.")
@@ -2497,8 +2642,11 @@ RÉPONSE ATTENDUE (format JSON strict) :
         # Normalisation case-insensitive
         backend_upper = self.backend_type.upper() if self.backend_type else ""
         
-        # Seul API manager supporte le streaming pour l'instant
+        # API streaming natif
         if backend_upper == "API" and hasattr(manager, 'call_chat_api_streaming'):
+            return await manager.call_chat_api_streaming(messages, max_tokens, context_length, temperature, callback)
+        # GGUF streaming natif (llama-cpp-python stream=True)
+        elif backend_upper in ("GGUF", "GGUF/LLAMA.CPP") and hasattr(manager, 'call_chat_api_streaming'):
             return await manager.call_chat_api_streaming(messages, max_tokens, context_length, temperature, callback)
         else:
             # PAS DE FALLBACK - Retourner erreur explicite, l'appelant décide

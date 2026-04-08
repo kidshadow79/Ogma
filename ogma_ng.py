@@ -4,6 +4,17 @@ Objectif 1: Esthétique type ChatGPT sobre
 Objectif 2: Exposer les paramètres IA (providers, modèles, clés, temperature, context_length, max_tokens)
 """
 
+import sys
+# Force UTF-8 sur stdout/stderr dès le chargement du module
+# (évite UnicodeEncodeError sur les emojis avec cp1252 Windows)
+try:
+    if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
+
 from pathlib import Path
 import asyncio
 from typing import Optional, Tuple, List, Dict, cast, Any, Callable
@@ -4641,10 +4652,11 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
     if perception_image_data:
         total_images_sent += 1
     
-    if backend_type == "API":
-        # 🚀 STREAMING pour APIs compatibles (GROK, OpenAI, Mistral, Anthropic)
-        print(f"[STREAM] 🚀 Mode streaming activé pour backend API")
-        if total_images_sent > 0:
+    if backend_type == "API" or backend_type == "GGUF/LLAMA.CPP":
+        # 🚀 STREAMING pour APIs compatibles (GROK, OpenAI, Mistral, Anthropic) + GGUF local
+        is_gguf = (backend_type == "GGUF/LLAMA.CPP")
+        print(f"[STREAM] {'🖥️ Mode streaming GGUF (CPU)' if is_gguf else '🚀 Mode streaming activé pour backend API'}")
+        if total_images_sent > 0 and not is_gguf:
             print(f"[STREAM] 🖼️ {total_images_sent} image(s) détectée(s) → heartbeat renforcé (3s)")
         was_streaming = True
         
@@ -5040,7 +5052,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
         _streaming_container_ref = None
         _streaming_html_ref = None
         _magic_phrase_was_detected = False
-        # 📦 Mode classique pour backends locaux (Ollama, GGUF, KoboldCpp)
+        # 📦 Mode classique pour backends locaux restants (Ollama, KoboldCpp)
         print(f"[STREAM] 📦 Mode classique pour backend {backend_type}")
         
         # 🌀 SPINNER: Activer le spinner IA Principale avant l'appel
@@ -7652,7 +7664,7 @@ async def _async_awakening(notif):
         notif: Référence à la notification NiceGUI créée dans main_page()
     """
     from datetime import datetime
-    print(f"[INIT] 🚀 Début de l'éveil asynchrone à {datetime.now().strftime('%H:%M:%S')}")
+    print(f"[INIT] Debut de l'eveil asynchrone a {datetime.now().strftime('%H:%M:%S')}")
     
     try:
         # Vague 1 : Fondations (Settings)
