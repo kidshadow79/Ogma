@@ -178,7 +178,7 @@ OGMA is a **sandbox for experimenting with AI concepts** — results depend heav
 | Model | Provider | Context | Notes |
 |-------|----------|---------|-------|
 | **Mistral Small 4** | [Mistral](https://mistral.ai) | 128k | ⭐ Best quality/cost ratio — recommended starting point |
-| **grok-4-1-fast (non-reasoning)** | [xAI](https://x.ai) | 131k | Very fast, very cheap, excellent on instruction-following |
+| **grok-4-1-fast (non-reasoning)** | [xAI](https://x.ai) | 1M | Very fast, very cheap, excellent on instruction-following |
 | **Gemma 3 27B** | Google / Ollama | 128k | High quality local (Ollama), resource-heavy |
 
 #### 📚 Archivist — Analytical Brain
@@ -187,7 +187,7 @@ The Archivist performs many background calls (memory filtering, ego compilation,
 
 | Model | Provider | Context | Notes |
 |-------|----------|---------|-------|
-| **grok-4-1-fast (non-reasoning)** | [xAI](https://x.ai) | 131k | ⭐ Ideal: extremely cheap, 131k context, fast |
+| **grok-4-1-fast (non-reasoning)** | [xAI](https://x.ai) | 1M | ⭐ Ideal: extremely cheap, 1M context, fast |
 | **Mistral Small 4** | [Mistral](https://mistral.ai) | 128k | Good fallback if xAI not available |
 
 #### 🔢 Embeddings — Semantic Memory
