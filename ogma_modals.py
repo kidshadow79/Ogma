@@ -122,11 +122,11 @@ def _show_organic_planner_dialog():
 
             ui.separator().style('background: rgba(255,255,255,0.1);')
 
-            # Section Instructions (CHD)
-            with ui.expansion('Instructions d\'injection (CHD)', icon='psychology').classes('w-full text-gray-300').style('background: rgba(255,255,255,0.03); border-radius: 8px;'):
+            # Section Instructions
+            with ui.expansion('Instructions d\'injection', icon='psychology').classes('w-full text-gray-300').style('background: rgba(255,255,255,0.03); border-radius: 8px;'):
                 with ui.column().classes('w-full p-4 gap-3'):
                     ui.label('Cette instruction définit comment l\'IA perçoit et utilise ton agenda.').classes('text-xs italic text-gray-400')
-                    instruction_input = ui.textarea(label='Instruction CHD', value=planner.get_instruction()).classes('w-full').props('outlined rows=10').style('font-family: monospace; font-size: 0.85rem;')
+                    instruction_input = ui.textarea(label='Instruction', value=planner.get_instruction()).classes('w-full').props('outlined rows=10').style('font-family: monospace; font-size: 0.85rem;')
                     with ui.row().classes('w-full justify-end'):
                         ui.button('Sauvegarder', icon='save', on_click=lambda: [
                             planner.save_instruction(instruction_input.value),
