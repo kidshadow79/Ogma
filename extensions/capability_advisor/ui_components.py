@@ -89,7 +89,7 @@ class CapabilityAdvisorUI:
             position: fixed;
             top: 80px;
             right: 20px;
-            width: 200px;
+            width: 230px;
             max-height: 90vh;
             overflow-y: auto;
             background: linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 100%);
@@ -138,7 +138,7 @@ class CapabilityAdvisorUI:
             cap_id: ID capacité
             cap_info: Infos capacité
         """
-        with ui.row().classes('items-center gap-2 w-full p-1').style('background: rgba(255,255,255,0.02); border-radius: 6px;'):
+        with ui.row().classes('items-center gap-2 w-full p-1 flex-nowrap').style('background: rgba(255,255,255,0.02); border-radius: 6px;'):
             # LED visuelle (sans style inline background pour permettre CSS classes)
             led_indicator = ui.element('div').classes('led-indicator led-off').style(
                 'width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;'
@@ -148,7 +148,7 @@ class CapabilityAdvisorUI:
             self.led_manager.led_ui_elements[cap_id] = led_indicator
             
             # Nom capacité compact
-            ui.label(cap_info['name']).classes('text-xs font-medium').style('color: var(--text-primary); line-height: 1.2;')
+            ui.label(cap_info['name']).classes('text-xs font-medium').style('color: var(--text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;')
     
     def create_prompt_editor_modal(self):
         """Crée modal édition prompt Archiviste + IDs mémoire"""
@@ -397,6 +397,26 @@ class CapabilityAdvisorUI:
 .capability-advisor-overlay {
     background: rgb(30, 30, 30);
     border-radius: 12px;
+}
+
+/* ── Thème Clarté : corrections overlay Capability Advisor ── */
+body[data-ogma-theme="light"] .capability-advisor-overlay {
+    background: rgba(245, 245, 252, 0.97) !important;
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* LEDs : annuler opacity 0.3 hérité des jauges audio en thème Clarté */
+body[data-ogma-theme="light"] .capability-advisor-overlay .led-indicator {
+    opacity: 0.85 !important;
+    border: 1px solid rgba(90, 90, 90, 0.5) !important;
+}
+
+/* LED éteinte visible sur fond clair */
+body[data-ogma-theme="light"] .capability-advisor-overlay .led-off {
+    background-color: #888 !important;
+    background: #888 !important;
+    box-shadow: none !important;
 }
 </style>
         """)
