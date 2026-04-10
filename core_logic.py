@@ -350,6 +350,24 @@ class OllamaManager:
             print(f"[OLLAMA-CTX] Impossible de détecter le contexte de {model}: {e}")
         return None
 
+    def get_model_context_length_sync(self, model: str) -> Optional[int]:
+        """Récupère la vraie fenêtre de contexte d'un modèle Ollama via /api/show (sync, pour init)."""
+        if model in self._model_ctx_cache:
+            return self._model_ctx_cache[model]
+        try:
+            response = requests.post(f'{self.api_url}/api/show', json={"name": model}, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                model_info = data.get('model_info', {})
+                for key, value in model_info.items():
+                    if 'context_length' in key and isinstance(value, int):
+                        print(f"[OLLAMA-CTX] Contexte réel {model}: {value} tokens")
+                        self._model_ctx_cache[model] = value
+                        return value
+        except Exception as e:
+            print(f"[OLLAMA-CTX] Impossible de détecter le contexte de {model}: {e}")
+        return None
+
     def check_service(self) -> bool:
         print("[SEARCH] Vérification du service Ollama...")
         try:
@@ -385,12 +403,6 @@ class OllamaManager:
         # Gestion max_tokens = -1 pour maximum automatique - STABILITÉ  
         final_max_tokens = max_tokens if max_tokens != -1 else 4096  # RÉDUIT pour stabilité (était 8192)
 
-        # Adapter le contexte à la capacité réelle du modèle Ollama (évite OOM)
-        real_model_ctx = await self._get_model_context_length(model)
-        if real_model_ctx and real_model_ctx < final_context_length:
-            print(f"[OLLAMA-CTX] num_ctx adapté: {final_context_length} → {real_model_ctx} (limite réelle du modèle {model})")
-            final_context_length = real_model_ctx
-        
         # Paramètres dynamiques selon configuration utilisateur
         low_vram_setting = self.get_low_vram_setting()
         

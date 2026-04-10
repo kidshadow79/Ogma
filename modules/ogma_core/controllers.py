@@ -394,6 +394,16 @@ def ensure_chat_controller() -> AIController:
         cast(OllamaManager, g._ollama_mgr).api_url = str(url).rstrip('/')
         cast(OllamaManager, g._ollama_mgr).check_service()
         g._chat_controller.ollama_model = chat.get('ollama_model', '')
+        # Si context_length était -1 (auto), détecter depuis le modèle Ollama lui-même
+        # (évite OOM si la détection hybride API a retourné une valeur trop grande)
+        raw_context_setting = chat.get('context_length', 4096)
+        if raw_context_setting == -1:
+            ollama_model_name = chat.get('ollama_model', '')
+            if ollama_model_name:
+                real_ctx = cast(OllamaManager, g._ollama_mgr).get_model_context_length_sync(ollama_model_name)
+                if real_ctx:
+                    print(f"[OLLAMA-INIT] context_length auto → {real_ctx} (détecté depuis {ollama_model_name})")
+                    g._chat_controller.context_length = real_ctx
     elif backend == 'GGUF':
         model = chat.get('gguf_model', '')
         gguf_cfg = sm.settings.get('other_backends', {}).get('gguf', {})
