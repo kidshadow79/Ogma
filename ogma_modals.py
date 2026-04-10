@@ -2955,7 +2955,7 @@ def _models_modal():
                 return None, 'Hardware non renseigne — allez dans Profil > Caracteristiques Hardware'
             if not model_path or not os.path.exists(model_path):
                 return None, f'Fichier GGUF introuvable : {model_path or "(vide)"}'
-            ram_usable = ram_go * 0.7
+            ram_usable = ram_go * 0.65
             mem_for_model = vram_go if vram_go >= 2 else ram_usable
             file_size_gb = os.path.getsize(model_path) / (1024**3)
             try:
@@ -3037,12 +3037,13 @@ def _models_modal():
                     max_ctx = 8192
                 if native_ctx:
                     max_ctx = min(max_ctx, native_ctx)
-                for nice in [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]:
-                    if nice >= max_ctx:
-                        recommended_ctx = nice // 2 if nice > max_ctx else nice
+                # Arrondir au palier inférieur (sûr et prévisible)
+                for nice in [65536, 32768, 16384, 8192, 4096, 2048, 1024]:
+                    if nice <= max_ctx:
+                        recommended_ctx = nice
                         break
                 else:
-                    recommended_ctx = 131072
+                    recommended_ctx = 1024
                 recommended_ctx = max(recommended_ctx, 1024)
                 recommended_mt = min(4096, max(512, recommended_ctx - 512))
                 # GPU layers : 0 si pas de GPU dédié, sinon auto
