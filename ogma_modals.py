@@ -2945,6 +2945,185 @@ def _models_modal():
             except Exception as e:
                 return None, f'Erreur: {e}'
 
+        def _calculate_optimal_gguf(model_path):
+            """Calcule context_length et gpu_layers optimaux pour un modèle GGUF selon le hardware."""
+            import struct, os
+            hw = sm.settings.get('hardware', {})
+            ram_go = float(hw.get('ram_total_gb', 0))
+            vram_go = float(hw.get('gpu_vram_gb', 0))
+            if ram_go == 0:
+                return None, 'Hardware non renseigne — allez dans Profil > Caracteristiques Hardware'
+            if not model_path or not os.path.exists(model_path):
+                return None, f'Fichier GGUF introuvable : {model_path or "(vide)"}'
+            ram_usable = ram_go * 0.7
+            mem_for_model = vram_go if vram_go >= 2 else ram_usable
+            file_size_gb = os.path.getsize(model_path) / (1024**3)
+            try:
+                GGUF_TYPES = {
+                    0: ('<B', 1), 1: ('<b', 1), 2: ('<H', 2), 3: ('<h', 2),
+                    4: ('<I', 4), 5: ('<i', 4), 6: ('<f', 4), 7: ('<?', 1),
+                    8: (None, None), 9: (None, None),
+                    10: ('<Q', 8), 11: ('<q', 8), 12: ('<d', 8),
+                }
+                def _read_str(f):
+                    length = struct.unpack('<Q', f.read(8))[0]
+                    return f.read(length).decode('utf-8')
+                native_ctx = 0
+                embed_len = 0
+                head_count_kv = 1
+                block_count = 0
+                arch_name = ''
+                model_name = ''
+                with open(model_path, 'rb') as f:
+                    magic = f.read(4)
+                    if magic != b'GGUF':
+                        return None, 'Fichier invalide — pas un format GGUF'
+                    version = struct.unpack('<I', f.read(4))[0]
+                    _tensor_count = struct.unpack('<Q', f.read(8))[0]
+                    metadata_count = struct.unpack('<Q', f.read(8))[0]
+                    for _ in range(metadata_count):
+                        key = _read_str(f)
+                        vtype = struct.unpack('<I', f.read(4))[0]
+                        if vtype == 8:
+                            val = _read_str(f)
+                        elif vtype == 9:
+                            arr_type = struct.unpack('<I', f.read(4))[0]
+                            arr_len = struct.unpack('<Q', f.read(8))[0]
+                            if arr_type in GGUF_TYPES and GGUF_TYPES[arr_type][0]:
+                                for _ in range(arr_len):
+                                    f.read(GGUF_TYPES[arr_type][1])
+                            elif arr_type == 8:
+                                for _ in range(arr_len):
+                                    _read_str(f)
+                            val = f'[array:{arr_len}]'
+                        elif vtype in GGUF_TYPES and GGUF_TYPES[vtype][0]:
+                            val = struct.unpack(GGUF_TYPES[vtype][0], f.read(GGUF_TYPES[vtype][1]))[0]
+                        else:
+                            val = None
+                        if val is None:
+                            continue
+                        if key == 'general.architecture':
+                            arch_name = str(val)
+                        elif key == 'general.name':
+                            model_name = str(val)
+                        elif key.endswith('.context_length') and 'audio' not in key:
+                            native_ctx = int(val)
+                        elif key.endswith('.embedding_length') and 'audio' not in key and 'vision' not in key:
+                            embed_len = int(val)
+                        elif key.endswith('.attention.head_count_kv'):
+                            head_count_kv = int(val)
+                        elif key.endswith('.block_count') and 'audio' not in key and 'vision' not in key:
+                            block_count = int(val)
+                # Calcul KV cache
+                head_dim = (embed_len // max(head_count_kv, 1)) if embed_len and head_count_kv else 64
+                kv_per_token = 2 * block_count * head_count_kv * head_dim * 2
+                overhead = 0.5
+                free_after_model = mem_for_model - file_size_gb - overhead
+                if free_after_model < 0.1:
+                    return None, f'Modele trop gros ({file_size_gb:.1f} Go) pour votre memoire ({mem_for_model:.1f} Go dispo)'
+                if kv_per_token > 0:
+                    max_ctx = int((free_after_model * 1024**3) / kv_per_token)
+                else:
+                    max_ctx = 8192
+                if native_ctx:
+                    max_ctx = min(max_ctx, native_ctx)
+                for nice in [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]:
+                    if nice >= max_ctx:
+                        recommended_ctx = nice // 2 if nice > max_ctx else nice
+                        break
+                else:
+                    recommended_ctx = 131072
+                recommended_ctx = max(recommended_ctx, 1024)
+                recommended_mt = min(4096, max(512, recommended_ctx - 512))
+                # GPU layers : 0 si pas de GPU dédié, sinon auto
+                recommended_gpu = 0 if vram_go < 2 else -1
+                return {
+                    'context_length': recommended_ctx,
+                    'max_tokens': recommended_mt,
+                    'gpu_layers': recommended_gpu,
+                    'model_size_gb': round(file_size_gb, 1),
+                    'model_name': model_name or os.path.basename(model_path),
+                    'arch': arch_name,
+                    'mem_available': round(mem_for_model, 1),
+                    'native_ctx': native_ctx,
+                }, None
+            except Exception as e:
+                return None, f'Erreur lecture GGUF: {e}'
+
+        def _calculate_optimal_api():
+            """Pour API : remet -1/-1 (le provider gère ses propres limites)."""
+            return {
+                'context_length': -1,
+                'max_tokens': -1,
+                'info': 'Valeurs auto-gerees par le provider. En cas d\'erreur de contexte, renseignez la valeur manuellement.',
+            }, None
+
+        def _apply_optimal_values(backend_type, section, fields):
+            """Dispatcher : calcule les valeurs optimales selon le backend et remplit les champs.
+            
+            Args:
+                backend_type: 'API', 'Ollama', 'GGUF', 'KoboldCpp'
+                section: dict avec les clés nécessaires (model, url, path...)
+                fields: dict avec les widgets UI à remplir (max_tokens, ctx, label, gguf_ctx, gguf_gpu)
+            """
+            label = fields.get('label')
+            if backend_type == 'Ollama':
+                model = section.get('model')
+                url = section.get('url', 'http://localhost:11434')
+                if not model:
+                    if label: label.set_text('Selectionnez un modele Ollama d\'abord')
+                    ui.notify('Selectionnez un modele Ollama', type='warning')
+                    return
+                result, err = _calculate_optimal_ollama(model, url)
+                if err:
+                    if label: label.set_text(f'Erreur : {err}')
+                    ui.notify(err, type='warning')
+                    return
+                if fields.get('max_tokens'): fields['max_tokens'].value = result['max_tokens']
+                if fields.get('ctx'): fields['ctx'].value = result['context_length']
+                if label:
+                    label.set_text(
+                        f'{model} ({result["param_size"]} {result["quant"]}) — '
+                        f'fichier {result["model_size_gb"]} Go — '
+                        f'ctx natif {result["native_ctx"]:,} — '
+                        f'memoire dispo {result["mem_available"]} Go — '
+                        f'ctx optimal: {result["context_length"]:,} / max_tokens: {result["max_tokens"]:,}'
+                    )
+                ui.notify(f'Valeurs optimales appliquees : ctx={result["context_length"]:,}, mt={result["max_tokens"]:,}', type='positive')
+
+            elif backend_type == 'GGUF':
+                model_path = section.get('model_path', '')
+                result, err = _calculate_optimal_gguf(model_path)
+                if err:
+                    if label: label.set_text(f'Erreur : {err}')
+                    ui.notify(err, type='warning')
+                    return
+                if fields.get('gguf_ctx'): fields['gguf_ctx'].value = result['context_length']
+                if fields.get('gguf_gpu'): fields['gguf_gpu'].value = result['gpu_layers']
+                if fields.get('max_tokens'): fields['max_tokens'].value = result['max_tokens']
+                if fields.get('ctx'): fields['ctx'].value = result['context_length']
+                if label:
+                    label.set_text(
+                        f'{result["model_name"]} ({result["arch"]}) — '
+                        f'fichier {result["model_size_gb"]} Go — '
+                        f'ctx natif {result["native_ctx"]:,} — '
+                        f'memoire dispo {result["mem_available"]} Go — '
+                        f'ctx optimal: {result["context_length"]:,} / gpu_layers: {result["gpu_layers"]}'
+                    )
+                ui.notify(f'Valeurs optimales appliquees : ctx={result["context_length"]:,}, mt={result["max_tokens"]:,}, gpu={result["gpu_layers"]}', type='positive')
+
+            elif backend_type == 'API':
+                result, _ = _calculate_optimal_api()
+                if fields.get('max_tokens'): fields['max_tokens'].value = result['max_tokens']
+                if fields.get('ctx'): fields['ctx'].value = result['context_length']
+                if label:
+                    label.set_text('Valeurs auto-gerees par le provider (-1 = pas de limite imposee). En cas d\'erreur de contexte, renseignez la valeur manuellement.')
+                ui.notify('API : valeurs remises a -1 (le provider gere ses limites)', type='info')
+
+            else:
+                ui.notify(f'Backend {backend_type} : pas de calcul automatique disponible', type='info')
+                if label: label.set_text(f'Backend {backend_type} non supporte pour le calcul automatique')
+
         with ui.tab_panels(tabs, value=t_chat).classes('w-full'):
             # --- Chat IA ---
             with ui.tab_panel(t_chat):
@@ -3284,31 +3463,24 @@ def _models_modal():
                 chat_ctx = ui.number(label=_chat_ctx_label, value=_chat_ctx_display).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte envoyée au modèle à chaque appel.\nDétectée automatiquement au démarrage (API ou Ollama /api/show).\nModifiable manuellement.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
                 chat_temp = ui.number(label='temperature', value=chat.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe et reproductible.\n0.7 = équilibré (défaut Chat).\n1.5+ = très créatif mais instable.')
 
-                # Bouton valeurs optimales Ollama
+                # Bouton valeurs optimales (adaptatif selon backend)
                 chat_optimal_label = ui.label('').classes('text-xs text-muted mb-1')
                 def _apply_chat_optimal():
-                    model = chat_ollama_model.value if chat_backend.value == 'Ollama' else None
-                    url = chat_ollama_url.value if chat_backend.value == 'Ollama' else 'http://localhost:11434'
-                    if not model:
-                        chat_optimal_label.set_text('Selectionnez un modele Ollama d\'abord')
-                        ui.notify('Selectionnez un modele Ollama', type='warning')
-                        return
-                    result, err = _calculate_optimal_ollama(model, url)
-                    if err:
-                        chat_optimal_label.set_text(f'Erreur : {err}')
-                        ui.notify(err, type='warning')
-                        return
-                    chat_max_tokens.value = result['max_tokens']
-                    chat_ctx.value = result['context_length']
-                    chat_optimal_label.set_text(
-                        f'{model} ({result["param_size"]} {result["quant"]}) — '
-                        f'fichier {result["model_size_gb"]} Go — '
-                        f'ctx natif {result["native_ctx"]:,} — '
-                        f'memoire dispo {result["mem_available"]} Go — '
-                        f'ctx optimal: {result["context_length"]:,} / max_tokens: {result["max_tokens"]:,}'
-                    )
-                    ui.notify(f'Valeurs optimales appliquees : ctx={result["context_length"]:,}, mt={result["max_tokens"]:,}', type='positive')
-                ui.button('Valeurs optimales (hardware)', icon='auto_fix_high', on_click=_apply_chat_optimal).classes('action-button mb-2').tooltip('Calcule et applique les valeurs context_length et max_tokens optimales\npour le modele Ollama selectionne, selon votre hardware (RAM/VRAM).\nVos specs sont dans Profil > Caracteristiques Hardware.\nVous pouvez modifier les valeurs manuellement apres.')
+                    backend = chat_backend.value
+                    section = {
+                        'model': chat_ollama_model.value if backend == 'Ollama' else None,
+                        'url': chat_ollama_url.value if backend == 'Ollama' else 'http://localhost:11434',
+                        'model_path': chat_gguf_model_path.value if backend == 'GGUF' else '',
+                    }
+                    fields = {
+                        'max_tokens': chat_max_tokens,
+                        'ctx': chat_ctx,
+                        'label': chat_optimal_label,
+                        'gguf_ctx': chat_gguf_context_size if backend == 'GGUF' else None,
+                        'gguf_gpu': chat_gguf_gpu_layers if backend == 'GGUF' else None,
+                    }
+                    _apply_optimal_values(backend, section, fields)
+                ui.button('Valeurs optimales (hardware)', icon='auto_fix_high', on_click=_apply_chat_optimal).classes('action-button mb-2').tooltip('Calcule et applique les valeurs optimales selon le backend selectionne :\n- Ollama/GGUF : calcul hardware (RAM/VRAM) via specs du modele\n- API : remet -1 (le provider gere ses limites)\nVos specs hardware sont dans Profil > Caracteristiques Hardware.\nVous pouvez modifier les valeurs manuellement apres.')
 
                 with ui.column().classes('gap-1 mb-2') as chat_thinking_row:
                     with ui.row().classes('items-center gap-2'):
@@ -3610,28 +3782,24 @@ def _models_modal():
                 arch_ctx = ui.number(label=_arch_ctx_label, value=_arch_ctx_display).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte envoyée au modèle à chaque appel.\nDétectée automatiquement au démarrage (API ou Ollama /api/show).\nModifiable manuellement.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
                 arch_temp = ui.number(label='temperature', value=arch.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe. 0.3 = analytique (défaut Archiviste). 0.7 = équilibré.')
 
-                # Bouton valeurs optimales Ollama Archiviste
+                # Bouton valeurs optimales (adaptatif selon backend)
                 arch_optimal_label = ui.label('').classes('text-xs text-muted mb-1')
                 def _apply_arch_optimal():
-                    model = arch_ollama_model.value if arch_backend.value == 'Ollama' else None
-                    url = arch_ollama_url.value if arch_backend.value == 'Ollama' else 'http://localhost:11434'
-                    if not model:
-                        arch_optimal_label.set_text('Selectionnez un modele Ollama d\'abord')
-                        ui.notify('Selectionnez un modele Ollama', type='warning')
-                        return
-                    result, err = _calculate_optimal_ollama(model, url)
-                    if err:
-                        arch_optimal_label.set_text(f'Erreur : {err}')
-                        ui.notify(err, type='warning')
-                        return
-                    arch_max_tokens.value = result['max_tokens']
-                    arch_ctx.value = result['context_length']
-                    arch_optimal_label.set_text(
-                        f'{model} ({result["param_size"]} {result["quant"]}) — '
-                        f'ctx optimal: {result["context_length"]:,} / max_tokens: {result["max_tokens"]:,}'
-                    )
-                    ui.notify(f'Valeurs optimales appliquees : ctx={result["context_length"]:,}, mt={result["max_tokens"]:,}', type='positive')
-                ui.button('Valeurs optimales (hardware)', icon='auto_fix_high', on_click=_apply_arch_optimal).classes('action-button mb-2').tooltip('Calcule et applique les valeurs context_length et max_tokens optimales\npour le modele Ollama selectionne, selon votre hardware (RAM/VRAM).\nVos specs sont dans Profil > Caracteristiques Hardware.')
+                    backend = arch_backend.value
+                    section = {
+                        'model': arch_ollama_model.value if backend == 'Ollama' else None,
+                        'url': arch_ollama_url.value if backend == 'Ollama' else 'http://localhost:11434',
+                        'model_path': arch_gguf_model_path.value if backend == 'GGUF' else '',
+                    }
+                    fields = {
+                        'max_tokens': arch_max_tokens,
+                        'ctx': arch_ctx,
+                        'label': arch_optimal_label,
+                        'gguf_ctx': arch_gguf_context_size if backend == 'GGUF' else None,
+                        'gguf_gpu': arch_gguf_gpu_layers if backend == 'GGUF' else None,
+                    }
+                    _apply_optimal_values(backend, section, fields)
+                ui.button('Valeurs optimales (hardware)', icon='auto_fix_high', on_click=_apply_arch_optimal).classes('action-button mb-2').tooltip('Calcule et applique les valeurs optimales selon le backend selectionne :\n- Ollama/GGUF : calcul hardware (RAM/VRAM) via specs du modele\n- API : remet -1 (le provider gere ses limites)\nVos specs hardware sont dans Profil > Caracteristiques Hardware.')
 
                 def _refresh_arch_interface():
                     """Force la mise à jour de l'interface Archiviste selon le backend sélectionné"""

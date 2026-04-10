@@ -443,7 +443,16 @@ class OllamaManager:
             response.raise_for_status()
             return response.json().get('message', {}).get('content', ''), None
         except Exception as e:
-            error_msg = f"Erreur lors de l'appel à Ollama : {e}"
+            error_str = str(e).lower()
+            # Détecter les erreurs de mémoire/contexte Ollama
+            if any(kw in error_str for kw in ['system memory', 'out of memory', 'context length', 'num_ctx', 'too large']):
+                error_msg = (
+                    f"Erreur Ollama : memoire insuffisante ou contexte trop grand pour '{payload.get('model', '?')}'. "
+                    f"Reduisez context_length dans les parametres d'Ogma ou utilisez un modele plus petit. "
+                    f"Utilisez le bouton 'Valeurs optimales' pour calculer automatiquement. Detail : {e}"
+                )
+            else:
+                error_msg = f"Erreur lors de l'appel à Ollama : {e}"
             print(f"[ERREUR] {error_msg}")
             
             # DEBUG: Plus de détails sur l'erreur
@@ -1601,7 +1610,16 @@ class APIManager:
             if status_code == 401:
                 error_message = f"Erreur d'authentification {self.provider} : Clé API invalide ou expirée"
             elif status_code == 400:
-                error_message = f"Erreur de requête {self.provider} : {error_text}"
+                # Détecter spécifiquement les erreurs de contexte/tokens
+                error_lower = error_text.lower()
+                if any(kw in error_lower for kw in ['context_length', 'context length', 'maximum context', 'token limit', 'too many tokens', 'max_tokens', 'exceeds the model']):
+                    error_message = (
+                        f"Erreur {self.provider} : le contexte depasse la limite du modele '{self.model}'. "
+                        f"Renseignez-vous sur la context window de votre modele et entrez la valeur manuellement "
+                        f"dans les parametres d'Ogma (context_length). Detail : {error_text}"
+                    )
+                else:
+                    error_message = f"Erreur de requête {self.provider} : {error_text}"
             elif status_code == 404:
                 error_message = f"Erreur {self.provider} : Modèle '{self.model}' introuvable ou indisponible"
             elif status_code == 429:
