@@ -204,10 +204,17 @@ def ensure_memory_manager() -> Optional[MemoryManager]:
         _gguf_mgr = cast(GGUFManager, g._gguf_mgr)
         _model_changed = _gguf_mgr.model_name != model
         _ctx_changed = _gguf_mgr._requested_ctx != gguf_ctx
-        if model and (not _gguf_mgr.is_available or _model_changed or _ctx_changed):
+        _is_loading = getattr(_gguf_mgr, '_is_loading', False)
+        if model and not _is_loading and (not _gguf_mgr.is_available or _model_changed or _ctx_changed):
             if _model_changed or _ctx_changed:
                 print(f"[GGUF-ARCH] Rechargement : modèle={'changé' if _model_changed else 'id.'}, ctx={'changé' if _ctx_changed else 'id.'}")
-            _gguf_mgr.load_model(model, gguf_ctx, n_gpu_layers)
+            _gguf_mgr._is_loading = True
+            try:
+                _gguf_mgr.load_model(model, gguf_ctx, n_gpu_layers)
+            finally:
+                _gguf_mgr._is_loading = False
+        elif _is_loading:
+            print(f"[GGUF-ARCH] Chargement deja en cours, skip")
         # Override context_length avec la valeur réelle du modèle GGUF
         g._archiviste_controller.context_length = gguf_ctx
         _max_raw = int(arch.get('max_tokens', 2048))
@@ -437,10 +444,19 @@ def ensure_chat_controller() -> AIController:
         _gguf_mgr = cast(GGUFManager, g._gguf_mgr)
         _model_changed = _gguf_mgr.model_name != model
         _ctx_changed = _gguf_mgr._requested_ctx != gguf_ctx
-        if model and (not _gguf_mgr.is_available or _model_changed or _ctx_changed):
+        _gpu_changed = getattr(_gguf_mgr, '_requested_gpu', None) != n_gpu_layers
+        _is_loading = getattr(_gguf_mgr, '_is_loading', False)
+        if model and not _is_loading and (not _gguf_mgr.is_available or _model_changed or _ctx_changed):
             if _model_changed or _ctx_changed:
                 print(f"[GGUF-CTRL] Rechargement : modèle={'changé' if _model_changed else 'id.'}, ctx={'changé' if _ctx_changed else 'id.'}")
-            _gguf_mgr.load_model(model, gguf_ctx, n_gpu_layers)
+            _gguf_mgr._is_loading = True
+            try:
+                _gguf_mgr.load_model(model, gguf_ctx, n_gpu_layers)
+                _gguf_mgr._requested_gpu = n_gpu_layers
+            finally:
+                _gguf_mgr._is_loading = False
+        elif _is_loading:
+            print(f"[GGUF-CTRL] Chargement deja en cours, skip")
         # Override context_length et max_tokens avec les valeurs GGUF réelles
         # (évite d'utiliser les valeurs détectées pour Google/API qui peuvent dépasser n_ctx)
         g._chat_controller.context_length = gguf_ctx

@@ -7673,13 +7673,14 @@ async def _async_awakening(notif):
         await asyncio.sleep(0.1)
         
         # Vague 2 : Intelligence IA principale (Chat)
+        # GGUF load_model() bloque ~5s → to_thread pour ne pas geler le WebSocket
         notif.message = 'Éveil de l\'IA principale (Cerveau Conversationnel)...'
-        _ensure_chat_controller()
+        await asyncio.to_thread(_ensure_chat_controller)
         await asyncio.sleep(0.1)
         
         # Vague 3 : Intelligence Archiviste (Raisonnement)
         notif.message = 'Éveil de l\'Archiviste (Cerveau Analytique)...'
-        _ensure_archiviste_controller()
+        await asyncio.to_thread(_ensure_archiviste_controller)
         await asyncio.sleep(0.1)
 
         # Vague 4 : Mémoire FAISS/SQLite (Lourd)
@@ -8226,7 +8227,7 @@ def main_page():
     # Lancement de l'éveil asynchrone en tâche de fond (Stratégie Gemini)
     # L'utilisateur voit déjà le header et le style pendant que la mémoire charge
     asyncio.create_task(_async_awakening(awakening_notif))
-    
+
     # Définition de la fonction de drainage de la queue avant utilisation
     def _drain_status_queue():
         global _status_queue
@@ -8642,6 +8643,19 @@ def run_ogma(host: str = 'localhost', port: int = 8080):
     print("[DEBUG] 🔍 Hooks WebSocket connect/disconnect installés")
     # ═══════════════════════════════════════════════════════════════════════════
     
+    # Pré-chargement GGUF AVANT le serveur web : load_model() tient le GIL Python
+    # pendant ~5s, ce qui tue le WebSocket NiceGUI si fait pendant une requête.
+    # En chargeant ici, le modèle est en RAM quand le navigateur se connecte.
+    try:
+        _pre_sm = _ensure_settings_manager()
+        _pre_backend = _pre_sm.settings.get('chat_api', {}).get('backend_type', '')
+        if _pre_backend in ('GGUF/llama.cpp', 'GGUF'):
+            print("[GGUF-PRELOAD] Pré-chargement du modèle GGUF (avant serveur web)...")
+            _ensure_chat_controller()
+            print("[GGUF-PRELOAD] ✅ Modèle prêt — le navigateur ne sera pas bloqué")
+    except Exception as _pre_e:
+        print(f"[GGUF-PRELOAD] ⚠️ Échec pré-chargement: {_pre_e}")
+
     # Démarrer avec gestion d'erreur améliorée
     try:
         ui.run(
