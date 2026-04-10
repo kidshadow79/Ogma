@@ -320,7 +320,7 @@ class OllamaManager:
     def get_low_vram_setting(self) -> bool:
         """Récupère le paramètre low_vram depuis les settings."""
         if self.settings_manager:
-            return self.settings_manager.settings.get('other_backends', {}).get('ollama', {}).get('low_vram', True)
+            return self.settings_manager.settings.get('other_backends', {}).get('ollama', {}).get('low_vram', False)
         return False  # Par défaut, utiliser GPU (low_vram=False)
 
     def get_timeout_setting(self) -> int:
@@ -398,10 +398,19 @@ class OllamaManager:
             new_msg["content"] = new_msg["content"].strip()
             if images_base64: new_msg["images"] = images_base64
             ollama_messages.append(new_msg)
-        # Gestion context_length = -1 pour maximum automatique - STABILITÉ
-        final_context_length = context_length if context_length != -1 else 8192  # RÉDUIT pour stabilité (était 32768)
-        # Gestion max_tokens = -1 pour maximum automatique - STABILITÉ  
-        final_max_tokens = max_tokens if max_tokens != -1 else 4096  # RÉDUIT pour stabilité (était 8192)
+        # Gestion context_length = -1 : résoudre avec la vraie valeur du modèle
+        if context_length == -1:
+            real_ctx = await self._get_model_context_length(model)
+            final_context_length = real_ctx if real_ctx else 8192
+            print(f"[OLLAMA-GUARD] context_length=-1 résolu → {final_context_length}")
+        else:
+            final_context_length = context_length
+        # Gestion max_tokens = -1
+        if max_tokens == -1:
+            final_max_tokens = min(4096, final_context_length - 512) if final_context_length > 512 else 4096
+            print(f"[OLLAMA-GUARD] max_tokens=-1 résolu → {final_max_tokens}")
+        else:
+            final_max_tokens = max_tokens
 
         # Paramètres dynamiques selon configuration utilisateur
         low_vram_setting = self.get_low_vram_setting()
@@ -483,7 +492,7 @@ class GGUFManager:
     def get_low_vram_setting(self) -> bool:
         """Récupère le paramètre low_vram depuis les settings."""
         if self.settings_manager:
-            return self.settings_manager.settings.get('other_backends', {}).get('ollama', {}).get('low_vram', True)
+            return self.settings_manager.settings.get('other_backends', {}).get('ollama', {}).get('low_vram', False)
         return False  # Par défaut, utiliser GPU (low_vram=False)
     def get_available_models(self) -> List[str]:
         if not self.model_path.exists(): return []

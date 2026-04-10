@@ -1502,6 +1502,267 @@ DIRECTIVE :
                 ui.label('❌ Extension Journal de Bord non disponible').classes('text-red-500 mb-2')
                 ui.label('L\'extension n\'est pas chargée ou a rencontré une erreur au démarrage.').classes('text-xs text-muted mb-4')
 
+            # === SECTION HARDWARE (specs machine pour calcul Ollama) ===
+            ui.separator().classes('my-4')
+            ui.label('🖥️ Caractéristiques Hardware').classes('text-lg font-medium mb-2')
+            ui.label('Ces valeurs sont utilisées pour calculer les paramètres Ollama optimaux (context_length, max_tokens, low_vram). Modifiez-les si l\'auto-détection est incorrecte.').classes('text-xs text-muted mb-3')
+
+            hw = sm.settings.get('hardware', {})
+
+            def _save_hw(key, value):
+                if 'hardware' not in sm.settings:
+                    sm.settings['hardware'] = {}
+                sm.settings['hardware'][key] = value
+                sm.save_settings()
+
+            # Bouton auto-détection
+            hw_status_label = ui.label('').classes('text-xs text-muted mb-2')
+
+            async def _auto_detect_hardware():
+                hw_status_label.set_text('Détection en cours...')
+                try:
+                    detected = {}
+                    # RAM via psutil ou WMI
+                    try:
+                        import psutil
+                        mem = psutil.virtual_memory()
+                        detected['ram_total_gb'] = round(mem.total / (1024**3), 1)
+                    except ImportError:
+                        import subprocess
+                        r = subprocess.run(
+                            ['powershell', '-Command',
+                             '(Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize'],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        if r.returncode == 0 and r.stdout.strip():
+                            detected['ram_total_gb'] = round(int(r.stdout.strip()) / (1024**2), 1)
+
+                    # CPU
+                    import os
+                    detected['cpu_threads'] = os.cpu_count() or 4
+
+                    # GPU via nvidia-smi
+                    try:
+                        import subprocess
+                        r = subprocess.run(
+                            ['nvidia-smi', '--query-gpu=name,memory.total',
+                             '--format=csv,noheader,nounits'],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        if r.returncode == 0 and r.stdout.strip():
+                            parts = r.stdout.strip().split(',')
+                            detected['gpu_name'] = parts[0].strip()
+                            detected['gpu_vram_gb'] = round(int(parts[1].strip()) / 1024, 1)
+                    except (FileNotFoundError, Exception):
+                        # Fallback WMI — filtrer les GPU intégrés (Intel UHD, AMD Vega, etc.)
+                        try:
+                            import subprocess
+                            r = subprocess.run(
+                                ['powershell', '-Command',
+                                 'Get-CimInstance Win32_VideoController | Select-Object -First 1 -ExpandProperty Name'],
+                                capture_output=True, text=True, timeout=10
+                            )
+                            if r.returncode == 0 and r.stdout.strip():
+                                gpu_name = r.stdout.strip()
+                                # Ignorer les GPU intégrés et virtuels
+                                igpu_keywords = ['Intel', 'UHD', 'Iris', 'Microsoft', 'Meta', 'Virtual', 'Basic', 'Vega']
+                                is_igpu = any(kw.lower() in gpu_name.lower() for kw in igpu_keywords)
+                                if not is_igpu:
+                                    detected['gpu_name'] = gpu_name
+                                    r2 = subprocess.run(
+                                        ['powershell', '-Command',
+                                         'Get-CimInstance Win32_VideoController | Select-Object -First 1 -ExpandProperty AdapterRAM'],
+                                        capture_output=True, text=True, timeout=10
+                                    )
+                                    if r2.returncode == 0 and r2.stdout.strip():
+                                        vram_bytes = int(r2.stdout.strip())
+                                        if vram_bytes > 0:
+                                            detected['gpu_vram_gb'] = round(vram_bytes / (1024**3), 1)
+                        except Exception:
+                            pass
+
+                    # Appliquer les valeurs détectées
+                    if 'hardware' not in sm.settings:
+                        sm.settings['hardware'] = {}
+                    for k, v in detected.items():
+                        sm.settings['hardware'][k] = v
+                    sm.save_settings()
+
+                    # Mettre à jour les champs UI
+                    if 'ram_total_gb' in detected:
+                        hw_ram.value = detected['ram_total_gb']
+                    if 'cpu_threads' in detected:
+                        hw_cpu.value = detected['cpu_threads']
+                    if 'gpu_name' in detected:
+                        hw_gpu_name.value = detected['gpu_name']
+                    if 'gpu_vram_gb' in detected:
+                        hw_vram.value = detected['gpu_vram_gb']
+
+                    hw_status_label.set_text(f'Detecte : RAM {detected.get("ram_total_gb", "?")} Go, '
+                                             f'CPU {detected.get("cpu_threads", "?")} threads, '
+                                             f'GPU {detected.get("gpu_name", "aucun")} '
+                                             f'({detected.get("gpu_vram_gb", 0)} Go VRAM)')
+                    ui.notify('Hardware detecte', type='positive')
+                except Exception as e:
+                    hw_status_label.set_text(f'Erreur detection : {e}')
+                    ui.notify(f'Erreur : {e}', type='warning')
+
+            ui.button('Detecter automatiquement', icon='search', on_click=_auto_detect_hardware).classes('action-button mb-3').tooltip('Detecte automatiquement la RAM, le nombre de coeurs CPU et le GPU de votre machine.\nLes champs ci-dessous seront remplis. Vous pourrez les corriger manuellement si besoin.')
+
+            with ui.row().classes('w-full gap-4 mb-2'):
+                hw_ram = ui.number(
+                    label='RAM totale (Go)',
+                    value=hw.get('ram_total_gb', 0),
+                    min=0, max=1024, step=0.1
+                ).classes('form-input').style('flex: 1;').tooltip('Memoire vive totale de votre PC en gigaoctets.\nExemple : 8 Go, 16 Go, 32 Go.\nPlus vous avez de RAM, plus gros modeles vous pouvez utiliser.\nSans GPU, c\'est la RAM qui charge le modele.')
+                hw_ram.on('blur', lambda: _save_hw('ram_total_gb', hw_ram.value))
+
+                hw_cpu = ui.number(
+                    label='Threads CPU',
+                    value=hw.get('cpu_threads', 4),
+                    min=1, max=256, step=1
+                ).classes('form-input').style('flex: 1;').tooltip('Nombre de fils d\'execution de votre processeur.\nExemple : 8 threads pour un i5, 16 pour un i7.\nUtilise pour le parametre num_thread d\'Ollama.\nPlus de threads = generation plus rapide sur CPU.')
+                hw_cpu.on('blur', lambda: _save_hw('cpu_threads', int(hw_cpu.value or 4)))
+
+            with ui.row().classes('w-full gap-4 mb-2'):
+                hw_gpu_name = ui.input(
+                    label='GPU (nom)',
+                    value=hw.get('gpu_name', '')
+                ).classes('form-input').style('flex: 2;').tooltip('Nom de votre carte graphique.\nExemple : NVIDIA RTX 4060, RTX 3080, etc.\nSi vous n\'avez qu\'un GPU integre (Intel UHD, AMD Vega),\nlaissez vide — le modele sera charge en RAM CPU.')
+                hw_gpu_name.on('blur', lambda: _save_hw('gpu_name', hw_gpu_name.value))
+
+                hw_vram = ui.number(
+                    label='VRAM GPU (Go)',
+                    value=hw.get('gpu_vram_gb', 0),
+                    min=0, max=256, step=0.1
+                ).classes('form-input').style('flex: 1;').tooltip('Memoire dediee de votre carte graphique en Go.\nExemple : 8 Go pour une RTX 4060, 16 Go pour une RTX 4080.\nSi >= 2 Go, les modeles Ollama seront charges en VRAM (rapide).\nSi 0, tout passe en RAM CPU (plus lent).')
+                hw_vram.on('blur', lambda: _save_hw('gpu_vram_gb', hw_vram.value))
+
+            # Estimation mémoire pour Ollama
+            ui.separator().classes('my-2')
+            ui.label('Estimations Ollama').classes('text-sm font-semibold mb-1')
+
+            hw_estimate_container = ui.column().classes('w-full mb-2')
+
+            def _update_estimates():
+                hw_estimate_container.clear()
+                ram_go = float(hw_ram.value or 0)
+                vram_go = float(hw_vram.value or 0)
+                # Mémoire disponible estimée (70% de la RAM, OS+apps prennent ~30%)
+                ram_usable = ram_go * 0.7
+                # Si GPU, le modèle va en VRAM
+                mem_for_model = vram_go if vram_go >= 2 else ram_usable
+                use_gpu = vram_go >= 2
+
+                with hw_estimate_container:
+                    if ram_go == 0:
+                        ui.label('Renseignez votre RAM pour voir les estimations.').classes('text-xs text-muted')
+                        return
+
+                    ui.label(f'RAM utilisable estimee : ~{ram_usable:.1f} Go (70% de {ram_go:.1f})').classes('text-xs text-muted')
+                    if use_gpu:
+                        ui.label(f'GPU detecte ({vram_go:.0f} Go VRAM) — modeles charges en VRAM (rapide)').classes('text-xs text-green-500')
+                        ui.label(f'low_vram conseille : OFF (tout sur le GPU)').classes('text-xs text-green-500')
+                    else:
+                        ui.label('Pas de GPU dedie — modeles charges en RAM CPU (plus lent)').classes('text-xs text-orange-500')
+                        ui.label('low_vram conseille : OFF (sans GPU, ce parametre n\'a pas d\'effet)').classes('text-xs text-orange-500')
+                        ui.label(f'Memoire dispo pour les modeles : ~{ram_usable:.1f} Go').classes('text-xs text-orange-500')
+
+                    ui.label('').classes('mb-1')
+                    ui.label('Modeles Ollama — context_length conseille :').classes('text-xs font-semibold')
+
+                    # Lire les modèles Ollama installés
+                    try:
+                        import requests
+                        resp = requests.get('http://localhost:11434/api/tags', timeout=5)
+                        if resp.status_code == 200:
+                            models = resp.json().get('models', [])
+                            for m in models:
+                                model_name = m.get('name', '')
+                                model_size_bytes = m.get('size', 0)
+                                model_size_gb = model_size_bytes / (1024**3)
+                                # Récupérer les specs détaillées
+                                try:
+                                    show_resp = requests.post(
+                                        'http://localhost:11434/api/show',
+                                        json={'model': model_name}, timeout=5
+                                    )
+                                    if show_resp.status_code == 200:
+                                        show_data = show_resp.json()
+                                        details = show_data.get('details', {})
+                                        param_size = details.get('parameter_size', '?')
+                                        quant = details.get('quantization_level', '?')
+                                        model_info = show_data.get('model_info', {})
+                                        # Trouver context_length et embedding_length
+                                        native_ctx = 0
+                                        embed_len = 0
+                                        head_count_kv = 1
+                                        block_count = 0
+                                        for k, v in model_info.items():
+                                            if v is None:
+                                                continue
+                                            if k.endswith('.context_length') and not k.endswith('.audio.context_length'):
+                                                native_ctx = int(v)
+                                            if k.endswith('.embedding_length') and 'audio' not in k and 'vision' not in k:
+                                                embed_len = int(v)
+                                            if k.endswith('.attention.head_count_kv'):
+                                                head_count_kv = int(v)
+                                            if k.endswith('.block_count') and 'audio' not in k and 'vision' not in k:
+                                                block_count = int(v)
+                                        # Calcul KV cache par token (bytes)
+                                        # KV cache ≈ 2 * layers * (kv_heads * head_dim) * 2 bytes (fp16)
+                                        head_dim = (embed_len // max(head_count_kv, 1)) if embed_len and head_count_kv else 64
+                                        kv_per_token = 2 * block_count * head_count_kv * head_dim * 2  # bytes
+                                        # Mémoire libre après chargement modèle
+                                        overhead = 0.5  # Go pour overhead Ollama
+                                        free_after_model = mem_for_model - model_size_gb - overhead
+                                        if free_after_model < 0.1:
+                                            recommended_ctx = 0
+                                            status = 'NE RENTRE PAS'
+                                            color = 'text-red-500'
+                                        else:
+                                            # Max tokens que le KV cache peut supporter
+                                            if kv_per_token > 0:
+                                                max_ctx = int((free_after_model * 1024**3) / kv_per_token)
+                                            else:
+                                                max_ctx = 8192
+                                            # Plafonner au contexte natif du modèle
+                                            recommended_ctx = min(max_ctx, native_ctx) if native_ctx else min(max_ctx, 131072)
+                                            # Arrondir à la puissance de 2 la plus proche
+                                            for nice in [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]:
+                                                if nice >= recommended_ctx:
+                                                    recommended_ctx = nice // 2 if nice > recommended_ctx else nice
+                                                    break
+                                            recommended_ctx = max(recommended_ctx, 1024)
+                                            if recommended_ctx >= 8192:
+                                                status = 'OK'
+                                                color = 'text-green-500'
+                                            elif recommended_ctx >= 2048:
+                                                status = 'LIMITE'
+                                                color = 'text-orange-500'
+                                            else:
+                                                status = 'INSUFFISANT'
+                                                color = 'text-red-500'
+                                        recommended_mt = min(4096, max(512, recommended_ctx - 512))
+                                        ui.label(
+                                            f'  {model_name} ({param_size} {quant}) — '
+                                            f'fichier {model_size_gb:.1f} Go — '
+                                            f'ctx conseille: {recommended_ctx:,} — '
+                                            f'max_tokens: {recommended_mt:,} — {status}'
+                                        ).classes(f'text-xs {color}')
+                                except Exception:
+                                    ui.label(f'  {model_name} — erreur lecture specs').classes('text-xs text-muted')
+                        else:
+                            ui.label('Ollama non disponible — demarrez Ollama pour voir les estimations.').classes('text-xs text-muted')
+                    except Exception:
+                        ui.label('Ollama non joignable (timeout) — demarrez Ollama pour voir les estimations.').classes('text-xs text-muted')
+
+            # Timer pour calcul initial (après un court délai pour laisser le UI se construire)
+            ui.timer(0.5, _update_estimates, once=True)
+
+            # Bouton recalculer
+            ui.button('Recalculer estimations', icon='calculate', on_click=_update_estimates).classes('action-button mt-2').tooltip('Recalcule les valeurs conseillee pour chaque modele Ollama installe,\nen tenant compte de vos specs hardware ci-dessus.\nModifiez la RAM ou la VRAM puis cliquez ici pour voir l\'impact.')
+
     with d, ui.card().classes('popup-content profile-modal q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(800px, 90vw); max-height: 80vh; overflow-y: auto;'):
         ui.label('👤 Profil Utilisateur').classes('popup-title')
 

@@ -351,32 +351,67 @@ def ensure_chat_controller() -> AIController:
     context_length = chat.get('context_length', 4096)
     
     if max_tokens == -1 or context_length == -1:
-        try:
-            from hybrid_detection import hybrid_auto_detect_capabilities
-            provider = chat.get('provider', 'Aucun').lower()
-            model = chat.get('api_model', '') or chat.get('model', '')
-            api_key = chat.get('api_key', '')
-            
-            if provider != 'aucun' and model and api_key:
-                print(f"[CHAT-HYBRID] 🔍 Détection hybride {provider}")
-                detected_caps = hybrid_auto_detect_capabilities(provider, model, "chat", api_key)
-                if max_tokens == -1:
-                    max_tokens = detected_caps['max_tokens']
-                    print(f"[CHAT-HYBRID] OK max_tokens optimal: {max_tokens:,}")
-                if context_length == -1:
-                    context_length = detected_caps['context_length']
-                    print(f"[CHAT-HYBRID] OK context_length optimal: {context_length:,}")
+        if backend == 'Ollama':
+            # Pour Ollama : détecter depuis le modèle lui-même via /api/show
+            # On ne lance PAS la détection hybride API (évite d'hériter de 128k Mistral → OOM)
+            ollama_url = (chat.get('ollama_url') or 'http://localhost:11434').rstrip('/')
+            ollama_model_name = chat.get('ollama_model', '')
+            ollama_mgr = cast(OllamaManager, g._ollama_mgr)
+            ollama_mgr.api_url = ollama_url
+            if ollama_model_name:
+                real_ctx = ollama_mgr.get_model_context_length_sync(ollama_model_name)
+                if real_ctx:
+                    print(f"[OLLAMA-INIT] context_length auto → {real_ctx} (détecté depuis {ollama_model_name})")
+                    if context_length == -1:
+                        context_length = real_ctx
+                    if max_tokens == -1:
+                        max_tokens = min(4096, real_ctx - 512)
+                else:
+                    print(f"[OLLAMA-INIT] /api/show sans résultat → fallback 8192/4096")
+                    if context_length == -1:
+                        context_length = 8192
+                    if max_tokens == -1:
+                        max_tokens = 4096
             else:
+                if context_length == -1:
+                    context_length = 8192
+                if max_tokens == -1:
+                    max_tokens = 4096
+        elif backend in ('GGUF', 'KoboldCpp'):
+            # Pour GGUF/Kobold : ne pas lancer la détection hybride API non plus
+            # Les vraies valeurs seront settées dans les blocs dédiés ci-dessous
+            if max_tokens == -1:
+                max_tokens = 2048
+            if context_length == -1:
+                context_length = 4096
+        else:
+            # Backend API : détection hybride normale
+            try:
+                from hybrid_detection import hybrid_auto_detect_capabilities
+                provider = chat.get('provider', 'Aucun').lower()
+                model = chat.get('api_model', '') or chat.get('model', '')
+                api_key = chat.get('api_key', '')
+                
+                if provider != 'aucun' and model and api_key:
+                    print(f"[CHAT-HYBRID] 🔍 Détection hybride {provider}")
+                    detected_caps = hybrid_auto_detect_capabilities(provider, model, "chat", api_key)
+                    if max_tokens == -1:
+                        max_tokens = detected_caps['max_tokens']
+                        print(f"[CHAT-HYBRID] OK max_tokens optimal: {max_tokens:,}")
+                    if context_length == -1:
+                        context_length = detected_caps['context_length']
+                        print(f"[CHAT-HYBRID] OK context_length optimal: {context_length:,}")
+                else:
+                    if max_tokens == -1:
+                        max_tokens = 512
+                    if context_length == -1:
+                        context_length = 4096
+            except Exception as e:
                 if max_tokens == -1:
                     max_tokens = 512
                 if context_length == -1:
                     context_length = 4096
-        except Exception as e:
-            if max_tokens == -1:
-                max_tokens = 512
-            if context_length == -1:
-                context_length = 4096
-            print(f"[CHAT-HYBRID] ERROR Erreur détection hybride: {e}")
+                print(f"[CHAT-HYBRID] ERROR Erreur détection hybride: {e}")
     
     g._chat_controller.max_tokens = int(max_tokens)
     g._chat_controller.context_length = int(context_length)
@@ -394,16 +429,6 @@ def ensure_chat_controller() -> AIController:
         cast(OllamaManager, g._ollama_mgr).api_url = str(url).rstrip('/')
         cast(OllamaManager, g._ollama_mgr).check_service()
         g._chat_controller.ollama_model = chat.get('ollama_model', '')
-        # Si context_length était -1 (auto), détecter depuis le modèle Ollama lui-même
-        # (évite OOM si la détection hybride API a retourné une valeur trop grande)
-        raw_context_setting = chat.get('context_length', 4096)
-        if raw_context_setting == -1:
-            ollama_model_name = chat.get('ollama_model', '')
-            if ollama_model_name:
-                real_ctx = cast(OllamaManager, g._ollama_mgr).get_model_context_length_sync(ollama_model_name)
-                if real_ctx:
-                    print(f"[OLLAMA-INIT] context_length auto → {real_ctx} (détecté depuis {ollama_model_name})")
-                    g._chat_controller.context_length = real_ctx
     elif backend == 'GGUF':
         model = chat.get('gguf_model', '')
         gguf_cfg = sm.settings.get('other_backends', {}).get('gguf', {})

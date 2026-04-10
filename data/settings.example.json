@@ -149,6 +149,10 @@
   "other_backends": {
     "gguf": {
       "gpu_layers": -1
+    },
+    "ollama": {
+      "timeout": 300,
+      "low_vram": false
     }
   },
   "extensions": {
@@ -289,5 +293,11 @@
   "show_seed_memories": true,
   "ui": {
     "theme": "neon"
+  },
+  "hardware": {
+    "ram_total_gb": 0,
+    "cpu_threads": 0,
+    "gpu_name": "",
+    "gpu_vram_gb": 0
   }
 }

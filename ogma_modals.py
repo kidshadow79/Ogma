@@ -2865,6 +2865,86 @@ def _models_modal():
             except Exception:
                 pass
 
+        def _calculate_optimal_ollama(model_name, ollama_url='http://localhost:11434'):
+            """Calcule context_length et max_tokens optimaux pour un modèle Ollama selon le hardware."""
+            import requests
+            hw = sm.settings.get('hardware', {})
+            ram_go = float(hw.get('ram_total_gb', 0))
+            vram_go = float(hw.get('gpu_vram_gb', 0))
+            if ram_go == 0:
+                return None, 'Hardware non renseigne — allez dans Profil > Caracteristiques Hardware'
+            ram_usable = ram_go * 0.7
+            mem_for_model = vram_go if vram_go >= 2 else ram_usable
+            if not model_name:
+                return None, 'Aucun modele Ollama selectionne'
+            try:
+                # Taille du fichier modèle
+                tags_resp = requests.get(f'{ollama_url}/api/tags', timeout=5)
+                model_size_gb = 0
+                if tags_resp.status_code == 200:
+                    for m in tags_resp.json().get('models', []):
+                        if m.get('name') == model_name:
+                            model_size_gb = m.get('size', 0) / (1024**3)
+                            break
+                # Specs du modèle
+                show_resp = requests.post(f'{ollama_url}/api/show', json={'model': model_name}, timeout=5)
+                if show_resp.status_code != 200:
+                    return None, f'Ollama /api/show erreur {show_resp.status_code}'
+                show_data = show_resp.json()
+                details = show_data.get('details', {})
+                model_info = show_data.get('model_info', {})
+                native_ctx = 0
+                embed_len = 0
+                head_count_kv = 1
+                block_count = 0
+                for k, v in model_info.items():
+                    if v is None:
+                        continue
+                    if k.endswith('.context_length') and 'audio' not in k:
+                        native_ctx = int(v)
+                    if k.endswith('.embedding_length') and 'audio' not in k and 'vision' not in k:
+                        embed_len = int(v)
+                    if k.endswith('.attention.head_count_kv'):
+                        head_count_kv = int(v)
+                    if k.endswith('.block_count') and 'audio' not in k and 'vision' not in k:
+                        block_count = int(v)
+                head_dim = (embed_len // max(head_count_kv, 1)) if embed_len and head_count_kv else 64
+                kv_per_token = 2 * block_count * head_count_kv * head_dim * 2
+                overhead = 0.5
+                free_after_model = mem_for_model - model_size_gb - overhead
+                if free_after_model < 0.1:
+                    return None, f'Modele trop gros ({model_size_gb:.1f} Go) pour votre memoire ({mem_for_model:.1f} Go dispo)'
+                if kv_per_token > 0:
+                    max_ctx = int((free_after_model * 1024**3) / kv_per_token)
+                else:
+                    max_ctx = 8192
+                if native_ctx:
+                    max_ctx = min(max_ctx, native_ctx)
+                # Arrondir vers le bas à une valeur propre
+                for nice in [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]:
+                    if nice >= max_ctx:
+                        recommended_ctx = nice // 2 if nice > max_ctx else nice
+                        break
+                else:
+                    recommended_ctx = 131072
+                recommended_ctx = max(recommended_ctx, 1024)
+                recommended_mt = min(4096, max(512, recommended_ctx - 512))
+                param_size = details.get('parameter_size', '?')
+                quant = details.get('quantization_level', '?')
+                return {
+                    'context_length': recommended_ctx,
+                    'max_tokens': recommended_mt,
+                    'model_size_gb': round(model_size_gb, 1),
+                    'param_size': param_size,
+                    'quant': quant,
+                    'mem_available': round(mem_for_model, 1),
+                    'native_ctx': native_ctx,
+                }, None
+            except requests.exceptions.ConnectionError:
+                return None, 'Ollama non joignable — verifiez qu\'il est demarre'
+            except Exception as e:
+                return None, f'Erreur: {e}'
+
         with ui.tab_panels(tabs, value=t_chat).classes('w-full'):
             # --- Chat IA ---
             with ui.tab_panel(t_chat):
@@ -2876,6 +2956,7 @@ def _models_modal():
                 except Exception:
                     pass
                 chat = sm.settings.get('chat_api', {})
+                
                 def detect_backend(d: dict) -> str:
                     bt = d.get('backend_type')
                     if bt in ['API', 'Ollama', 'GGUF', 'KoboldCpp']:
@@ -3010,6 +3091,10 @@ def _models_modal():
                         value=sm.settings.get('other_backends', {}).get('ollama', {}).get('timeout', 180),
                         min=5, max=600
                     ).classes('form-input mb-2 narrow-field').tooltip('Délai max d\'attente pour une réponse Ollama.\n180s recommandé pour les modèles lourds.\nAugmenter si timeout fréquents sur gros modèles.')
+                    chat_ollama_low_vram = ui.checkbox(
+                        '🔋 Mode Low VRAM (décharger sur CPU)',
+                        value=sm.settings.get('other_backends', {}).get('ollama', {}).get('low_vram', False)
+                    ).classes('mb-2').tooltip('Si activé, Ollama garde des couches du modèle en RAM CPU au lieu du GPU.\nDésactivé = tout sur le GPU (recommandé si le modèle rentre en VRAM).\n⚠️ Activer si erreur CUDA Out of Memory.')
                 with ui.column() as chat_gguf_zone:
                     ui.label('📄 Configuration GGUF').classes('text-md font-semibold mb-2')
                     
@@ -3186,9 +3271,44 @@ def _models_modal():
                     ui.label('KoboldCpp utilise le modèle chargé sur le serveur local').classes('text-sm mb-2')
                     ui.button('Tester', on_click=_test_connection_ui('chat', chat_backend, None, None, service_url_input=lambda: chat_kobold_url)).classes('action-button mb-2')
 
-                chat_max_tokens = ui.number(label='max_tokens (-1 pour auto)', value=chat.get('max_tokens', 512)).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés par réponse.\n-1 = détecté automatiquement via l\'API.\nPour GGUF : plafonné automatiquement à Context Size − 512.')
-                chat_ctx = ui.number(label='context_length (-1 pour auto)', value=chat.get('context_length', 4096)).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte passée à l\'API à chaque appel.\n-1 = détection automatique.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
+                # Résoudre valeurs affichées : si -1, afficher la valeur réelle détectée
+                _chat_mt_raw = chat.get('max_tokens', 512)
+                _chat_mt_display = _chat_mt_raw
+                _chat_mt_label = 'max_tokens (-1 pour auto)'
+                
+                _chat_ctx_raw = chat.get('context_length', 4096)
+                _chat_ctx_display = _chat_ctx_raw
+                _chat_ctx_label = 'context_length (-1 pour auto)'
+                
+                chat_max_tokens = ui.number(label=_chat_mt_label, value=_chat_mt_display).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés par réponse.\nDétecté automatiquement au démarrage si le modèle le permet.\nModifiable manuellement — la valeur sauvegardée sera utilisée.\nPour GGUF : plafonné à Context Size − 512.')
+                chat_ctx = ui.number(label=_chat_ctx_label, value=_chat_ctx_display).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte envoyée au modèle à chaque appel.\nDétectée automatiquement au démarrage (API ou Ollama /api/show).\nModifiable manuellement.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
                 chat_temp = ui.number(label='temperature', value=chat.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe et reproductible.\n0.7 = équilibré (défaut Chat).\n1.5+ = très créatif mais instable.')
+
+                # Bouton valeurs optimales Ollama
+                chat_optimal_label = ui.label('').classes('text-xs text-muted mb-1')
+                def _apply_chat_optimal():
+                    model = chat_ollama_model.value if chat_backend.value == 'Ollama' else None
+                    url = chat_ollama_url.value if chat_backend.value == 'Ollama' else 'http://localhost:11434'
+                    if not model:
+                        chat_optimal_label.set_text('Selectionnez un modele Ollama d\'abord')
+                        ui.notify('Selectionnez un modele Ollama', type='warning')
+                        return
+                    result, err = _calculate_optimal_ollama(model, url)
+                    if err:
+                        chat_optimal_label.set_text(f'Erreur : {err}')
+                        ui.notify(err, type='warning')
+                        return
+                    chat_max_tokens.value = result['max_tokens']
+                    chat_ctx.value = result['context_length']
+                    chat_optimal_label.set_text(
+                        f'{model} ({result["param_size"]} {result["quant"]}) — '
+                        f'fichier {result["model_size_gb"]} Go — '
+                        f'ctx natif {result["native_ctx"]:,} — '
+                        f'memoire dispo {result["mem_available"]} Go — '
+                        f'ctx optimal: {result["context_length"]:,} / max_tokens: {result["max_tokens"]:,}'
+                    )
+                    ui.notify(f'Valeurs optimales appliquees : ctx={result["context_length"]:,}, mt={result["max_tokens"]:,}', type='positive')
+                ui.button('Valeurs optimales (hardware)', icon='auto_fix_high', on_click=_apply_chat_optimal).classes('action-button mb-2').tooltip('Calcule et applique les valeurs context_length et max_tokens optimales\npour le modele Ollama selectionne, selon votre hardware (RAM/VRAM).\nVos specs sont dans Profil > Caracteristiques Hardware.\nVous pouvez modifier les valeurs manuellement apres.')
 
                 with ui.column().classes('gap-1 mb-2') as chat_thinking_row:
                     with ui.row().classes('items-center gap-2'):
@@ -3477,9 +3597,41 @@ def _models_modal():
                     ui.label('KoboldCpp utilise le modèle chargé sur le serveur local').classes('text-sm mb-2')
                     ui.button('Tester', on_click=_test_connection_ui('arch', arch_backend, None, None, service_url_input=lambda: arch_kobold_url)).classes('action-button mb-2')
 
-                arch_max_tokens = ui.number(label='max_tokens (-1 pour auto)', value=arch.get('max_tokens', 512)).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés par réponse.\n-1 = détecté automatiquement via l\'API.\nPour GGUF : plafonné automatiquement à Context Size − 512.')
-                arch_ctx = ui.number(label='context_length (-1 pour auto)', value=arch.get('context_length', 4096)).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte passée à l\'API à chaque appel.\n-1 = détection automatique.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
+                # Résoudre valeurs affichées Archiviste
+                _arch_mt_raw = arch.get('max_tokens', 512)
+                _arch_mt_display = _arch_mt_raw
+                _arch_mt_label = 'max_tokens (-1 pour auto)'
+                
+                _arch_ctx_raw = arch.get('context_length', 4096)
+                _arch_ctx_display = _arch_ctx_raw
+                _arch_ctx_label = 'context_length (-1 pour auto)'
+                
+                arch_max_tokens = ui.number(label=_arch_mt_label, value=_arch_mt_display).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés par réponse.\nDétecté automatiquement au démarrage si le modèle le permet.\nModifiable manuellement — la valeur sauvegardée sera utilisée.\nPour GGUF : plafonné à Context Size − 512.')
+                arch_ctx = ui.number(label=_arch_ctx_label, value=_arch_ctx_display).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte envoyée au modèle à chaque appel.\nDétectée automatiquement au démarrage (API ou Ollama /api/show).\nModifiable manuellement.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
                 arch_temp = ui.number(label='temperature', value=arch.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe. 0.3 = analytique (défaut Archiviste). 0.7 = équilibré.')
+
+                # Bouton valeurs optimales Ollama Archiviste
+                arch_optimal_label = ui.label('').classes('text-xs text-muted mb-1')
+                def _apply_arch_optimal():
+                    model = arch_ollama_model.value if arch_backend.value == 'Ollama' else None
+                    url = arch_ollama_url.value if arch_backend.value == 'Ollama' else 'http://localhost:11434'
+                    if not model:
+                        arch_optimal_label.set_text('Selectionnez un modele Ollama d\'abord')
+                        ui.notify('Selectionnez un modele Ollama', type='warning')
+                        return
+                    result, err = _calculate_optimal_ollama(model, url)
+                    if err:
+                        arch_optimal_label.set_text(f'Erreur : {err}')
+                        ui.notify(err, type='warning')
+                        return
+                    arch_max_tokens.value = result['max_tokens']
+                    arch_ctx.value = result['context_length']
+                    arch_optimal_label.set_text(
+                        f'{model} ({result["param_size"]} {result["quant"]}) — '
+                        f'ctx optimal: {result["context_length"]:,} / max_tokens: {result["max_tokens"]:,}'
+                    )
+                    ui.notify(f'Valeurs optimales appliquees : ctx={result["context_length"]:,}, mt={result["max_tokens"]:,}', type='positive')
+                ui.button('Valeurs optimales (hardware)', icon='auto_fix_high', on_click=_apply_arch_optimal).classes('action-button mb-2').tooltip('Calcule et applique les valeurs context_length et max_tokens optimales\npour le modele Ollama selectionne, selon votre hardware (RAM/VRAM).\nVos specs sont dans Profil > Caracteristiques Hardware.')
 
                 def _refresh_arch_interface():
                     """Force la mise à jour de l'interface Archiviste selon le backend sélectionné"""
@@ -3754,8 +3906,17 @@ def _models_modal():
                 ui.separator().classes('mb-2')
                 ui.label('Paramètres avancés Embedding').classes('text-sm font-semibold mb-2')
                 
-                emb_max_tokens = ui.number(label='max_tokens (-1 pour auto)', value=emb.get('max_tokens', 512)).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés.\n-1 = détecté automatiquement.\nPour GGUF : plafonné automatiquement à Context Size − 512.')
-                emb_ctx = ui.number(label='context_length (-1 pour auto)', value=emb.get('context_length', 4096)).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte passée à l\'API à chaque appel.\n-1 = détection automatique.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
+                # Résoudre valeurs affichées Embedding
+                _emb_mt_raw = emb.get('max_tokens', 512)
+                _emb_mt_display = _emb_mt_raw
+                _emb_mt_label = 'max_tokens (-1 pour auto)'
+                
+                _emb_ctx_raw = emb.get('context_length', 4096)
+                _emb_ctx_display = _emb_ctx_raw
+                _emb_ctx_label = 'context_length (-1 pour auto)'
+                
+                emb_max_tokens = ui.number(label=_emb_mt_label, value=_emb_mt_display).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés.\nDétecté automatiquement au démarrage si le modèle le permet.\nModifiable manuellement — la valeur sauvegardée sera utilisée.\nPour GGUF : plafonné à Context Size − 512.')
+                emb_ctx = ui.number(label=_emb_ctx_label, value=_emb_ctx_display).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte envoyée au modèle à chaque appel.\nDétectée automatiquement au démarrage (API ou Ollama /api/show).\nModifiable manuellement.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
                 emb_temp = ui.number(label='temperature', value=emb.get('temperature', 0.1), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe. 0.1 = très précis (défaut Embedding). 0.7 = équilibré.')
 
                 def _refresh_embed_interface():
@@ -3851,6 +4012,7 @@ def _models_modal():
                 if 'ollama' not in sm.settings['other_backends']:
                     sm.settings['other_backends']['ollama'] = {}
                 sm.settings['other_backends']['ollama']['timeout'] = int(chat_ollama_timeout.value if chat_ollama_timeout.value is not None else 180)
+                sm.settings['other_backends']['ollama']['low_vram'] = bool(chat_ollama_low_vram.value)
             elif chat_backend.value == 'GGUF':
                 # IMPORTANT: Préserver le modèle existant si le select n'est pas chargé
                 if chat_gguf_model_path.value:
@@ -3870,6 +4032,10 @@ def _models_modal():
                 })
             elif chat_backend.value == 'KoboldCpp':
                 chat_settings['kobold_url'] = chat_kobold_url.value or 'http://localhost:5001'
+            # Purger les clés internes _display_* avant sauvegarde
+            for k in list(chat_settings.keys()):
+                if k.startswith('_display_'):
+                    del chat_settings[k]
             sm.settings['chat_api'] = chat_settings
 
             # Mise à jour ARCHIVISTE (seulement les champs modifiés)
@@ -3912,6 +4078,9 @@ def _models_modal():
                 })
             elif arch_backend.value == 'KoboldCpp':
                 arch_settings['kobold_url'] = arch_kobold_url.value or 'http://localhost:5001'
+            for k in list(arch_settings.keys()):
+                if k.startswith('_display_'):
+                    del arch_settings[k]
             sm.settings['reasoning_api'] = arch_settings
 
             # Mise à jour EMBEDDING (seulement les champs modifiés)
@@ -3953,6 +4122,9 @@ def _models_modal():
                     'context_size': int(emb_gguf_context_size.value or 4096),
                 })
             
+            for k in list(emb_settings.keys()):
+                if k.startswith('_display_'):
+                    del emb_settings[k]
             sm.settings['embedding_api'] = emb_settings
 
             # NE sauvegarder gpu_layers depuis gguf_gpu_layers QUE si backend emb est GGUF
