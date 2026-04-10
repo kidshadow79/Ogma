@@ -2955,8 +2955,7 @@ def _models_modal():
                 return None, 'Hardware non renseigne — allez dans Profil > Caracteristiques Hardware'
             if not model_path or not os.path.exists(model_path):
                 return None, f'Fichier GGUF introuvable : {model_path or "(vide)"}'
-            # RAM utilisable : 50% (OS + Python + NiceGUI + FAISS consomment beaucoup)
-            ram_usable = ram_go * 0.5
+            ram_usable = ram_go * 0.7
             mem_for_model = vram_go if vram_go >= 2 else ram_usable
             file_size_gb = os.path.getsize(model_path) / (1024**3)
             try:
@@ -3028,31 +3027,22 @@ def _models_modal():
                 kv_heads = head_count_kv or head_count or 1
                 # KV cache FP16: 2 (K+V) * layers * kv_heads * head_dim * 2 bytes
                 kv_per_token = 2 * block_count * kv_heads * head_dim * 2
-                # Overhead llama_cpp : compute buffers, scratch, etc.
-                overhead = 0.8
+                overhead = 0.5
                 free_after_model = mem_for_model - file_size_gb - overhead
                 if free_after_model < 0.1:
                     return None, f'Modele trop gros ({file_size_gb:.1f} Go) pour votre memoire ({mem_for_model:.1f} Go dispo)'
                 if kv_per_token > 0:
                     max_ctx = int((free_after_model * 1024**3) / kv_per_token)
                 else:
-                    max_ctx = 4096
+                    max_ctx = 8192
                 if native_ctx:
                     max_ctx = min(max_ctx, native_ctx)
-                # Cap de securite par RAM totale
-                if ram_go < 8:
-                    max_ctx = min(max_ctx, 8192)
-                elif ram_go < 16:
-                    max_ctx = min(max_ctx, 16384)
-                elif ram_go < 32:
-                    max_ctx = min(max_ctx, 32768)
-                # Arrondir au palier inferieur le plus proche
-                for nice in [131072, 65536, 32768, 16384, 8192, 4096, 2048, 1024]:
-                    if nice <= max_ctx:
-                        recommended_ctx = nice
+                for nice in [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072]:
+                    if nice >= max_ctx:
+                        recommended_ctx = nice // 2 if nice > max_ctx else nice
                         break
                 else:
-                    recommended_ctx = 1024
+                    recommended_ctx = 131072
                 recommended_ctx = max(recommended_ctx, 1024)
                 recommended_mt = min(4096, max(512, recommended_ctx - 512))
                 # GPU layers : 0 si pas de GPU dédié, sinon auto
