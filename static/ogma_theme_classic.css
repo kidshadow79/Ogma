@@ -401,6 +401,19 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
     border-left: 2px solid var(--accent-gold) !important;
 }
 
+/* Multi-sélection (Ctrl+clic) : bleu distinctif sur fond clair */
+[data-ogma-theme="light"] .sidebar-item.multi-selected {
+    background: rgba(37, 99, 235, 0.15) !important;
+    border-color: rgba(37, 99, 235, 0.45) !important;
+}
+[data-ogma-theme="light"] .sidebar-item.multi-selected:hover {
+    background: rgba(37, 99, 235, 0.22) !important;
+}
+[data-ogma-theme="light"] .sidebar-item.active.multi-selected {
+    background: rgba(37, 99, 235, 0.20) !important;
+    border-color: rgba(37, 99, 235, 0.55) !important;
+}
+
 [data-ogma-theme="light"] .sidebar-item-title {
     color: var(--text-primary) !important;
 }
