@@ -74,7 +74,7 @@ class ArchivisteMemoryOptimizer:
                  archiviste_controller,
                  memory_manager,
                  embedding_controller=None,
-                 user_name: str = "Yohan"):
+                 user_name: str = "Utilisateur"):
         """
         Initialise optimizer avec dépendances OGMA.
         

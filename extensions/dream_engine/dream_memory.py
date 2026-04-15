@@ -337,7 +337,7 @@ async def _extract_recent_conversations(limit: int = 2) -> List[str]:
                         content = msg.get('content', '')
                         
                         if role == 'user':
-                            conv_text += f"**Yohan:** {content[:500]}\n\n"
+                            conv_text += f"**Utilisateur:** {content[:500]}\n\n"
                         elif role == 'assistant':
                             conv_text += f"**IA:** {content[:500]}\n\n"
                     
