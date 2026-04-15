@@ -212,6 +212,20 @@ L'Archiviste effectue de nombreux appels en arrière-plan (filtrage mémoire, co
 
 ## 🚀 Installation
 
+### Prérequis système (Windows)
+
+#### Microsoft C++ Build Tools — requis pour le mode GGUF
+
+Certaines dépendances (`llama-cpp-python`, et parfois d'autres) nécessitent des outils de compilation C++ sur Windows. **Sans eux, l'installation échouera si tu utilises le backend local GGUF.**
+
+> **Si tu utilises uniquement les APIs cloud (Mistral, OpenAI, xAI…), cette étape n'est pas nécessaire.**
+
+1. Télécharge les **[Microsoft C++ Build Tools](https://visualstudio.microsoft.com/fr/visual-cpp-build-tools/)** (gratuit, ~4 Go)
+2. Lors de l'installation, coche **"Développement Desktop en C++"**
+3. Redémarre ton système avant de lancer `pip install`
+
+> Tu n'as **pas** besoin de l'IDE Visual Studio complet — uniquement les Build Tools.
+
 ### Prérequis
 - **Python 3.10+**
 - `pip` à jour
