@@ -44,6 +44,7 @@ backups/
 # ========================================
 .env
 data/settings.json
+data/identities.json
 
 # ========================================
 # FICHIERS SYSTÈME

@@ -51,9 +51,17 @@ class IdentityManager:
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     self._data = json.load(f)
             else:
-                # Créer configuration par défaut si fichier n'existe pas
-                self._data = self._create_default_config()
-                self.save_identities()
+                # Bootstrap depuis identities.default.json si disponible (comme settings.example.json)
+                default_path = self.config_path.parent / "identities.default.json"
+                if default_path.exists():
+                    import shutil
+                    shutil.copy2(default_path, self.config_path)
+                    with open(self.config_path, 'r', encoding='utf-8') as f:
+                        self._data = json.load(f)
+                    print(f"[IDENTITY-MANAGER] identities.json créé depuis identities.default.json")
+                else:
+                    self._data = self._create_default_config()
+                    self.save_identities()
         except Exception as e:
             print(f"[IDENTITY-MANAGER] ERROR Chargement identités: {e}")
             self._data = self._create_default_config()
