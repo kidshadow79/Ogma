@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args:
+          - '--baseline'
+          - '.secrets.baseline'
+        exclude: |
+          (?x)^(
+            data/memory/.*\.db$|
+            .*\.png$|
+            .*\.jpg$|
+            .*\.jpeg$|
+            .*\.gif$|
+            .*\.webp$|
+            .*\.ico$|
+            .*\.woff2?$|
+            .*\.ttf$|
+            data/archiviste_tokens_debug\.jsonl$|
+            tests/.*
+          )$
