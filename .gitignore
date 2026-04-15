@@ -46,6 +46,9 @@ backups/
 data/settings.json
 data/identities.json
 
+# Scripts de diagnostic temporaires (préfixe _ = fichier jetable)
+scripts/diagnostics/_*.py
+
 # ========================================
 # FICHIERS SYSTÈME
 # ========================================

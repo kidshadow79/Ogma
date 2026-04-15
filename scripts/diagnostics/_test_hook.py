@@ -1,1 +1,0 @@
-FAKE_KEY = chr(34) + chr(115)+chr(107)+chr(45)+chr(97)+chr(98)+chr(99)+chr(49)+chr(50)+chr(51)+chr(120)+chr(121)+chr(122)+chr(55)+chr(56)+chr(57) + chr(34)

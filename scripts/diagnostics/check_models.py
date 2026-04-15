@@ -1,9 +1,21 @@
-import os
-import requests
 import json
+import sys
+import requests
+from pathlib import Path
 
-KIE_KEY = os.environ.get("KIE_API_KEY", "")
-WAVESPEED_KEY = os.environ.get("WAVESPEED_API_KEY", "")
+# Lit les clés depuis data/settings.json (comme le reste d'OGMA)
+def _load_keys():
+    settings_path = Path(__file__).parent.parent.parent / "data" / "settings.json"
+    try:
+        with open(settings_path, encoding="utf-8") as f:
+            s = json.load(f)
+        vault = s.get("api_keys_vault", {})
+        return vault.get("Kie", ""), vault.get("WaveSpeed", "")
+    except Exception as e:
+        print(f"[ERROR] Impossible de lire data/settings.json : {e}")
+        sys.exit(1)
+
+KIE_KEY, WAVESPEED_KEY = _load_keys()
 
 def check_kie():
     print("\n--- Checking Kie.ai Models ---")
