@@ -2,7 +2,7 @@
   "current_profile": "default",
   "profiles": {
     "default": {
-      "user_name": "Yohan",
+      "user_name": "Utilisateur",
       "ai_name": "Assistant",
       "ai_description": "Assistant IA polyvalent",
       "relationship_type": "professional",
@@ -10,7 +10,7 @@
       "created_at": "2025-10-12T14:30:00",
       "last_used": "2025-10-12T14:30:00",
       "description": "Profil par défaut OGMA",
-      "identity_instruction": "Tu dialogues avec Yohan.\n\nDIRECTIVE :\n- Utilise UNIQUEMENT les souvenirs et connaissances concernant cet utilisateur\n- Si tu n'as AUCUN souvenir de cet utilisateur, c'est une première rencontre\n- IGNORE tout souvenir concernant d'autres personnes (même s'ils apparaissent ci-dessous)\n- Adapte ton comportement selon ta relation réelle avec cet utilisateur"
+      "identity_instruction": "Tu dialogues avec {user_name}.\n\nDIRECTIVE :\n- Utilise UNIQUEMENT les souvenirs et connaissances concernant cet utilisateur\n- Si tu n'as AUCUN souvenir de cet utilisateur, c'est une première rencontre\n- IGNORE tout souvenir concernant d'autres personnes (même s'ils apparaissent ci-dessous)\n- Adapte ton comportement selon ta relation réelle avec cet utilisateur"
     }
   },
   "defaults": {

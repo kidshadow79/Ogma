@@ -1334,7 +1334,7 @@ class APIManager:
                 }
                 headers.update({
                     "apikey": self.api_key,
-                    "Client-Agent": "OGMA:2.0:tytan"
+                    "Client-Agent": "OGMA:2.0:kidshadow79"
                 })
 
             elif self.provider == "Google":
@@ -2977,7 +2977,7 @@ class AIHordeManager:
         self.api_key = "0000000000"  # Clé anonyme par défaut
         self.model = "PygmalionAI/pygmalion-2-13b" # Un modèle de texte par défaut
         self.base_url = "https://stablehorde.net/api/v2"
-        self.client_agent = "OGMA:2.0:https://github.com/tytan652/OGMA"
+        self.client_agent = "OGMA:2.0:https://github.com/kidshadow79/Ogma"
 
     def configure(self, api_key: str, model: str):
         if api_key and model:

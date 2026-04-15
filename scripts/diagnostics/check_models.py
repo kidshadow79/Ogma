@@ -1,8 +1,9 @@
+import os
 import requests
 import json
 
-KIE_KEY = "REDACTED_KIE_KEY"
-WAVESPEED_KEY = "REDACTED_WAVESPEED_KEY"
+KIE_KEY = os.environ.get("KIE_API_KEY", "")
+WAVESPEED_KEY = os.environ.get("WAVESPEED_API_KEY", "")
 
 def check_kie():
     print("\n--- Checking Kie.ai Models ---")
