@@ -71,9 +71,9 @@ L'apprentissage du code s'est fait entièrement par la pratique : aucun livre, a
 
 De **Octopus** (juin 2025, premier prototype) à **OGMA** (juillet 2025), l'architecture a évolué progressivement : Gradio cédant la place à NiceGUI, un système mémoire hybride prenant forme, des extensions s'ajoutant au fil des besoins. `ogma_ng.py` dépasse aujourd'hui 7000 lignes — monolithique par pragmatisme, assumé et contrôlé : chaque partie est connue, testée et maintenue par une IA codeuse dédiée.
 
-OGMA est avant tout un terrain d'expérimentation personnel. Le code a des défauts — il est monolithique, il porte les traces d'un apprentissage en cours. Ce qui compte, ce sont les idées explorées et ce qu'elles produisent comme comportements observables.
+OGMA est avant tout un **bac à sable pour prototyper des concepts IA**. Le code a ses défauts — il porte les traces d'un apprentissage en cours. Les fonctionnalités vont du stable à l'expérimental, et c'est voulu : l'objectif est d'explorer des idées rapidement, d'observer des comportements, de casser des choses et d'itérer. Toutes les fonctionnalités ne sont pas prêtes pour la production — certaines sont explicitement marquées comme prototypes. Ce qui compte, ce sont les idées et les comportements observables qu'elles produisent.
 
-Seul et sans réseau de développeurs, je cherche des retours, des échanges, des regards extérieurs. Si tu travailles sur des sujets proches — mémoire, identité, éthique dans les systèmes IA — ton avis m'intéresse sincèrement. OGMA m'a permis de fouler des territoires que je n'aurais jamais imaginé atteindre. Je serais heureux d'en explorer de nouveaux avec d'autres.
+Seul et sans réseau de développeurs, je cherche des retours, des échanges et des perspectives extérieures. Si tu travailles sur des sujets proches — mémoire, identité, éthique dans les systèmes IA — ton avis m'intéresse vraiment.
 
 ---
 
@@ -126,6 +126,9 @@ Journal quotidien enrichi automatiquement. Son contenu est injecté dans le cont
 Les événements planifiés sont traités comme des **souvenirs du futur** : l'IA les garde en tête naturellement, les mentionne quand ils approchent, et adapte son ton au ressenti noté pour chaque événement. Pas une liste de tâches — une présence diffuse de l'agenda dans sa conscience conversationnelle.
 
 ### �️ Project RAG — Mémoire Documentaire Isolée
+
+> ⚗️ **Prototype** — Fonctionnel mais en développement actif. L'API, la stratégie de chunking et la gestion multi-projets peuvent évoluer de façon significative.
+
 Chaque projet dispose de sa propre mémoire sémantique, totalement isolée de la mémoire personnelle :
 
 - Documents indexés par projet (PDF, texte, code, Word...)
@@ -137,6 +140,9 @@ Chaque projet dispose de sa propre mémoire sémantique, totalement isolée de l
 Utile pour un travail collaboratif suivi : revue de code, rédaction de manuscrit, recherche — l'IA n'accède qu'aux documents relatifs au projet actif.
 
 ### 🧠 Cache Cognitif — Mémoire de Travail Conversationnelle
+
+> ⚗️ **Prototype** — L'IA contrôle son propre bloc-notes de façon autonome. Le comportement dépend fortement du modèle utilisé — les résultats varient.
+
 Un bloc-notes personnel que l'IA contrôle directement via des phrases magiques :
 
 ```

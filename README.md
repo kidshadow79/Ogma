@@ -73,9 +73,9 @@ The entire coding journey happened through practice: no books, no courses — ju
 
 From **Octopus** (June 2025, first prototype) to **OGMA** (July 2025), the architecture evolved progressively: Gradio giving way to NiceGUI, a hybrid memory system taking shape, extensions added as needs emerged.
 
-OGMA is above all a personal experimentation ground. The code has its flaws — it bears the marks of a learning journey in progress. What matters are the ideas being explored and the observable behaviors they produce.
+OGMA is above all a **sandbox for prototyping AI concepts**. The code has its flaws — it bears the marks of a learning journey in progress. Features range from stable to experimental, and that’s by design: the goal is to explore ideas quickly, observe behaviors, break things, and iterate. Not every feature is production-ready — some are clearly labeled as prototypes. What matters are the ideas and the observable behaviors they produce.
 
-Alone and without a developer network, I'm looking for feedback, exchanges, and outside perspectives. If you work on related topics — memory, identity, ethics in AI systems — your input genuinely interests me. OGMA has allowed me to explore territories I never imagined reaching. I'd be happy to explore new ones with others.
+Alone and without a developer network, I’m looking for feedback, exchanges, and outside perspectives. If you work on related topics — memory, identity, ethics in AI systems — your input genuinely interests me.
 
 ---
 
@@ -132,6 +132,9 @@ Automatically enriched daily journal. Its content is injected into the context o
 Planned events are treated as **memories of the future**: the AI keeps them in mind naturally, mentions them as they approach, and adapts its tone to the emotional note recorded for each event. Not a task list — a diffuse presence of the agenda in its conversational awareness.
 
 ### �️ Project RAG — Isolated Document Memory
+
+> ⚗️ **Prototype** — Functional but under active development. API, chunking strategy and multi-project management may evolve significantly.
+
 Each project has its own semantic memory, completely isolated from personal memory:
 
 - Documents indexed per project (PDF, text, code, Word...)
@@ -143,6 +146,9 @@ Each project has its own semantic memory, completely isolated from personal memo
 Useful for sustained collaborative work: code review, manuscript writing, research — the AI only accesses documents relevant to the active project.
 
 ### 🧠 Cognitive Cache — Conversational Working Memory
+
+> ⚗️ **Prototype** — The AI controls its own scratchpad autonomously. Behavior depends heavily on the model used — results vary.
+
 A personal scratchpad the AI controls directly via magic phrases:
 
 ```
