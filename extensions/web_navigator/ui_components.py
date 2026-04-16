@@ -500,6 +500,59 @@ class WebNavigatorUI:
         except Exception as e:
             ui.notify(f"❌ Erreur lors de la sauvegarde: {str(e)}", type='negative')
 
+# ========== SPINNER RECHERCHE WEB DANS LE CHAT ==========
+_web_search_spinner_container = None
+
+
+def show_web_search_spinner_in_chat():
+    """Affiche un spinner 'Recherche en cours...' dans la zone de chat OGMA."""
+    global _web_search_spinner_container
+    try:
+        from nicegui import ui as _nicegui_ui
+        import sys
+        ogma_ng = sys.modules.get('ogma_ng')
+        if ogma_ng:
+            chat_inner = getattr(ogma_ng, '_chat_inner', None)
+            if chat_inner:
+                with chat_inner:
+                    _web_search_spinner_container = _nicegui_ui.element('div').classes('web-search-spinner-container').style(
+                        'display:flex;flex-direction:column;align-items:center;justify-content:center;'
+                        'padding:16px;margin:12px auto;max-width:360px;'
+                        'background:rgba(52,152,219,0.1);border:1px solid rgba(52,152,219,0.3);'
+                        'border-radius:14px;'
+                    )
+                    with _web_search_spinner_container:
+                        _nicegui_ui.html(
+                            '<div style="display:flex;flex-direction:column;align-items:center;">'
+                            '<div style="width:32px;height:32px;border:3px solid #1a1a2e;'
+                            'border-top:3px solid #3498db;border-radius:50%;'
+                            'animation:web-spin 1.2s linear infinite;"></div>'
+                            '<span style="font-size:13px;color:#3498db;margin-top:8px;font-style:italic;">'
+                            '&#127760; Recherche en cours...</span>'
+                            '</div>'
+                            '<style>@keyframes web-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>'
+                        )
+                print("[WEB-NAV-UI] Spinner recherche affiché dans le chat")
+    except Exception as e:
+        print(f"[WEB-NAV-UI] Erreur affichage spinner: {e}")
+
+
+def hide_web_search_spinner_in_chat():
+    """Cache le spinner de recherche web dans le chat."""
+    global _web_search_spinner_container
+    try:
+        if _web_search_spinner_container:
+            try:
+                _ = _web_search_spinner_container.client
+                _web_search_spinner_container.delete()
+            except RuntimeError:
+                print("[WEB-NAV-UI] Spinner déjà supprimé (client déconnecté)")
+            _web_search_spinner_container = None
+            print("[WEB-NAV-UI] Spinner recherche retiré du chat")
+    except Exception as e:
+        print(f"[WEB-NAV-UI] Erreur suppression spinner: {e}")
+
+
 def integrate_into_settings(settings_container, web_navigator_extension):
     """
     Intègre l'interface Web Navigator dans les paramètres généraux d'OGMA

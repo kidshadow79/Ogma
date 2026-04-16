@@ -5185,8 +5185,22 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                 if web_nav_ext.config.is_web_search_enabled():
                     print(f"[WEB-NAV-AI] 🚀 Recherche auto-déclenchée par l'IA")
                     
+                    # Afficher le spinner "Recherche en cours..." dans le chat
+                    try:
+                        from extensions.web_navigator.ui_components import show_web_search_spinner_in_chat
+                        show_web_search_spinner_in_chat()
+                    except Exception:
+                        pass
+
                     # Effectuer la recherche
                     web_response, web_file_path = await web_nav_ext.commands.process_internet_request(reply_text)
+
+                    # Retirer le spinner quelle que soit l'issue
+                    try:
+                        from extensions.web_navigator.ui_components import hide_web_search_spinner_in_chat
+                        hide_web_search_spinner_in_chat()
+                    except Exception:
+                        pass
                     
                     if web_response:
                         print(f"[WEB-NAV-AI] ✅ Informations trouvées: {len(web_response)} caractères")
@@ -5197,7 +5211,13 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                         # Contexte web - l'IA synthétise les résultats
                         web_context_message = {
                             'role': 'system',
-                            'content': f"INFORMATIONS WEB RÉCUPÉRÉES:\n\n{web_response}\n\nMaintenant, réponds à la question de l'utilisateur en utilisant ces informations récentes que tu viens de récupérer sur internet."
+                            'content': (
+                                f"RÉSULTATS DE TA RECHERCHE INTERNET (récupérés à l'instant) :\n\n{web_response}\n\n"
+                                "INSTRUCTION IMPÉRATIVE : Tu possèdes maintenant les informations issues de ta recherche. "
+                                "Réponds DIRECTEMENT et avec précision à la question de l'utilisateur en synthétisant ces résultats. "
+                                "NE DIS JAMAIS que tu cherches encore, que la recherche est en cours, ou que tu n'as pas trouvé. "
+                                "Basé-toi UNIQUEMENT sur les informations ci-dessus pour formuler ta réponse."
+                            )
                         }
                         
                         # Filtrer les messages qui poussent le modèle à émettre des phrases magiques :
