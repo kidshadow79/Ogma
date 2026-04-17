@@ -7765,6 +7765,7 @@ async def _async_awakening(notif):
         
         # Biographie Profil
         try:
+            _sync_extensions_ui_globals()  # Doit être fait AVANT l'init biographie pour que memory_manager soit disponible
             _initialize_biography_extension()
         except Exception as e:
             print(f"[INIT] ⚠️ Biography: {e}")

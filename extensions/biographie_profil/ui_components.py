@@ -233,13 +233,6 @@ class BiographyUI:
                             ).classes('bg-blue-500 text-white px-4 py-2')
                             process_btn.tooltip('Analyse les souvenirs FAISS pour cette personne et crée/met à jour sa biographie Volume 1')
 
-                            # Bouton collecte d'infos (NOUVEAU - remplace création Volume 2)
-                            collecte_btn = ui.button(
-                                '� Collecte infos',
-                                on_click=self.collect_biography_info
-                            ).classes('bg-blue-500 text-white px-4 py-2 ml-2')
-                            collecte_btn.tooltip('ÉTAPE 1: Collecte et analyse les données depuis Volume 1, conversation courante et historique pour créer la base JSON structurée')
-
                             # PHASE 1: Génération JSON IA 
                             json_btn = ui.button(
                                 '🧠 Phase 1: JSON IA',
@@ -396,39 +389,6 @@ class BiographyUI:
     # =============================
     # 🏗️ NOUVELLE ARCHITECTURE V2.0 - CALLBACKS
     # =============================
-
-    async def collect_biography_info(self):
-        """
-        ÉTAPE 1: Collecte et analyse les données pour créer le JSON structuré
-        """
-        try:
-            # Récupérer le nom saisi
-            if not self.name_input or not self.name_input.value.strip():
-                ui.notify('⚠️ Veuillez saisir un nom d\'utilisateur', type='warning')
-                return
-
-            user_name = self.name_input.value.strip()
-            
-            # Notification de démarrage
-            ui.notify(f'📊 Démarrage de la collecte d\'infos pour {user_name}...', type='info')
-            print(f"[BIOGRAPHY-UI] 📊 Collecte d'infos pour {user_name}")
-            
-            # Appeler la nouvelle méthode de traitement structuré
-            success = await self.biography_manager.process_structured_biography(
-                user_name=user_name,
-                conversation_source="current"
-            )
-            
-            if success:
-                ui.notify(f'✅ Collecte d\'infos terminée pour {user_name} ! Base JSON structurée créée/mise à jour.', type='positive')
-                print(f"[BIOGRAPHY-UI] ✅ Collecte d'infos réussie pour {user_name}")
-            else:
-                ui.notify(f'❌ Échec de la collecte d\'infos pour {user_name}', type='negative')
-                print(f"[BIOGRAPHY-UI] ❌ Échec collecte d'infos pour {user_name}")
-                
-        except Exception as e:
-            print(f"[BIOGRAPHY-UI] ❌ Erreur collecte infos: {e}")
-            ui.notify(f'❌ Erreur lors de la collecte d\'infos: {e}', type='negative')
 
     async def generate_volume2_json_ia(self):
         """
