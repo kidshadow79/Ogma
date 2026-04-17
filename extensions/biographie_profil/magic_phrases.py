@@ -263,13 +263,7 @@ class BiographyMagicPhrases:
                 if not user_name:
                     return "[BIOGRAPHY] ⚠️ Impossible de détecter votre nom. Présentez-vous d'abord (ex: 'Salut c'est [votre nom]')."
 
-                # Créer le Volume 2
-                volume2_path = await self.biography_manager.create_volume2_narrative(user_name)
-
-                if volume2_path:
-                    return f"[BIOGRAPHY] ✅ **Volume 2 créé avec succès !**\n\n📖 Votre biographie narrative complète a été générée et sauvegardée dans:\n`{volume2_path}`\n\n💡 Cette analyse psychologique approfondie contient votre portrait narratif, vos patterns relationnels et votre évolution personnelle."
-                else:
-                    return f"[BIOGRAPHY] ❌ Erreur lors de la création du Volume 2 pour {user_name}. Vérifiez que le Volume 1 existe (utilisez le bouton de traitement des souvenirs d'abord)."
+                return f"[BIOGRAPHY] ℹ️ Pour mettre à jour votre biographie, utilisez les boutons 🧠 Phase 1 et 📖 Phase 2 dans les paramètres de l'extension Biographie (bouton ✒️ en haut)."
         return None
 
     async def _detect_current_user(self) -> Optional[str]:
