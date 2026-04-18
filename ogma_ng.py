@@ -2283,52 +2283,7 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
     except Exception as e:
         print(f"[JOURNAL-EXTENSION] ERROR Erreur traitement phrase magique: {e}")
 
-    # 📖 BIOGRAPHIE PROFIL: Détection phrases magiques et injection automatique
-    # 🔧 FIX: Utiliser get_biography_available() pour récupérer l'état depuis ogma_extensions_ui
-    biography_is_available = get_biography_available()
-    print(f"[BIOGRAPHY-DEBUG] Début détection phrase magique pour: '{text}'")
-    print(f"[BIOGRAPHY-DEBUG] _biography_available = {biography_is_available}")
-    try:
-        if biography_is_available:
-            print(f"[BIOGRAPHY-DEBUG] Extension disponible, import...")
-            from extensions.biographie_profil import get_biography_magic_phrases
-            biography_magic = get_biography_magic_phrases()
-            print(f"[BIOGRAPHY-DEBUG] biography_magic = {biography_magic}")
-
-            if biography_magic:
-                print(f"[BIOGRAPHY-DEBUG] Appel handle_magic_phrases...")
-                # Vérifier si c'est une phrase magique utilisateur (mise à jour)
-                # 🎯 NOUVEAU: Passer _chat_history pour déduplication anti-redondance
-                magic_response = await biography_magic.handle_magic_phrases(
-                    text, 
-                    is_ai_message=False,
-                    conversation_history=_chat_history  # Déduplication intelligente
-                )
-                print(f"[BIOGRAPHY-DEBUG] magic_response = {magic_response}")
-
-                if magic_response:
-                    content = magic_response.get('content', '')
-                    response_type = magic_response.get('type', 'display')
-
-                    if response_type == 'display':
-                        print(f"[BIOGRAPHY-EXTENSION] ✨ Phrase magique utilisateur traitée - affichage")
-                        # Afficher la réponse dans le bon contexte UI
-                        if _chat_inner is not None:
-                            with _chat_inner:
-                                _message('assistant', content)
-                        if input_el and not text_override:
-                            input_el.value = ''
-                        return
-                    elif response_type == 'inject':
-                        print(f"[BIOGRAPHY-EXTENSION] 🔄 Injection automatique biographie détectée")
-                        # 🚀 FIX: Stocker directement pour injection dans ai_content (ligne 3648)
-                        # Sera utilisé plus bas dans le workflow au lieu de double appel
-                        biography_context_early = content
-
-    except Exception as e:
-        print(f"[BIOGRAPHY-EXTENSION] ERROR Erreur traitement phrase magique: {e}")
-
-    # 📝 FILE WRITER: Détection précoce demande /doc pour injection instruction markdown
+    #  FILE WRITER: Détection précoce demande /doc pour injection instruction markdown
     is_doc_request = False
     try:
         # Utiliser le detector directement pour éviter dépendance à l'initialisation de l'agent
@@ -2586,7 +2541,8 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                                                     content,
                                                     chat_controller=_chat_controller,
                                                     conversation_context=conv_ctx,
-                                                    interlocutor="Introspection"
+                                                    interlocutor="Introspection",
+                                                    user_tag=_current_user_name
                                                 )
                                                 set_archiviste_working(False)
                                                 if ok:
@@ -2616,23 +2572,6 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                                             print(f"[INTROSPECTION-DETECT] ✅ Journal: phrase magique traitée")
                                     except Exception as je:
                                         print(f"[INTROSPECTION-DETECT] ⚠️ Erreur journal: {je}")
-                                
-                                # 3. Biographie Profil
-                                biography_available = get_biography_available()
-                                if biography_available:
-                                    try:
-                                        from extensions.biographie_profil import get_biography_magic_phrases
-                                        biography_magic = get_biography_magic_phrases()
-                                        if biography_magic:
-                                            bio_response = await biography_magic.handle_magic_phrases(
-                                                scan_text,
-                                                is_ai_message=True,
-                                                conversation_history=_chat_history
-                                            )
-                                            if bio_response:
-                                                print(f"[INTROSPECTION-DETECT] ✅ Biographie: phrase magique traitée")
-                                    except Exception as be:
-                                        print(f"[INTROSPECTION-DETECT] ⚠️ Erreur biographie: {be}")
                                 
                             except Exception as detect_err:
                                 print(f"[INTROSPECTION-DETECT] ❌ Erreur détection: {detect_err}")
@@ -2868,7 +2807,7 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                     mem_id = f"usr-{uuid.uuid4()}"
                     # 🌀 SPINNER: Activer le spinner Archiviste pendant l'enrichissement mémoire
                     set_archiviste_working(True)
-                    ok = await mem.add_memory(mem_id, content)
+                    ok = await mem.add_memory(mem_id, content, user_tag=_current_user_name)
                     set_archiviste_working(False)
                     if ok:
                         _notify_safe(f"SAVE Souvenir mémorisé: {content[:80]}...", 'positive')
@@ -2922,7 +2861,7 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                                     f"Ressenti: {event_data['emotional_note']}"
                                 )
                                 # Utiliser add_memory pour stockage permanent (SQLite + FAISS)
-                                ok_mem = await mem.add_memory(f"plan-{uuid.uuid4()}", memory_content)
+                                ok_mem = await mem.add_memory(f"plan-{uuid.uuid4()}", memory_content, user_tag=_current_user_name)
                                 if ok_mem:
                                     planner.delete_event(event_data['id'])
                                     _notify_safe(f"💾 Archivé dans la mémoire OGMA", 'positive')
@@ -2961,60 +2900,8 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
     # Pour l'IA, utiliser content_parts si on a des images, sinon le texte simple
     ai_content = content_parts if len(content_parts) > 1 else final_message
 
-    # 📖 BIOGRAPHIE PROFIL: Préparation contexte biographique pour injection IA
-    biography_context = ""
-    try:
-        # 🚀 FIX: Utiliser detection déjà effectuée ligne 3169 (évite double appel Archiviste)
-        if 'biography_context_early' in locals() and biography_context_early:
-            biography_context = f"\n\n{biography_context_early}"
-            print(f"[BIOGRAPHY-EXTENSION] 🎯 Injection biographie ajoutée au contexte IA (depuis handle_magic_phrases)")
-            
-            # 🧠 FLUX COGNITIF - Logger injection biographie AVEC CONTENU
-            try:
-                from extensions.flux_cognitif import log_cognitive_event
-                import re as _re_bio
-                
-                # Extraire contenu structuré
-                match_count = _re_bio.search(r'(\d+)\s+souvenirs? pertinents?', biography_context_early)
-                count = int(match_count.group(1)) if match_count else 0
-                
-                # Extraire les souvenirs (format: "- Titre: ..." ou "• Titre: ...")
-                memories_lines = _re_bio.findall(r'[•\-]\s*(.+?)(?:\n|$)', biography_context_early)
-                memories_content = []
-                for line in memories_lines[:10]:  # Max 10
-                    # Nettoyer et limiter longueur
-                    clean_line = line.strip()[:80]
-                    if clean_line:
-                        memories_content.append(f"• {clean_line}")
-                
-                # Message avec contenu
-                if memories_content:
-                    content_str = '\n'.join(memories_content)
-                    message = f'📖 {count} souvenirs bio:\n{content_str}'
-                    if len(memories_lines) > 10:
-                        message += f'\n... +{len(memories_lines) - 10} autres'
-                else:
-                    message = f'Biographie ({count} souvenirs)'
-                
-                log_cognitive_event('biography', message)
-            except Exception as e:
-                print(f"[FLUX-COGNITIF] Erreur log bio: {e}")
-
-    except Exception as e:
-        print(f"[BIOGRAPHY-EXTENSION] ERROR Erreur préparation contexte biographique: {e}")
-
-    # Ajouter le contexte biographique au message IA si disponible
-    if biography_context:
-        if isinstance(ai_content, list):
-            # Multimodal: ajouter au texte du premier élément
-            ai_content[0]["text"] += biography_context
-        else:
-            # Texte simple: ajouter directement
-            ai_content += biography_context
-
     # === INJECTION PRÉNOM UTILISATEUR (SESSION) ===
     # Ajouter tag [Prénom] au message pour l'IA (pas dans l'affichage UI)
-    global _current_user_name
     user_prefix = f"[{_current_user_name}] " if _current_user_name else ""
     
     # Appliquer le préfixe au message final pour l'IA
@@ -3382,7 +3269,29 @@ setTimeout(()=>{
                 log_cognitive_event('archiviste', f'Ego: {groups_str}')
         except Exception as e:
             print(f"[FLUX-COGNITIF] Erreur log ego: {e}")
-    
+
+    # 🧬 BIO ACTIVATION - Injection ciblée profil biographique utilisateur
+    # Déclenché sur magic phrases (pronoms possessifs, prénom) ou premier message
+    if _user_authenticated and _current_user_name:
+        try:
+            from modules.logic.bio_activation import activate_bio_groups
+            archiviste_ctrl = _ensure_archiviste_controller()
+            if archiviste_ctrl:
+                is_new_session_bio = len(_chat_history) < 2
+                print("[BIO-ACTIVATION] Sélection groupes biographiques...")
+                bio_injection = await activate_bio_groups(
+                    text, archiviste_ctrl, _current_user_name, is_new_session_bio
+                )
+                if bio_injection:
+                    base_instructions = f"{base_instructions}\n\n{bio_injection}"
+                    print(f"[BIO-ACTIVATION] Profil injecté ({len(bio_injection)} chars)")
+                else:
+                    print("[BIO-ACTIVATION] Aucun groupe pertinent (message neutre)")
+        except ImportError:
+            print("[BIO-ACTIVATION] Module non disponible")
+        except Exception as e:
+            print(f"[BIO-ACTIVATION] Erreur activation: {e}")
+
     # 🎯 CAPABILITY ADVISOR - Suggestion intelligente capacités
     capability_suggestion = None
     
@@ -5268,85 +5177,6 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
             import traceback
             traceback.print_exc()
 
-        # 📖 BIOGRAPHY AUTO-DÉCLENCHÉE PAR L'IA
-        # Détecte quand l'IA dit "il faut que je consulte la biographie de [prénom]"
-        try:
-            biography_pattern = r"il\s+faut\s+que\s+je\s+consulte\s+la\s+biographie\s+de\s+([a-zA-ZÀ-ÿ]+)"
-            biography_match = re.search(biography_pattern, reply_text, re.IGNORECASE)
-            biography_is_available = get_biography_available()
-            
-            print(f"[BIOGRAPHY-AI-DEBUG] Pattern check: match={biography_match is not None}, available={biography_is_available}")
-            if biography_match:
-                print(f"[BIOGRAPHY-AI-DEBUG] Match trouvé: {biography_match.group(0)}")
-            
-            if biography_match and biography_is_available:
-                target_name = biography_match.group(1).strip()
-                print(f"[BIOGRAPHY-AI] 📖 L'IA demande consultation biographie: {target_name}")
-                
-                from extensions.biographie_profil import get_biography_magic_phrases
-                biography_magic = get_biography_magic_phrases()
-                
-                if biography_magic:
-                    # Appeler la méthode avec is_ai_message=True
-                    bio_result = await biography_magic.handle_magic_phrases(
-                        reply_text,
-                        is_ai_message=True,
-                        conversation_history=_chat_history
-                    )
-                    
-                    if bio_result and bio_result.get('type') == 'display':
-                        bio_content = bio_result.get('content', '')
-                        print(f"[BIOGRAPHY-AI] ✅ Biographie trouvée: {len(bio_content)} chars")
-                        
-                        # Régénérer la réponse avec le contexte biographique
-                        bio_context_message = {
-                            'role': 'system',
-                            'content': f"{bio_content}\n\nMaintenant, utilise ces informations biographiques pour répondre de manière personnalisée."
-                        }
-                        
-                        # Même filtre que pour la régénération web : retirer les directives
-                        # qui ordonnent au modèle d'émettre une phrase magique, sinon un modèle
-                        # très instruction-following (ex: Mistral) les réémettrait au lieu de synthétiser.
-                        _cap_markers_bio = (
-                            'DIRECTIVE TECHNIQUE - PHRASE MAGIQUE REQUISE',
-                            'DIRECTIVE SYSTÈME - PHRASE MAGIQUE À INCLURE',
-                            'phrases magiques sont des COMMANDES SYSTÈME',
-                        )
-                        filtered_messages_bio = [
-                            m for m in messages
-                            if not (m.get('role') == 'system' and any(marker in m.get('content', '') for marker in _cap_markers_bio))
-                        ]
-                        regeneration_messages = filtered_messages_bio + [bio_context_message]
-                        
-                        new_reply, new_err = await ctrl.call_chat_api(
-                            messages=regeneration_messages,
-                            max_tokens=ctrl.max_tokens,
-                            context_length=ctrl.context_length,
-                            temperature=ctrl.temperature,
-                            is_json=False
-                        )
-                        
-                        if not new_err and new_reply:
-                            print(f"[BIOGRAPHY-AI] ✅ Réponse régénérée avec contexte biographique")
-                            cleaned_reply = new_reply
-                            _pending_notifications.append((f"📖 Biographie {target_name} consultée", 'positive'))
-                        else:
-                            print(f"[BIOGRAPHY-AI] ⚠️ Échec régénération - affichage biographie dans chat")
-                            # Fallback: afficher la biographie dans le chat
-                            if _chat_inner:
-                                with _chat_inner:
-                                    _message('system', bio_content)
-                    else:
-                        print(f"[BIOGRAPHY-AI] ❌ Biographie non trouvée pour {target_name}")
-                        _pending_notifications.append((f"❌ Biographie {target_name} introuvable", 'negative'))
-                else:
-                    print(f"[BIOGRAPHY-AI] ⚠️ Biography magic phrases non initialisé")
-                    
-        except Exception as e:
-            print(f"[BIOGRAPHY-AI] ❌ Erreur consultation biographie: {e}")
-            import traceback
-            traceback.print_exc()
-
         # 🧠 INTROSPECTION AUTO-DÉCLENCHÉE PAR L'IA
         # Détecte quand l'IA dit "il faut que je réfléchisse..." et lance l'introspection
         try:
@@ -5534,23 +5364,6 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                                                 except Exception as je:
                                                     print(f"[INTROSPECTION-MAGIC] ⚠️ Erreur journal: {je}")
                                             
-                                            # 2. Biographie Profil
-                                            biography_available = get_biography_available()
-                                            if biography_available:
-                                                try:
-                                                    from extensions.biographie_profil import get_biography_magic_phrases
-                                                    biography_magic = get_biography_magic_phrases()
-                                                    if biography_magic:
-                                                        bio_response = await biography_magic.handle_magic_phrases(
-                                                            synthesis,
-                                                            is_ai_message=True,
-                                                            conversation_history=_chat_history
-                                                        )
-                                                        if bio_response:
-                                                            print(f"[INTROSPECTION-MAGIC] ✅ Biographie: phrase magique détectée et traitée")
-                                                except Exception as be:
-                                                    print(f"[INTROSPECTION-MAGIC] ⚠️ Erreur biographie: {be}")
-                                            
                                             print(f"[INTROSPECTION-MAGIC] ✅ Analyse phrases magiques terminée")
                                         except Exception as magic_err:
                                             print(f"[INTROSPECTION-MAGIC] ❌ Erreur analyse phrases magiques: {magic_err}")
@@ -5579,7 +5392,8 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                                                                 content,
                                                                 chat_controller=_chat_controller,
                                                                 conversation_context=mem_conv_context,
-                                                                interlocutor="Introspection"
+                                                                interlocutor="Introspection",
+                                                                user_tag=_current_user_name
                                                             )
                                                             set_archiviste_working(False)
                                                             if ok:
@@ -6462,7 +6276,8 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                             content,
                             chat_controller=_chat_controller,
                             conversation_context=conversation_context,
-                            interlocutor="Utilisateur"
+                            interlocutor="Utilisateur",
+                            user_tag=_current_user_name
                         )
                         set_archiviste_working(False)
                         print(f"[MAGIC-DEBUG] Résultat add_memory: {ok}")
@@ -6491,7 +6306,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                     _cc_fallback_id = _loaded_conversation_filename.replace('.json', '')
                 elif _current_conversation_id:
                     _cc_fallback_id = _current_conversation_id
-                cache_ops = apply_cache_operations(cleaned_reply, conv_id=_cc_fallback_id)
+                cache_ops = apply_cache_operations(cleaned_reply, conv_id=_cc_fallback_id, user_tag=_current_user_name)
                 if cache_ops:
                     from extensions.flux_cognitif import log_cognitive_event
                     for op in cache_ops:
@@ -6553,7 +6368,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                                         f"(Date prévue: {event_data['target_date']}). "
                                         f"Ressenti: {event_data['emotional_note']}"
                                     )
-                                    ok_mem = await mem.add_memory(f"plan-{uuid.uuid4()}", memory_content)
+                                    ok_mem = await mem.add_memory(f"plan-{uuid.uuid4()}", memory_content, user_tag=_current_user_name)
                                     if ok_mem:
                                         planner.delete_event(event_data['id'])
                                         _notify_safe(f"💾 Archivé dans la mémoire OGMA", 'positive')
@@ -8013,6 +7828,7 @@ def _show_login_popup():
             global _current_user_name, _user_authenticated
             _current_user_name = name
             _user_authenticated = True
+            summarizer.set_user_tag(name)
             
             print(f"[SESSION] ✅ Login réussi: {name}")
             
@@ -8059,6 +7875,7 @@ def main_page():
         # Auto-login silencieux
         _current_user_name = stored_user['name']
         _user_authenticated = True
+        summarizer.set_user_tag(stored_user['name'])
         print(f"[SESSION] ✅ Auto-login: {_current_user_name}")
         ui.notify(f"Session restaurée - Bienvenue {_current_user_name} 👋", 
                   type='info', position='top', timeout=2000)
@@ -8340,6 +8157,7 @@ def main_page():
                             
                             _current_user_name = None
                             _user_authenticated = False
+                            summarizer.set_user_tag(None)
                         except Exception as e:
                             print(f"[SESSION] ⚠️ Erreur déconnexion: {e}")
                         
@@ -8626,6 +8444,19 @@ def run_ogma(host: str = 'localhost', port: int = 8080):
                 asyncio.run(compile_ego_incremental())
             except Exception as e:
                 print(f"[CLEANUP] ⚠️ Erreur compilation ego (non bloquant): {e}")
+            
+            # 📖 BIOGRAPHIE - Consolidation signaux bio à la fermeture
+            try:
+                if _current_user_name:
+                    from extensions.biographie_profil import get_biography_manager
+                    bm = get_biography_manager()
+                    if bm:
+                        print(f"[CLEANUP] 📖 Consolidation biographie {_current_user_name}...")
+                        import asyncio
+                        asyncio.run(bm.generate_volume2_json(_current_user_name))
+                        print(f"[CLEANUP] ✅ Biographie consolidée")
+            except Exception as e:
+                print(f"[CLEANUP] ⚠️ Erreur biographie (non bloquant): {e}")
             
             print("[CLEANUP] Nettoyage terminé")
         except Exception as e:
@@ -9005,7 +8836,8 @@ async def process_external_message(
                         content,
                         chat_controller=ctrl,
                         conversation_context=conversation_context,
-                        interlocutor=user_name
+                        interlocutor=user_name,
+                        user_tag=user_name
                     )
                     if ok:
                         ai_memorized = True

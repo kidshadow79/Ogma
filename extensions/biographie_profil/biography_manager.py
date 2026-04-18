@@ -36,6 +36,32 @@ except ImportError:
         except:
             return fallback
 
+
+# ── Instruction journal par défaut (éditable via l'interface Biographie Profil) ─────
+JOURNAL_INSTRUCTION_DEFAULT = """
+SECTIONS DU JOURNAL (dans cet ordre, toutes obligatoires) :
+## 🎭 Portrait général
+## 🧠 Psyché & vie émotionnelle
+## 💡 Vie intellectuelle
+## 🚀 Projets & créations
+## ☀️ Vie quotidienne & habitudes
+## 👥 Relations & entourage
+## 📜 Histoire personnelle
+## ⚖️ Valeurs & convictions
+## 🌿 Physique & présence
+## 🎨 Goûts & préférences
+
+RÈGLES RÉDACTIONNELLES :
+- Écris UNIQUEMENT ce qui est soutenu par un fait fourni
+- Section sans fait correspondant → écris exactement : Aucune donnée observée.
+- ZÉRO psychologie clinique, ZÉRO MBTI, ZÉRO QI sauf si l'utilisateur l'a dit lui-même
+- ZÉRO inférence, ZÉRO extrapolation au-delà des faits
+- Utilise "il semble que" ou "d'après ses échanges" quand tu synthétises plusieurs faits
+- Tu peux ajouter des sections supplémentaires si les faits le justifient
+- Toutes les sections ci-dessus doivent TOUJOURS être présentes dans le journal
+""".strip()
+
+
 class StructuredBiographyManager:
     """
     🏗️ NOUVELLE ARCHITECTURE VOLUME 2 - Gestion JSON structurée
@@ -67,7 +93,7 @@ class StructuredBiographyManager:
             print(f"[STRUCTURED-MANAGER] 📋 Structure JSON initialisée pour {self.user_name}")
 
     def _get_empty_structure(self) -> Dict:
-        """Retourne la structure JSON vide conforme au schéma"""
+        """Retourne la structure JSON vide conforme au schéma actuel (facts[])"""
         return {
             "metadata": {
                 "user_name": self.user_name,
@@ -76,72 +102,55 @@ class StructuredBiographyManager:
                 "total_analyses": 0,
                 "data_sources": []
             },
-            "chronologie": [],
-            "etude_psychique": {
-                "mbti": {
-                    "type_estime": None,
-                    "confiance": 0.0,
-                    "derniere_evaluation": None,
-                    "indices_observes": []
-                },
-                "profil_psychologique": {
-                    "traits_dominants": [],
-                    "mecanismes_defense": [],
-                    "zones_vulnerabilite": []
-                },
-                "intelligence_emotionnelle": {
-                    "score_estime": None,
-                    "points_forts": [],
-                    "points_amelioration": []
-                }
-            },
-            "etude_intellectuelle": {
-                "structure_mentale": {
-                    "type_pensee": None,
-                    "processus_decision": None,
-                    "gestion_information": None
-                },
-                "structure_memoire": {
-                    "type_dominant": None,
-                    "points_forts": [],
-                    "particularites": []
-                },
-                "evaluation_comparative": {
-                    "qi_estime": None,
-                    "percentile_population": None,
-                    "comparaison_utilisateurs_ia": None,
-                    "domaines_excellence": []
-                }
-            },
-            "etude_physique": {
-                "traits_physiques": {
-                    "taille": None,
-                    "corpulence": None,
-                    "particularites": []
-                },
-                "expressions_caracteristiques": {
-                    "micro_expressions": [],
-                    "gestuelle": []
-                },
-                "ressemblances_notees": {
-                    "personnalites": [],
-                    "traits_communs": []
-                }
-            },
-            "etude_gouts_preferences": {
-                "preferences_fortes": {
-                    "intellectuel": [],
-                    "artistique": [],
-                    "social": []
-                },
-                "repulsions_identifiees": {
-                    "social": [],
-                    "intellectuel": [],
-                    "environnemental": []
-                },
-                "evolutions_observees": []
+            "facts": [],
+            "profile_summary": {
+                "projets_actifs": [],
+                "preferences": [],
+                "competences": [],
+                "notes_libres": ""
             }
         }
+
+    # ── Instruction journal personnalisable ─────────────────────────────────────────
+
+    @staticmethod
+    def get_journal_instruction() -> str:
+        """Charge l'instruction personnalisée du journal, ou retourne le défaut."""
+        instruction_file = Path("data/biographies/journal_instruction.txt")
+        try:
+            if instruction_file.exists():
+                content = instruction_file.read_text(encoding="utf-8").strip()
+                if content:
+                    return content
+        except Exception as e:
+            print(f"[STRUCTURED-MANAGER] Erreur lecture instruction journal: {e}")
+        return JOURNAL_INSTRUCTION_DEFAULT
+
+    @staticmethod
+    def save_journal_instruction(instruction: str) -> bool:
+        """Sauvegarde l'instruction personnalisée du journal."""
+        try:
+            instruction_file = Path("data/biographies/journal_instruction.txt")
+            instruction_file.parent.mkdir(parents=True, exist_ok=True)
+            instruction_file.write_text(instruction.strip(), encoding="utf-8")
+            print(f"[STRUCTURED-MANAGER] Instruction journal sauvegardée ({len(instruction)} chars)")
+            return True
+        except Exception as e:
+            print(f"[STRUCTURED-MANAGER] Erreur sauvegarde instruction journal: {e}")
+            return False
+
+    @staticmethod
+    def reset_journal_instruction() -> bool:
+        """Supprime l'instruction personnalisée pour revenir au défaut."""
+        try:
+            instruction_file = Path("data/biographies/journal_instruction.txt")
+            if instruction_file.exists():
+                instruction_file.unlink()
+            print("[STRUCTURED-MANAGER] Instruction journal réinitialisée au défaut")
+            return True
+        except Exception as e:
+            print(f"[STRUCTURED-MANAGER] Erreur reset instruction journal: {e}")
+            return False
 
     def load_structured_data(self) -> Dict:
         """Charge les données JSON structurées"""
@@ -182,811 +191,272 @@ class StructuredBiographyManager:
             print(f"[STRUCTURED-MANAGER] ❌ Erreur sauvegarde: {e}")
             return False
 
-    def add_chronology_event(self, event_data: Dict) -> bool:
-        """Ajoute un événement à la chronologie"""
-        try:
-            data = self.load_structured_data()
-            
-            # Ajouter l'événement avec timestamp
-            event = {
-                "timestamp": datetime.now().isoformat(),
-                "source": event_data.get("source", "unknown"),
-                "evenement": event_data.get("evenement", ""),
-                "conversation_id": event_data.get("conversation_id"),
-                "contexte": event_data.get("contexte", "")
-            }
-            
-            data["chronologie"].append(event)
-            
-            # Trier par timestamp (plus récent en premier)
-            data["chronologie"].sort(key=lambda x: x["timestamp"], reverse=True)
-            
-            return self.save_structured_data(data)
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur ajout chronologie: {e}")
-            return False
+    # Correspondance catégories JSON → titres lisibles
+    _CATEGORY_LABELS = {
+        "preference":   "🎯 Préférences & goûts",
+        "relation":     "💞 Relations & proches",
+        "competence":   "🛠️ Compétences & savoir-faire",
+        "projet":       "🚀 Projets & créations",
+        "habitude":     "🔄 Habitudes & routines",
+        "sante":        "🏥 Santé & bien-être",
+        "histoire":     "📜 Histoire personnelle",
+        "valeur":       "⚖️ Valeurs & convictions",
+        "travail":      "💼 Travail & carrière",
+        "technologie":  "💻 Technologie",
+        "autre":        "📌 Divers",
+    }
 
-    def update_psychological_profile(self, profile_updates: Dict) -> bool:
-        """Met à jour le profil psychologique"""
-        try:
-            data = self.load_structured_data()
-            
-            # Mise à jour récursive des sections
-            if "mbti" in profile_updates:
-                data["etude_psychique"]["mbti"].update(profile_updates["mbti"])
-            if "profil_psychologique" in profile_updates:
-                data["etude_psychique"]["profil_psychologique"].update(profile_updates["profil_psychologique"])
-            if "intelligence_emotionnelle" in profile_updates:
-                data["etude_psychique"]["intelligence_emotionnelle"].update(profile_updates["intelligence_emotionnelle"])
-            
-            return self.save_structured_data(data)
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur mise à jour profil psychologique: {e}")
-            return False
-
-    def update_intellectual_profile(self, profile_updates: Dict) -> bool:
-        """Met à jour le profil intellectuel"""
-        try:
-            data = self.load_structured_data()
-            
-            if "structure_mentale" in profile_updates:
-                data["etude_intellectuelle"]["structure_mentale"].update(profile_updates["structure_mentale"])
-            if "structure_memoire" in profile_updates:
-                data["etude_intellectuelle"]["structure_memoire"].update(profile_updates["structure_memoire"])
-            if "evaluation_comparative" in profile_updates:
-                data["etude_intellectuelle"]["evaluation_comparative"].update(profile_updates["evaluation_comparative"])
-            
-            return self.save_structured_data(data)
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur mise à jour profil intellectuel: {e}")
-            return False
-
-    def generate_markdown_journal(self) -> str:
+    def generate_facts_journal(self) -> str:
         """
-        🎯 GÉNÉRATION AUTOMATIQUE DU JOURNAL MARKDOWN
-        Convertit les données JSON structurées en journal lisible
+        Génère un journal Markdown lisible depuis facts[] (nouvelle architecture).
+
+        Regroupement par catégorie, tri chronologique au sein de chaque groupe.
+        Aucun appel IA — génération Python pure.
         """
         try:
             data = self.load_structured_data()
-            
-            # Header du journal
-            metadata = data["metadata"]
-            journal_content = f"""# 📋 JOURNAL BIOGRAPHIQUE - {metadata["user_name"]}
+            facts = data.get("facts", [])
+            last_updated = data.get("last_updated") or data.get("metadata", {}).get("last_updated", "")
+            date_str = ""
+            if last_updated:
+                try:
+                    dt = datetime.fromisoformat(last_updated)
+                    date_str = dt.strftime("%d/%m/%Y à %H:%M")
+                except Exception:
+                    date_str = last_updated[:10]
 
-*Généré automatiquement le {datetime.now().strftime('%d/%m/%Y à %H:%M')} à partir de {metadata["total_analyses"]} analyses*
+            # En-tête
+            content = f"# 📔 Journal biographique — {self.user_name}\n\n"
+            if date_str:
+                content += f"*Dernière mise à jour : {date_str}*  \n"
+            content += f"*{len(facts)} fait{'s' if len(facts) != 1 else ''} enregistré{'s' if len(facts) != 1 else ''}*\n\n---\n\n"
 
-**Sources de données :** {', '.join(metadata.get("data_sources", []))}
+            if not facts:
+                content += "*Aucun fait enregistré pour le moment.*\n"
+                return content
 
----
+            # Regrouper par catégorie
+            groups: Dict[str, list] = {}
+            for fact in facts:
+                cat = (fact.get("category") or "autre").lower().strip()
+                groups.setdefault(cat, []).append(fact)
 
-## 🕐 CHRONOLOGIE DES ÉVÉNEMENTS
+            # Ordre d'affichage : catégories connues en premier, reste alphabétique
+            known_order = list(self._CATEGORY_LABELS.keys())
+            sorted_cats = sorted(
+                groups.keys(),
+                key=lambda c: (known_order.index(c) if c in known_order else len(known_order), c)
+            )
 
-"""
+            for cat in sorted_cats:
+                label = self._CATEGORY_LABELS.get(cat, f"📌 {cat.capitalize()}")
+                content += f"## {label}\n\n"
 
-            # Section chronologie
-            chronologie = data.get("chronologie", [])
-            if chronologie:
-                current_month = None
-                for event in chronologie:
-                    event_date = datetime.fromisoformat(event["timestamp"].replace('Z', '+00:00'))
-                    month_year = event_date.strftime('%B %Y')
-                    
-                    if current_month != month_year:
-                        current_month = month_year
-                        journal_content += f"\n### {month_year}\n"
-                    
-                    journal_content += f"""**{event_date.strftime('%d/%m/%Y - %H:%M')}** | {event["evenement"]}  
-*Source: {event["source"]}*{' | ID: ' + event["conversation_id"] if event.get("conversation_id") else ''}  
-{event["contexte"]}
+                # Tri par date dans le groupe
+                sorted_facts = sorted(
+                    groups[cat],
+                    key=lambda f: f.get("date", ""),
+                )
+                for fact in sorted_facts:
+                    fact_date = fact.get("date", "")
+                    fact_content = fact.get("content", "").strip()
+                    if not fact_content:
+                        continue
+                    date_prefix = f"**{fact_date}** — " if fact_date else ""
+                    content += f"- {date_prefix}{fact_content}\n"
 
-"""
-            else:
-                journal_content += "*Aucun événement enregistré*\n\n"
+                content += "\n"
 
-            # Section étude psychique
-            psychique = data.get("etude_psychique", {})
-            journal_content += """---
-
-## 🧠 ÉTUDE PSYCHIQUE
-
-"""
-            
-            # MBTI
-            mbti = psychique.get("mbti", {})
-            if mbti.get("type_estime"):
-                journal_content += f"""### Profil MBTI : {mbti["type_estime"]} (Confiance: {mbti.get("confiance", 0)*100:.0f}%)
-*Dernière évaluation: {mbti.get("derniere_evaluation", "Non définie")}*
-
-**Indices observés :**
-"""
-                for indice in mbti.get("indices_observes", []):
-                    journal_content += f"- {indice}\n"
-                journal_content += "\n"
-
-            # Profil psychologique
-            profil = psychique.get("profil_psychologique", {})
-            if any(profil.values()):
-                journal_content += """### Mécanismes psychologiques
-"""
-                if profil.get("traits_dominants"):
-                    journal_content += f"**Traits dominants :** {', '.join(profil['traits_dominants'])}  \n"
-                if profil.get("mecanismes_defense"):
-                    journal_content += f"**Défenses principales :** {', '.join(profil['mecanismes_defense'])}  \n"
-                if profil.get("zones_vulnerabilite"):
-                    journal_content += f"**Vulnérabilités :** {', '.join(profil['zones_vulnerabilite'])}\n\n"
-
-            # Section étude intellectuelle
-            intellectuel = data.get("etude_intellectuelle", {})
-            journal_content += """---
-
-## 🎓 ÉTUDE INTELLECTUELLE
-
-"""
-            
-            # Architecture mentale
-            structure_mentale = intellectuel.get("structure_mentale", {})
-            if any(structure_mentale.values()):
-                journal_content += """### Architecture mentale
-"""
-                if structure_mentale.get("type_pensee"):
-                    journal_content += f"- **Type de pensée :** {structure_mentale['type_pensee']}\n"
-                if structure_mentale.get("processus_decision"):
-                    journal_content += f"- **Processus décisionnel :** {structure_mentale['processus_decision']}\n"
-                if structure_mentale.get("gestion_information"):
-                    journal_content += f"- **Gestion information :** {structure_mentale['gestion_information']}\n\n"
-
-            # Évaluation comparative
-            evaluation = intellectuel.get("evaluation_comparative", {})
-            if any(evaluation.values()):
-                journal_content += """### Évaluation comparative
-"""
-                if evaluation.get("qi_estime"):
-                    journal_content += f"- **QI estimé :** {evaluation['qi_estime']}"
-                    if evaluation.get("percentile_population"):
-                        journal_content += f" (Percentile {evaluation['percentile_population']})"
-                    journal_content += "\n"
-                if evaluation.get("comparaison_utilisateurs_ia"):
-                    journal_content += f"- **vs Utilisateurs moyens IA :** {evaluation['comparaison_utilisateurs_ia']}\n"
-                if evaluation.get("domaines_excellence"):
-                    journal_content += f"- **Domaines d'excellence :** {', '.join(evaluation['domaines_excellence'])}\n\n"
-
-            # Section étude physique
-            physique = data.get("etude_physique", {})
-            if any(v for v in physique.values() if v):
-                journal_content += """---
-
-## 👤 ÉTUDE PHYSIQUE
-
-### Caractéristiques observées
-"""
-                traits = physique.get("traits_physiques", {})
-                if traits.get("taille") or traits.get("corpulence"):
-                    journal_content += f"- Morphologie: {traits.get('taille', 'Non définie')}, {traits.get('corpulence', 'non définie')}\n"
-                
-                for particularite in traits.get("particularites", []):
-                    journal_content += f"- {particularite}\n"
-                journal_content += "\n"
-
-            # Section goûts & préférences
-            preferences = data.get("etude_gouts_preferences", {})
-            if any(v for v in preferences.values() if v):
-                journal_content += """---
-
-## 🎯 GOÛTS & PRÉFÉRENCES
-
-"""
-                pref_fortes = preferences.get("preferences_fortes", {})
-                if any(pref_fortes.values()):
-                    journal_content += "### Affinités\n"
-                    for domaine, items in pref_fortes.items():
-                        if items:
-                            journal_content += f"**{domaine.capitalize()} :** {', '.join(items)}  \n"
-                    journal_content += "\n"
-
-                repulsions = preferences.get("repulsions_identifiees", {})
-                if any(repulsions.values()):
-                    journal_content += "### Répulsions\n"
-                    for domaine, items in repulsions.items():
-                        if items:
-                            journal_content += f"**{domaine.capitalize()} :** {', '.join(items)}  \n"
-                    journal_content += "\n"
-
-                evolutions = preferences.get("evolutions_observees", [])
-                if evolutions:
-                    journal_content += "### Évolutions récentes\n"
-                    for evolution in evolutions:
-                        journal_content += f"**{evolution.get('periode', 'Période inconnue')} :** {evolution.get('changement', '')}\n"
-                        if evolution.get("declencheur"):
-                            journal_content += f"*Déclencheur : {evolution['declencheur']}*\n"
-                    journal_content += "\n"
-
-            # Footer
-            journal_content += f"""---
-
-*Journal généré automatiquement par OGMA le {datetime.now().strftime('%d/%m/%Y à %H:%M')}*  
-*Base de données : {self.structured_file.name}*
-"""
-
-            return journal_content
+            content += (
+                "---\n\n"
+                f"*Journal généré automatiquement par OGMA "
+                f"le {datetime.now().strftime('%d/%m/%Y à %H:%M')}*\n"
+            )
+            return content
 
         except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur génération journal: {e}")
+            print(f"[STRUCTURED-MANAGER] Erreur génération journal facts: {e}")
             return f"# Erreur de génération\n\nImpossible de générer le journal : {e}"
 
-    def save_generated_journal(self) -> bool:
-        """Sauvegarde le journal généré dans le fichier Markdown"""
+    def save_facts_journal(self) -> bool:
+        """Sauvegarde le journal facts dans volume2_journal.md"""
         try:
-            journal_content = self.generate_markdown_journal()
-            
-            with open(self.journal_file, 'w', encoding='utf-8') as f:
-                f.write(journal_content)
-            
-            print(f"[STRUCTURED-MANAGER] 📖 Journal sauvegardé: {self.journal_file}")
+            content = self.generate_facts_journal()
+            with open(self.journal_file, "w", encoding="utf-8") as f:
+                f.write(content)
+            print(f"[STRUCTURED-MANAGER] Journal facts sauvegardé: {self.journal_file}")
             return True
         except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur sauvegarde journal: {e}")
+            print(f"[STRUCTURED-MANAGER] Erreur sauvegarde journal facts: {e}")
             return False
 
-    # =============================
-    # 🗂️ HISTORIQUE COMPLET - SYSTÈME DE TRACKING
-    # =============================
-
-    def _get_processed_documents_file(self) -> Path:
-        """Retourne le chemin du fichier de tracking des documents traités"""
-        return self.user_dir / "processed_documents.json"
-
-    def load_processed_documents(self) -> Dict:
-        """Charge la liste des documents déjà traités"""
-        try:
-            processed_file = self._get_processed_documents_file()
-            if processed_file.exists():
-                with open(processed_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            else:
-                # Structure initiale
-                return {
-                    "user_name": self.user_name,
-                    "created_at": datetime.now().isoformat(),
-                    "last_scan": None,
-                    "processed_files": [],
-                    "skipped_files": []
-                }
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur chargement tracking: {e}")
-            return {
-                "user_name": self.user_name,
-                "created_at": datetime.now().isoformat(),
-                "last_scan": None,
-                "processed_files": [],
-                "skipped_files": []
-            }
-
-    def save_processed_documents(self, processed_data: Dict) -> bool:
-        """Sauvegarde la liste des documents traités"""
-        try:
-            processed_file = self._get_processed_documents_file()
-            processed_data["last_scan"] = datetime.now().isoformat()
-            
-            with open(processed_file, 'w', encoding='utf-8') as f:
-                json.dump(processed_data, f, ensure_ascii=False, indent=2)
-            
-            print(f"[STRUCTURED-MANAGER] 📋 Tracking mis à jour: {len(processed_data['processed_files'])} traités")
-            return True
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur sauvegarde tracking: {e}")
-            return False
-
-    def _get_file_hash(self, file_path: Path) -> str:
-        """Calcule le hash SHA256 d'un fichier"""
-        import hashlib
-        try:
-            with open(file_path, 'rb') as f:
-                return hashlib.sha256(f.read()).hexdigest()[:16]  # 16 premiers caractères suffisent
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ⚠️ Erreur calcul hash {file_path}: {e}")
-            return "unknown"
-
-    def scan_conversation_files(self, min_size_kb: int = 30) -> List[Dict]:
+    async def generate_narrative_journal_ia(
+        self,
+        chat_controller=None,
+        force_reset: bool = False,
+    ) -> bool:
         """
-        Scan les fichiers de conversations et retourne ceux > min_size_kb non encore traités
-        
-        Args:
-            min_size_kb: Taille minimale en Ko (défaut 30ko)
-            
-        Returns:
-            Liste des nouveaux fichiers à traiter
-        """
-        try:
-            conversations_dir = Path("data/conversations")
-            if not conversations_dir.exists():
-                print(f"[STRUCTURED-MANAGER] ⚠️ Dossier conversations introuvable: {conversations_dir}")
-                return []
+        Génère ou enrichit le journal biographique narratif via IA.
 
-            # Charger le tracking existant
-            processed_data = self.load_processed_documents()
-            processed_hashes = {item["file_hash"] for item in processed_data["processed_files"]}
-            
-            min_size_bytes = min_size_kb * 1024
-            new_files = []
-            skipped_count = 0
-            
-            print(f"[STRUCTURED-MANAGER] 🔍 Scan conversations (min: {min_size_kb}Ko)...")
-            
-            # Scanner tous les fichiers JSON
-            for conv_file in conversations_dir.glob("*.json"):
+        Mode normal (force_reset=False) :
+            Lit le journal existant + les faits compilés → l'IA enrichit/corrige.
+        Mode reset (force_reset=True) :
+            Ignore le journal existant → l'IA repart de zéro depuis tous les faits.
+
+        Source des faits :
+            1. bio_compiled.json (groupes thématiques) — prioritaire
+            2. Fallback : volume2_structured.json (facts[]) si bio_compiled absent
+
+        Anti-hallucination : le prompt interdit toute inférence hors faits fournis.
+        """
+        import asyncio
+        import time
+
+        try:
+            # ── 1. Charger les faits depuis bio_compiled.json ──────────────
+            bio_compiled_path = self.user_dir / "bio_compiled.json"
+            all_facts_text = ""
+
+            if bio_compiled_path.exists():
                 try:
-                    file_size = conv_file.stat().st_size
-                    
-                    # Filtrer par taille
-                    if file_size < min_size_bytes:
-                        skipped_count += 1
-                        continue
-                    
-                    # Calculer hash
-                    file_hash = self._get_file_hash(conv_file)
-                    
-                    # Vérifier si déjà traité
-                    if file_hash in processed_hashes:
-                        continue
-                    
-                    # Nouveau fichier à traiter
-                    new_files.append({
-                        "file_path": str(conv_file),
-                        "file_size": file_size,
-                        "file_hash": file_hash,
-                        "size_kb": round(file_size / 1024, 1)
-                    })
-                    
+                    compiled = json.loads(bio_compiled_path.read_text(encoding="utf-8"))
+                    groups = compiled.get("groups", {})
+                    parts = []
+                    for group_name, group_data in groups.items():
+                        facts = group_data.get("facts", [])
+                        lines = [f"  - {f.get('content','').strip()}" for f in facts if f.get("content")]
+                        if lines:
+                            parts.append(f"[{group_name}]\n" + "\n".join(lines))
+                    all_facts_text = "\n\n".join(parts)
                 except Exception as e:
-                    print(f"[STRUCTURED-MANAGER] ⚠️ Erreur traitement {conv_file}: {e}")
-                    continue
-            
-            total_files = len(list(conversations_dir.glob("*.json")))
-            print(f"[STRUCTURED-MANAGER] 📊 Scan terminé:")
-            print(f"   - Total fichiers: {total_files}")
-            print(f"   - Trop petits (< {min_size_kb}Ko): {skipped_count}")
-            print(f"   - Déjà traités: {len(processed_hashes)}")
-            print(f"   - Nouveaux à traiter: {len(new_files)}")
-            
-            return new_files
-            
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur scan conversations: {e}")
-            return []
+                    print(f"[STRUCTURED-MANAGER] Erreur lecture bio_compiled: {e}")
 
-    def process_conversation_file(self, file_info: Dict) -> Optional[Dict]:
-        """
-        Traite un fichier de conversation pour extraire les données biographiques
-        
-        Args:
-            file_info: Info du fichier (path, size, hash)
-            
-        Returns:
-            Données extraites ou None si erreur
-        """
-        try:
-            file_path = Path(file_info["file_path"])
-            
-            print(f"[STRUCTURED-MANAGER] 📖 Traitement: {file_path.name} ({file_info['size_kb']}Ko)")
-            
-            # Charger le fichier de conversation
-            with open(file_path, 'r', encoding='utf-8') as f:
-                conversation_data = json.load(f)
-            
-            # Gérer les deux formats possibles
-            if isinstance(conversation_data, list):
-                # Format direct: array de messages
-                messages = conversation_data
-            elif isinstance(conversation_data, dict):
-                # Format objet: avec propriété messages
-                messages = conversation_data.get("messages", [])
+            # Fallback : volume2_structured.json
+            if not all_facts_text:
+                data = self.load_structured_data()
+                facts = data.get("facts", [])
+                if facts:
+                    all_facts_text = "\n".join(
+                        f"  - [{f.get('category','?')}] {f.get('content','').strip()}"
+                        for f in facts if f.get("content")
+                    )
+
+            if not all_facts_text:
+                print(f"[STRUCTURED-MANAGER] Aucun fait disponible pour {self.user_name}, journal impossible")
+                return False
+
+            # ── 2. Charger journal existant si mode enrichissement ─────────
+            existing_journal = ""
+            if not force_reset and self.journal_file.exists():
+                try:
+                    existing_journal = self.journal_file.read_text(encoding="utf-8")
+                    print(f"[STRUCTURED-MANAGER] Journal existant chargé ({len(existing_journal)} chars)")
+                except Exception:
+                    pass
+
+            # ── 3. Instruction journal (personnalisable via l'interface) ──────
+            instruction = StructuredBiographyManager.get_journal_instruction()
+
+            now_str = datetime.now().strftime("%d/%m/%Y à %H:%M")
+
+            if existing_journal:
+                prompt = (
+                    f"Tu es un biographe rigoureux. Ta mission : enrichir et corriger le journal biographique "
+                    f"de {self.user_name} en intégrant les faits disponibles.\n\n"
+                    f"INSTRUCTIONS ET STRUCTURE :\n{'='*60}\n{instruction}\n{'='*60}\n\n"
+                    f"JOURNAL EXISTANT À ENRICHIR/CORRIGER :\n"
+                    f"{'='*60}\n{existing_journal}\n{'='*60}\n\n"
+                    f"FAITS DISPONIBLES (source unique — ne jamais aller au-delà) :\n"
+                    f"{'='*60}\n{all_facts_text}\n{'='*60}\n\n"
+                    f"Génère le journal COMPLET en Markdown avec cet en-tête exact :\n"
+                    f"# 📔 Journal biographique — {self.user_name}\n"
+                    f"*Dernière mise à jour : {now_str}*\n\n"
+                    f"Conserve les informations exactes du journal existant. "
+                    f"Enrichis ou corrige uniquement ce que les faits justifient. "
+                    f"Retourne le journal complet."
+                )
             else:
-                print(f"[STRUCTURED-MANAGER] ⚠️ Format de conversation inconnu dans {file_path.name}")
-                return None
-            
-            if not messages:
-                print(f"[STRUCTURED-MANAGER] ⚠️ Aucun message dans {file_path.name}")
-                return None
-            
-            # Préparer les données pour l'analyse
-            processed_data = {
-                "source_file": str(file_path),
-                "file_hash": file_info["file_hash"], 
-                "message_count": len(messages),
-                "file_size": file_info["file_size"],
-                "processed_at": datetime.now().isoformat(),
-                "messages": messages[:100]  # Limiter à 100 messages pour éviter surcharge
-            }
-            
-            print(f"[STRUCTURED-MANAGER] ✅ {len(messages)} messages extraits de {file_path.name}")
-            return processed_data
-            
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur traitement fichier {file_info['file_path']}: {e}")
-            return None
+                prompt = (
+                    f"Tu es un biographe rigoureux. Ta mission : rédiger le journal biographique "
+                    f"de {self.user_name} exclusivement depuis les faits fournis.\n\n"
+                    f"INSTRUCTIONS ET STRUCTURE :\n{'='*60}\n{instruction}\n{'='*60}\n\n"
+                    f"FAITS DISPONIBLES (source unique — ne jamais aller au-delà) :\n"
+                    f"{'='*60}\n{all_facts_text}\n{'='*60}\n\n"
+                    f"Génère le journal complet en Markdown avec cet en-tête exact :\n"
+                    f"# 📔 Journal biographique — {self.user_name}\n"
+                    f"*Généré le : {now_str}*"
+                )
 
-    def integrate_historical_conversations(self, max_files: int = 5) -> int:
-        """
-        Intègre les conversations historiques dans le JSON structuré
-        
-        Args:
-            max_files: Nombre maximum de fichiers à traiter par session (éviter surcharge)
-            
-        Returns:
-            Nombre de fichiers traités
-        """
-        try:
-            print(f"[STRUCTURED-MANAGER] 🏗️ Intégration historique (max: {max_files} fichiers)")
-            
-            # Scanner les nouveaux fichiers
-            new_files = self.scan_conversation_files()
-            
-            if not new_files:
-                print(f"[STRUCTURED-MANAGER] ℹ️ Aucun nouveau fichier à traiter")
-                return 0
-            
-            # Limiter le nombre de fichiers traités
-            files_to_process = new_files[:max_files]
-            processed_count = 0
-            
-            # Charger le tracking
-            processed_data = self.load_processed_documents()
-            
-            for file_info in files_to_process:
-                # Traiter le fichier
-                conversation_data = self.process_conversation_file(file_info)
-                
-                if conversation_data:
-                    # Marquer comme traité
-                    processed_data["processed_files"].append({
-                        "file_path": file_info["file_path"],
-                        "file_size": file_info["file_size"],
-                        "file_hash": file_info["file_hash"],
-                        "processed_at": conversation_data["processed_at"],
-                        "message_count": conversation_data["message_count"]
-                    })
-                    
-                    processed_count += 1
-                    print(f"[STRUCTURED-MANAGER] ✅ Traité: {Path(file_info['file_path']).name}")
-                
-                else:
-                    # Marquer comme ignoré
-                    processed_data["skipped_files"].append({
-                        "file_path": file_info["file_path"],
-                        "reason": "processing_error",
-                        "file_size": file_info["file_size"]
-                    })
-            
-            # Sauvegarder le tracking
-            self.save_processed_documents(processed_data)
-            
-            print(f"[STRUCTURED-MANAGER] 🎯 Intégration terminée: {processed_count} fichiers traités")
-            return processed_count
-            
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur intégration historique: {e}")
-            return 0
+            # ── 4. Récupérer le chat controller ───────────────────────────
+            if not chat_controller:
+                try:
+                    import ogma_ng
+                    if hasattr(ogma_ng, "_ensure_chat_controller"):
+                        chat_controller = ogma_ng._ensure_chat_controller()
+                    elif hasattr(ogma_ng, "_chat_controller"):
+                        chat_controller = ogma_ng._chat_controller
+                except Exception as e:
+                    print(f"[STRUCTURED-MANAGER] Impossible d'accéder au chat controller: {e}")
 
-    async def integrate_summaries_cache(self, max_summaries: int = 20) -> int:
-        """
-        Intègre les résumés de conversations depuis les fichiers JSON (v2.2+).
-        
-        Ces résumés contiennent des analyses psychologiques raffinées déjà produites par l'IA,
-        constituant une source précieuse d'insights comportementaux et personnels.
-        
-        Args:
-            max_summaries: Nombre maximum de résumés à traiter par session
-            
-        Returns:
-            Nombre de résumés traités
-            
-        Note v2.2: Les résumés sont maintenant stockés dans les fichiers JSON
-        de conversations, pas dans summaries_cache/*.txt
-        """
-        try:
-            print(f"[STRUCTURED-MANAGER] 🧠 Intégration résumés conversations (max: {max_summaries})")
-            
-            # Utiliser la nouvelle API centralisée
-            import sys
-            root_path = Path(__file__).parent.parent.parent
-            if str(root_path) not in sys.path:
-                sys.path.insert(0, str(root_path))
-            
-            from conversation_summarizer import get_all_summaries_from_conversations
-            
-            conversations_dir = root_path / 'data' / 'conversations'
-            
-            # Récupérer tous les résumés avec métadonnées
-            all_summaries = get_all_summaries_from_conversations(
-                str(conversations_dir), 
-                max_conversations=50
+            if not chat_controller:
+                print(f"[STRUCTURED-MANAGER] Aucun chat controller disponible pour journal narratif")
+                return False
+
+            # ── 5. Appel IA ────────────────────────────────────────────────
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "Tu es un biographe rigoureux. Tu rédiges UNIQUEMENT depuis les faits fournis. "
+                        "Format Markdown. Aucune psychologie clinique. Aucune inférence."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ]
+
+            print(f"[STRUCTURED-MANAGER] Génération journal narratif pour {self.user_name} "
+                  f"({'reset' if force_reset else 'enrichissement'})...")
+
+            start_time = time.time()
+            chat_task = asyncio.create_task(
+                chat_controller.call_chat_api(
+                    messages=messages,
+                    max_tokens=3000,
+                    context_length=chat_controller.context_length,
+                    temperature=0.3,
+                )
             )
-            
-            if not all_summaries:
-                print(f"[STRUCTURED-MANAGER] ℹ️ Aucun résumé trouvé dans les conversations")
-                return 0
-            
-            # Charger les données structurées existantes
-            structured_data = self.load_structured_data()
-            processed_count = 0
-            
-            # Traiter les résumés (limiter au max demandé)
-            total_processed = 0
-            for conv_data in all_summaries:
-                if total_processed >= max_summaries:
-                    break
-                    
-                conv_id = conv_data.get('conversation_id', '')
-                
-                for summary_range in conv_data.get('summaries', []):
-                    if total_processed >= max_summaries:
-                        break
-                        
-                    content = summary_range.get('text', '')
-                    if not content or len(content) < 50:
-                        continue
-                    
-                    try:
-                        # Créer file_info pour compatibilité
-                        file_info = {
-                            "file_name": f"{conv_id}_range_{summary_range.get('start', 0)}",
-                            "file_path": str(conversations_dir / f"{conv_id}.json"),
-                            "file_size": len(content),
-                            "modified_time": conv_data.get('modified', None),
-                            "is_fusion": False
-                        }
-                        
-                        # Analyser le résumé via l'IA
-                        analysis_result = await self._analyze_summary_content(content, file_info)
-                        
-                        if analysis_result:
-                            # Intégrer dans la structure JSON
-                            self._integrate_summary_analysis(structured_data, analysis_result, file_info)
-                            processed_count += 1
-                            total_processed += 1
-                            
-                            print(f"[STRUCTURED-MANAGER] ✅ Résumé traité: {file_info['file_name'][:30]}...")
-                            
-                    except Exception as e:
-                        print(f"[STRUCTURED-MANAGER] ⚠️ Erreur traitement résumé: {e}")
-                        continue
-            
-            # Sauvegarder les données enrichies
-            if processed_count > 0:
-                self.save_structured_data(structured_data)
-                print(f"[STRUCTURED-MANAGER] 🎯 Résumés intégrés: {processed_count} traités")
-            
-            return processed_count
-            
-        except ImportError as e:
-            print(f"[STRUCTURED-MANAGER] ⚠️ Import conversation_summarizer échoué: {e}")
-            return 0
+
+            while not chat_task.done():
+                if time.time() - start_time > 180.0:
+                    chat_task.cancel()
+                    print(f"[STRUCTURED-MANAGER] TIMEOUT journal narratif (>180s)")
+                    return False
+                await asyncio.sleep(3)
+
+            response, error = await chat_task
+
+            if error or not response:
+                print(f"[STRUCTURED-MANAGER] Erreur IA journal: {error}")
+                return False
+
+            content = response.get("content", "") if isinstance(response, dict) else str(response)
+
+            if len(content) < 100:
+                print(f"[STRUCTURED-MANAGER] Réponse IA trop courte ({len(content)} chars)")
+                return False
+
+            # ── 6. Sauvegarder ────────────────────────────────────────────
+            self.journal_file.write_text(content, encoding="utf-8")
+            print(f"[STRUCTURED-MANAGER] Journal narratif sauvegardé: {self.journal_file} ({len(content)} chars)")
+            return True
+
         except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ❌ Erreur intégration résumés: {e}")
-            return 0
-    
-    async def _analyze_summary_content(self, content: str, file_info: Dict) -> Dict:
-        """Analyse un résumé via l'IA pour extraire des insights psychologiques"""
-        try:
-            # Accéder aux instances IA globales OGMA via _get_ogma()
-            def _get_ogma():
-                import ogma_ng
-                return ogma_ng
-            
-            # Utiliser l'archiviste si disponible, sinon le chat controller
-            archiviste = _get_ogma()._ensure_archiviste_controller()
-            if archiviste and archiviste.is_available():
-                ai_controller = archiviste
-            else:
-                chat = _get_ogma()._ensure_chat_controller()
-                if chat and chat.is_available():
-                    ai_controller = chat
-                else:
-                    # Fallback : essayer d'analyser avec une approche simplifiée
-                    return self._simple_summary_analysis(content, file_info)
-            
-            # Prompt d'analyse spécialisé pour les résumés
-            analysis_prompt = f"""Analyse ce résumé de conversation pour extraire des insights biographiques structurés.
+            print(f"[STRUCTURED-MANAGER] Erreur génération journal narratif: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
-RÉSUMÉ À ANALYSER:
-{content}
-
-CONTEXTE:
-- Type: {"Fusion (résumé enrichi)" if file_info.get("is_fusion") else "Résumé simple"}
-- Taille: {file_info.get("file_size", 0)} octets
-
-Extrais et structure les informations selon ces catégories (UNIQUEMENT si présentes dans le résumé):
-
-1. CHRONOLOGIE: Événements, moments clés, évolutions temporelles
-2. PSYCHOLOGIQUE: Traits de personnalité, mécanismes de défense, émotions, dilemmes
-3. INTELLECTUEL: Patterns de pensée, centres d'intérêt, capacités cognitives
-4. PHYSIQUE: Descriptions physiques, expressions, gestuelle (si mentionnées)
-5. PRÉFÉRENCES: Goûts, aversions, évolutions des préférences
-
-Réponds uniquement en JSON valide avec cette structure:
-{{
-  "chronologie": ["événement 1", "événement 2"],
-  "psychologique": {{
-    "traits": ["trait 1", "trait 2"],
-    "emotions": ["émotion 1"],
-    "mecanismes": ["mécanisme 1"]
-  }},
-  "intellectuel": {{
-    "patterns_pensee": ["pattern 1"],
-    "interets": ["intérêt 1"]
-  }},
-  "physique": {{
-    "descriptions": ["description 1"],
-    "expressions": ["expression 1"]
-  }},
-  "preferences": {{
-    "positives": ["préférence 1"],
-    "negatives": ["aversion 1"]
-  }},
-  "insights_cles": ["insight majeur 1", "insight majeur 2"]
-}}
-
-Si une catégorie est vide, mets un tableau/objet vide."""
-
-            # Analyser via le contrôleur IA disponible
-            messages = [{"role": "user", "content": analysis_prompt}]
-            
-            response, error = await ai_controller.call_chat_api(
-                messages=messages,
-                max_tokens=8192,
-                context_length=32000,
-                temperature=0.3,
-                is_json=True
-            )
-            
-            if error:
-                print(f"[STRUCTURED-MANAGER] ⚠️ Erreur IA: {error}")
-                return self._simple_summary_analysis(content, file_info)
-            
-            if not response:
-                return None
-                
-            # Parser la réponse JSON
-            import json
-            import re
-            
-            # Nettoyer la réponse pour extraire le JSON
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(0)
-                return json.loads(json_str)
-            
-            return None
-            
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ⚠️ Erreur analyse résumé: {e}")
-            return None
-    
-    def _simple_summary_analysis(self, content: str, file_info: Dict) -> Dict:
-        """Analyse simplifiée par mots-clés en cas d'absence d'IA"""
-        try:
-            import re
-            
-            # Analyse par mots-clés et patterns
-            result = {
-                "chronologie": [],
-                "psychologique": {"traits": [], "emotions": [], "mecanismes": []},
-                "intellectuel": {"patterns_pensee": [], "interets": []},
-                "physique": {"descriptions": [], "expressions": []},
-                "preferences": {"positives": [], "negatives": []},
-                "insights_cles": []
-            }
-            
-            content_lower = content.lower()
-            
-            # Mots-clés psychologiques
-            traits_keywords = ["empathique", "enthousiaste", "anxieux", "confiant", "créatif", "analytique", "intuitif"]
-            emotions_keywords = ["gratitude", "émotion", "joie", "peur", "colère", "tristesse", "excitation"]
-            mecanismes_keywords = ["défense", "projection", "déni", "rationalisation", "sublimation"]
-            
-            # Rechercher traits
-            for trait in traits_keywords:
-                if trait in content_lower:
-                    result["psychologique"]["traits"].append(f"Montre des signes de {trait}")
-            
-            # Rechercher émotions
-            for emotion in emotions_keywords:
-                if emotion in content_lower:
-                    result["psychologique"]["emotions"].append(f"Exprime {emotion}")
-            
-            # Patterns intellectuels
-            if "analyse" in content_lower or "réflexion" in content_lower:
-                result["intellectuel"]["patterns_pensee"].append("Capacité d'analyse et de réflexion")
-            if "technique" in content_lower or "architecture" in content_lower:
-                result["intellectuel"]["interets"].append("Intérêt pour les aspects techniques")
-            
-            # Extraire des phrases clés comme insights
-            sentences = re.split(r'[.!?]+', content)
-            for sentence in sentences:
-                if len(sentence.strip()) > 30:  # Phrases substantielles
-                    if any(kw in sentence.lower() for kw in ["ressent", "exprime", "manifeste", "décrit"]):
-                        result["insights_cles"].append(sentence.strip())
-            
-            # Limiter à 3 insights max
-            result["insights_cles"] = result["insights_cles"][:3]
-            
-            return result
-            
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ⚠️ Erreur analyse simple: {e}")
-            return None
-    
-    def _integrate_summary_analysis(self, structured_data: Dict, analysis: Dict, file_info: Dict):
-        """Intègre les résultats d'analyse d'un résumé dans la structure JSON"""
-        try:
-            source_tag = f"summary_{file_info['file_name'][:16]}"
-            
-            # Intégrer chronologie
-            for event in analysis.get("chronologie", []):
-                if event.strip():
-                    structured_data["chronologie"].append({
-                        "timestamp": datetime.now().isoformat(),
-                        "source": source_tag,
-                        "evenement": event.strip(),
-                        "conversation_id": None,
-                        "contexte": "Extrait de résumé progressif"
-                    })
-            
-            # Intégrer profil psychologique
-            psycho = analysis.get("psychologique", {})
-            if psycho.get("traits"):
-                structured_data["etude_psychique"]["profil_psychologique"]["traits_dominants"].extend(
-                    [t.strip() for t in psycho["traits"] if t.strip()]
-                )
-            if psycho.get("mecanismes"):
-                structured_data["etude_psychique"]["profil_psychologique"]["mecanismes_defense"].extend(
-                    [m.strip() for m in psycho["mecanismes"] if m.strip()]
-                )
-            
-            # Intégrer profil intellectuel
-            intel = analysis.get("intellectuel", {})
-            if intel.get("patterns_pensee"):
-                # Créer la clé si elle n'existe pas
-                if "patterns_dominants" not in structured_data["etude_intellectuelle"]["structure_mentale"]:
-                    structured_data["etude_intellectuelle"]["structure_mentale"]["patterns_dominants"] = []
-                structured_data["etude_intellectuelle"]["structure_mentale"]["patterns_dominants"].extend(
-                    [p.strip() for p in intel["patterns_pensee"] if p.strip()]
-                )
-            if intel.get("interets"):
-                # Créer la section centres_interet si elle n'existe pas
-                if "centres_interet" not in structured_data["etude_intellectuelle"]:
-                    structured_data["etude_intellectuelle"]["centres_interet"] = {"domaines_expertise": []}
-                elif "domaines_expertise" not in structured_data["etude_intellectuelle"]["centres_interet"]:
-                    structured_data["etude_intellectuelle"]["centres_interet"]["domaines_expertise"] = []
-                
-                structured_data["etude_intellectuelle"]["centres_interet"]["domaines_expertise"].extend(
-                    [i.strip() for i in intel["interets"] if i.strip()]
-                )
-            
-            # Intégrer préférences
-            prefs = analysis.get("preferences", {})
-            if prefs.get("positives"):
-                structured_data["etude_gouts_preferences"]["preferences_fortes"]["intellectuel"].extend(
-                    [p.strip() for p in prefs["positives"] if p.strip()]
-                )
-            if prefs.get("negatives"):
-                structured_data["etude_gouts_preferences"]["repulsions_identifiees"]["intellectuel"].extend(
-                    [n.strip() for n in prefs["negatives"] if n.strip()]
-                )
-            
-            # Ajouter insights clés comme événements spéciaux
-            for insight in analysis.get("insights_cles", []):
-                if insight.strip():
-                    structured_data["chronologie"].append({
-                        "timestamp": datetime.now().isoformat(),
-                        "source": f"{source_tag}_insight",
-                        "evenement": f"Insight psychologique: {insight.strip()}",
-                        "conversation_id": None,
-                        "contexte": "Analyse de résumé progressif"
-                    })
-            
-        except Exception as e:
-            print(f"[STRUCTURED-MANAGER] ⚠️ Erreur intégration analyse: {e}")
 
 class BiographyManager:
     """Gestionnaire principal des biographies utilisateur"""
@@ -1437,6 +907,48 @@ JSON: {{"selected_indices": [...], "reason": "..."}}"""
             print(f"[BIO-ARCHIVISTE] ⚠️ Pas de fallback - injection biographie annulée")
             return None
     
+    def _load_volume1_as_signals(self, user_name: str) -> list:
+        """
+        Lit volume1_memories.json et le convertit en format signaux pour Phase 1.
+        Utilisé comme bootstrap quand le signal_collector (SQLite user_tag) ne trouve rien.
+        Exclut les souvenirs SEED (memory_id commençant par 'SEED_').
+        """
+        try:
+            v1_file = self.data_dir / user_name.lower() / "volume1_memories.json"
+            if not v1_file.exists():
+                return []
+
+            data = json.loads(v1_file.read_text(encoding="utf-8"))
+            memories = data.get("memories", [])
+            signals = []
+
+            for mem in memories:
+                mem_id = mem.get("memory_id", "")
+                # Exclure les souvenirs SEED (métadonnées système, pas des faits utilisateur)
+                if mem_id.startswith("SEED_"):
+                    continue
+
+                content = mem.get("summary") or mem.get("content") or mem.get("text_original") or ""
+                content = content.strip()
+                if not content:
+                    continue
+
+                signals.append({
+                    "source": "volume1_bootstrap",
+                    "source_id": mem_id,
+                    "date": mem.get("created_at", ""),
+                    "content": content,
+                    "title": mem.get("title", ""),
+                    "score": mem.get("score_impact", 0.0),
+                })
+
+            print(f"[BIOGRAPHY-MANAGER] Volume 1 bootstrap: {len(signals)} souvenirs utilisateurs (SEED exclus)")
+            return signals
+
+        except Exception as e:
+            print(f"[BIOGRAPHY-MANAGER] Erreur lecture Volume 1 pour bootstrap: {e}")
+            return []
+
     async def process_existing_memories_for_user(self, user_name: str) -> bool:
         """
         Traite tous les souvenirs existants pour un utilisateur
@@ -1651,15 +1163,6 @@ JSON: {{"selected_indices": [...], "reason": "..."}}"""
         
         return result
 
-    def generate_structured_journal(self, user_name: str) -> Optional[str]:
-        """Génère le journal Markdown depuis les données structurées"""
-        try:
-            structured_manager = self.get_structured_manager(user_name)
-            return structured_manager.generate_markdown_journal()
-        except Exception as e:
-            print(f"[BIOGRAPHY-MANAGER] ❌ Erreur génération journal: {e}")
-            return None
-
     def _collect_volume1_memories(self, user_name: str) -> str:
         """Collecte l'INTÉGRALITÉ du Volume 1 dédié à l'utilisateur"""
         try:
@@ -1844,838 +1347,249 @@ JSON: {{"selected_indices": [...], "reason": "..."}}"""
         except Exception as e:
             return f"Erreur accès résumés: {e}"
 
-    async def generate_volume2_json_with_grok(self, user_name: str, progress_callback=None) -> bool:
+    async def generate_volume2_json(self, user_name: str, progress_callback=None) -> bool:
         """
-        🧠 PHASE 1: Génération Volume 2 JSON structuré par GROK
-        =======================================================
+        Phase 1: Génération/enrichissement Volume 2 JSON via signaux biographiques.
 
-        PHILOSOPHIE OGMA: JSON généré par l'IA, pas de mécanique Python
-
-        Processus:
-        1. Collecte données multi-sources
-        2. GROK analyse et structure les informations sur {user_name} UNIQUEMENT
-        3. GROK génère JSON structuré conforme au schéma
+        Mode incrémental:
+        - Lit le JSON existant (s'il y en a un)
+        - Collecte les signaux non traités (bio_processed=false)
+        - L'IA fusionne les anciens faits + nouveaux signaux
+        - Marque les signaux consommés après succès
 
         Args:
-            user_name: Nom de l'utilisateur pour lequel générer les données
-            progress_callback: Fonction optionnelle appelée avec (étape, message, données)
+            user_name: Nom de l'utilisateur
+            progress_callback: Fonction optionnelle (étape, total, message, données)
 
         Returns:
             True si succès, False si erreur
         """
         try:
-            print(f"[BIOGRAPHY-MANAGER] 🧠 Phase 1: Génération JSON IA pour {user_name}")
+            print(f"[BIOGRAPHY-MANAGER] Phase 1: Generation JSON pour {user_name}")
 
-            # Callback: Initialisation
             if progress_callback:
-                await progress_callback(1, 5, "🔧 Initialisation...", {})
+                await progress_callback(1, 5, "Initialisation...", {})
 
-            # 1. COLLECTE DES DONNÉES SOURCES (identique)
+            # 1. COLLECTE DES SIGNAUX NON TRAITES
+            from extensions.biographie_profil.signal_collector import collect_signals
+
+            if progress_callback:
+                await progress_callback(2, 5, "Collecte signaux biographiques...", {})
+
+            result = collect_signals(user_name)
+            signals = result.get("signals", [])
+            counts = result.get("counts", {})
+
+            if not signals:
+                # Bootstrap depuis Volume 1 si volume2_structured.json n'a pas encore de faits
+                structured_manager_check = self.get_structured_manager(user_name)
+                existing_check = structured_manager_check.load_structured_data()
+                has_existing_facts = bool(existing_check and existing_check.get("facts"))
+
+                if not has_existing_facts:
+                    v1_signals = self._load_volume1_as_signals(user_name)
+                    if v1_signals:
+                        signals = v1_signals
+                        counts = {"total": len(signals), "memory": 0, "cognitive_cache": 0, "summary": 0, "volume1_bootstrap": len(signals)}
+                        print(f"[BIOGRAPHY-MANAGER] Bootstrap V1→V2: {len(signals)} souvenirs Volume 1 utilises")
+                    else:
+                        print(f"[BIOGRAPHY-MANAGER] Aucun signal non traite pour {user_name}")
+                        if progress_callback:
+                            await progress_callback(5, 5, "Aucun nouveau signal a traiter", counts)
+                        return True
+                else:
+                    print(f"[BIOGRAPHY-MANAGER] Aucun signal non traite pour {user_name}")
+                    if progress_callback:
+                        await progress_callback(5, 5, "Aucun nouveau signal a traiter", counts)
+                    return True
+
+            print(f"[BIOGRAPHY-MANAGER] {counts.get('total', 0)} signaux collectes")
+
+            # 2. CHARGER LE JSON EXISTANT (mode incremental)
             structured_manager = self.get_structured_manager(user_name)
+            existing_json = None
+            existing_json_str = ""
+            try:
+                existing_data = structured_manager.load_structured_data()
+                if existing_data:
+                    existing_json = existing_data
+                    existing_json_str = json.dumps(existing_data, ensure_ascii=False, indent=2)
+                    existing_facts_count = len(existing_data.get("facts", []))
+                    print(f"[BIOGRAPHY-MANAGER] JSON existant charge: {existing_facts_count} faits")
+            except Exception:
+                pass
 
-            # Callback: Collecte Volume 1
-            if progress_callback:
-                await progress_callback(2, 5, "📖 Collecte Volume 1...", {})
-            volume1_memories = self._collect_volume1_memories(user_name)
+            # 3. FORMATER LES SIGNAUX POUR LE PROMPT
+            signals_text = []
+            for i, sig in enumerate(signals[:50]):  # Limiter a 50 signaux max
+                source = sig.get("source", "?")
+                date = sig.get("date", "")[:10]
+                content = sig.get("content", "")[:500]
+                signals_text.append(f"[{i+1}] ({source}, {date}) {content}")
 
-            # Callback: Collecte conversations
-            if progress_callback:
-                await progress_callback(3, 5, "💬 Collecte conversations >30KB...", {
-                    'vol1_size': len(volume1_memories)
-                })
-            historical_conversations = self._collect_historical_conversations()
+            signals_block = "\n".join(signals_text)
 
-            # Callback: Collecte résumés
             if progress_callback:
-                await progress_callback(4, 5, "📊 Collecte résumés...", {
-                    'vol1_size': len(volume1_memories),
-                    'conv_size': len(historical_conversations)
-                })
-            summaries_content = self._collect_summaries_cache()
-            
-            # 2. ACCÈS AU CONTRÔLEUR CHAT (via _ensure_chat_controller pour initialisation lazy)
+                await progress_callback(3, 5, "Preparation prompt IA...", counts)
+
+            # 4. ACCES AU CONTROLEUR CHAT
             import ogma_ng
             chat_controller = None
             if hasattr(ogma_ng, '_ensure_chat_controller'):
                 chat_controller = ogma_ng._ensure_chat_controller()
             elif hasattr(ogma_ng, '_chat_controller') and ogma_ng._chat_controller:
                 chat_controller = ogma_ng._chat_controller
-            
+
             if not chat_controller:
-                print(f"[BIOGRAPHY-MANAGER] ❌ Contrôleur chat non disponible")
+                print(f"[BIOGRAPHY-MANAGER] Controleur chat non disponible")
                 return False
-            
-            # Utiliser le nom du provider configuré pour les logs
-            provider_name = getattr(chat_controller, 'provider', 'Chat')
-            print(f"[BIOGRAPHY-MANAGER] ✅ Contrôleur disponible: {provider_name}")
-            
-            # 3. PROMPT INTELLIGENT SPÉCIALISÉ (selon spécifications utilisateur)
-            json_generation_prompt = f"""Tu es une psychiatre et psychologue experte spécialisée en analyse biographique profonde.
 
-🎯 MISSION CRITIQUE: Analyser l'INTÉGRALITÉ des données sur {user_name} pour créer un profil JSON ultra-structuré
+            # 5. PROMPT FACTUEL (pas psychiatrique)
+            existing_section = ""
+            if existing_json_str:
+                existing_section = f"""
+=== PROFIL EXISTANT (a enrichir, pas a remplacer) ===
+{existing_json_str[:8000]}
+"""
 
-🧠 INTELLIGENCE ANALYTIQUE REQUISE:
-- Analyse psychiatrique professionnelle complète
-- Extraction d'insights psychologiques profonds
-- Structuration rigoureuse selon schéma JSON
-- Focus exclusif sur l'être humain {user_name}
+            prompt = f"""Tu es un analyste factuel. Ta mission: extraire les FAITS observables sur {user_name} depuis les signaux fournis, et produire un JSON structuré.
 
-⚠️ DIRECTIVES ABSOLUES:
-- Analyser TOUTES les données fournies (Volume 1 intégral + conversations >30KB + summaries)
-- IGNORER complètement toute référence à "IA principale", "IA", "Archiviste" (entités artificielles)
-- Extraire UNIQUEMENT les informations sur {user_name} (personne réelle)
-- Produire analyse psychiatrique de niveau professionnel
+REGLES ABSOLUES:
+- Uniquement des faits explicitement presents dans les signaux
+- ZERO psychologie, ZERO MBTI, ZERO inference sur la personnalite
+- Si un fait est deja dans le profil existant, ne pas le dupliquer
+- Chaque fait doit avoir une source traçable
 
-📊 DONNÉES SOURCES COMPLÈTES:
+{existing_section}
+=== NOUVEAUX SIGNAUX ({len(signals)} elements) ===
+{signals_block}
 
-=== VOLUME 1 INTÉGRAL ===
-{volume1_memories}
-
-=== CONVERSATIONS >30KB (RICHES EN CONTENU) ===
-{historical_conversations}
-
-=== RÉSUMÉS PROGRESSIFS (INSIGHTS IA) ===
-{summaries_content}
-
-🏗️ SCHÉMA JSON COMPLET (selon REFONTE_VOLUME2_ARCHITECTURE.md):
+SCHEMA JSON A PRODUIRE:
 ```json
 {{
-  "metadata": {{
-    "user_name": "{user_name}",
-    "created_at": "ISO_DATE",
-    "last_updated": "ISO_DATE", 
-    "total_analyses": NUMBER,
-    "data_sources": ["volume1", "conversations", "summaries_cache"]
-  }},
-  "chronologie": [
+  "user_name": "{user_name}",
+  "last_updated": "{datetime.now().isoformat()}",
+  "facts": [
     {{
-      "timestamp": "ISO_DATE",
-      "source": "SOURCE_NAME",
-      "evenement": "Description événement concernant {user_name}",
-      "conversation_id": "ID_CONV",
-      "contexte": "Contexte détaillé psychologique"
+      "date": "YYYY-MM-DD",
+      "content": "Fait observable en une phrase",
+      "source_type": "memory|cognitive_cache|summary",
+      "category": "projet|preference|habitude|evenement|competence|relation"
     }}
   ],
-  "etude_psychique": {{
-    "mbti": {{
-      "type_estime": "TYPE_MBTI",
-      "confiance": 0.XX,
-      "derniere_evaluation": "ISO_DATE",
-      "indices_observes": ["observation comportementale 1", "observation 2"]
-    }},
-    "profil_psychologique": {{
-      "traits_dominants": ["trait psychologique 1", "trait 2", "trait 3"],
-      "mecanismes_defense": ["mécanisme psychologique 1", "mécanisme 2"],
-      "zones_vulnerabilite": ["vulnérabilité 1", "vulnérabilité 2"]
-    }},
-    "intelligence_emotionnelle": {{
-      "score_estime": X.X,
-      "points_forts": ["force émotionnelle 1", "force 2"],
-      "points_amelioration": ["amélioration 1", "amélioration 2"]
-    }}
-  }},
-  "etude_intellectuelle": {{
-    "structure_mentale": {{
-      "type_pensee": "analytique|créative|pragmatique|hybride",
-      "processus_decision": "description processus",
-      "gestion_information": "description traitement info"
-    }},
-    "structure_memoire": {{
-      "type_dominant": "visuelle|auditive|kinesthésique|associative",
-      "points_forts": ["force mémoire 1", "force 2"],
-      "particularites": ["particularité 1", "particularité 2"]
-    }},
-    "evaluation_comparative": {{
-      "qi_estime": XXX,
-      "percentile_population": XX,
-      "comparaison_utilisateurs_ia": "supérieur|moyen|inférieur moyenne",
-      "domaines_excellence": ["domaine cognitif 1", "domaine 2"]
-    }}
-  }},
-  "etude_physique": {{
-    "traits_physiques": {{
-      "taille": "description taille",
-      "corpulence": "description corpulence",
-      "particularites": ["trait physique 1", "trait 2"]
-    }},
-    "expressions_caracteristiques": {{
-      "micro_expressions": ["expression faciale 1", "expression 2"],
-      "gestuelle": ["geste 1", "geste 2"]
-    }},
-    "ressemblances_notees": {{
-      "personnalites": ["ressemblance personnalité 1"],
-      "traits_communs": ["trait partagé 1", "trait 2"]
-    }}
-  }},
-  "etude_gouts_preferences": {{
-    "affinites_identifiees": {{
-      "intellectuel": ["préférence intellectuelle 1", "préférence 2"],
-      "artistique": ["goût artistique 1", "goût 2"],
-      "social": ["préférence sociale 1", "préférence 2"]
-    }},
-    "repulsions_identifiees": {{
-      "social": ["aversion sociale 1", "aversion 2"],
-      "intellectuel": ["aversion intellectuelle 1", "aversion 2"],
-      "environnemental": ["aversion environnementale 1"]
-    }},
-    "evolutions_observees": [
-      {{
-        "periode": "YYYY-MM → YYYY-MM",
-        "changement": "description évolution",
-        "declencheur": "facteur de changement"
-      }}
-    ]
+  "profile_summary": {{
+    "projets_actifs": ["liste des projets mentionnes"],
+    "preferences": ["preferences explicites observees"],
+    "competences": ["competences demontrees"],
+    "notes_libres": ""
   }}
 }}
 ```
 
-🎯 Analyse maintenant les données et génère le JSON structuré pour {user_name}:"""
-            
-            # 4. APPEL IA POUR GÉNÉRATION JSON
+IMPORTANT: Inclure TOUS les faits du profil existant + les nouveaux.
+Genere UNIQUEMENT le JSON, rien d'autre."""
+
             messages = [
-                {"role": "system", "content": "Tu es une psychiatre experte. Tu génères UNIQUEMENT du JSON valide."},
-                {"role": "user", "content": json_generation_prompt}
+                {"role": "system", "content": "Tu es un analyste factuel. Tu generes UNIQUEMENT du JSON valide. Aucune psychologie, aucune inference."},
+                {"role": "user", "content": prompt}
             ]
-            
-            print(f"[BIOGRAPHY-MANAGER] 🚀 Envoi à l'IA pour génération JSON...")
 
-            # Diagnostics avant envoi
-            prompt_length = len(json_generation_prompt)
-            print(f"[BIOGRAPHY-MANAGER] 📊 Prompt JSON: {prompt_length} caractères")
-            print(f"[BIOGRAPHY-MANAGER] 📊 Données: Vol1={len(volume1_memories)}c, Conv={len(historical_conversations)}c, Sum={len(summaries_content)}c")
-
-            # Callback: Données collectées
             if progress_callback:
-                await progress_callback(5, 5, "🚀 Analyse IA en cours...", {
-                    'vol1_size': len(volume1_memories),
-                    'conv_size': len(historical_conversations),
-                    'sum_size': len(summaries_content),
-                    'total_size': len(volume1_memories) + len(historical_conversations) + len(summaries_content)
-                })
+                await progress_callback(4, 5, "Analyse IA en cours...", counts)
 
-            # 🔧 SÉCURITÉ: Vérifier si le prompt n'est pas trop long
-            # LIMITE CIBLE: 50KB max pour garantir une réponse IA complète et structurée
-            MAX_PROMPT_SIZE = 50000  # 50KB = taille sûre pour génération JSON complète
-            MAX_SUMMARIES = 15000   # Priorité haute - résumés les plus importants
-            MAX_VOLUME1 = 20000     # Priorité moyenne - mémoires clés
-            MAX_CONVERSATIONS = 10000  # Priorité basse - échantillon conversations
-            
-            if prompt_length > MAX_PROMPT_SIZE:
-                print(f"[BIOGRAPHY-MANAGER] ⚠️ PROMPT TRÈS LONG ({prompt_length}c) - Réduction agressive vers {MAX_PROMPT_SIZE}c max")
-                
-                # Réduction par priorité : summaries > volume1 > conversations
-                original_sizes = {
-                    'summaries': len(summaries_content),
-                    'volume1': len(volume1_memories),
-                    'conversations': len(historical_conversations)
-                }
-                
-                # 1. Tronquer les conversations d'abord (moins importantes)
-                if len(historical_conversations) > MAX_CONVERSATIONS:
-                    historical_conversations = historical_conversations[:MAX_CONVERSATIONS] + "\n[...CONVERSATIONS TRONQUÉES - Échantillon représentatif...]"
-                
-                # 2. Tronquer volume1 ensuite
-                if len(volume1_memories) > MAX_VOLUME1:
-                    volume1_memories = volume1_memories[:MAX_VOLUME1] + "\n[...VOLUME 1 TRONQUÉ - Mémoires essentielles conservées...]"
-                
-                # 3. Tronquer summaries si vraiment nécessaire (éviter si possible)
-                if len(summaries_content) > MAX_SUMMARIES:
-                    summaries_content = summaries_content[:MAX_SUMMARIES] + "\n[...RÉSUMÉS TRONQUÉS - Synthèse principale conservée...]"
-                
-                print(f"[BIOGRAPHY-MANAGER] 📊 Réduction: Sum {original_sizes['summaries']}→{len(summaries_content)}, Vol1 {original_sizes['volume1']}→{len(volume1_memories)}, Conv {original_sizes['conversations']}→{len(historical_conversations)}")
-                    
-                # Régénérer le prompt avec données réduites MAIS GARDER LE SCHÉMA JSON
-                json_generation_prompt = f"""Tu es une psychiatre et psychologue experte spécialisée en analyse biographique profonde.
+            print(f"[BIOGRAPHY-MANAGER] Envoi a l'IA ({len(prompt)} chars)...")
 
-🎯 MISSION CRITIQUE: Analyser les données sur {user_name} pour créer un profil JSON ultra-structuré
-
-🏗️ SCHÉMA JSON COMPLET (RESPECTER IMPÉRATIVEMENT):
-```json
-{{
-  "metadata": {{
-    "user_name": "{user_name}",
-    "created_at": "ISO_DATE",
-    "last_updated": "ISO_DATE", 
-    "total_analyses": NUMBER,
-    "data_sources": ["volume1", "conversations", "summaries_cache"]
-  }},
-  "chronologie": [
-    {{
-      "timestamp": "ISO_DATE",
-      "source": "SOURCE_NAME",
-      "evenement": "Description événement concernant {user_name}",
-      "conversation_id": "ID_CONV",
-      "contexte": "Contexte détaillé psychologique"
-    }}
-  ],
-  "etude_psychique": {{
-    "mbti": {{
-      "type_estime": "TYPE_MBTI",
-      "confiance": 0.XX,
-      "derniere_evaluation": "ISO_DATE",
-      "indices_observes": ["observation comportementale 1", "observation 2"]
-    }},
-    "profil_psychologique": {{
-      "traits_dominants": ["trait psychologique 1", "trait 2", "trait 3"],
-      "mecanismes_defense": ["mécanisme psychologique 1", "mécanisme 2"],
-      "zones_vulnerabilite": ["vulnérabilité 1", "vulnérabilité 2"]
-    }},
-    "intelligence_emotionnelle": {{
-      "score_estime": X.X,
-      "points_forts": ["force émotionnelle 1", "force 2"],
-      "points_amelioration": ["amélioration 1", "amélioration 2"]
-    }}
-  }},
-  "etude_intellectuelle": {{
-    "structure_mentale": {{
-      "type_pensee": "analytique|créative|pragmatique|hybride",
-      "processus_decision": "description processus",
-      "gestion_information": "description traitement info"
-    }},
-    "structure_memoire": {{
-      "type_dominant": "visuelle|auditive|kinesthésique|associative",
-      "points_forts": ["force mémoire 1", "force 2"],
-      "particularites": ["particularité 1", "particularité 2"]
-    }},
-    "evaluation_comparative": {{
-      "qi_estime": XXX,
-      "percentile_population": XX,
-      "comparaison_utilisateurs_ia": "supérieur|moyen|inférieur moyenne",
-      "domaines_excellence": ["domaine cognitif 1", "domaine 2"]
-    }}
-  }},
-  "etude_physique": {{
-    "traits_physiques": {{
-      "taille": "description taille",
-      "corpulence": "description corpulence",
-      "particularites": ["trait physique 1", "trait 2"]
-    }},
-    "expressions_caracteristiques": {{
-      "micro_expressions": ["expression faciale 1", "expression 2"],
-      "gestuelle": ["geste 1", "geste 2"]
-    }}
-  }},
-  "etude_gouts_preferences": {{
-    "affinites_identifiees": {{
-      "intellectuel": ["préférence intellectuelle 1", "préférence 2"],
-      "artistique": ["goût artistique 1", "goût 2"],
-      "social": ["préférence sociale 1", "préférence 2"]
-    }},
-    "repulsions_identifiees": {{
-      "social": ["aversion sociale 1", "aversion 2"],
-      "intellectuel": ["aversion intellectuelle 1", "aversion 2"],
-      "environnemental": ["aversion environnementale 1"]
-    }}
-  }}
-}}
-```
-
-=== VOLUME 1 (ÉCHANTILLON) ===
-{volume1_memories}
-
-=== CONVERSATIONS (ÉCHANTILLON) ===
-{historical_conversations}
-
-=== RÉSUMÉS PROGRESSIFS ===
-{summaries_content}
-
-🎯 Analyse maintenant les données et génère le JSON structuré complet pour {user_name} selon le schéma ci-dessus."""
-                
-                # Recalculer la taille du prompt réduit
-                prompt_length = len(json_generation_prompt)
-                print(f"[BIOGRAPHY-MANAGER] 📊 Prompt réduit final: {prompt_length} caractères")
-                
-                # 🔧 CRITIQUE: Reconstruire messages avec le prompt réduit
-                messages = [
-                    {"role": "system", "content": "Tu es une psychiatre experte. Tu génères UNIQUEMENT du JSON valide."},
-                    {"role": "user", "content": json_generation_prompt}
-                ]
-
-            print(f"[BIOGRAPHY-MANAGER] ⏱️ Début appel IA...")
+            # 6. APPEL IA
             import time
             start_time = time.time()
 
-            # 🔧 MONITORING ACTIF : Tâche parallèle pour mise à jour du décompte
             chat_task = asyncio.create_task(
                 chat_controller.call_chat_api(
                     messages=messages,
-                    max_tokens=8000,  # Augmenté pour JSON plus riche
+                    max_tokens=4000,
                     context_length=chat_controller.context_length,
-                    temperature=0.3,  # Précision pour JSON
-                    is_json=True  # Important !
+                    temperature=0.3,
+                    is_json=True
                 )
             )
 
-            # Boucle de monitoring avec mises à jour toutes les 5 secondes
             try:
                 while not chat_task.done():
                     elapsed = time.time() - start_time
-
-                    if elapsed > 240.0:  # Timeout après 240s
+                    if elapsed > 180.0:
                         chat_task.cancel()
                         raise asyncio.TimeoutError()
 
-                    # Callback: Mise à jour du temps
                     if progress_callback:
-                        await progress_callback(5, 5, f"🧠 IA analyse en cours...", {
-                            'vol1_size': len(volume1_memories),
-                            'conv_size': len(historical_conversations),
-                            'sum_size': len(summaries_content),
-                            'total_size': len(volume1_memories) + len(historical_conversations) + len(summaries_content),
+                        await progress_callback(4, 5, f"Analyse IA en cours...", {
+                            **counts,
                             'elapsed': int(elapsed)
                         })
-
-                    # Attendre 5 secondes avant la prochaine mise à jour
                     await asyncio.sleep(5)
 
-                # Récupérer le résultat
                 response, error = await chat_task
-
                 duration = time.time() - start_time
-                print(f"[BIOGRAPHY-MANAGER] ✅ IA répondu en {duration:.1f}s")
+                print(f"[BIOGRAPHY-MANAGER] IA repondu en {duration:.1f}s")
 
-                # Callback: IA terminé
-                if progress_callback:
-                    await progress_callback(5, 5, "✅ Analyse terminée, validation...", {
-                        'duration': duration
-                    })
-                
             except asyncio.TimeoutError:
-                print(f"[BIOGRAPHY-MANAGER] ❌ TIMEOUT IA (>240s) - Génération interrompue")
+                print(f"[BIOGRAPHY-MANAGER] TIMEOUT IA (>180s)")
                 return False
-            
+
             if error or not response:
-                print(f"[BIOGRAPHY-MANAGER] ❌ Erreur IA JSON: {error}")
+                print(f"[BIOGRAPHY-MANAGER] Erreur IA: {error}")
                 return False
-            
-            # 5. VALIDATION ET SAUVEGARDE JSON
+
+            # 7. VALIDATION ET SAUVEGARDE
             json_content = response.get('content', '') if isinstance(response, dict) else str(response)
-            
+
             try:
-                # Nettoyer les balises markdown (```json ... ```)
-                import json
                 import re
-                
                 cleaned_content = json_content.strip()
-                
-                # Retirer les blocs markdown ```json ... ``` ou ``` ... ```
+
+                # Retirer les balises markdown
                 if cleaned_content.startswith('```'):
-                    # Pattern: début par ```json ou ``` puis contenu jusqu'à ``` final
-                    # Utiliser greedy (.*) au lieu de non-greedy (.*?) pour capturer tout le contenu
                     match = re.search(r'^```(?:json)?\s*\n(.*)```\s*$', cleaned_content, re.DOTALL)
                     if match:
                         cleaned_content = match.group(1).strip()
-                        print(f"[BIOGRAPHY-MANAGER] 🧹 Balises markdown retirées ({len(json_content)} → {len(cleaned_content)} chars)")
-                    else:
-                        print(f"[BIOGRAPHY-MANAGER] ⚠️ Pattern markdown non reconnu, tentative parsing direct")
-                
-                # Parser pour valider JSON
+
                 structured_data = json.loads(cleaned_content)
-                
-                # Vérifier structure minimale
-                required_keys = ['metadata', 'chronologie', 'etude_psychique']
-                missing_keys = [k for k in required_keys if k not in structured_data]
-                
-                if missing_keys:
-                    print(f"[BIOGRAPHY-MANAGER] ⚠️ Clés manquantes dans JSON: {missing_keys}")
-                    # Continuer quand même mais signaler
-                
-                # Sauvegarder le JSON généré par IA
+
+                # Validation minimale
+                if "facts" not in structured_data:
+                    print(f"[BIOGRAPHY-MANAGER] Cle 'facts' manquante dans le JSON")
+                    return False
+
+                facts_count = len(structured_data.get("facts", []))
+                print(f"[BIOGRAPHY-MANAGER] JSON genere: {facts_count} faits")
+
+                # Sauvegarder
                 success = structured_manager.save_structured_data(structured_data)
-                
+
                 if success:
-                    print(f"[BIOGRAPHY-MANAGER] ✅ Volume 2 JSON généré par IA: {len(json_content)} chars")
+                    # 8. MARQUER LES SIGNAUX COMME TRAITES
+                    from extensions.biographie_profil.signal_collector import mark_signals_processed
+                    marked = mark_signals_processed(signals)
+                    print(f"[BIOGRAPHY-MANAGER] {marked} signaux marques bio_processed=true")
+
+                    if progress_callback:
+                        await progress_callback(5, 5, f"Biographie enrichie: {facts_count} faits", {
+                            **counts,
+                            'facts_count': facts_count,
+                            'duration': duration
+                        })
                     return True
                 else:
-                    print(f"[BIOGRAPHY-MANAGER] ❌ Échec sauvegarde JSON")
+                    print(f"[BIOGRAPHY-MANAGER] Echec sauvegarde JSON")
                     return False
-                    
+
             except json.JSONDecodeError as e:
-                print(f"[BIOGRAPHY-MANAGER] ❌ JSON invalide généré par l'IA: {e}")
-                print(f"Contenu reçu: {json_content[:200]}...")
+                print(f"[BIOGRAPHY-MANAGER] JSON invalide: {e}")
+                print(f"Contenu: {json_content[:200]}...")
                 return False
-            
+
         except Exception as e:
-            print(f"[BIOGRAPHY-MANAGER] ❌ Erreur génération JSON IA: {e}")
+            print(f"[BIOGRAPHY-MANAGER] Erreur generation JSON: {e}")
             import traceback
             traceback.print_exc()
             return False
 
-    async def generate_volume2_md_with_grok(self, user_name: str, progress_callback=None) -> Optional[str]:
-        """
-        🧠 PHASE 2: Transformation JSON → Markdown narratif par GROK
-        ============================================================
-
-        Lit le JSON structuré existant et le transforme en journal narratif développé
-
-        Args:
-            user_name: Nom de l'utilisateur
-            progress_callback: Fonction optionnelle appelée avec (étape, message, données)
-
-        Returns:
-            Contenu Markdown narratif ou None si erreur
-        """
-        try:
-            print(f"[BIOGRAPHY-MANAGER] 🧠 Phase 2: Transformation JSON→MD pour {user_name}")
-
-            # Callback: Initialisation Phase 2
-            if progress_callback:
-                await progress_callback(1, 3, "🔧 Chargement JSON...", {})
-
-            # 1. CHARGER LE JSON EXISTANT
-            structured_manager = self.get_structured_manager(user_name)
-            json_data = structured_manager.load_structured_data()
-
-            if not json_data or json_data.get("metadata", {}).get("total_analyses", 0) == 0:
-                print(f"[BIOGRAPHY-MANAGER] ⚠️ Aucun JSON trouvé pour {user_name}. Exécutez d'abord la Phase 1.")
-                return None
-
-            # Callback: JSON chargé
-            import json
-            json_str = json.dumps(json_data, ensure_ascii=False, indent=2)
-            if progress_callback:
-                await progress_callback(2, 3, "📊 JSON chargé, préparation prompt...", {
-                    'json_size': len(json_str)
-                })
-
-            # 2. ACCÈS AU CONTRÔLEUR CHAT (via _ensure_chat_controller pour initialisation lazy)
-            import ogma_ng
-            chat_controller = None
-            if hasattr(ogma_ng, '_ensure_chat_controller'):
-                chat_controller = ogma_ng._ensure_chat_controller()
-            elif hasattr(ogma_ng, '_chat_controller') and ogma_ng._chat_controller:
-                chat_controller = ogma_ng._chat_controller
-            
-            if not chat_controller:
-                print(f"[BIOGRAPHY-MANAGER] ❌ Contrôleur chat non disponible")
-                return None
-            
-            provider_name = getattr(chat_controller, 'provider', 'Chat')
-            print(f"[BIOGRAPHY-MANAGER] ✅ Contrôleur disponible: {provider_name}")
-            
-            # 3. PROMPT TRANSFORMATION JSON → MARKDOWN
-            
-            transformation_prompt = f"""Tu es une psychiatre experte et écrivain littéraire spécialisée en rédaction biographique narrative.
-
-🎯 MISSION LITTÉRAIRE: Transformer le JSON en journal biographique narratif d'expert psychiatre
-
-👤 SUJET: {user_name} (être humain réel - analyse psychiatrique littéraire complète)
-
-📊 DONNÉES JSON ANALYSÉES:
-```json
-{json_str}
-```
-
-🎨 STYLE EXPERT PSYCHIATRE LITTÉRAIRE:
-- Rédaction narrative fluide et développée (JAMAIS de listing)
-- Analyse psychologique approfondie avec insights cliniques
-- Développement littéraire des observations comportementales
-- Synthèse créative des patterns de personnalité
-- Ton professionnel d'expert psychiatre mais accessible
-- Transitions narratives élégantes entre sections
-
-� STRUCTURE SELON REFONTE_VOLUME2_ARCHITECTURE.md:
-
-```markdown
-# 📋 JOURNAL BIOGRAPHIQUE - {user_name}
-
-*Analyse psychiatrique narrative générée le [DATE]*  
-*Sources: Volume 1 intégral, Conversations >30KB, Résumés progressifs*
-
----
-
-## 🕐 CHRONOLOGIE DES ÉVÉNEMENTS
-
-### [Périodes chronologiques avec développement narratif]
-[Développement narratif complet de l'évolution temporelle avec analyses des patterns de développement personnel, transitions psychologiques observées, moments charnières identifiés]
-
----
-
-## 🧠 ÉTUDE PSYCHIQUE
-
-### Profil MBTI : [Type] (Confiance: X%)
-[Développement narratif approfondi du type psychologique avec justifications cliniques observées dans les données]
-
-### Mécanismes psychologiques
-[Analyse narrative experte des traits dominants, mécanismes de défense, zones de vulnérabilité avec développements psychiatriques approfondis]
-
-### Intelligence émotionnelle
-[Développement narratif des capacités émotionnelles observées]
-
----
-
-## 🎓 ÉTUDE INTELLECTUELLE
-
-### Architecture mentale
-[Analyse narrative des processus cognitifs, type de pensée, gestion de l'information]
-
-### Évaluation comparative  
-[Développement narratif des capacités intellectuelles avec comparaisons contextualisées]
-
----
-
-## 👤 ÉTUDE PHYSIQUE
-[Développement narratif des observations physiques et expressives]
-
----
-
-## 🎯 GOÛTS & PRÉFÉRENCES
-
-### Affinités identifiées
-[Développement narratif des centres d'intérêt et passions]
-
-### Répulsions observées
-[Analyse empathique et narrative des aversions]
-
-### Évolutions récentes
-[Développement narratif des changements de préférences observés]
-
----
-
-*Journal biographique d'expertise psychiatriquegénéré par IA - OGMA V2.0*
-```
-
-🎯 EXIGENCES NARRATIVES EXPERTES:
-- Chaque section développée sur 3-4 paragraphes minimum
-- Style narratif fluide d'expert psychiatre littéraire  
-- Analyses cliniques approfondies mais accessibles
-- Transitions narratives élégantes
-- Synthèses créatives des patterns observés
-- Utilise les données JSON pour nourrir tes analyses
-- Crée des liens et synthèses entre les différents éléments
-- Style journal personnel développé, PAS de listing télégraphique
-- Focalise sur {user_name} uniquement (ignore références IA/IA principale)
-
-Rédige maintenant ce journal biographique développé:"""
-            
-            # 4. APPEL IA POUR TRANSFORMATION
-            messages = [
-                {"role": "system", "content": f"Tu es une psychiatre experte qui rédige des journaux biographiques narratifs sur {user_name}."},
-                {"role": "user", "content": transformation_prompt}
-            ]
-            
-            print(f"[BIOGRAPHY-MANAGER] 🚀 Envoi à l'IA pour transformation narratif...")
-
-            # Callback: Début transformation IA
-            if progress_callback:
-                await progress_callback(3, 3, "🧠 IA transforme JSON en narratif...", {
-                    'json_size': len(json_str)
-                })
-
-            # 🔧 MONITORING ACTIF : Tâche parallèle pour mise à jour du décompte
-            import time
-            start_time = time.time()
-
-            chat_task = asyncio.create_task(
-                chat_controller.call_chat_api(
-                    messages=messages,
-                    max_tokens=8000,  # Journal développé
-                    context_length=chat_controller.context_length,
-                    temperature=0.7,  # Créativité pour narrative
-                    is_json=False
-                )
-            )
-
-            # Boucle de monitoring avec mises à jour toutes les 5 secondes
-            try:
-                while not chat_task.done():
-                    elapsed = time.time() - start_time
-
-                    if elapsed > 240.0:  # Timeout après 240s
-                        chat_task.cancel()
-                        raise asyncio.TimeoutError()
-
-                    # Callback: Mise à jour du temps
-                    if progress_callback:
-                        await progress_callback(3, 3, "📝 Rédaction narrative en cours...", {
-                            'json_size': len(json_str),
-                            'elapsed': int(elapsed)
-                        })
-
-                    # Attendre 5 secondes avant la prochaine mise à jour
-                    await asyncio.sleep(5)
-
-                # Récupérer le résultat
-                response, error = await chat_task
-
-                duration = time.time() - start_time
-                print(f"[BIOGRAPHY-MANAGER] ✅ IA Phase 2 répondu en {duration:.1f}s")
-
-                # Callback: IA terminé
-                if progress_callback:
-                    await progress_callback(3, 3, "✅ Transformation terminée, sauvegarde...", {
-                        'duration': duration
-                    })
-
-            except asyncio.TimeoutError:
-                print(f"[BIOGRAPHY-MANAGER] ❌ TIMEOUT IA Phase 2 (>240s)")
-                return None
-
-            if error or not response:
-                print(f"[BIOGRAPHY-MANAGER] ❌ Erreur IA MD: {error}")
-                return None
-            
-            # 5. RÉCUPÉRATION ET SAUVEGARDE MARKDOWN
-            markdown_content = response.get('content', '') if isinstance(response, dict) else str(response)
-            
-            if len(markdown_content) < 50:
-                print(f"[BIOGRAPHY-MANAGER] ⚠️ Markdown trop court généré: {len(markdown_content)} chars")
-                # En test, accepter même les contenus courts
-                if "test" in markdown_content.lower():
-                    print(f"[BIOGRAPHY-MANAGER] ✅ Mode test - Acceptation contenu court")
-                else:
-                    return None
-            
-            # Sauvegarder le journal Markdown
-            journal_file = structured_manager.user_dir / "volume2_journal.md"
-            
-            with open(journal_file, 'w', encoding='utf-8') as f:
-                f.write(markdown_content)
-            
-            print(f"[BIOGRAPHY-MANAGER] ✅ Volume 2 MD généré: {len(markdown_content):,} chars")
-            print(f"[BIOGRAPHY-MANAGER] 📖 Journal sauvegardé: {journal_file}")
-            
-            return markdown_content
-            
-        except Exception as e:
-            print(f"[BIOGRAPHY-MANAGER] ❌ Erreur transformation MD: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-        try:
-            print(f"[BIOGRAPHY-MANAGER] 🧠 Génération journal IA pure pour {user_name}")
-            
-            # 1. COLLECTE DES DONNÉES SOURCES
-            structured_manager = self.get_structured_manager(user_name)
-            
-            # Volume 1 FAISS (mémoires existantes)
-            volume1_memories = self._collect_volume1_memories(user_name)
-            
-            # Conversations historiques
-            historical_conversations = self._collect_historical_conversations()
-            
-            # Summaries cache (résumés progressifs)
-            summaries_content = self._collect_summaries_cache()
-            
-            # 2. ACCÈS AU CONTRÔLEUR CHAT (via _ensure_chat_controller pour initialisation lazy)
-            import ogma_ng
-            chat_controller = None
-            if hasattr(ogma_ng, '_ensure_chat_controller'):
-                chat_controller = ogma_ng._ensure_chat_controller()
-            elif hasattr(ogma_ng, '_chat_controller') and ogma_ng._chat_controller:
-                chat_controller = ogma_ng._chat_controller
-            
-            if not chat_controller:
-                print(f"[BIOGRAPHY-MANAGER] ❌ Contrôleur chat non disponible")
-                return None
-            
-            provider_name = getattr(chat_controller, 'provider', 'Chat')
-            print(f"[BIOGRAPHY-MANAGER] ✅ Contrôleur disponible: {provider_name}")
-            
-            # 3. PROMPT SPÉCIALISÉ BIOGRAPHIE
-            biographical_prompt = f"""Tu es une psychiatre et psychologue experte spécialisée en analyse biographique.
-
-🎯 MISSION: Rédiger un journal biographique narratif et développé sur {user_name}
-
-⚠️ IMPORTANT: 
-- Tu analyses les données pour identifier UNIQUEMENT les informations concernant {user_name} (l'utilisateur humain)
-- Tu IGNORES complètement toute référence à "IA principale", "IA", "Archiviste" ou entités artificielles
-- Tu te concentres sur la personne réelle: {user_name}
-
-📊 DONNÉES SOURCES DISPONIBLES:
-
-=== MÉMOIRES VOLUME 1 (FAISS) ===
-{volume1_memories[:3000] if volume1_memories else "Aucune mémoire Volume 1 disponible"}
-
-=== CONVERSATIONS HISTORIQUES ===
-{historical_conversations[:3000] if historical_conversations else "Aucune conversation historique disponible"}
-
-=== RÉSUMÉS PROGRESSIFS (SUMMARIES CACHE) ===
-{summaries_content[:4000] if summaries_content else "Aucun résumé disponible"}
-
-🎨 STYLE DEMANDÉ:
-- Journal biographique NARRATIF (pas de listing)
-- Développement psychologique approfondi
-- Analyse des patterns comportementaux de {user_name}
-- Synthèse créative et bienveillante
-- Ton professionnel mais empathique
-
-📝 STRUCTURE SOUHAITÉE:
-1. **Portrait général de {user_name}**
-2. **Évolution chronologique observée** 
-3. **Analyse psychologique approfondie**
-4. **Patterns comportementaux identifiés**
-5. **Centres d'intérêt et préférences**
-6. **Synthèse et perspectives**
-
-Rédige maintenant ce journal biographique développé sur {user_name}:"""
-            
-            # 4. APPEL IA POUR GÉNÉRATION
-            messages = [
-                {"role": "system", "content": "Tu es une psychiatre experte en analyse biographique."},
-                {"role": "user", "content": biographical_prompt}
-            ]
-            
-            print(f"[BIOGRAPHY-MANAGER] 🚀 Envoi à l'IA pour génération narrative...")
-            
-            response, error = await chat_controller.call_chat_api(
-                messages=messages,
-                max_tokens=8000,  # Journal développé
-                context_length=chat_controller.context_length,
-                temperature=0.7,  # Créativité modérée
-                is_json=False
-            )
-            
-            if error or not response:
-                print(f"[BIOGRAPHY-MANAGER] ❌ Erreur IA: {error}")
-                return None
-            
-            journal_content = response.get('content', '') if isinstance(response, dict) else str(response)
-            
-            if len(journal_content) < 100:
-                print(f"[BIOGRAPHY-MANAGER] ⚠️ Journal trop court généré par l'IA")
-                return None
-            
-            print(f"[BIOGRAPHY-MANAGER] ✅ Journal IA généré: {len(journal_content):,} caractères")
-            
-            # 5. SAUVEGARDER LE JOURNAL
-            journal_file = structured_manager.user_dir / "volume2_journal.md"
-            
-            # Header avec métadonnées
-            final_journal = f"""# 📋 JOURNAL BIOGRAPHIQUE - {user_name}
-
-*Généré automatiquement par l'IA principale le {datetime.now().strftime('%d/%m/%Y à %H:%M')}*
-**Méthode:** Analyse IA pure (Architecture V2.0)
-**Sources:** Volume 1 FAISS, Conversations historiques, Résumés progressifs
-
----
-
-{journal_content}
-
----
-
-*Journal biographique généré par l'IA principale - Architecture OGMA V2.0*
-*Focus exclusif sur {user_name} - Aucun fallback Python utilisé*
-"""
-            
-            with open(journal_file, 'w', encoding='utf-8') as f:
-                f.write(final_journal)
-            
-            print(f"[BIOGRAPHY-MANAGER] 📖 Journal sauvegardé: {journal_file}")
-            
-            return final_journal
-            
-        except Exception as e:
-            print(f"[BIOGRAPHY-MANAGER] ❌ Erreur génération journal IA: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-
-    def save_structured_journal(self, user_name: str) -> bool:
-        """Sauvegarde le journal structuré généré"""
-        try:
-            structured_manager = self.get_structured_manager(user_name)
-            return structured_manager.save_generated_journal()
-        except Exception as e:
-            print(f"[BIOGRAPHY-MANAGER] ❌ Erreur sauvegarde journal: {e}")
-            return False

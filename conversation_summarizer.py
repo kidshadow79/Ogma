@@ -62,11 +62,16 @@ class ConversationSummarizer:
         self._current_summaries: List[Dict] = []  # Résumés courants [{start, end, text, cache_key, reflexions}]
         self._last_summarized_index: int = 0  # Index dernier message résumé
         self._last_reflexions: List[Dict] = []  # Reflexions du dernier appel API (tampon temporaire)
+        self._current_user_tag: Optional[str] = None  # Utilisateur connecté (pour tagging biographique)
         
     def set_archiviste(self, archiviste):
         """Configure l'interface Archiviste après initialisation"""
         self.archiviste = archiviste
         print("✅ [SUMMARIZER] Archiviste configuré")
+    
+    def set_user_tag(self, user_tag: Optional[str]):
+        """Configure l'utilisateur connecté pour le tagging biographique des résumés."""
+        self._current_user_tag = user_tag
     
     # ===========================================================================
     # 🆕 MÉTHODES PERSISTANCE JSON - Gestion état résumés
@@ -134,7 +139,9 @@ class ConversationSummarizer:
             "start": start,
             "end": end,
             "text": text,
-            "cache_key": cache_key
+            "cache_key": cache_key,
+            "user_tag": self._current_user_tag,
+            "bio_processed": False
         }
         # Stocker les reflexions si presentes
         if reflexions:

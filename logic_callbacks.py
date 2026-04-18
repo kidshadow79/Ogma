@@ -321,7 +321,7 @@ def load_memories_df(STATUS_QUEUE, memory_structure, filter_query=None):
     memories = memory_structure.memories
     if filter_query:
         q = filter_query.lower()
-        memories = [m for m in memories if q in m.get('titre','').lower() or q in m.get('commentaire_tia','').lower()]
+        memories = [m for m in memories if q in m.get('titre','').lower() or q in m.get('commentaire_ia', m.get('commentaire_tia','')).lower()]
     # CORRECTION: Utiliser score_impact pour les nouveaux souvenirs, signed_score pour les anciens
     def get_display_score(m):
         # Nouveau système (MemoryManager v2.0)
@@ -476,7 +476,7 @@ async def chat_fn(message, history, state, file_path_state, thinking_mode_enable
     
     # Récupérer le contexte permanent (fonction définie dans ce fichier)
     persistent_context = get_persistent_context()
-    
+
     # 🎯 OPTIMISATION ANTI-REDONDANCE:
     # context_note et conversation_context RETIRÉS du system prompt
     # → Ces infos sont déjà dans l'historique conversationnel (contextual_history)
@@ -768,7 +768,7 @@ def load_memory_into_editor_fn(evt: gr.SelectData, df: pd.DataFrame, memory_mana
     # Adaptation mapping SQLite vs ancien JSON
     titre = memory_to_edit.get('title', memory_to_edit.get('titre', ''))
     texte_original = memory_to_edit.get('text_original', memory_to_edit.get('texte_original', ''))
-    commentaire = memory_to_edit.get('summary', memory_to_edit.get('commentaire_tia', ''))
+    commentaire = memory_to_edit.get('summary', memory_to_edit.get('commentaire_ia', memory_to_edit.get('commentaire_tia', '')))
     valence = memory_to_edit.get('valence', 0)
     intensite = memory_to_edit.get('score_impact', memory_to_edit.get('intensite_mnéacloud', 0.0))
     

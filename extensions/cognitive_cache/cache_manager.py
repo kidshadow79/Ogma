@@ -97,7 +97,7 @@ def save_cache(conv_id: str, data: Dict) -> bool:
         return False
 
 
-def add_entry(conv_id: str, entry_type: str, content: str) -> Optional[str]:
+def add_entry(conv_id: str, entry_type: str, content: str, user_tag: str = None) -> Optional[str]:
     """
     Ajoute une entrée dans le cache.
 
@@ -105,6 +105,7 @@ def add_entry(conv_id: str, entry_type: str, content: str) -> Optional[str]:
         conv_id: Identifiant de la conversation
         entry_type: Type parmi directive / observation / idea_pending / context_anchor
         content: Contenu de la pensée
+        user_tag: Nom utilisateur connecté (pour tagging biographique)
 
     Returns:
         L'ID de l'entrée créée, ou None si échec
@@ -127,7 +128,9 @@ def add_entry(conv_id: str, entry_type: str, content: str) -> Optional[str]:
         "type": entry_type,
         "content": content.strip(),
         "created_at": datetime.now().isoformat(),
-        "active": True
+        "active": True,
+        "user_tag": user_tag,
+        "bio_processed": False
     }
 
     data["entries"].append(entry)

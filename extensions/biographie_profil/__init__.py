@@ -98,6 +98,41 @@ def open_settings_modal():
         return False
 
 
+def get_bio_context_block(user_name: str, max_facts: int = 15) -> str:
+    """
+    Retourne un bloc condensé de faits biographiques prêt à injecter dans le system prompt.
+    
+    Charge directement le JSON (sans nécessiter l'initialisation de l'extension).
+    Retourne "" si le fichier est absent, vide ou en cas d'erreur.
+    
+    Format :
+        [PROFIL YOHAN — faits observés]
+        - Yohan exprime un amour pour les films de science-fiction.
+        - Yohan possède une chatte nommée Willow.
+    """
+    if not user_name:
+        return ""
+    try:
+        import json
+        from pathlib import Path
+        structured_file = Path("data/biographies") / user_name.lower() / "volume2_structured.json"
+        if not structured_file.exists():
+            return ""
+        with open(structured_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        facts = data.get("facts", [])
+        if not facts:
+            return ""
+        lines = [f"- {fact['content']}" for fact in facts[:max_facts] if fact.get("content")]
+        if not lines:
+            return ""
+        header = f"[PROFIL {user_name.upper()} — faits observés]"
+        return header + "\n" + "\n".join(lines)
+    except Exception as e:
+        print(f"[BIOGRAPHY-EXTENSION] Erreur lecture profil condensé: {e}")
+        return ""
+
+
 def cleanup():
     """Nettoyage propre de l'extension biographie_profil."""
     global _biography_manager, _biography_ui, _biography_magic_phrases, _is_initialized

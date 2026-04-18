@@ -639,6 +639,42 @@ class DreamEngine:
                 self._log(f"Consolidation identite non bloquante: {e}")
             
             # ═══════════════════════════════════════════════════════════════
+            # BIOGRAPHIE : Consolidation signaux bio pendant le rêve
+            # DOIT précéder BIO COMPILER pour que les nouveaux faits
+            # écrits ici soient inclus dans la compilation qui suit.
+            # ═══════════════════════════════════════════════════════════════
+            try:
+                from extensions.biographie_profil import get_biography_manager
+                import ogma_ng
+                bio_user = getattr(ogma_ng, '_current_user_name', None)
+                bm = get_biography_manager()
+                if bm and bio_user:
+                    self._log(f"Consolidation biographie pour {bio_user}...")
+                    bio_ok = await bm.generate_volume2_json(bio_user)
+                    if bio_ok:
+                        self._log(f"Biographie {bio_user} mise a jour")
+                    else:
+                        self._log("Biographie: aucun nouveau signal")
+                else:
+                    self._log("Biographie: skip (pas de user ou extension inactive)")
+            except Exception as e:
+                self._log(f"Consolidation biographie non bloquante: {e}")
+
+            # ═══════════════════════════════════════════════════════════════
+            # COMPILATION BIO : Groupes thématiques des faits biographiques
+            # APRÈS la consolidation : capture les faits écrits ci-dessus.
+            # ═══════════════════════════════════════════════════════════════
+            try:
+                from scripts.bio_compiler import compile_bio_incremental
+                import ogma_ng as _ogma_bio
+                _bio_user = getattr(_ogma_bio, '_current_user_name', None)
+                self._log(f"Compilation groupes biographiques ({_bio_user or 'user auto'})...")
+                await compile_bio_incremental(_bio_user)
+                self._log("Groupes biographiques mis a jour apres le reve")
+            except Exception as e:
+                self._log(f"Compilation bio non bloquante: {e}")
+            
+            # ═══════════════════════════════════════════════════════════════
             # INTROSPECTION IA : Journal intime post-rêve
             # L'IA principale écrit dans son journal intime après le rêve
             # et la mise à jour de son portrait — moment de réflexion

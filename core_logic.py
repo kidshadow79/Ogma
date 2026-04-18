@@ -2396,7 +2396,7 @@ class MemoryStructure:
 
     def _calculate_score(self, mem_data: Dict) -> tuple[float, float]:
         multi, intensite, valence = mem_data.get("multiplicateur_impact", {}), mem_data.get("intensite_mnéacloud", 0.0), mem_data.get("valence", 0)
-        score = intensite * (multi.get("base_factor", 100) * (float(multi.get("liberté", 0.0)) + float(multi.get("création", 0.0)) + float(multi.get("procréation", 0.0)) + float(multi.get("intensité_contextuelle", 0.0))))
+        score = intensite * (multi.get("base_factor", 100) * (float(multi.get("liberté", 0.0)) + float(multi.get("création", 0.0)) + float(multi.get("transmission", multi.get("procréation", 0.0))) + float(multi.get("intensité_contextuelle", 0.0))))
         
         # CORRECTION: Pour les souvenirs neutres, conserver le score positif
         # Concept: Valence = émotion, Score = importance pour la mémoire
@@ -2411,7 +2411,7 @@ class MemoryStructure:
         return score, signed_score
     def add_memory(self, res: Dict[str, Any], text: str, vector: Optional[List[float]]):
         score, signed_score = self._calculate_score(res)
-        memory = {"id": self._generate_memory_id(), "date": datetime.datetime.now().isoformat(), "type": res.get("type", "événement"), "titre": res.get("titre", "Souvenir"), "lieu": res.get("lieu", ""), "présence": res.get("présence", ""), "nuage": res.get("nuage", {}), "intensite_mnéacloud": res.get("intensite_mnéacloud", 0.0), "multiplicateur_impact": res.get("multiplicateur_impact", {}), "score_vectoriel_final": score, "valence": res.get("valence", 0), "signed_score": signed_score, "commentaire_tia": res.get("commentaire_tia", ""), "leçon_vectorielle": res.get("leçon_vectorielle", None), "liens": res.get("liens", []), "résonances_affectives": res.get("résonances_affectives", []), "texte_original": text, "embedding": vector}
+        memory = {"id": self._generate_memory_id(), "date": datetime.datetime.now().isoformat(), "type": res.get("type", "événement"), "titre": res.get("titre", "Souvenir"), "lieu": res.get("lieu", ""), "présence": res.get("présence", ""), "nuage": res.get("nuage", {}), "intensite_mnéacloud": res.get("intensite_mnéacloud", 0.0), "multiplicateur_impact": res.get("multiplicateur_impact", {}), "score_vectoriel_final": score, "valence": res.get("valence", 0), "signed_score": signed_score, "commentaire_ia": res.get("commentaire_ia", res.get("commentaire_tia", "")), "leçon_vectorielle": res.get("leçon_vectorielle", None), "liens": res.get("liens", []), "résonances_affectives": res.get("résonances_affectives", []), "texte_original": text, "embedding": vector}
         self.memories.append(memory)
         self.save_memories()
     def delete_memory(self, memory_id: str) -> str:
@@ -2434,7 +2434,7 @@ class MemoryStructure:
         self.status_queue.put(f"[INDEX] Indexation de {len(to_index)} souvenirs...")
         updated = 0
         for mem in to_index:
-            text_to_embed = f"Titre: {mem.get('titre', '')}. Contenu: {mem.get('texte_original', '')}. Commentaire: {mem.get('commentaire_tia', '')}."
+            text_to_embed = f"Titre: {mem.get('titre', '')}. Contenu: {mem.get('texte_original', '')}. Commentaire: {mem.get('commentaire_ia', mem.get('commentaire_tia', ''))}."
             embedding = await embed_manager.create_embedding(text_to_embed)
             if embedding:
                 mem['embedding'], updated = embedding, updated + 1
@@ -2459,7 +2459,7 @@ class AIController:
         """
         Calcule le score d'impact mémoriel avec l'IA Principale selon la formule exacte de l'Archiviste.
         
-        Formule : score = intensité × base_factor × (liberté + création + procréation + intensité_contextuelle)
+        Formule : score = intensité × base_factor × (liberté + création + transmission + intensité_contextuelle)
         
         Returns:
             Optional[float]: Score calculé selon la formule, ou None si échec (pas de fallback)
@@ -2469,13 +2469,13 @@ class AIController:
             scoring_prompt = f"""Tu es l'IA Principale responsable du scoring des souvenirs selon la formule mathématique exacte.
 
 MISSION : Extraire les métriques pour calculer le score d'impact selon cette formule :
-score = intensité × base_factor × (liberté + création + procréation + intensité_contextuelle)
+score = intensité × base_factor × (liberté + création + transmission + intensité_contextuelle)
 
 MÉTRIQUES À ÉVALUER (échelle 0.0 à 1.0 par pas de 0.1) :
 - intensite : Intensité générale de l'interaction (0.0 = faible, 1.0 = très intense)
 - liberte : Degré de liberté/autonomie exprimé (0.0 = contraint, 1.0 = très libre)  
 - creation : Niveau créatif/innovant (0.0 = répétitif, 1.0 = très créatif)
-- procreation : Aspect génératif/reproductif (0.0 = stérile, 1.0 = très génératif)
+- transmission : Héritage d'idées, influence sur autrui (0.0 = nulle, 1.0 = forte influence)
 - intensite_contextuelle : Importance contextuelle (0.0 = anecdotique, 1.0 = crucial)
 - base_factor : Facteur de base (toujours 100.0)
 
@@ -2491,7 +2491,7 @@ RÉPONSE ATTENDUE (format JSON strict) :
   "base_factor": 100.0,
   "liberte": 0.X,
   "creation": 0.X,
-  "procreation": 0.X,
+  "transmission": 0.X,
   "intensite_contextuelle": 0.X
 }}"""
 
@@ -2577,7 +2577,7 @@ RÉPONSE ATTENDUE (format JSON strict) :
                 base_factor = float(metrics.get('base_factor', 100.0))
                 liberte = float(metrics.get('liberte', 0.0))
                 creation = float(metrics.get('creation', 0.0))
-                procreation = float(metrics.get('procreation', 0.0))
+                procreation = float(metrics.get('transmission', metrics.get('procreation', 0.0)))
                 intensite_ctx = float(metrics.get('intensite_contextuelle', 0.0))
                 
                 # Application de la formule exacte de l'Archiviste
@@ -2609,7 +2609,7 @@ RÉPONSE ATTENDUE (format JSON strict) :
                                     base_factor = float(metrics.get('base_factor', 100.0))
                                     liberte = float(metrics.get('liberte', 0.0))
                                     creation = float(metrics.get('creation', 0.0))
-                                    procreation = float(metrics.get('procreation', 0.0))
+                                    procreation = float(metrics.get('transmission', metrics.get('procreation', 0.0)))
                                     intensite_ctx = float(metrics.get('intensite_contextuelle', 0.0))
 
                                     # Application de la formule exacte de l'Archiviste
@@ -2815,7 +2815,7 @@ class IntelligentMemoryAI:
                 embed_settings.get('ollama_model'),
                 embed_settings.get('gguf_model')
             )
-            text_to_embed = f"Titre: {result.get('titre', '')}. Contenu: {content}. Commentaire: {result.get('commentaire_tia', '')}."
+            text_to_embed = f"Titre: {result.get('titre', '')}. Contenu: {content}. Commentaire: {result.get('commentaire_ia', result.get('commentaire_tia', ''))}."
             vector = await self.embed_controller.create_embedding(text_to_embed)
             self.memory_structure.add_memory(result, content, vector)
             self.status_queue.put(f"[OK] Souvenir '{result.get('titre', 'N/A')}' mémorisé.")
@@ -2851,7 +2851,7 @@ class IntelligentMemoryAI:
             print("2. Aucun souvenir pertinent trouvé.")
             return ""
         print(f"2. Souvenirs trouvés : {[m.get('titre', 'Sans titre') for m in relevant_memories]}")
-        formatted_memories = "\n".join([f"- Titre: {mem.get('titre', 'Sans titre')} (Score: {mem.get('signed_score', 0.0):.0f})\n  Texte: {mem.get('texte_original', 'N/A')}\n  Commentaire: {mem.get('commentaire_tia', 'N/A')}" for mem in relevant_memories])
+        formatted_memories = "\n".join([f"- Titre: {mem.get('titre', 'Sans titre')} (Score: {mem.get('signed_score', 0.0):.0f})\n  Texte: {mem.get('texte_original', 'N/A')}\n  Commentaire: {mem.get('commentaire_ia', mem.get('commentaire_tia', 'N/A'))}" for mem in relevant_memories])
         if not self.memory_controller.get_active_manager():
             print("3. IA Mémoire inactive.")
             return ""

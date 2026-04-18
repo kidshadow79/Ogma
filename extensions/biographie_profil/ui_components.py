@@ -173,32 +173,23 @@ class BiographyUI:
                 with ui.column().classes('w-full mb-6'):
                     ui.label('ℹ️ À propos de cette extension').classes('text-lg font-semibold mb-2')
                     info_text = """
-                    L'extension Biographie Profil permet à l'IA principale de créer et maintenir des bibliothèques biographiques personnalisées pour chaque utilisateur.
+L'extension **Biographie Profil** permet à l'IA de se souvenir et d'utiliser automatiquement des informations personnelles sur vous ou vos proches, sans que vous ayez besoin de tout répéter à chaque conversation.
 
-                    📖 **Volume 1**: Collection de souvenirs classés chronologiquement et thématiquement (consultation automatique par l'IA)
-                    📝 **Volume 2**: Journal biographique narratif avec analyse psychologique approfondie (mis à jour sur demande)
+**🔄 Pipeline de compilation (4 étapes, dans l'ordre) :**
 
-                    **🎯 Phrases magiques IA (consultation):**
-                    • "il faut que je consulte la biographie de [prénom]"
+1. **Traiter souvenirs** — Extrait les souvenirs FAISS existants pour une personne et crée un fichier de base local.
+2. **Phase 1 : JSON IA** — Collecte tous les signaux disponibles (mémoires, cache, résumés) et génère une liste de faits structurés. À répéter régulièrement pour intégrer les nouvelles informations.
+3. **Bio Compiler** — Classe chaque fait dans un groupe thématique (ANIMAUX, GOÛTS, PROJETS…). Ce fichier est utilisé directement en conversation.
+4. **Journal Bio** — Génère un journal biographique narratif lisible en Markdown, enrichissable à chaque exécution.
 
-                    **👤 Phrases magiques Utilisateur (mise à jour):**
-                    • "complète ma biographie"
-                    • "complète ma bio"
-                    • "met à jour ma biographie"
-                    • "enrichis mon profil"
+**🧠 Injection en conversation :**
+À chaque message, l'IA analytique sélectionne 0 à 3 groupes biographiques pertinents et les injecte discrètement en contexte. L'IA principale peut ainsi faire référence à des informations personnelles de façon naturelle, sans que vous les ayez répétées.
 
-                    **🔄 Injection automatique:**
-                    • Détection automatique des prénoms dans la conversation
-                    • Injection du Volume 1 lors de la première mention d'un nom
-                    • Une seule injection par nom et par conversation
-                    • Reset automatique à chaque nouvelle conversation
-
-                    **⚙️ Fonctionnement:**
-                    1. L'utilisateur se présente dans la conversation
-                    2. L'IA détecte automatiquement le prénom
-                    3. Injection automatique de la biographie Volume 1 (première fois)
-                    4. Consultation via phrases magiques pour les fois suivantes
-                    5. Mise à jour du profil sur demande utilisateur
+**📁 Fichiers produits (dans `data/biographies/[nom]/`) :**
+- `volume1_memories.json` — souvenirs bruts extractés de FAISS  
+- `volume2_structured.json` — faits structurés (sortie Phase 1)  
+- `bio_compiled.json` — groupes thématiques (sortie Bio Compiler, injecte en conversation)  
+- `volume2_journal.md` — journal narratif lisible (sortie Journal Bio)
                     """
                     ui.markdown(info_text).classes('text-sm text-white p-4 rounded').style('background-color: #374151;')
                 
@@ -231,25 +222,96 @@ class BiographyUI:
                                 '🔄 Traiter souvenirs',
                                 on_click=self.process_specific_user_memories
                             ).classes('bg-blue-500 text-white px-4 py-2')
-                            process_btn.tooltip('Analyse les souvenirs FAISS pour cette personne et crée/met à jour sa biographie Volume 1')
+                            process_btn.tooltip(
+                                'Récupère les souvenirs FAISS existants pour cette personne '
+                                'et crée/met à jour sa base de souvenirs locale (volume1_memories.json). '
+                                'À faire avant la Phase 1 si la personne a des souvenirs dans FAISS.'
+                            )
 
-                            # PHASE 1: Génération JSON IA 
+                            # PHASE 1: Collecte signaux biographiques + génération JSON structuré
                             json_btn = ui.button(
-                                '🧠 Phase 1: JSON IA',
+                                '🧠 Phase 1 : JSON IA',
                                 on_click=self.generate_volume2_json_ia
                             ).classes('bg-blue-600 text-white px-4 py-2 ml-2')
-                            json_btn.tooltip('PHASE 1: Génération JSON structuré par GROK - Analyse IA pure des données')
+                            json_btn.tooltip(
+                                'PHASE 1 : Collecte les signaux biographiques (mémoires SQLite, '
+                                'cache cognitif, résumés) et génère une liste de faits structurés '
+                                '(volume2_structured.json) via l\'IA analytique. '
+                                'À relancer régulièrement pour intégrer les nouveaux apprentissages.'
+                            )
 
-                            # PHASE 2: Transformation JSON → MD IA
+                            # BIO COMPILER: Analyse faits → bio_compiled.json (groupes thématiques)
                             md_btn = ui.button(
-                                '📖 Phase 2: MD IA',
+                                '⚡ Bio Compiler',
                                 on_click=self.generate_volume2_md_ia
                             ).classes('bg-green-600 text-white px-4 py-2 ml-2')
-                            md_btn.tooltip('PHASE 2: Transformation JSON → Markdown narratif par GROK')
+                            md_btn.tooltip(
+                                'BIO COMPILER : Classe chaque fait de la Phase 1 dans un groupe '
+                                'thématique (ANIMAUX, GOÛTS, PROJETS…) via l\'IA analytique. '
+                                'Produit bio_compiled.json — la source d\'injection en conversation. '
+                                'À relancer après chaque Phase 1.'
+                            )
+
+                            # JOURNAL BIO: Génère / enrichit le journal narratif .md via IA
+                            journal_btn = ui.button(
+                                '📓 Journal Bio',
+                                on_click=self.generate_journal_ia
+                            ).classes('bg-purple-600 text-white px-4 py-2 ml-2')
+                            journal_btn.tooltip(
+                                'Génère ou enrichit le journal biographique narratif (volume2_journal.md). '
+                                'Mode enrichissement : conserve l\'ancien journal et y ajoute les nouveaux faits. '
+                                'Nécessite que le Bio Compiler ait été exécuté au moins une fois.'
+                            )
+
+                            # RESET JOURNAL: Efface le .md et force recompilation totale
+                            reset_journal_btn = ui.button(
+                                '🗑️ Reset Journal',
+                                on_click=self.reset_journal_ia
+                            ).classes('bg-red-700 text-white px-4 py-2 ml-2')
+                            reset_journal_btn.tooltip(
+                                'Efface le journal .md et repart entièrement de zéro depuis tous '
+                                'les faits compilés. Utile si le journal est désynchronisé ou si '
+                                'vous voulez changer la structure après avoir modifié l\'instruction.'
+                            )
 
                 
                 ui.separator()
-                
+
+                # ── Section Instruction Journal (personnalisable) ───────────────────────────
+                with ui.column().classes('w-full mb-4'):
+                    ui.label('📝 Instruction du journal biographique').classes('text-lg font-semibold mb-1')
+                    ui.label(
+                        'Définissez les sections et règles utilisées pour générer le journal .md. '
+                        'Modifiez ce texte pour donner une autre forme à votre biographie.'
+                    ).classes('text-sm text-gray-400 mb-3')
+
+                    # Charger l'instruction courante
+                    try:
+                        from extensions.biographie_profil.biography_manager import StructuredBiographyManager as _SM
+                        _current_instr = _SM.get_journal_instruction()
+                    except Exception:
+                        _current_instr = ''
+
+                    self.journal_instruction_input = ui.textarea(
+                        value=_current_instr
+                    ).classes('w-full font-mono text-sm').props(
+                        'rows=14 outlined label="Instruction journal"'
+                    )
+
+                    with ui.row().classes('w-full gap-3 mt-2'):
+                        save_instr_btn = ui.button(
+                            '💾 Sauvegarder instruction',
+                            on_click=self.save_journal_instruction_ui
+                        ).classes('bg-blue-600 text-white px-4 py-2')
+                        save_instr_btn.tooltip('Sauvegarde l\'instruction personnalisée — sera utilisée lors du prochain Journal Bio')
+
+                        reset_instr_btn = ui.button(
+                            '↩️ Rétablir défaut',
+                            on_click=self.reset_journal_instruction_ui
+                        ).classes('bg-gray-500 text-white px-4 py-2')
+                        reset_instr_btn.tooltip('Supprime l\'instruction personnalisée et revient aux sections/règles par défaut')
+
+                # ── Outils ────────────────────────────────────────────────────────
                 # 🆕 BOUTON NETTOYAGE URGENCE
                 with ui.row().classes('w-full mt-4'):
                     ui.label('🧹 Outils:').classes('font-semibold')
@@ -462,7 +524,7 @@ class BiographyUI:
             try:
                 # 🔧 APPEL SÉCURISÉ avec timeout global UI et callback de progression
                 success = await asyncio.wait_for(
-                    self.biography_manager.generate_volume2_json_with_grok(user_name, progress_callback),
+                    self.biography_manager.generate_volume2_json(user_name, progress_callback),
                     timeout=240.0  # 240 secondes max au niveau UI (4 minutes)
                 )
             except asyncio.TimeoutError:
@@ -506,110 +568,201 @@ class BiographyUI:
 
     async def generate_volume2_md_ia(self):
         """
-        📖 PHASE 2: Transformation JSON → Markdown narratif par IA  
-        ==========================================================
+        ⚡ BIO COMPILER: Analyse thématique des faits → bio_compiled.json + volume2_journal.md
+        =====================================================================================
         """
         try:
-            # Validation nom utilisateur
             if not self.name_input or not self.name_input.value.strip():
                 ui.notify('⚠️ Veuillez saisir un nom d\'utilisateur', type='warning')
                 return
 
             user_name = self.name_input.value.strip()
 
-            # Variable pour stocker la notification actuelle
-            import time
-            start_time = time.time()
-            progress_notification_p2 = None
+            ui.notify(f'⚡ Bio Compiler en cours pour {user_name}...', type='ongoing', timeout=300)
+            print(f"[BIOGRAPHY-UI] ⚡ Bio Compiler demandé pour: {user_name}")
 
-            # Callback de progression Phase 2
-            async def progress_callback_p2(step, total, message, data):
-                """Mise à jour de la notification Phase 2 en temps réel"""
-                nonlocal progress_notification_p2, start_time
-
-                # Utiliser le temps écoulé fourni par le manager si disponible, sinon calculer
-                if 'elapsed' in data:
-                    elapsed = data['elapsed']
-                else:
-                    elapsed = int(time.time() - start_time)
-
-                # Construire le message de progression
-                progress_text = f"📖 Phase 2 JSON→MD - Étape {step}/{total}\n"
-                progress_text += f"{message}\n"
-                progress_text += f"⏱️ Temps écoulé: {elapsed}s / 240s max\n"
-
-                # Ajouter les détails si disponibles
-                if 'json_size' in data:
-                    json_kb = data['json_size'] // 1024
-                    progress_text += f"📊 JSON source: {json_kb} KB"
-
-                # Fermer l'ancienne notification et créer la nouvelle
-                if progress_notification_p2:
-                    try:
-                        await notification_cleaner.dismiss_notification(progress_notification_p2)
-                    except:
-                        pass
-
-                progress_notification_p2 = notification_cleaner.create_managed_notification(
-                    progress_text,
-                    type_='ongoing',
-                    timeout=300  # 5 minutes max
-                )
-
-                print(f"[BIOGRAPHY-UI] 📖 Phase 2 - Étape {step}/{total}: {message} ({elapsed}s)")
-
-            print(f"[BIOGRAPHY-UI] 📖 Phase 2 MD IA demandée pour: {user_name}")
-
-            # Appeler Phase 2 avec timeout de 240s et callback de progression
+            timed_out = False
             try:
-                markdown_content = await asyncio.wait_for(
-                    self.biography_manager.generate_volume2_md_with_grok(user_name, progress_callback_p2),
-                    timeout=240.0  # 240 secondes max (4 minutes)
+                from scripts.bio_compiler import compile_bio_incremental
+                await asyncio.wait_for(
+                    compile_bio_incremental(user_name),
+                    timeout=240.0
                 )
             except asyncio.TimeoutError:
-                print(f"[BIOGRAPHY-UI] ❌ TIMEOUT UI Phase 2 (>240s)")
-                markdown_content = None
-            
-            # 🔧 FERMETURE GÉRÉE Phase 2
-            await notification_cleaner.dismiss_notification(progress_notification_p2)
-            
-            if markdown_content and len(markdown_content) > 100:
-                ui.notify(f'✅ Phase 2 terminée: Journal narratif généré !', type='positive')
-                ui.notify(f'📖 {len(markdown_content):,} caractères - Journal développé', type='info')
-                print(f"[BIOGRAPHY-UI] ✅ Phase 2 MD réussie: {len(markdown_content):,} chars")
-                
-                # Afficher chemin fichier
+                print(f"[BIOGRAPHY-UI] ❌ TIMEOUT Bio Compiler (>240s)")
+                timed_out = True
+
+            if not timed_out:
+                ui.notify('✅ Bio compilée ! Groupes thématiques + journal MD générés', type='positive')
                 structured_manager = self.biography_manager.get_structured_manager(user_name)
                 journal_path = structured_manager.user_dir / "volume2_journal.md"
                 ui.notify(f'📁 Journal: {journal_path}', type='info')
-                
+                print(f"[BIOGRAPHY-UI] ✅ Bio Compiler réussi pour {user_name}")
             else:
-                ui.notify(f'❌ Échec Phase 2: Transformation MD', type='negative')
-                if not markdown_content:
-                    ui.notify(f'💡 Vérifiez que la Phase 1 (JSON) a été exécutée', type='info')
-                print(f"[BIOGRAPHY-UI] ❌ Échec Phase 2 pour {user_name}")
-                
+                ui.notify('❌ Timeout Bio Compiler (>240s)', type='negative')
+                ui.notify('💡 Vérifiez que la Phase 1 (JSON) a été exécutée', type='info')
+
         except Exception as e:
-            ui.notify(f'❌ Erreur Phase 2: {str(e)[:100]}...', type='negative')
-            print(f"[BIOGRAPHY-UI] ❌ Erreur Phase 2: {e}")
+            ui.notify(f'❌ Erreur Bio Compiler: {str(e)[:100]}...', type='negative')
+            print(f"[BIOGRAPHY-UI] ❌ Erreur Bio Compiler: {e}")
             import traceback
             traceback.print_exc()
         finally:
-            # 🔧 NETTOYAGE GARANTI MULTI-MÉTHODES Phase 2
             try:
-                # Méthode 1: Nettoyeur professionnel
                 await notification_cleaner.force_cleanup_all()
-                
-                # Méthode 2: Force brute préventive
-                for i in range(5):
-                    ui.notify('', type='ongoing', timeout=0.01)
-                    ui.notify('', type='info', timeout=0.01)
-                await asyncio.sleep(0.2)
-                
-                print(f"[BIOGRAPHY-UI] 🧹 Nettoyage multi-méthodes Phase 2 terminé")
-                
+                print(f"[BIOGRAPHY-UI] Nettoyage Bio Compiler terminé")
             except Exception as cleanup_error:
-                print(f"[BIOGRAPHY-UI] ⚠️ Erreur nettoyage final Phase 2: {cleanup_error}")
+                print(f"[BIOGRAPHY-UI] ⚠️ Erreur nettoyage: {cleanup_error}")
+
+    async def generate_journal_ia(self):
+        """
+        📓 JOURNAL BIO: Génère ou enrichit le journal narratif via IA
+        ================================================================
+        """
+        try:
+            if not self.name_input or not self.name_input.value.strip():
+                ui.notify('⚠️ Veuillez saisir un nom d\'utilisateur', type='warning')
+                return
+
+            user_name = self.name_input.value.strip()
+            ui.notify(f'📓 Génération journal narratif pour {user_name}...', type='ongoing', timeout=300)
+            print(f"[BIOGRAPHY-UI] 📓 Journal Bio demandé pour: {user_name}")
+
+            structured_manager = self.biography_manager.get_structured_manager(user_name)
+
+            timed_out = False
+            try:
+                success = await asyncio.wait_for(
+                    structured_manager.generate_narrative_journal_ia(force_reset=False),
+                    timeout=240.0
+                )
+            except asyncio.TimeoutError:
+                print(f"[BIOGRAPHY-UI] ❌ TIMEOUT Journal Bio (>240s)")
+                timed_out = True
+                success = False
+
+            if not timed_out and success:
+                journal_path = structured_manager.journal_file
+                ui.notify('✅ Journal biographique généré !', type='positive')
+                ui.notify(f'📁 {journal_path}', type='info')
+                print(f"[BIOGRAPHY-UI] ✅ Journal Bio réussi pour {user_name}")
+            elif timed_out:
+                ui.notify('❌ Timeout Journal Bio (>240s)', type='negative')
+            else:
+                ui.notify('❌ Échec Journal Bio — vérifiez que Bio Compiler a été exécuté d\'abord', type='negative')
+
+        except Exception as e:
+            ui.notify(f'❌ Erreur Journal Bio: {str(e)[:100]}', type='negative')
+            print(f"[BIOGRAPHY-UI] ❌ Erreur Journal Bio: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            try:
+                await notification_cleaner.force_cleanup_all()
+            except Exception:
+                pass
+
+    async def reset_journal_ia(self):
+        """
+        🗑️ RESET JOURNAL: Efface volume2_journal.md et repart de zéro
+        =============================================================
+        """
+        try:
+            if not self.name_input or not self.name_input.value.strip():
+                ui.notify('⚠️ Veuillez saisir un nom d\'utilisateur', type='warning')
+                return
+
+            user_name = self.name_input.value.strip()
+
+            # Confirmation via dialog
+            with ui.dialog() as confirm_dialog, ui.card():
+                ui.label(f'🗑️ Réinitialiser le journal de {user_name} ?').classes('font-bold text-lg')
+                ui.label('Le journal .md sera effacé et entièrement reconstruit depuis les faits compilés.').classes('text-sm text-gray-600 mt-2')
+                with ui.row().classes('mt-4 gap-3'):
+                    ui.button('Annuler', on_click=confirm_dialog.close).classes('bg-gray-400 text-white')
+                    async def do_reset():
+                        confirm_dialog.close()
+                        await self._execute_reset_journal(user_name)
+                    ui.button('🗑️ Réinitialiser', on_click=do_reset).classes('bg-red-600 text-white')
+
+            confirm_dialog.open()
+
+        except Exception as e:
+            ui.notify(f'❌ Erreur: {str(e)[:100]}', type='negative')
+            print(f"[BIOGRAPHY-UI] ❌ Erreur reset journal: {e}")
+
+    async def _execute_reset_journal(self, user_name: str):
+        """Exécute le reset journal après confirmation"""
+        try:
+            structured_manager = self.biography_manager.get_structured_manager(user_name)
+
+            # Supprimer le journal existant
+            if structured_manager.journal_file.exists():
+                structured_manager.journal_file.unlink()
+                print(f"[BIOGRAPHY-UI] 🗑️ Journal supprimé: {structured_manager.journal_file}")
+
+            ui.notify(f'🗑️ Journal effacé — reconstruction en cours...', type='ongoing', timeout=300)
+
+            timed_out = False
+            try:
+                success = await asyncio.wait_for(
+                    structured_manager.generate_narrative_journal_ia(force_reset=True),
+                    timeout=240.0
+                )
+            except asyncio.TimeoutError:
+                print(f"[BIOGRAPHY-UI] ❌ TIMEOUT reset journal (>240s)")
+                timed_out = True
+                success = False
+
+            if not timed_out and success:
+                ui.notify('✅ Journal réinitialisé et reconstruit depuis zéro !', type='positive')
+                print(f"[BIOGRAPHY-UI] ✅ Reset Journal réussi pour {user_name}")
+            elif timed_out:
+                ui.notify('❌ Timeout reconstruction journal (>240s)', type='negative')
+            else:
+                ui.notify('❌ Échec reconstruction — aucun fait compilé disponible ?', type='negative')
+
+        except Exception as e:
+            ui.notify(f'❌ Erreur reset: {str(e)[:100]}', type='negative')
+            print(f"[BIOGRAPHY-UI] ❌ Erreur _execute_reset_journal: {e}")
+        finally:
+            try:
+                await notification_cleaner.force_cleanup_all()
+            except Exception:
+                pass
+
+    def save_journal_instruction_ui(self):
+        """Sauvegarde l'instruction journal saisie dans le textarea"""
+        try:
+            if not self.journal_instruction_input:
+                ui.notify('⚠️ Champ instruction introuvable', type='warning')
+                return
+            text = self.journal_instruction_input.value.strip()
+            if not text:
+                ui.notify('⚠️ L\'instruction ne peut pas être vide', type='warning')
+                return
+            from extensions.biographie_profil.biography_manager import StructuredBiographyManager as _SM
+            if _SM.save_journal_instruction(text):
+                ui.notify('✅ Instruction sauvegardée — sera utilisée lors du prochain Journal Bio', type='positive')
+            else:
+                ui.notify('❌ Erreur lors de la sauvegarde', type='negative')
+        except Exception as e:
+            ui.notify(f'❌ Erreur: {str(e)[:80]}', type='negative')
+
+    def reset_journal_instruction_ui(self):
+        """Rétablit l'instruction journal par défaut"""
+        try:
+            from extensions.biographie_profil.biography_manager import (
+                StructuredBiographyManager as _SM, JOURNAL_INSTRUCTION_DEFAULT
+            )
+            if _SM.reset_journal_instruction():
+                if self.journal_instruction_input:
+                    self.journal_instruction_input.value = JOURNAL_INSTRUCTION_DEFAULT
+                ui.notify('✅ Instruction réinitialisée aux sections/règles par défaut', type='positive')
+            else:
+                ui.notify('❌ Erreur lors de la réinitialisation', type='negative')
+        except Exception as e:
+            ui.notify(f'❌ Erreur: {str(e)[:80]}', type='negative')
 
     async def emergency_cleanup_notifications(self):
         """

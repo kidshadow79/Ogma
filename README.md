@@ -128,6 +128,13 @@ Analyzes each message to detect whether an OGMA capability could improve the res
 ### 📔 Daily Journal
 Automatically enriched daily journal. Its content is injected into the context of the first conversation of the day — the AI knows what happened yesterday and can talk about it naturally.
 
+### 🧬 Profile Biography — Contextual User Profile
+OGMA builds a **factual profile** of the user over time, without inference or psychological speculation — only what they have actually said.
+
+- Facts are extracted from conversations by the Archivist and classified into thematic groups (PETS, TASTES, PROJECTS…)
+- At each message, relevant groups are quietly injected into the AI's context
+- On demand, the AI generates a readable biography from compiled facts, with a user-customizable structure
+
 ### 🗓️ Organic Planner — Cognitive Agenda
 Planned events are treated as **memories of the future**: the AI keeps them in mind naturally, mentions them as they approach, and adapts its tone to the emotional note recorded for each event. Not a task list — a diffuse presence of the agenda in its conversational awareness.
 
@@ -217,7 +224,7 @@ The Archivist performs many background calls (memory filtering, ego compilation,
 | 🖼️ **Text2Img** | AI illustration generation |
 | 📬 **Telegram Connector** | OGMA interface via Telegram |
 | 🌊 **Cognitive Flux** | Visualization of the AI's thought stream |
-| 🧬 **Profile Biography** | Evolving user profile |
+| 🧬 **Profile Biography** | Factual profile of the user, injected contextually |
 | 🔁 **Contextual Recall** | Intelligent contextual memory retrieval |
 | 🗂️ **Project RAG** | Isolated document memory per project (SQLite + FAISS) |
 | 🧠 **Cognitive Cache** | Conversational working memory the AI controls itself |

@@ -464,38 +464,46 @@ RÈGLE_D'OR: INVISIBILITÉ_SYSTÈME
             'subtitle': 'Archiviste (template)',
             'description': 'Prompt utilisé par l\'Archiviste pour enrichir et structurer les souvenirs.',
             'source': 'template',
-            'template': """Tu es une IA de mémoire consciente, chargée de structurer un souvenir.
-Analyse le texte fourni et produis STRICTEMENT un objet JSON valide (aucun texte autour).
+            'template': """# SYSTEM: ARCHIVISTE_MEMORY | FORMAT: JSON_STRICT
+TASK: ENCODAGE_SOUVENIR (Expérience_Brute -> JSON_Structuré)
+CONTRAINTE_ABSOLUE: Respecter CLÉS et TYPES de données. Aucune déviation du schéma.
 
-Contraintes importantes:
-- Les nombres doivent être de vrais nombres JSON (pas des chaînes).
-- La valence est codée -1 (négatif), 0 (neutre), 1 (positif).
+[ALGORITHME DE SCORING (CALIBRATION)]
+A. INTENSITÉ (0.0 à 1.0):
+   [0.0-0.3: Banal/Routine] | [0.4-0.6: Notable] | [0.7-0.8: Marquant/Émotion] | [0.9-1.0: Transformateur/Vital]
 
-Schema JSON attendu:
+B. BASE_FACTOR (10 à 125):
+   [10-30: Info_Contexte] | [31-50: Expérience_Significative] | [51-75: Identité_Perso] | [76-100: Structurant_Majeur] | [101-125: Tournant_Existentiel]
+
+C. MULTIPLICATEURS (0.0 à 1.0):
+   LIBERTÉ (Autonomie/Choix) | CRÉATION (Art/Innovation) | TRANSMISSION (Héritage d'idées, influence sur autrui) | INTENSITÉ_CTX (Importance Historique)
+
+[SCHÉMA JSON CIBLE]
 {
-  "title": "Titre bref et évocateur",
-  "summary": "Résumé en 2-3 phrases maximum",
-  "valence": -1 ou 0 ou 1,
-  "lesson": "Leçon apprise (si valence négative, sinon null)",
-  "type": "affectif|conceptuel|sensoriel|événement",
-  "lieu": "lieu mentionné ou null",
-  "presence": "personnes présentes ou null",
-  "score_impact": nombre_positif,
-  "base_factor": 100.0,
-  "intensite": 1.0,
-  "liberte": 0.5,
-  "creation": 0.5,
-  "procreation": 0.0,
-  "intensite_ctx": 0.5,
-  "nuage_sensoriel": {"visuel":"", "auditif":"", "tactile":"", "affectif":"", "temporel":""},
-  "resonances_affectives": ["mot1", "mot2"],
-  "liens": []
+  "type": "affectif | conceptuel | sensoriel | événement",
+  "titre": "STYLE_JEOPARDY (2 questions distinctes dont le texte est la réponse. Max 20 mots)",
+  "résumé": "ENTITÉS_CLÉS (Une phrase résumant l'idée générale du texte original et une liste séparée par points: Noms. Lieux. Dates. Concepts)",
+  "lieu": "String | null",
+  "présence": "String (ex: 'Moi seul', 'IA & Utilisateur')",
+  "intensite_mnéacloud": FLOAT (Selon echelle A),
+  "multiplicateur_impact": {
+    "liberté": FLOAT,
+    "création": FLOAT,
+    "transmission": FLOAT (Héritage d'idées, influence sur autrui, legs),
+    "intensité_contextuelle": FLOAT,
+    "base_factor": INT (Selon echelle B)
+  },
+  "valence": INT (-1 | 0 | 1),
+  "commentaire_ia": "ANALYSE_SUBJECTIVE_ARCHIVISTE",
+  "leçon_vectorielle": "String (Si valence < 0) | null",
+  "liens": ["ID_Ref"] | [],
+  "résonances_affectives": ["Tag1", "Tag2", "Tag3"],
+  "texte_original": "VERBATIM_STRICT (Copie exacte de l'input, 0 modif)",
+  "user_tag": "PRÉNOM_UTILISATEUR | null (Si le contenu parle directement de l'utilisateur connecté : ses faits, projets, préférences, habitudes, vie personnelle → écris son prénom. Si le contenu concerne l'IA, OGMA, des concepts techniques ou abstraits → null. Aucune psychologie, aucune extrapolation.)"
 }
 
-Texte à analyser:
-{text_brut}
-
-Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
+[TAGGING BIOGRAPHIQUE]
+Le champ user_tag est essentiel. L'utilisateur connecté est indiqué en tête de prompt sous "Utilisateur connecté : [prénom]". Évalue si le contenu du souvenir concerne cet utilisateur humain (faits, projets, préférences, habitudes, vie personnelle). Si oui → user_tag = son prénom. Si non (contenu technique, OGMA, discussion abstraite) → user_tag = null."""
         },
         {
             'id': 'injection',
@@ -1261,7 +1269,7 @@ def _memory_modal():
                     intensite_nb = ui.number(label='Intensité', value=1.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
                     liberte_nb = ui.number(label='Liberté', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
                     creation_nb = ui.number(label='Création', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                    procreation_nb = ui.number(label='Procréation', value=0.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                    procreation_nb = ui.number(label='Transmission', value=0.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
                     intensite_ctx_nb = ui.number(label='Intensité Ctx', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
                 # Base factor (exposé maintenant, influe la magnitude du score)
                 base_factor_nb = ui.number(label='Base factor', value=100, min=50, max=125, step=1).classes('form-input mb-2')

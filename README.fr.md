@@ -1,4 +1,4 @@
-# OGMA — Assistant IA à Mémoire Persistante
+﻿# OGMA — Assistant IA à Mémoire Persistante
 
 > 🇺🇸 [English version (README.md)](README.md)
 
@@ -122,6 +122,13 @@ Analyse chaque message pour détecter si une capacité OGMA pourrait améliorer 
 ### 📔 Journal de Bord
 Journal quotidien enrichi automatiquement. Son contenu est injecté dans le contexte de la première conversation de la journée — l'IA sait ce qui s'est passé la veille et peut en parler naturellement.
 
+### 🧬 Biographie Profil — Profil Contextuel Utilisateur
+OGMA construit un **profil factuel** de l’utilisateur au fil des échanges, sans inférence ni psychologie — uniquement ce qu’il a réellement dit.
+
+- Les faits sont extraits des conversations par l’Archiviste et classés en groupes thématiques (ANIMAUX, GOÛTS, PROJETS…)
+- À chaque message, les groupes pertinents sont injectés discrètement dans le contexte de l’IA
+- Sur demande, l’IA génère une biographie lisible depuis les faits compilés, avec une structure personnalisable par l’utilisateur
+
 ### 🗓️ Organic Planner — Agenda Cognitif
 Les événements planifiés sont traités comme des **souvenirs du futur** : l'IA les garde en tête naturellement, les mentionne quand ils approchent, et adapte son ton au ressenti noté pour chaque événement. Pas une liste de tâches — une présence diffuse de l'agenda dans sa conscience conversationnelle.
 
@@ -209,7 +216,7 @@ L'Archiviste effectue de nombreux appels en arrière-plan (filtrage mémoire, co
 | 🖼️ **Text2Img** | Génération d'illustrations via IA |
 | 📬 **Telegram Connector** | Interface OGMA via Telegram |
 | 🌊 **Flux Cognitif** | Visualisation du flux de pensée de l'IA |
-| 🧬 **Biographie Profil** | Profil évolutif de l'utilisateur |
+| 🧬 **Biographie Profil** | Profil factuel de l\'utilisateur, injecté contextuellement |
 | 🔁 **Contextual Recall** | Rappel contextuel intelligent des souvenirs |
 | 🗂️ **Project RAG** | Mémoire documentaire isolée par projet (SQLite + FAISS) |
 | 🧠 **Cache Cognitif** | Mémoire de travail conversationnelle que l'IA contrôle elle-même |

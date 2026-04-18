@@ -102,7 +102,7 @@ def get_current_conv_id() -> Optional[str]:
     return _current_conv_id
 
 
-def apply_cache_operations(text: str, conv_id: Optional[str] = None) -> List[Dict]:
+def apply_cache_operations(text: str, conv_id: Optional[str] = None, user_tag: str = None) -> List[Dict]:
     """
     Détecte et applique les commandes cache dans une réponse IA.
     Appelé en post-streaming dans _send_chat_message.
@@ -110,6 +110,7 @@ def apply_cache_operations(text: str, conv_id: Optional[str] = None) -> List[Dic
     Args:
         text: Texte complet de la réponse IA
         conv_id: ID de conversation (utilise _current_conv_id si None)
+        user_tag: Nom utilisateur connecté (pour tagging biographique)
 
     Returns:
         Liste des opérations appliquées (pour logging flux cognitif)
@@ -135,7 +136,7 @@ def apply_cache_operations(text: str, conv_id: Optional[str] = None) -> List[Dic
                 applied.append(op)
 
             elif op['op'] == 'add':
-                entry_id = add_entry(cid, op['type'], op['content'])
+                entry_id = add_entry(cid, op['type'], op['content'], user_tag=user_tag)
                 if entry_id:
                     op['id'] = entry_id
                     applied.append(op)

@@ -364,7 +364,11 @@ class MemoryManager:
                     procreation REAL,
                     intensite_ctx REAL,
                     signed_score REAL,
-                    updated_at TEXT
+                    updated_at TEXT,
+                    
+                    -- Biographie: tagging utilisateur
+                    user_tag TEXT DEFAULT NULL,
+                    bio_processed INTEGER DEFAULT 0
                 )
             """)
             conn.commit()
@@ -383,6 +387,8 @@ class MemoryManager:
                 _add('intensite_ctx', 'REAL')
                 _add('signed_score', 'REAL')
                 _add('updated_at', 'TEXT')
+                _add('user_tag', 'TEXT DEFAULT NULL')
+                _add('bio_processed', 'INTEGER DEFAULT 0')
                 conn.commit()
             except Exception:
                 pass
@@ -505,7 +511,7 @@ class MemoryManager:
             self.status_queue.put(f"[ERROR] Échec sauvegarde index: {e}")
     
     
-    async def add_memory(self, memory_id: str, text_brut: str, chat_controller=None, conversation_context: str = "", interlocutor: str = "") -> bool:
+    async def add_memory(self, memory_id: str, text_brut: str, chat_controller=None, conversation_context: str = "", interlocutor: str = "", user_tag: str = None) -> bool:
         """
         Ajoute un nouveau souvenir via le pipeline complet.
         
@@ -584,7 +590,7 @@ class MemoryManager:
             # 1. Enrichissement par l'IA Archiviste (+ scoring si fallback nécessaire)
             print(f"[MEMORY-STEP1] 🧠 Appel IA Archiviste pour enrichissement...")
             need_scoring = (initial_score is None)
-            enriched_data = await self._call_archiviste_enrichment(text_brut, calculate_score=need_scoring)
+            enriched_data = await self._call_archiviste_enrichment(text_brut, calculate_score=need_scoring, current_user=user_tag)
             if not enriched_data:
                 print(f"[MEMORY-ERROR] ❌ Archiviste a échoué")
                 self.status_queue.put("[ERROR] Échec enrichissement par l'Archiviste")
@@ -627,8 +633,11 @@ class MemoryManager:
             print(f"[MEMORY-EMBEDDING] ✅ Embedding généré: {len(embedding)} dimensions")
             
             # 3. Stockage SQLite
-            print(f"[MEMORY-STEP3] 💾 Stockage en base SQLite...")
-            success = self._store_in_sqlite(memory_id, text_brut, enriched_data, embedding)
+            # Le user_tag final = décision de l'Archiviste (enriched_data) en priorité,
+            # sinon fallback sur le paramètre passé (pour les cas sans Archiviste)
+            final_user_tag = enriched_data.get('user_tag') or user_tag
+            print(f"[MEMORY-STEP3] 💾 Stockage en base SQLite (user_tag={final_user_tag})...")
+            success = self._store_in_sqlite(memory_id, text_brut, enriched_data, embedding, user_tag=final_user_tag)
             if not success:
                 print(f"[MEMORY-ERROR] ❌ Échec stockage SQLite")
                 self.status_queue.put("[ERROR] Échec stockage SQLite")
@@ -735,7 +744,7 @@ class MemoryManager:
                     "multiplicateur_impact": {
                         "liberté": 0.5,
                         "création": 0.5,
-                        "procréation": 0.5,
+                        "transmission": 0.5,
                         "intensité_contextuelle": 0.5,
                         "base_factor": 50
                     },
@@ -789,8 +798,8 @@ class MemoryManager:
                     INSERT INTO memories (
                         id, created_at, text_original,
                         type, title, summary, lesson, valence, score_impact,
-                        embedding_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        embedding_json, user_tag, bio_processed
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     memory_id,
                     datetime.now().isoformat(),
@@ -801,7 +810,9 @@ class MemoryManager:
                     structured_memory["lesson"],
                     structured_memory["valence"],
                     structured_memory["score_impact"],
-                    json.dumps(embedding_vector)
+                    json.dumps(embedding_vector),
+                    None,  # user_tag: ego traits = identité IA, pas utilisateur
+                    0      # bio_processed
                 ))
             
             # Ajout à FAISS avec priorité élevée
@@ -1350,7 +1361,7 @@ CONTRAINTE_ABSOLUE: Respecter CLÉS et TYPES de données.
   "multiplicateur_impact": {{
     "liberté": 0.5,
     "création": 0.5,
-    "procréation": 0.5,
+    "transmission": 0.5,
     "intensité_contextuelle": 0.5,
     "base_factor": 50
   }},
@@ -1373,7 +1384,7 @@ Réponds UNIQUEMENT avec le JSON."""
             
             # Ajouter instruction score si nécessaire
             if include_score:
-                score_note = "\n\nIMPORTANT: Calcule le 'score_impact' selon la formule: intensite × base_factor × (liberté + création + procréation + intensité_contextuelle)."
+                score_note = "\n\nIMPORTANT: Calcule le 'score_impact' selon la formule: intensite × base_factor × (liberté + création + transmission + intensité_contextuelle)."
                 ego_prompt += score_note
             
             messages = [{"role": "user", "content": ego_prompt}]
@@ -1432,13 +1443,14 @@ Réponds UNIQUEMENT avec le JSON."""
             print(traceback.format_exc())
             return None
     
-    async def _call_archiviste_enrichment(self, text_brut: str, calculate_score: bool = False) -> Optional[Dict]:
+    async def _call_archiviste_enrichment(self, text_brut: str, calculate_score: bool = False, current_user: str = None) -> Optional[Dict]:
         """
         Appelle l'IA Archiviste pour enrichir un texte brut.
 
         Args:
             text_brut: Texte à enrichir
             calculate_score: Si True, demande à l'Archiviste de calculer aussi le score_impact
+            current_user: Prénom de l'utilisateur connecté (pour le tagging biographique)
         """
         try:
             print(f"[ARCHIVISTE-PROMPT] 🧠 Construction prompt d'enrichissement...")
@@ -1451,10 +1463,14 @@ Réponds UNIQUEMENT avec le JSON."""
 
                 # Si mode fallback scoring, ajouter instruction explicite
                 if calculate_score:
-                    score_instruction = "\n\nIMPORTANT: L'IA Principale n'a pas pu calculer le score. Tu DOIS calculer le 'score_impact' selon la formule: score_impact = intensite × base_factor × (liberté + création + procréation + intensité_contextuelle). Fournis ce champ dans ta réponse JSON."
+                    score_instruction = "\n\nIMPORTANT: L'IA Principale n'a pas pu calculer le score. Tu DOIS calculer le 'score_impact' selon la formule: score_impact = intensite × base_factor × (liberté + création + transmission + intensité_contextuelle). Fournis ce champ dans ta réponse JSON."
                     prompt_memorization = f"{base_prompt}{score_instruction}\n\nTexte à analyser:\n{text_brut}"
                 else:
                     prompt_memorization = f"{base_prompt}\n\nTexte à analyser:\n{text_brut}"
+                
+                # Injecter le prénom utilisateur pour le tagging biographique
+                if current_user:
+                    prompt_memorization = f"Utilisateur connecté : {current_user}\n\n{prompt_memorization}"
 
                 print(f"[ARCHIVISTE-PROMPT] ✅ Utilisation du prompt depuis settings.json")
             else:
@@ -1473,7 +1489,7 @@ Contraintes importantes:
 
 Calcul des scores (à respecter):
 1) borne/quantifie les métriques sur [0..1] par pas de 0.1 quand pertinent
-2) base_score = intensite × base_factor × (liberté + création + procréation + intensité_contextuelle)
+2) base_score = intensite × base_factor × (liberté + création + transmission + intensité_contextuelle)
 3) score_impact = base_score (magnitude, toujours positive)
 4) signed_score = base_score × facteur_de_valence (selon la règle ci-dessus)
 {"Nota: le serveur recalcule score_impact et signed_score; fournis surtout les métriques cohérentes." if not calculate_score else "IMPORTANT: Tu DOIS calculer le 'score_impact' selon la formule ci-dessus et le fournir dans ta réponse JSON."}
@@ -1489,7 +1505,7 @@ Structure attendue (clés recommandées) :
     "multiplicateur_impact": {{
         "liberté": 0.0,
         "création": 0.0,
-        "procréation": 0.0,
+        "transmission": 0.0,
         "intensité_contextuelle": 0.0,
         "base_factor": 100
     }},
@@ -1521,6 +1537,10 @@ Texte à analyser:
 {text_brut}
 
 Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
+                
+                # Injecter le prénom utilisateur pour le tagging biographique (fallback)
+                if current_user:
+                    prompt_memorization = f"Utilisateur connecté : {current_user}\n\n{prompt_memorization}"
 
             messages = [{"role": "user", "content": prompt_memorization}]
             
@@ -1609,6 +1629,12 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
                     # score -> score_impact (alias fréquent)
                     if 'score_impact' not in enriched and 'score' in enriched:
                         enriched['score_impact'] = enriched.get('score')
+                    # user_tag : normaliser null/"null"/absent -> None, sinon garder la valeur
+                    raw_tag = enriched.get('user_tag')
+                    if raw_tag in (None, 'null', 'NULL', '', 'null\n'):
+                        enriched['user_tag'] = None
+                    else:
+                        enriched['user_tag'] = str(raw_tag).strip()
             except Exception:
                 pass
             
@@ -1925,7 +1951,7 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
     
     
     def _store_in_sqlite(self, memory_id: str, text_original: str, 
-                        enriched_data: Dict, embedding: np.ndarray) -> bool:
+                        enriched_data: Dict, embedding: np.ndarray, user_tag: str = None) -> bool:
         """Stocke un souvenir enrichi dans SQLite."""
         try:
             print(f"[SQLITE-STORE] 💾 Insertion souvenir: {memory_id}")
@@ -1968,8 +1994,9 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
                     INSERT INTO memories (
                         id, created_at, text_original, type, title, summary, 
                         lesson, valence, score_impact, signed_score, embedding_json, faiss_index, updated_at,
-                        base_factor, intensite, liberte, creation, procreation, intensite_ctx, multiplicateur_impact
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        base_factor, intensite, liberte, creation, procreation, intensite_ctx, multiplicateur_impact,
+                        user_tag, bio_processed
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         memory_id,
@@ -1985,7 +2012,8 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
                         json.dumps(embedding.tolist()),
                         self.next_faiss_pos,
                         now_iso,
-                        bf, inten, lib, cre, pro, ictx, multi_json
+                        bf, inten, lib, cre, pro, ictx, multi_json,
+                        user_tag, 0
                     )
                 )
                 conn.commit()
@@ -2034,7 +2062,7 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
                 # Accents et alias ASCII
                 lib = float(multi.get('liberté', multi.get('liberte', lib)) or lib)
                 cre = float(multi.get('création', multi.get('creation', cre)) or cre)
-                pro = float(multi.get('procréation', multi.get('procreation', pro)) or pro)
+                pro = float(multi.get('transmission', multi.get('procréation', multi.get('procreation', pro))) or pro)
                 ictx = float(multi.get('intensité_contextuelle', multi.get('intensite_contextuelle', multi.get('intensite_ctx', ictx)) ) or ictx)
                 inten = float(multi.get('intensite_mnéacloud', multi.get('intensite', inten)) or inten)
             # Try top-level fields as fallback
@@ -2042,7 +2070,7 @@ Réponds uniquement avec l'objet JSON demandé, sans autre texte."""
             inten = float(enriched_data.get('intensite', enriched_data.get('intensité', inten)) or inten)
             lib = float(enriched_data.get('liberté', enriched_data.get('liberte', lib)) or lib)
             cre = float(enriched_data.get('création', enriched_data.get('creation', cre)) or cre)
-            pro = float(enriched_data.get('procréation', enriched_data.get('procreation', pro)) or pro)
+            pro = float(enriched_data.get('transmission', enriched_data.get('procréation', enriched_data.get('procreation', pro))) or pro)
             ictx = float(
                 enriched_data.get('intensité_contextuelle',
                                    enriched_data.get('intensite_contextuelle',

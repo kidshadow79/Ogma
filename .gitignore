@@ -96,6 +96,9 @@ logs/
 _p*.py
 _patch*.py
 
+# Dossier export NotebookLM (temporaire, jamais commité)
+CODETXT/
+
 # ========================================
 # TESTS & DEBUG
 # ========================================
