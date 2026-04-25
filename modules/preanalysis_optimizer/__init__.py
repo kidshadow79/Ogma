@@ -208,6 +208,8 @@ class PreanalysisOptimizer:
             'capability_suggestion': parallel_results.get('capability_suggestion'),
             # Directive Archiviste (conscience critique)
             'archiviste_directive': parallel_results.get('archiviste_directive'),
+            # Emotion hologramme (yeux)
+            'emotion_hologram': parallel_results.get('emotion_hologram', 'neutre'),
             # NOUVEAU: Métriques Unified Meta-Analyzer (affinity + auto-censure)
             'affinity_level': parallel_results.get('affinity_level', 4),
             'affinity_confidence': parallel_results.get('affinity_confidence', 0.5),

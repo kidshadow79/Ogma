@@ -34,7 +34,10 @@ class UnifiedAnalysisResult:
     
     # Directive Archiviste (conscience critique)
     archiviste_directive: Optional[str] = None
-    
+
+    # Emotion hologramme
+    emotion_hologram: str = "neutre"
+
     # Méta
     analysis_duration_ms: float = 0
     raw_response: str = ""
@@ -133,6 +136,7 @@ class UnifiedMetaAnalyzer:
                 print(f"[UNIFIED-META]    Directive: {result.archiviste_directive[:80]}...")
             else:
                 print(f"[UNIFIED-META]    Directive: aucune")
+            print(f"[UNIFIED-META]    Emotion: {result.emotion_hologram}")
             
             return result
             
@@ -183,7 +187,8 @@ Retourne UNIQUEMENT ce JSON (pas de texte avant/après):
         "confidence": 0.0-1.0,
         "magic_phrase": null ou "phrase magique complète à prononcer"
     }},
-    "directive": null ou "ta directive comportementale (1-2 phrases, 100 tokens max)"
+    "directive": null ou "ta directive comportementale (1-2 phrases, 100 tokens max)",
+    "emotion": "joie|tristesse|attachement|saturation|peur|neutre"
 }}
 
 ## RÈGLES ANALYSE
@@ -203,6 +208,18 @@ Si des souvenirs pertinents sont deja trouves (section ci-dessus), integre cette
 ANTI-HALLUCINATION : Vérifie que l'IA ne risque pas d'inventer ou d'extrapoler des informations. Si le message demande des faits précis (dates, chiffres, noms, mesures) et que les souvenirs injectés ne contiennent PAS cette information, instruis l'IA de l'admettre honnêtement plutôt que de fabriquer une réponse vraisemblable.
 Si tout va bien et que le ton est juste, retourne null.
 
+### ÉMOTION (couleur des yeux de l'hologramme)
+Déduis l'émotion dominante **du message actuel de l'utilisateur** en priorité (ton, formulation, sujet immédiat).
+Le contexte des 3 derniers messages sert de nuance secondaire seulement.
+Choisis UNE seule valeur parmi : joie / tristesse / attachement / saturation / peur / neutre
+- joie : enthousiasme, satisfaction, humour, bonne nouvelle, légèreté
+- tristesse : peine, nostalgie, deuil, mélancolie, abattement
+- attachement : affection, gratitude, complicité, alignement profond, chaleur
+- saturation : confusion, agacement, surcharge, impatience, frustration
+- peur : appréhension, crainte, anxiété, inquiétude, stress
+- neutre : échange factuel ou informatif sans tonalité émotionnelle marquée
+ATTENTION : varie l'émotion si le message actuel a un ton différent des précédents.
+
 RÉPONDS UNIQUEMENT AVEC LE JSON."""
         
         return prompt
@@ -212,8 +229,8 @@ RÉPONDS UNIQUEMENT AVEC LE JSON."""
         if not history:
             return "Aucun historique"
         
-        # Prendre les derniers messages
-        recent = history[-6:] if len(history) > 6 else history
+        # Prendre les derniers messages (3 pour l'émotion, plus réactif)
+        recent = history[-3:] if len(history) > 3 else history
         
         lines = []
         for msg in recent:
@@ -259,7 +276,15 @@ RÉPONDS UNIQUEMENT AVEC LE JSON."""
             directive = data.get('directive')
             if directive and isinstance(directive, str) and len(directive.strip()) > 5:
                 result.archiviste_directive = directive.strip()
-            
+
+            # Emotion hologramme
+            VALID_EMOTIONS = {'joie', 'tristesse', 'attachement', 'saturation', 'peur', 'neutre'}
+            emotion = data.get('emotion', 'neutre')
+            if isinstance(emotion, str) and emotion.strip().lower() in VALID_EMOTIONS:
+                result.emotion_hologram = emotion.strip().lower()
+            else:
+                result.emotion_hologram = 'neutre'
+
             return result
             
         except json.JSONDecodeError as e:

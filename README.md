@@ -228,6 +228,21 @@ The Archivist performs many background calls (memory filtering, ego compilation,
 | 🔁 **Contextual Recall** | Intelligent contextual memory retrieval |
 | 🗂️ **Project RAG** | Isolated document memory per project (SQLite + FAISS) |
 | 🧠 **Cognitive Cache** | Conversational working memory the AI controls itself |
+| 💡 **Hologram Projector** *(experimental)* | Projects OGMA's animated face onto a Pepper's Ghost pyramid via a mobile browser |
+
+---
+
+### 💡 Hologram Projector — Pepper's Ghost Projection
+
+> ⚠️ **Experimental** — Requires a physical Pepper's Ghost pyramid (DIY or available online) and a smartphone/tablet on the same Wi-Fi network.
+
+A dedicated page (`/hologram`) displays OGMA's animated face — a pure Canvas 2D face emerging from blue smoke particles. A pyramid placed on the phone screen creates the illusion of a floating hologram.
+
+- The face **reacts in real time** to OGMA's speech (TTS): it vibrates and pulses when OGMA is talking
+- The **eyes change color and expression** based on the detected emotion in the conversation (6 emotions, smile/grimace, eyelid squint)
+- The URL to open on mobile is **auto-detected** (LAN IP + port)
+
+Activation: Settings → Profile → *Hologram Projector* section.
 
 ---
 

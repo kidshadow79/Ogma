@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>OGMA Hologram</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      overflow: hidden;
+      touch-action: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas { display: block; flex-shrink: 0; }
+    /* glCanvas hors-écran mais PAS display:none — WebGL refuse de rendre sur un canvas caché */
+    #gl { position: fixed; left: -9999px; top: -9999px; }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="gl"></canvas>
+<script src="/hologram/three.min.js"></script>
+<script>
+// ============================================================
+//  OGMA Hologram Projector — Sphère wireframe 3D réactive
+//  Three.js (WebGL) rendu off-screen → copie en 4 quadrants
+//  pour pyramide de Pepper's Ghost
+// ============================================================
+
+const canvas   = document.getElementById('c');
+const ctx      = canvas.getContext('2d');
+const glCanvas = document.getElementById('gl');
+
+// ============================================================
+//  Bruit de Perlin 2D (déformation organique des vertices)
+// ============================================================
+const PERM = new Uint8Array(512);
+(function buildPerm() {
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) {
+    const j = Math.random() * (i + 1) | 0;
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
+})();
+
+function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function lerp(a, b, t) { return a + t * (b - a); }
+function grad(hash, x, y) {
+  const h = hash & 3, u = h < 2 ? x : y, v = h < 2 ? y : x;
+  return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+}
+function noise2(x, y) {
+  const xi = Math.floor(x) & 255, yi = Math.floor(y) & 255;
+  const xf = x - Math.floor(x), yf = y - Math.floor(y);
+  const u = fade(xf), v = fade(yf);
+  const aa = PERM[PERM[xi]+yi],   ab = PERM[PERM[xi]+yi+1];
+  const ba = PERM[PERM[xi+1]+yi], bb = PERM[PERM[xi+1]+yi+1];
+  return lerp(
+    lerp(grad(aa, xf, yf),   grad(ba, xf-1, yf),   u),
+    lerp(grad(ab, xf, yf-1), grad(bb, xf-1, yf-1), u),
+    v
+  );
+}
+
+// ============================================================
+//  Three.js — renderer WebGL (preserveDrawingBuffer pour drawImage)
+// ============================================================
+const renderer = new THREE.WebGLRenderer({
+  canvas: glCanvas,
+  alpha: true,
+  antialias: true,
+  preserveDrawingBuffer: true,
+});
+renderer.setPixelRatio(1);
+renderer.setClearColor(0x000000, 0);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+camera.position.z = 3.8;
+
+// --- Couche 1 : sphère principale déformable ---
+const DETAIL  = 4;
+const geo     = new THREE.IcosahedronGeometry(1.0, DETAIL);
+const basePos = Float32Array.from(geo.attributes.position.array);
+const wireMat = new THREE.MeshBasicMaterial({
+  color: new THREE.Color().setHSL(220/360, 0.45, 0.55),
+  wireframe: true, transparent: true, opacity: 1.0,
+});
+const sphere = new THREE.Mesh(geo, wireMat);
+scene.add(sphere);
+
+// --- Couche 2 : halo intermédiaire ---
+const geoGlow = new THREE.IcosahedronGeometry(1.08, DETAIL);
+const glowMat = new THREE.MeshBasicMaterial({
+  color: new THREE.Color().setHSL(220/360, 0.45, 0.70),
+  wireframe: true, transparent: true, opacity: 0.18,
+});
+const sphereGlow = new THREE.Mesh(geoGlow, glowMat);
+scene.add(sphereGlow);
+
+// --- Couche 3 : halo externe (subdivision grossière) ---
+const geoHalo = new THREE.IcosahedronGeometry(1.22, 2);
+const haloMat = new THREE.MeshBasicMaterial({
+  color: new THREE.Color().setHSL(220/360, 0.45, 0.80),
+  wireframe: true, transparent: true, opacity: 0.07,
+});
+const sphereHalo = new THREE.Mesh(geoHalo, haloMat);
+scene.add(sphereHalo);
+
+// ============================================================
+//  Redimensionnement
+// ============================================================
+function resize() {
+  const s = Math.min(window.innerWidth, window.innerHeight);
+  canvas.width  = s;
+  canvas.height = s;
+  const H = Math.floor(s / 2);
+  renderer.setSize(H, H, false);
+  glCanvas.width  = H;
+  glCanvas.height = H;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ============================================================
+//  État global
+// ============================================================
+const STATE = {
+  hue: 220, sat: 45, lit: 55,
+  curHue: 220, curSat: 45, curLit: 55,
+  breathAmp:  0.04,
+  breathFreq: 0.0008,
+  enabled: true,
+  speaking: false,
+  curRadius: 1.0,
+};
+
+const EMOTION_MAP = {
+  joie        : { hue:  45, sat: 85, lit: 62 },
+  tristesse   : { hue: 150, sat: 55, lit: 28 },
+  attachement : { hue: 340, sat: 60, lit: 68 },
+  saturation  : { hue:  18, sat: 80, lit: 55 },
+  peur        : { hue: 275, sat: 55, lit: 35 },
+  neutre      : { hue: 220, sat: 30, lit: 55 },
+};
+
+// ============================================================
+//  Interpolation couleur + rayon
+// ============================================================
+const COLOR_LERP = 0.008;
+
+function lerpState() {
+  const targetLit = STATE.enabled ? STATE.lit : 0;
+  STATE.curHue = lerp(STATE.curHue, STATE.hue, COLOR_LERP);
+  STATE.curSat = lerp(STATE.curSat, STATE.enabled ? STATE.sat : 0, COLOR_LERP);
+  STATE.curLit = lerp(STATE.curLit, targetLit, COLOR_LERP);
+  const targetR = STATE.speaking ? 1.28 : 1.0;
+  STATE.curRadius = lerp(STATE.curRadius, targetR, 0.05);
+}
+
+// ============================================================
+//  Mise à jour géométrie + matériaux
+// ============================================================
+function updateSphere(t) {
+  const pos = geo.attributes.position.array;
+  const amp = STATE.breathAmp;
+
+  for (let i = 0; i < pos.length; i += 3) {
+    const x0 = basePos[i], y0 = basePos[i+1], z0 = basePos[i+2];
+    const len = Math.sqrt(x0*x0 + y0*y0 + z0*z0) || 1;
+    const nx = x0/len, ny = y0/len, nz = z0/len;
+    const n = noise2(nx * 1.6 + t * 0.00035, ny * 1.6 + nz * 0.8 + t * 0.00022);
+    const r = STATE.curRadius * (1.0 + amp * n);
+    pos[i]   = nx * r;
+    pos[i+1] = ny * r;
+    pos[i+2] = nz * r;
+  }
+  geo.attributes.position.needsUpdate = true;
+
+  sphereGlow.scale.setScalar(STATE.curRadius);
+  sphereHalo.scale.setScalar(STATE.curRadius);
+
+  const h = STATE.curHue / 360;
+  const s = STATE.curSat / 100;
+  const l = Math.max(STATE.curLit / 100, 0.001);
+  const fade = Math.min(STATE.curLit / 55, 1.0);
+
+  wireMat.color.setHSL(h, s, l);
+  wireMat.opacity = Math.max(fade, 0);
+
+  glowMat.color.setHSL(h, Math.min(s, 1), Math.min(l * 1.4, 0.95));
+  glowMat.opacity = 0.18 * fade;
+
+  haloMat.color.setHSL(h, Math.min(s, 1), Math.min(l * 1.8, 0.95));
+  haloMat.opacity = 0.07 * fade;
+
+  // Corps tourne dans un sens, halo dans l'autre
+  const rotSpeed = STATE.speaking ? 0.008 : 0.003;
+  sphere.rotation.y += rotSpeed;
+  sphere.rotation.x += rotSpeed * 0.3;
+  sphereGlow.rotation.copy(sphere.rotation);
+  sphereHalo.rotation.y -= 0.0015;
+  sphereHalo.rotation.x += 0.001;
+}
+
+// ============================================================
+//  Boucle principale
+// ============================================================
+function frame(t) {
+  lerpState();
+  updateSphere(t);
+
+  renderer.render(scene, camera);
+
+  const S = canvas.width;
+  const H = S / 2;
+  const Q = S / 4;
+  const spread = Math.round(Q * 0.35);
+
+  ctx.clearRect(0, 0, S, S);
+
+  const quadrants = [
+    { ox: Q,          oy: -spread,    rot: Math.PI     },   // Nord
+    { ox: Q,          oy: H + spread, rot: 0           },   // Sud
+    { ox: H + spread, oy: Q,          rot: Math.PI / 2 },   // Est
+    { ox: -spread,    oy: Q,          rot: 3*Math.PI/2 },   // Ouest
+  ];
+
+  for (const q of quadrants) {
+    ctx.save();
+    const qcx = q.ox + Q;
+    const qcy = q.oy + Q;
+    ctx.translate(qcx, qcy);
+    ctx.rotate(q.rot);
+    ctx.translate(-qcx, -qcy);
+    ctx.beginPath();
+    ctx.rect(q.ox, q.oy, H, H);
+    ctx.clip();
+    ctx.drawImage(glCanvas, q.ox, q.oy, H, H);
+    ctx.restore();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+
+// ============================================================
+//  Enveloppe RMS — replay frame par frame synchronisé avec l'audio
+// ============================================================
+let _envelopeTimer = null;
+
+function playEnvelope(frames, intervalMs) {
+  if (_envelopeTimer !== null) { clearTimeout(_envelopeTimer); _envelopeTimer = null; }
+  STATE.speaking = true;
+  let i = 0;
+
+  function step() {
+    if (i >= frames.length) {
+      STATE.speaking   = false;
+      STATE.breathAmp  = 0.04;
+      STATE.breathFreq = 0.0008;
+      _envelopeTimer   = null;
+      return;
+    }
+    const amp = frames[i++];
+    STATE.breathAmp  = 0.03 + amp * 0.52;
+    STATE.breathFreq = 0.001 + amp * 0.005;
+    _envelopeTimer = setTimeout(step, intervalMs);
+  }
+
+  step();
+  console.log(`[OGMA-ENV] Replay enveloppe : ${frames.length} frames x ${intervalMs}ms`);
+}
+
+// ============================================================
+//  WebSocket — état live depuis OGMA
+// ============================================================
+(function connectWS() {
+  const wsUrl = `ws://${location.host}/hologram/ws`;
+  let ws;
+
+  function connect() {
+    ws = new WebSocket(wsUrl);
+    ws.onopen  = () => console.log('[OGMA-WS] Connecté à', wsUrl);
+    ws.onerror = (e) => { console.warn('[OGMA-WS] Erreur WS', e); ws.close(); };
+    ws.onclose = () => { console.log('[OGMA-WS] Déconnecté — reconnexion 3s'); setTimeout(connect, 3000); };
+
+    ws.onmessage = (evt) => {
+      try {
+        const data = JSON.parse(evt.data);
+
+        if (data.type === 'envelope' && Array.isArray(data.data)) {
+          playEnvelope(data.data, data.interval_ms ?? 50);
+          return;
+        }
+
+        if (data.emotion && EMOTION_MAP[data.emotion]) {
+          const e = EMOTION_MAP[data.emotion];
+          const intensity = data.intensity ?? 1.0;
+          STATE.hue = e.hue;
+          STATE.sat = Math.round(e.sat * intensity);
+          STATE.lit = e.lit;
+        }
+
+        if (typeof data.enabled === 'boolean') {
+          STATE.enabled = data.enabled;
+          if (data.enabled && data.emotion && EMOTION_MAP[data.emotion]) {
+            const e = EMOTION_MAP[data.emotion];
+            STATE.hue = e.hue; STATE.sat = e.sat; STATE.lit = e.lit;
+          }
+        }
+
+      } catch (err) { console.warn('[OGMA-WS] Erreur parsing:', err); }
+    };
+  }
+
+  connect();
+})();
+
+// ============================================================
+//  API console — OGMA.setEmotion('joie')
+// ============================================================
+window.OGMA = {
+  setEmotion(name) {
+    const e = EMOTION_MAP[name];
+    if (!e) { console.warn('Inconnu:', name, '— disponibles:', Object.keys(EMOTION_MAP).join(', ')); return; }
+    STATE.hue = e.hue; STATE.sat = e.sat; STATE.lit = e.lit;
+    console.log(`[OGMA] Émotion → ${name}`);
+  },
+  emotions: Object.keys(EMOTION_MAP),
+};
+
+// ============================================================
+//  Bouton TEST (tap = parole simulée 4s, re-tap = stop)
+// ============================================================
+(function() {
+  const btn = document.createElement('button');
+  btn.textContent = '🎤 Test';
+  btn.style.cssText = [
+    'position:fixed', 'bottom:12px', 'right:12px',
+    'z-index:99', 'padding:8px 14px',
+    'background:rgba(255,255,255,0.12)',
+    'color:#fff', 'border:1px solid rgba(255,255,255,0.3)',
+    'border-radius:20px', 'font-size:14px',
+    'cursor:pointer', 'backdrop-filter:blur(4px)',
+  ].join(';');
+
+  let _timer = null;
+  btn.addEventListener('click', () => {
+    if (_timer) {
+      clearTimeout(_timer); _timer = null;
+      STATE.speaking = false; STATE.breathAmp = 0.04; STATE.breathFreq = 0.0008;
+      btn.textContent = '🎤 Test';
+    } else {
+      STATE.speaking = true; STATE.breathAmp = 0.50; STATE.breathFreq = 0.004;
+      btn.textContent = '⏹ Stop';
+      _timer = setTimeout(() => {
+        STATE.speaking = false; STATE.breathAmp = 0.04; STATE.breathFreq = 0.0008;
+        btn.textContent = '🎤 Test'; _timer = null;
+      }, 4000);
+    }
+  });
+  document.body.appendChild(btn);
+})();
+</script>
+</body>
+</html>

@@ -613,6 +613,27 @@ _web_navigator_ext = None
 # Diagnostic archiviste : notifier une seule fois par session si indisponible
 _archiviste_warned = False
 
+
+def _hologram_update_from_memory(mem_manager) -> None:
+    """Lit les dernières métadonnées Archiviste et met à jour l'émotion du hologramme."""
+    try:
+        data = getattr(mem_manager, '_last_enriched_data', None)
+        if not data:
+            return
+        valence = data.get('valence', 0)
+        mem_type = data.get('type', '') or ''
+        # Mapping valence + type → émotion hologramme
+        if valence == 1:
+            emotion = 'curiosite' if 'conceptuel' in mem_type else 'joie'
+        elif valence == -1:
+            emotion = 'melancolie' if 'affectif' in mem_type else 'tension'
+        else:
+            emotion = 'calme' if 'sensoriel' in mem_type else 'neutre'
+        from extensions.hologram_projector import update_emotion
+        update_emotion(emotion)
+    except Exception:
+        pass
+
 # Variable globale pour l'extension Capability Advisor
 _capability_advisor = None
 
@@ -1465,11 +1486,13 @@ from ogma_extensions_ui import (
     _create_header_journal_button,
     _create_header_journal_button_inline,
     _create_header_biography_button_inline,
+    _create_header_hologram_button_inline,
     get_biography_available,
     get_journal_available,
     get_journal_instance,
     set_globals as set_extensions_ui_globals,
-    BIOGRAPHY_EXTENSION_AVAILABLE as _EXT_BIOGRAPHY_AVAILABLE
+    BIOGRAPHY_EXTENSION_AVAILABLE as _EXT_BIOGRAPHY_AVAILABLE,
+    initialize_hologram_extension
 )
 
 # JOURNAL DE BORD EXTENSION - Variables globales (synchronisées avec module)
@@ -2810,6 +2833,7 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                     ok = await mem.add_memory(mem_id, content, user_tag=_current_user_name)
                     set_archiviste_working(False)
                     if ok:
+                        _hologram_update_from_memory(mem)
                         _notify_safe(f"SAVE Souvenir mémorisé: {content[:80]}...", 'positive')
                         _trigger_memory_update()
                         user_memorized = True
@@ -3220,6 +3244,15 @@ setTimeout(()=>{
                         print(f"[PREANALYSIS] 🧭 Directive Archiviste ({len(parallel_archiviste_directive)} chars)")
                     if unified_capability:
                         print(f"[PREANALYSIS] 🎯 Capability suggestion: {unified_capability.get('capability_id', '?')}")
+
+                    # Mise à jour couleur hologramme selon émotion détectée
+                    _emotion_detected = optimized_ctx.get('emotion_hologram', 'neutre')
+                    try:
+                        from extensions.hologram_projector import update_emotion
+                        update_emotion(_emotion_detected)
+                        print(f"[PREANALYSIS] 🎨 Emotion hologramme: {_emotion_detected}")
+                    except Exception:
+                        pass
                 else:
                     print("[PREANALYSIS] 🔄 Fallback vers système séquentiel")
         except Exception as e:
@@ -6282,6 +6315,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                         set_archiviste_working(False)
                         print(f"[MAGIC-DEBUG] Résultat add_memory: {ok}")
                         if ok:
+                            _hologram_update_from_memory(mem)
                             _notify_safe(f"SAVE Souvenir mémorisé: {content[:80]}...", 'positive')
                             _trigger_memory_update()
                             ai_memorized = True
@@ -6780,9 +6814,9 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                                     _voice_manager.notify_tts_started()
                             except:
                                 pass
-                            
+
                             _audio_manager.speak(clean_content)
-                            
+
                             # Notifier le module voice que le TTS a fini
                             try:
                                 if VOICE_MODULE_AVAILABLE and _voice_manager and _voice_manager.is_active:
@@ -8507,6 +8541,9 @@ def run_ogma(host: str = 'localhost', port: int = 8080):
             print("[GGUF-PRELOAD] ✅ Modèle prêt — le navigateur ne sera pas bloqué")
     except Exception as _pre_e:
         print(f"[GGUF-PRELOAD] ⚠️ Échec pré-chargement: {_pre_e}")
+
+    # Hologram Projector — enregistrement route /hologram (via ogma_extensions_ui)
+    initialize_hologram_extension()
 
     # Démarrer avec gestion d'erreur améliorée
     try:

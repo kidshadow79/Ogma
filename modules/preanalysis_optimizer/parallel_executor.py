@@ -266,7 +266,10 @@ class ParallelExecutor:
                 
                 # Directive Archiviste
                 'archiviste_directive': result.archiviste_directive,
-                
+
+                # Emotion hologramme
+                'emotion_hologram': result.emotion_hologram,
+
                 # Meta
                 'unified_duration_ms': result.analysis_duration_ms
             }
@@ -292,6 +295,7 @@ class ParallelExecutor:
             'capability_confidence': 0.0,
             'capability_phrase': None,
             'archiviste_directive': None,
+            'emotion_hologram': 'neutre',
             'unified_duration_ms': 0
         }
         if error:
@@ -337,8 +341,9 @@ class ParallelExecutor:
                 elif name == 'capability':
                     combined['capability_suggestion'] = result.get('capability_suggestion')
                 elif name == 'unified_meta':
-                    # Résultat analyseur unifié 2-en-1 (Capability + Directive)
+                    # Résultat analyseur unifié 2-en-1 (Capability + Directive + Emotion)
                     combined['archiviste_directive'] = result.get('archiviste_directive')
+                    combined['emotion_hologram'] = result.get('emotion_hologram', 'neutre')
                     combined['unified_duration_ms'] = result.get('unified_duration_ms', 0)
                     
                     # Convertir suggestion capability en format attendu

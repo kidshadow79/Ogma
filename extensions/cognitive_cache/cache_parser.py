@@ -18,7 +18,7 @@ from typing import List, Dict, Any
 # Patterns regex pour chaque commande
 _RE_ADD = re.compile(
     r'CACHE_ADD\s*:\s*([a-zA-Z_]+)\s*:\s*(.+?)(?=\nCACHE_|$)',
-    re.IGNORECASE | re.DOTALL
+    re.IGNORECASE | re.DOTALL | re.MULTILINE
 )
 _RE_DELETE = re.compile(
     r'CACHE_DELETE\s*:\s*(cache-[a-f0-9]{8})',
@@ -26,7 +26,7 @@ _RE_DELETE = re.compile(
 )
 _RE_UPDATE = re.compile(
     r'CACHE_UPDATE\s*:\s*(cache-[a-f0-9]{8})\s*:\s*(.+?)(?=\nCACHE_|$)',
-    re.IGNORECASE | re.DOTALL
+    re.IGNORECASE | re.DOTALL | re.MULTILINE
 )
 _RE_CLEAR = re.compile(
     r'CACHE_CLEAR',

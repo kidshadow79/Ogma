@@ -715,6 +715,114 @@ def _profile_modal():
                 ui.label(f'⚠️ Erreur Config Snapshot : {e}').classes('text-red-500')
                 print(f"[CONFIG-SNAPSHOT] Erreur UI: {e}")
 
+            # === HOLOGRAMME PROJECTOR ===
+            ui.separator().classes('my-4')
+            with ui.row().classes('items-center gap-2 mb-1'):
+                ui.icon('wb_incandescent', size='sm').classes('text-amber-400')
+                ui.label('Hologramme Projector').classes('text-lg font-medium')
+                ui.badge('Expérimental', color='orange').classes('text-xs')
+
+            ui.label(
+                'Projetez le visage animé d\'OGMA sur une pyramide de Pepper\'s Ghost. '
+                'Cette extension est expérimentale : elle nécessite une page ouverte sur '
+                'un second écran (téléphone ou tablette) connecté au même réseau local.'
+            ).classes('text-xs text-muted mb-3')
+
+            def _get_hologram_lan_url() -> str:
+                """Détecte l'IP LAN du serveur et retourne l'URL hologramme."""
+                import socket, os
+                port = int(os.getenv('OGMA_PORT', '8080'))
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    s.connect(('8.8.8.8', 80))
+                    ip = s.getsockname()[0]
+                    s.close()
+                    return f"http://{ip}:{port}/hologram"
+                except Exception:
+                    return f"http://localhost:{port}/hologram"
+
+            with ui.row().classes('items-center gap-3 mb-3'):
+                # Toggle activer/désactiver
+                try:
+                    from extensions.hologram_projector.state_emitter import is_enabled as _holo_is_enabled, set_enabled as _holo_set_enabled
+                    holo_enabled = _holo_is_enabled()
+                except Exception:
+                    holo_enabled = False
+
+                def _on_holo_toggle(e):
+                    try:
+                        from extensions.hologram_projector.state_emitter import set_enabled
+                        set_enabled(e.value)
+                        state = 'activé' if e.value else 'désactivé'
+                        ui.notify(f'Hologramme {state}', type='positive' if e.value else 'warning', timeout=2000)
+                    except Exception as err:
+                        ui.notify(f'Erreur hologramme : {err}', type='negative')
+
+                holo_toggle = ui.switch(
+                    'Activer l\'hologramme',
+                    value=holo_enabled,
+                    on_change=_on_holo_toggle,
+                ).classes('mr-2')
+
+                # Bouton "Comment ça marche ?"
+                def _open_hologram_howto():
+                    url = _get_hologram_lan_url()
+                    howto_dialog = ui.dialog()
+                    with howto_dialog, ui.card().classes('popup-content q-dark').style('width: min(560px, 92vw); max-height: 85vh; overflow-y: auto;'):
+                        with ui.row().classes('items-center gap-2 mb-3'):
+                            ui.icon('wb_incandescent', size='md').classes('text-amber-400')
+                            ui.label('Hologramme Projector — Comment ça marche ?').classes('popup-title')
+
+                        ui.separator().classes('mb-3')
+
+                        ui.label('🔺 La pyramide de Pepper\'s Ghost').classes('text-md font-semibold mb-1')
+                        ui.label(
+                            'La technique de Pepper\'s Ghost date du XIXe siècle. Une pyramide creuse en plastique '
+                            'transparent (4 faces triangulaires) posée sur l\'écran de votre téléphone reflète '
+                            'l\'image sous 4 angles, créant l\'illusion d\'un hologramme flottant au centre.'
+                        ).classes('text-sm text-muted mb-3')
+
+                        ui.label('📱 Étapes d\'utilisation').classes('text-md font-semibold mb-2')
+                        steps = [
+                            '1. Activez l\'hologramme avec le switch ci-dessus.',
+                            '2. Connectez votre téléphone/tablette au même réseau Wi-Fi que ce PC.',
+                            '3. Ouvrez l\'adresse ci-dessous dans le navigateur de votre appareil mobile.',
+                            '4. Passez en mode plein écran (touchez l\'icône ⛶ ou utilisez le menu du navigateur).',
+                            '5. Posez la pyramide de Pepper\'s Ghost au centre de l\'écran.',
+                            '6. Éteignez les lumières et profitez !',
+                        ]
+                        for step in steps:
+                            ui.label(step).classes('text-sm mb-1')
+
+                        ui.separator().classes('my-3')
+                        ui.label('🌐 Adresse à ouvrir sur votre appareil mobile').classes('text-md font-semibold mb-2')
+
+                        def _copy_url():
+                            ui.run_javascript(f"navigator.clipboard.writeText('{url}')")
+                            ui.notify('URL copiée !', type='positive', timeout=1500)
+                        ui.input(value=url).props('readonly outlined dense color=amber').classes('w-full font-mono mb-1')
+                        ui.button('Copier l\'URL', icon='content_copy', on_click=_copy_url).props('flat dense color=grey-4 size=sm').classes('mb-3')
+
+                        ui.label(
+                            '⚠️ Cette adresse est celle de votre réseau local. Elle change si votre machine '
+                            'obtient une nouvelle adresse IP (redémarrage du routeur, etc.).'
+                        ).classes('text-xs text-orange-400 mb-3')
+
+                        ui.label('🖥️ Page sphère alternative').classes('text-md font-semibold mb-1')
+                        alt_url = url.replace('/hologram', '/hologram2')
+                        ui.label(f'Version sphère wireframe Three.js : {alt_url}').classes('text-xs text-muted font-mono mb-3')
+
+                        with ui.row().classes('w-full justify-end mt-2'):
+                            ui.button('Fermer', on_click=howto_dialog.close).classes('bg-gray-600')
+
+                    howto_dialog.open()
+
+                ui.button(
+                    'Comment ça marche ?',
+                    icon='help_outline',
+                    on_click=_open_hologram_howto,
+                ).props('outline color=amber').classes('text-sm')
+
             # === IDENTITÉS ===
             ui.separator().classes('my-4')
             ui.label('👤 Identités').classes('text-lg font-medium mb-2')

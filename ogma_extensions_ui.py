@@ -29,6 +29,13 @@ except ImportError as e:
     BIOGRAPHY_EXTENSION_AVAILABLE = False
     print(f"[EXTENSIONS-UI] BIOGRAPHY extension non disponible: {e}")
 
+# HOLOGRAM PROJECTOR EXTENSION
+try:
+    from extensions.hologram_projector import initialize_hologram as _init_hologram
+    HOLOGRAM_EXTENSION_AVAILABLE = True
+except ImportError:
+    HOLOGRAM_EXTENSION_AVAILABLE = False
+
 # ==============================================================================
 # VARIABLES GLOBALES (seront injectées depuis ogma_ng.py)
 # ==============================================================================
@@ -192,6 +199,27 @@ def _initialize_journal_extension():
         return False
     except Exception as e:
         print(f"[JOURNAL-EXTENSION] ERREUR initialisation: {e}")
+        return False
+
+
+# ==============================================================================
+# INITIALISATION HOLOGRAM PROJECTOR
+# ==============================================================================
+
+def initialize_hologram_extension():
+    """
+    Enregistre la route /hologram sur le serveur NiceGUI.
+    Doit être appelé après le démarrage de NiceGUI (routes FastAPI disponibles).
+    """
+    if not HOLOGRAM_EXTENSION_AVAILABLE:
+        return False
+    try:
+        success = _init_hologram()
+        if success:
+            print("[HOLOGRAM-EXTENSION] Route /hologram enregistrée")
+        return success
+    except Exception as e:
+        print(f"[HOLOGRAM-EXTENSION] Erreur initialisation : {e}")
         return False
 
 
@@ -405,3 +433,22 @@ def _create_header_biography_button_inline():
         print(f"[OGMA-NG] ERROR Erreur création bouton biographie: {e}")
         import traceback
         traceback.print_exc()
+
+
+# ==============================================================================
+# BOUTON HEADER HOLOGRAM PROJECTOR
+# ==============================================================================
+
+def _create_header_hologram_button_inline():
+    """Crée le bouton toggle hologramme dans le header OGMA."""
+    if not HOLOGRAM_EXTENSION_AVAILABLE:
+        return
+    try:
+        from .hologram_ui import create_header_button_inline as _holo_btn
+        _holo_btn()
+    except ImportError:
+        # Import direct si appelé hors package
+        from extensions.hologram_projector.hologram_ui import create_header_button_inline as _holo_btn
+        _holo_btn()
+    except Exception as e:
+        print(f"[HOLOGRAM-UI] Erreur création bouton header: {e}")

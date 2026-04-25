@@ -1,0 +1,470 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>OGMA — Visage dans la fumee</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      overflow: hidden;
+      touch-action: none;
+      display: flex; align-items: center; justify-content: center;
+    }
+    canvas { display: block; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const off    = document.createElement('canvas');
+const offCtx = off.getContext('2d');
+
+let _H = 400;
+const _particles = [];
+
+function resize() {
+  const s = Math.min(window.innerWidth, window.innerHeight);
+  canvas.width = canvas.height = s;
+  _H = Math.floor(s / 2);
+  off.width = off.height = _H;
+  _particles.length = 0;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Bruit Perlin 2D
+const PERM = new Uint8Array(512);
+(function buildPerm() {
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) {
+    const j = Math.random() * (i + 1) | 0;
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
+})();
+function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function lerp(a, b, t) { return a + t * (b - a); }
+function grad(hash, x, y) {
+  const h = hash & 3, u = h < 2 ? x : y, v = h < 2 ? y : x;
+  return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+}
+function noise2(x, y) {
+  const xi = Math.floor(x) & 255, yi = Math.floor(y) & 255;
+  const xf = x - Math.floor(x), yf = y - Math.floor(y);
+  const u = fade(xf), v = fade(yf);
+  const aa = PERM[PERM[xi]+yi],   ab = PERM[PERM[xi]+yi+1];
+  const ba = PERM[PERM[xi+1]+yi], bb = PERM[PERM[xi+1]+yi+1];
+  return lerp(
+    lerp(grad(aa, xf, yf),   grad(ba, xf-1, yf),   u),
+    lerp(grad(ab, xf, yf-1), grad(bb, xf-1, yf-1), u),
+    v
+  );
+}
+
+// Etat global
+const EMOTION_MAP = {
+  joie        : { hue:  45, sat: 85, lit: 62, smile:  1.0, squint:  0.45 },
+  tristesse   : { hue: 150, sat: 55, lit: 28, smile: -0.8, squint: -0.30 },
+  attachement : { hue: 340, sat: 60, lit: 68, smile:  0.4, squint:  0.22 },
+  saturation  : { hue:  18, sat: 80, lit: 55, smile: -0.7, squint: -0.25 },
+  peur        : { hue: 275, sat: 55, lit: 35, smile: -0.6, squint:  0.00 },
+  neutre      : { hue: 220, sat: 30, lit: 55, smile:  0.0, squint:  0.00 },
+};
+const STATE = {
+  hue: 220, sat: 45, lit: 55,
+  curHue: 220, curSat: 45, curLit: 55,
+  breathAmp: 0.0,
+  enabled: true,
+  curOpacity: 1.0,
+  smileTarget: 0, smileCurve: 0,
+  squintTarget: 0, squintCurve: 0,
+};
+function lerpState() {
+  const CL = 0.008;
+  STATE.curHue = lerp(STATE.curHue, STATE.hue, CL);
+  STATE.curSat = lerp(STATE.curSat, STATE.enabled ? STATE.sat : 0, CL);
+  STATE.curLit = lerp(STATE.curLit, STATE.enabled ? STATE.lit : 0, CL);
+  STATE.curOpacity = lerp(STATE.curOpacity, STATE.enabled ? 1.0 : 0.0, CL);
+  STATE.smileCurve  = lerp(STATE.smileCurve,  STATE.smileTarget,  0.012);
+  STATE.squintCurve = lerp(STATE.squintCurve, STATE.squintTarget, 0.010);
+}
+
+// Particules
+const MAX_PARTICLES = 160;
+function _makeParticle() {
+  const H = _H;
+  const FACE_R = H * 0.33;
+  const a = Math.random() * Math.PI * 2;
+  const r = Math.pow(Math.random(), 0.4) * FACE_R;
+  return {
+    x:  Math.cos(a) * r * 0.72,
+    y:  Math.sin(a) * r,
+    vx: (Math.random() - 0.5) * 0.22,
+    vy: -(Math.random() * 0.38 + 0.06),
+    sz: Math.random() * 22 + 10,
+    op: Math.random() * 0.055 + 0.015,
+    life: (Math.random() * 150) | 0,
+    maxLife: ((Math.random() * 180 + 100) | 0),
+    fh: 200 + Math.random() * 40,  // bleu (200-240)
+  };
+}
+function _ensureParticles() {
+  while (_particles.length < MAX_PARTICLES) _particles.push(_makeParticle());
+}
+function updateParticles(t) {
+  const amp = STATE.breathAmp;
+  for (let i = 0; i < _particles.length; i++) {
+    const p = _particles[i];
+    p.life++;
+    const turb = 1.0 + amp * 2.5;
+    p.x += p.vx * turb + noise2(p.x * 0.018 + t * 0.00038, p.y * 0.018 + 77) * 0.35;
+    p.y += p.vy * turb;
+    if (p.life >= p.maxLife) _particles[i] = _makeParticle();
+  }
+}
+
+function hsl(h, s, l) { return 'hsl(' + h + ',' + s + '%,' + l + '%)'; }
+function hsla(h, s, l, a) { return 'hsla(' + h + ',' + s + '%,' + l + '%,' + a + ')'; }
+function rgba(r, g, b, a) { return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; }
+
+function drawSmoke(t) {
+  const H = _H, cx = H / 2, cy = H / 2;
+
+  // Lueur ambiante -- bleu profond
+  const amb = offCtx.createRadialGradient(cx, cy - H * 0.03, 0, cx, cy, H * 0.46);
+  amb.addColorStop(0,    hsla(215, 80, 38, 0.13));  // bleu vif centre
+  amb.addColorStop(0.45, hsla(225, 65, 24, 0.07));  // bleu-indigo
+  amb.addColorStop(0.80, hsla(235, 60, 16, 0.05));  // bleu sombre
+  amb.addColorStop(1,    'transparent');
+  offCtx.fillStyle = amb;
+  offCtx.fillRect(0, 0, H, H);
+
+  for (const p of _particles) {
+    const ratio = p.life / p.maxLife;
+    const fadeV = ratio < 0.12 ? ratio / 0.12 : ratio > 0.78 ? (1 - ratio) / 0.22 : 1;
+    const alpha = p.op * 1.2 * fadeV * STATE.curOpacity;
+    if (alpha < 0.004) continue;
+    const ageL = 28 + ratio * 26;
+    offCtx.beginPath();
+    offCtx.arc(cx + p.x, cy + p.y, p.sz, 0, Math.PI * 2);
+    offCtx.fillStyle = hsla(p.fh, 88, ageL, +Math.min(alpha, 0.13).toFixed(3));
+    offCtx.fill();
+  }
+}
+
+function drawEye(ex, ey, R, t, side, blinkScale) {
+  const h = STATE.curHue, s = STATE.curSat, l = STATE.curLit;
+  const wb = noise2(t * 0.00028 + side * 13.7, t * 0.00019 + side * 7.3);
+  const eyeR = R * (1.0 + wb * 0.04);
+
+  // Glow (stable, pas affecte par la voix)
+  offCtx.save();
+  offCtx.globalCompositeOperation = 'screen';
+  const glow = offCtx.createRadialGradient(ex, ey, 0, ex, ey, eyeR * 4.0);
+  glow.addColorStop(0,    hsla(h, s, Math.min(l + 20, 90), 0.28));
+  glow.addColorStop(0.35, hsla(h, s, l, 0.10));
+  glow.addColorStop(1,    'transparent');
+  offCtx.beginPath();
+  offCtx.arc(ex, ey, eyeR * 4.0, 0, Math.PI * 2);
+  offCtx.fillStyle = glow;
+  offCtx.fill();
+  offCtx.restore();
+
+  // Clignement + plissement : scale vertical + paupière dessinée
+  const sq = STATE.squintCurve;
+  const squintFactor = 1.0 - Math.abs(sq) * 0.65;
+  const effectiveScale = blinkScale * squintFactor;
+  const pivotShift = sq * eyeR * 0.45;
+  offCtx.save();
+  offCtx.translate(ex, ey + pivotShift);
+  offCtx.scale(1, effectiveScale);
+  offCtx.translate(-ex, -(ey + pivotShift));
+
+  const iris = offCtx.createRadialGradient(
+    ex - eyeR * 0.25, ey - eyeR * 0.25, 0,
+    ex, ey, eyeR
+  );
+  iris.addColorStop(0,    hsl(h, Math.min(s + 25, 100), Math.min(l + 30, 95)));
+  iris.addColorStop(0.55, hsl(h, s, l));
+  iris.addColorStop(1,    hsl(h, Math.max(s - 15, 5), Math.max(l - 25, 10)));
+  offCtx.beginPath();
+  offCtx.arc(ex, ey, eyeR, 0, Math.PI * 2);
+  offCtx.fillStyle = iris;
+  offCtx.shadowColor = hsl(h, s, Math.min(l + 10, 85));
+  offCtx.shadowBlur = eyeR * 2.5;
+  offCtx.fill();
+  offCtx.shadowBlur = 0;
+
+  const pupR = eyeR * 0.40;
+  offCtx.beginPath();
+  offCtx.arc(ex, ey, pupR, 0, Math.PI * 2);
+  offCtx.fillStyle = 'rgba(0,0,0,0.92)';
+  offCtx.fill();
+
+  offCtx.beginPath();
+  offCtx.arc(ex - eyeR * 0.28, ey - eyeR * 0.28, eyeR * 0.17, 0, Math.PI * 2);
+  offCtx.fillStyle = rgba(255, 255, 255, 0.65);
+  offCtx.fill();
+
+  offCtx.restore();
+
+  // Paupière (cache noir clipé sur l'iris)
+  if (sq > 0.03) {
+    // Plissement positif (joie, attachement) : paupière supérieure descend
+    offCtx.save();
+    offCtx.beginPath();
+    offCtx.arc(ex, ey, eyeR * 1.01, 0, Math.PI * 2);
+    offCtx.clip();
+    const lidY = ey - eyeR * (1.0 - sq * 0.82);
+    offCtx.fillStyle = 'rgba(0,0,0,0.92)';
+    offCtx.fillRect(ex - eyeR * 2, ey - eyeR * 2, eyeR * 4, lidY - (ey - eyeR * 2));
+    offCtx.restore();
+  } else if (sq < -0.03) {
+    // Plissement négatif (tristesse) : paupière inférieure remonte
+    offCtx.save();
+    offCtx.beginPath();
+    offCtx.arc(ex, ey, eyeR * 1.01, 0, Math.PI * 2);
+    offCtx.clip();
+    const lidY = ey + eyeR * (1.0 - Math.abs(sq) * 0.72);
+    offCtx.fillStyle = 'rgba(0,0,0,0.92)';
+    offCtx.fillRect(ex - eyeR * 2, lidY, eyeR * 4, eyeR * 2);
+    offCtx.restore();
+  }
+}
+
+// Clignement
+let _blinkScale = 1.0;
+let _blinkState = 'open';
+let _blinkTimer = 0;
+let _nextBlinkIn = 2500 + Math.random() * 4000;
+let _blinkLastT  = 0;
+function updateBlink(t) {
+  const dt = Math.min(t - _blinkLastT, 100);
+  _blinkLastT = t;
+  if (_blinkState === 'open') {
+    _blinkTimer += dt;
+    if (_blinkTimer >= _nextBlinkIn) { _blinkState = 'closing'; _blinkTimer = 0; }
+  } else if (_blinkState === 'closing') {
+    _blinkTimer += dt;
+    _blinkScale = Math.max(0, 1.0 - _blinkTimer / 80);
+    if (_blinkTimer >= 80) { _blinkScale = 0; _blinkState = 'opening'; _blinkTimer = 0; }
+  } else {
+    _blinkTimer += dt;
+    _blinkScale = Math.min(1, _blinkTimer / 120);
+    if (_blinkTimer >= 120) {
+      _blinkScale = 1; _blinkState = 'open'; _blinkTimer = 0;
+      _nextBlinkIn = 2000 + Math.random() * 5000;
+    }
+  }
+}
+
+// Bouche
+const MOUTH_BUF = 50;
+const _mouthHist = new Float32Array(MOUTH_BUF);
+let _mouthIdx = 0;
+let _mouthFC  = 0;
+
+function updateMouthHistory() {
+  _mouthFC++;
+  if (_mouthFC % 3 !== 0) return;
+  const n = noise2(_mouthFC * 0.04, 99) * 0.025;
+  _mouthHist[_mouthIdx % MOUTH_BUF] = STATE.breathAmp + Math.abs(n);
+  _mouthIdx++;
+}
+
+// Bouche toujours en rose
+const MOUTH_H = 320, MOUTH_S = 85, MOUTH_L = 62;
+
+function drawMouth(mx, my, W, maxAmp) {
+  const N = MOUTH_BUF - 1;
+  // Courbe de sourire : 0=plat, 1=sourire
+  // Parabole : coins montent, centre reste (en canvas, y- = haut)
+  const smileAmp = STATE.smileCurve * W * 0.30;
+  function smileY(t) { return -smileAmp * 4 * (t - 0.5) * (t - 0.5); }
+
+  offCtx.save();
+  // Ligne de base (plate, souriante ou grimaçante)
+  offCtx.beginPath();
+  if (Math.abs(STATE.smileCurve) < 0.02) {
+    offCtx.moveTo(mx - W, my);
+    offCtx.lineTo(mx + W, my);
+  } else {
+    offCtx.moveTo(mx - W, my + smileY(0));
+    offCtx.quadraticCurveTo(mx, my - smileAmp, mx + W, my + smileY(1));
+  }
+  offCtx.strokeStyle = hsla(MOUTH_H, MOUTH_S, MOUTH_L, 0.15);
+  offCtx.lineWidth = 0.8;
+  offCtx.stroke();
+
+  offCtx.beginPath();
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const timeStep = _mouthIdx - N + i;
+    const histIdx  = ((timeStep % MOUTH_BUF) + MOUTH_BUF) % MOUTH_BUF;
+    const amp      = _mouthHist[histIdx];
+    const carrier  = Math.sin(timeStep * 0.55);
+    const x = mx - W + t * W * 2;
+    const y = my + smileY(t) + amp * maxAmp * carrier;
+    i === 0 ? offCtx.moveTo(x, y) : offCtx.lineTo(x, y);
+  }
+
+  const curAmp = _mouthHist[(_mouthIdx - 1 + MOUTH_BUF) % MOUTH_BUF];
+  const bright  = 0.50 + curAmp * 0.50;
+  const grad = offCtx.createLinearGradient(mx - W, 0, mx + W, 0);
+  grad.addColorStop(0,    'transparent');
+  grad.addColorStop(0.10, hsla(MOUTH_H, MOUTH_S, MOUTH_L, bright));
+  grad.addColorStop(0.90, hsla(MOUTH_H, MOUTH_S, MOUTH_L, bright));
+  grad.addColorStop(1,    'transparent');
+
+  offCtx.strokeStyle = grad;
+  offCtx.lineWidth  = 2.5 + curAmp * 5.0;
+  offCtx.shadowColor = hsl(MOUTH_H, MOUTH_S, MOUTH_L);
+  offCtx.shadowBlur  = 8 + curAmp * 18;
+  offCtx.stroke();
+  offCtx.shadowBlur = 0;
+  offCtx.restore();
+}
+
+// Boucle principale
+function frame(t) {
+  lerpState();
+  _ensureParticles();
+  updateParticles(t);
+  updateMouthHistory();
+
+  const H = _H;
+  const cx = H / 2, cy = H / 2;
+  const FACE_R = H * 0.33;
+
+  offCtx.clearRect(0, 0, H, H);
+
+  updateBlink(t);
+  if (STATE.curOpacity > 0.003) {
+    drawSmoke(t);
+    const eyeSep = FACE_R * 0.64;
+    const eyeY   = cy - FACE_R * 0.16;
+    const eyeR   = FACE_R * 0.195;
+    drawEye(cx - eyeSep / 2, eyeY, eyeR, t, 0, _blinkScale);
+    drawEye(cx + eyeSep / 2, eyeY, eyeR, t, 1, _blinkScale);
+    const mouthY   = cy + FACE_R * 0.28;
+    const mouthW   = FACE_R * 0.40;
+    const mouthAmp = FACE_R * 0.12;
+    drawMouth(cx, mouthY, mouthW, mouthAmp);
+  }
+
+  // 4 quadrants Pepper's Ghost
+  const S = canvas.width;
+  const Q = S / 4;
+  const spread = Math.round(Q * 0.35);
+  ctx.clearRect(0, 0, S, S);
+
+  const quadrants = [
+    { ox: Q,          oy: -spread,    rot: Math.PI     },
+    { ox: Q,          oy: H + spread, rot: 0           },
+    { ox: H + spread, oy: Q,          rot: Math.PI / 2 },
+    { ox: -spread,    oy: Q,          rot: 3*Math.PI/2 },
+  ];
+
+  for (const q of quadrants) {
+    ctx.save();
+    const qcx = q.ox + Q;
+    const qcy = q.oy + Q;
+    ctx.translate(qcx, qcy);
+    ctx.rotate(q.rot);
+    ctx.translate(-qcx, -qcy);
+    ctx.beginPath();
+    ctx.rect(q.ox, q.oy, H, H);
+    ctx.clip();
+    ctx.drawImage(off, q.ox, q.oy, H, H);
+    ctx.restore();
+  }
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// Enveloppe RMS
+let _envelopeTimer = null;
+function playEnvelope(frames, intervalMs) {
+  if (_envelopeTimer !== null) { clearTimeout(_envelopeTimer); _envelopeTimer = null; }
+  let i = 0;
+  function step() {
+    if (i >= frames.length) { STATE.breathAmp = 0; _envelopeTimer = null; return; }
+    STATE.breathAmp = frames[i++];
+    _envelopeTimer = setTimeout(step, intervalMs);
+  }
+  step();
+  console.log('[OGMA-ENV] Enveloppe : ' + frames.length + ' frames x ' + intervalMs + 'ms');
+}
+
+// WebSocket
+(function connectWS() {
+  const wsUrl = 'ws://' + location.host + '/hologram/ws';
+  let ws;
+  function connect() {
+    ws = new WebSocket(wsUrl);
+    ws.onopen  = () => console.log('[OGMA-WS] Visage connecte');
+    ws.onerror = (e) => { console.warn('[OGMA-WS] Erreur', e); ws.close(); };
+    ws.onclose = () => { console.log('[OGMA-WS] Reconnexion 3s'); setTimeout(connect, 3000); };
+    ws.onmessage = (evt) => {
+      try {
+        const d = JSON.parse(evt.data);
+        if (d.type === 'envelope' && Array.isArray(d.data)) { playEnvelope(d.data, d.interval_ms || 50); return; }
+        if (d.emotion && EMOTION_MAP[d.emotion]) {
+          const e = EMOTION_MAP[d.emotion];
+          STATE.hue = e.hue; STATE.sat = e.sat; STATE.lit = e.lit;
+          STATE.smileTarget  = e.smile  ?? 0;
+          STATE.squintTarget = e.squint ?? 0;
+        }
+        if (typeof d.enabled === 'boolean') STATE.enabled = d.enabled;
+      } catch (err) { console.warn('[OGMA-WS] Erreur parsing', err); }
+    };
+  }
+  connect();
+})();
+
+// API console
+window.OGMA = {
+  setEmotion: function(name) {
+    const e = EMOTION_MAP[name];
+    if (!e) { console.warn('Inconnu:', name); return; }
+    STATE.hue = e.hue; STATE.sat = e.sat; STATE.lit = e.lit;
+    STATE.smileTarget  = e.smile  ?? 0;
+    STATE.squintTarget = e.squint ?? 0;
+  },
+  emotions: Object.keys(EMOTION_MAP),
+};
+
+// Bouton Test
+(function() {
+  const btn = document.createElement('button');
+  btn.textContent = 'Test voix';
+  btn.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:99;padding:8px 14px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:20px;font-size:14px;cursor:pointer';
+  let _t = null;
+  btn.addEventListener('click', function() {
+    if (_t) {
+      clearTimeout(_t); _t = null;
+      STATE.breathAmp = 0; btn.textContent = 'Test voix';
+    } else {
+      btn.textContent = 'Stop';
+      const n = 80;
+      const frames = [];
+      for (let i = 0; i < n; i++) {
+        const env = Math.sin(i / n * Math.PI);
+        frames.push(env * (0.35 + Math.random() * 0.55));
+      }
+      playEnvelope(frames, 50);
+      _t = setTimeout(function() { btn.textContent = 'Test voix'; _t = null; }, n * 50 + 500);
+    }
+  });
+  document.body.appendChild(btn);
+})();
+</script>
+</body>
+</html>
