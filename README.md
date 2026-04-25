@@ -239,7 +239,7 @@ The Archivist performs many background calls (memory filtering, ego compilation,
 A dedicated page (`/hologram`) displays OGMA's animated face — a pure Canvas 2D face emerging from blue smoke particles. A pyramid placed on the phone screen creates the illusion of a floating hologram.
 
 - The face **reacts in real time** to OGMA's speech (TTS): it vibrates and pulses when OGMA is talking
-- The **eyes change color and expression** based on the detected emotion in the conversation (6 emotions, smile/grimace, eyelid squint)
+- The **eyes change color and expression** based on the detected **narrative tone** of the conversation (joy, sadness, attachment, saturation, fear, neutral — 6 tonal registers, smile/grimace, eyelid squint)
 - The URL to open on mobile is **auto-detected** (LAN IP + port)
 
 Activation: Settings → Profile → *Hologram Projector* section.
