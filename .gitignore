@@ -110,3 +110,6 @@ benchmark_*.json
 .venv/
 venv/
 env/
+
+# Docs internes / plans de travail
+docs/REFONTE_BIOGRAPHIE_PLAN.md
