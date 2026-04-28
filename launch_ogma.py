@@ -162,8 +162,9 @@ def main():
     import logging
     logging.getLogger("comtypes").setLevel(logging.WARNING)
     logging.getLogger("comtypes.client._code_cache").setLevel(logging.WARNING)
-    # Préférer 127.0.0.1 pour éviter les soucis IPv6 (::1) sur Windows
-    host = os.getenv('OGMA_HOST', '127.0.0.1')
+    # 0.0.0.0 pour accès réseau local (mobile, hologramme, etc.)
+    # Utiliser OGMA_HOST=127.0.0.1 pour restreindre à localhost uniquement
+    host = os.getenv('OGMA_HOST', '0.0.0.0')
     base_port = int(os.getenv('OGMA_PORT', '8080'))
     print("Appuyez sur Ctrl+C pour arreter")
 

@@ -14,6 +14,12 @@ from typing import Optional, Callable, Dict, Any
 import traceback
 
 try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
+try:
     from nicegui import ui
     NICEGUI_AVAILABLE = True
 except ImportError:
@@ -80,9 +86,9 @@ class IntrospectionParametersUI:
                 
                 # Onglets
                 with ui.tabs().classes('w-full').style('background: #374151;') as tabs:
-                    tab_general = ui.tab('Général', icon='settings')
-                    tab_instructions = ui.tab('Instructions', icon='edit_note')
-                    tab_advanced = ui.tab('Avancé', icon='tune')
+                    tab_general = ui.tab(t('cm_tab_general'), icon='settings')
+                    tab_instructions = ui.tab(t('cm_tab_instructions'), icon='edit_note')
+                    tab_advanced = ui.tab(t('cm_tab_advanced'), icon='tune')
                 
                 with ui.tab_panels(tabs, value=tab_general).classes('w-full').style('''
                     background: #1f2937;
@@ -115,14 +121,14 @@ class IntrospectionParametersUI:
             border-radius: 12px 12px 0 0;
         '''):
             ui.icon('psychology', size='32px').style('color: white;')
-            ui.label('Introspection v4').style('''
+            ui.label(t('cm_v2_title')).style('''
                 font-size: 24px;
                 font-weight: 600;
                 color: white;
                 margin-left: 12px;
             ''')
             ui.space()
-            ui.label('IA Principale ↔ Archiviste').style('''
+            ui.label(t('cm_v2_subtitle')).style('''
                 color: rgba(255,255,255,0.7);
                 font-style: italic;
             ''')
@@ -131,7 +137,7 @@ class IntrospectionParametersUI:
         """Onglet Configuration Générale"""
         
         # Section ON/OFF
-        self._section_title("🔌 Activation", "#3b82f6")
+        self._section_title(t('cm_v2_section_activation'), '#3b82f6')
         
         with ui.row().classes('w-full items-center gap-4').style('margin-bottom: 24px;'):
             current_state = self.config.is_enabled()
@@ -139,20 +145,17 @@ class IntrospectionParametersUI:
             self.ui_controls['enabled'] = ui.switch(
                 value=current_state,
                 on_change=self._on_toggle_changed
-            ).props('color=primary size=lg').tooltip(
-                'Active le dialogue intérieur IA Principale ↔ Archiviste. '
-                'Désactivé : les phrases magiques sont toujours détectées mais aucun dialogue interne ne se lance.'
-            )
+            ).props('color=primary size=lg').tooltip(t('cm_v2_tooltip_enabled'))
             
             with ui.column().classes('gap-1'):
-                ui.label('Extension Introspection').style('font-weight: 600; color: #e5e7eb;')
+                ui.label(t('cm_v2_label_ext')).style('font-weight: 600; color: #e5e7eb;')
                 ui.label(
-                    'Activée: dialogue Conscient↔Inconscient' if current_state 
-                    else 'Désactivée: phrases magiques uniquement'
+                    t('cm_v2_state_enabled') if current_state 
+                    else t('cm_v2_state_disabled')
                 ).style('color: #9ca3af; font-size: 14px;')
         
         # Section Mode
-        self._section_title("🎯 Mode de déclenchement", "#8b5cf6")
+        self._section_title(t('cm_v2_section_mode'), '#8b5cf6')
         
         current_mode = self.config.get_introspection_mode()
         
@@ -163,78 +166,76 @@ class IntrospectionParametersUI:
                 self.config.set('introspection_mode', 'autonomous')
             self.ui_controls['mode'] = ui.radio(
                 options={
-                    'on_demand': '📝 À la demande (phrases magiques uniquement)',
-                    'autonomous': '🤖 Autonome (Capability Advisor décide)'
+                    'on_demand': t('cm_v2_option_on_demand'),
+                    'autonomous': t('cm_v2_option_autonomous')
                 },
                 value=current_mode,
                 on_change=self._on_mode_changed
             ).props('inline').style('color: #e5e7eb;').tooltip(
-                'À la demande : introspection uniquement si tu écris une phrase magique. '
-                'Le Capability Advisor est bloqué pour ce mode. '
-                'Autonome : le Capability Advisor décide seul quand une introspection est pertinente.'
+                t('cm_v2_tooltip_mode')
             )
             
             ui.label(
-                'À la demande : phrases magiques seulement — Autonome : Capability Advisor gère'
+                t('cm_v2_hint_mode')
             ).style('color: #9ca3af; font-size: 13px; margin-left: 8px;')
         
         # Section Phrases Magiques (lecture seule pour référence)
-        self._section_title("✨ Phrases magiques actives", "#10b981")
+        self._section_title(t('cm_v2_section_magic_phrases'), "#10b981")
         
         with ui.card().style('background: rgba(16, 185, 129, 0.1); padding: 24px; border-radius: 8px; min-height: 120px;'):
             phrases = self.config.get_magic_phrases("user_trigger")
-            ui.label('Déclenchement: ' + ', '.join(f'"{p}"' for p in phrases)).style(
+            ui.label(t('cm_v2_prefix_trigger') + ', '.join(f'"{p}"' for p in phrases)).style(
                 'color: #9ca3af; font-size: 14px; line-height: 1.8;'
             )
             
             stop_phrases = self.config.get_magic_phrases("user_stop")
-            ui.label('Arrêt: ' + ', '.join(f'"{p}"' for p in stop_phrases)).style(
+            ui.label(t('cm_v2_prefix_stop') + ', '.join(f'"{p}"' for p in stop_phrases)).style(
                 'color: #9ca3af; font-size: 14px; margin-top: 12px; line-height: 1.8;'
             )
     
     def _create_instructions_tab(self):
         """Onglet Instructions avec boutons restauration"""
         
-        ui.label('Instructions pour chaque étape du dialogue intérieur').style(
+        ui.label(t('cm_v2_subtitle_steps')).style(
             'color: #9ca3af; margin-bottom: 20px;'
         )
         
         # Étape 1: Ouverture
         self._create_instruction_editor(
             step_key="step1_analysis",
-            title="🗣️ Ouverture",
-            description="L'IA Principale formule le sujet et sa position initiale",
+            title=t('cm_v2_step_opening'),
+            description=t('cm_v2_step_opening_desc'),
             color="#3b82f6"
         )
         
         # IA Principale (joute)
         self._create_instruction_editor(
             step_key="step2_conscious",
-            title="💭 IA Principale",
-            description="L'IA Principale continue la joute — défend, admet, change d'angle",
+            title=t('cm_v2_step_main_ai'),
+            description=t('cm_v2_step_main_ai_desc'),
             color="#8b5cf6"
         )
         
         # Archiviste (confronteur)
         self._create_instruction_editor(
             step_key="step2_unconscious",
-            title="⚔️ Archiviste",
-            description="L'Archiviste confronte et protège la cohérence — n'est PAS une base de données",
+            title=t('cm_v2_step_archivist'),
+            description=t('cm_v2_step_archivist_desc'),
             color="#f59e0b"
         )
         
         # Étape 3: Synthèse
         self._create_instruction_editor(
             step_key="step3_synthesis",
-            title="✨ Synthèse",
-            description="L'IA Principale conclut honnêtement et formule sa réponse",
+            title=t('cm_v2_step_synthesis'),
+            description=t('cm_v2_step_synthesis_desc'),
             color="#10b981"
         )
         
         # Bouton restaurer tout
         with ui.row().classes('w-full justify-center').style('margin-top: 24px;'):
             ui.button(
-                '🔄 Restaurer TOUTES les instructions par défaut',
+                t('cm_v2_btn_restore_all'),
                 on_click=self._restore_all_instructions
             ).props('flat color=warning')
     
@@ -276,25 +277,21 @@ class IntrospectionParametersUI:
                 
                 with ui.row().classes('items-center gap-2'):
                     # Mots configurables
-                    ui.label('Mots:').style('color: #9ca3af; font-size: 13px;')
+                    ui.label(t('cm_v2_label_words')).style('color: #9ca3af; font-size: 13px;')
                     token_input = ui.number(
                         value=default_tokens,
                         min=100,
                         max=2000,
                         step=100,
                         on_change=lambda e, k=step_key: self._on_tokens_changed(k, e.value)
-                    ).props('dense outlined dark').style('width: 80px;').tooltip(
-                        'Longueur cible de la réponse en mots. '
-                        'L\'IA reçoit une instruction pour calibrer sa verbosité naturellement et conclure dans cette limite. '
-                        'La limite API réelle est 2× cette valeur pour le dialogue, 5× pour la synthèse (filet anti-troncature).'
-                    )
+                    ).props('dense outlined dark').style('width: 80px;').tooltip(t('cm_v2_tooltip_tokens'))
                     self.ui_controls[f'{step_key}_tokens'] = token_input
                     
                     # Bouton restaurer
                     ui.button(
                         icon='restore',
                         on_click=lambda k=step_key: self._restore_instruction(k)
-                    ).props('flat dense color=warning').tooltip('Restaurer par défaut')
+                    ).props('flat dense color=warning').tooltip(t('cm_v2_tooltip_restore'))
             
             # Textarea instruction — dans un column qui force la hauteur
             with ui.column().style('width: 100%; min-height: 400px;'):
@@ -307,58 +304,45 @@ class IntrospectionParametersUI:
         """Onglet Paramètres Avancés"""
         
         # Dialogue
-        self._section_title("💬 Paramètres Dialogue", "#8b5cf6")
+        self._section_title(t('cm_v2_section_dialogue'), '#8b5cf6')
         
         with ui.row().classes('gap-6').style('margin-bottom: 24px;'):
             with ui.column().classes('gap-2'):
-                ui.label('Échanges min').style('color: #e5e7eb;')
+                ui.label(t('cm_v2_label_min_exchanges')).style('color: #e5e7eb;')
                 self.ui_controls['min_exchanges'] = ui.number(
                     value=self.config.get("min_dialogue_exchanges", 2),
                     min=1,
                     max=8,
                     on_change=lambda e: self._on_setting_changed("min_dialogue_exchanges", e.value)
-                ).props('outlined dark dense').style('width: 100px;').tooltip(
-                    'Nombre minimum d\'allers-retours garantis avant que la synthèse soit autorisée. '
-                    'Même si l\'IA Principale veut conclure plus tôt, la joute continuera jusqu\'à ce seuil.'
-                )
+                ).props('outlined dark dense').style('width: 100px;').tooltip(t('cm_v2_tooltip_min_exchanges'))
 
             with ui.column().classes('gap-2'):
-                ui.label('Échanges max').style('color: #e5e7eb;')
+                ui.label(t('cm_v2_label_max_exchanges')).style('color: #e5e7eb;')
                 self.ui_controls['max_exchanges'] = ui.number(
                     value=self.config.get("max_dialogue_exchanges", 6),
                     min=2,
                     max=10,
                     on_change=lambda e: self._on_setting_changed("max_dialogue_exchanges", e.value)
-                ).props('outlined dark dense').style('width: 100px;').tooltip(
-                    'Nombre maximum d\'allers-retours dans la joute. '
-                    'Au-delà, passage forcé à la synthèse même si l\'IA Principale n\'a pas conclu.'
-                )
+                ).props('outlined dark dense').style('width: 100px;').tooltip(t('cm_v2_tooltip_max_exchanges'))
             
             with ui.column().classes('gap-2'):
-                ui.label('Timeout (sec)').style('color: #e5e7eb;')
+                ui.label(t('cm_v2_label_timeout')).style('color: #e5e7eb;')
                 self.ui_controls['timeout'] = ui.number(
                     value=self.config.get("max_introspection_duration", 120),
                     min=30,
                     max=600,
                     step=30,
                     on_change=lambda e: self._on_setting_changed("max_introspection_duration", e.value)
-                ).props('outlined dark dense').style('width: 100px;').tooltip(
-                    'Durée maximale totale de l\'introspection en secondes. '
-                    'Si dépassée, la synthèse est forcée immédiatement quelle que soit la progression.'
-                )
+                ).props('outlined dark dense').style('width: 100px;').tooltip(t('cm_v2_tooltip_timeout'))
         
         # Mémoire
-        self._section_title("🧠 Recherche Mémoire", "#10b981")
+        self._section_title(t('cm_v2_section_memory'), '#10b981')
         
         with ui.row().classes('gap-6').style('margin-bottom: 24px;'):
             with ui.column().classes('gap-2'):
                 with ui.row().classes('items-center gap-1'):
-                    ui.label('Seuil similarité').style('color: var(--text-primary, #e5e7eb);')
-                    ui.icon('help_outline', size='16px').style('color: #9ca3af; cursor: help;').tooltip(
-                        'Seuil de similarité FAISS pour la recherche mémorielle. '
-                        '0.1 = récupère beaucoup (large, moins précis). 0.9 = récupère peu (strict, très pertinent). '
-                        'Recommandé : 0.5–0.6.'
-                    )
+                    ui.label(t('cm_v2_label_similarity')).style('color: var(--text-primary, #e5e7eb);')
+                    ui.icon('help_outline', size='16px').style('color: #9ca3af; cursor: help;').tooltip(t('cm_v2_tooltip_similarity'))
                 with ui.row().classes('items-center gap-2'):
                     initial_mem = self.config.get("memory_search_threshold", 0.5)
                     mem_label = ui.label(str(initial_mem)).style(
@@ -376,26 +360,19 @@ class IntrospectionParametersUI:
                     ).style('width: 200px;')
         
         # Sauvegarde
-        self._section_title("💾 Sauvegarde Automatique", "#f59e0b")
+        self._section_title(t('cm_v2_section_autosave'), '#f59e0b')
         
         with ui.column().classes('gap-4').style('margin-bottom: 24px;'):
             self.ui_controls['auto_save'] = ui.switch(
-                'L\'IA décide si sauvegarder l\'introspection',
+                t('cm_v2_switch_autosave'),
                 value=self.config.get("auto_save_enabled", False),
                 on_change=lambda e: self._on_setting_changed("auto_save_enabled", e.value)
-            ).style('color: #e5e7eb;').tooltip(
-                'L\'IA évalue l\'importance de chaque introspection et décide seule si elle mérite d\'être mémorisée. '
-                'Désactivé : aucune sauvegarde automatique.'
-            )
+            ).style('color: #e5e7eb;').tooltip(t('cm_v2_tooltip_autosave'))
             
             with ui.row().classes('items-center gap-2'):
                 with ui.row().classes('items-center gap-1'):
-                    ui.label('Seuil importance:').style('color: #e5e7eb;')
-                    ui.icon('help_outline', size='16px').style('color: #9ca3af; cursor: help;').tooltip(
-                        'Seuil minimum d\'importance (1–10) pour la sauvegarde automatique. '
-                        '1 = tout sauvegarder. 10 = sauvegarder uniquement les insights majeurs. '
-                        'Recommandé : 6–7.'
-                    )
+                    ui.label(t('cm_v2_label_importance')).style('color: #e5e7eb;')
+                    ui.icon('help_outline', size='16px').style('color: #9ca3af; cursor: help;').tooltip(t('cm_v2_tooltip_importance_long'))
                 initial_imp = self.config.get("importance_threshold", 6)
                 imp_label = ui.label(str(initial_imp)).style(
                     'color: #e5e7eb; font-weight: 600; font-size: 14px; min-width: 32px; text-align: center;'
@@ -412,34 +389,26 @@ class IntrospectionParametersUI:
                 ).style('width: 200px;')
         
         # Affichage
-        self._section_title("👁️ Affichage", "#3b82f6")
+        self._section_title(t('cm_v2_section_display'), '#3b82f6')
         
         with ui.column().classes('gap-2'):
             self.ui_controls['show_dialogue'] = ui.switch(
-                'Afficher détails du dialogue',
+                t('cm_v2_switch_show_dialogue'),
                 value=self.config.get("show_dialogue_details", True),
                 on_change=lambda e: self._on_setting_changed("show_dialogue_details", e.value)
-            ).style('color: #e5e7eb;').tooltip(
-                'Affiche chaque échange IA Principale ↔ Archiviste dans la boîte de pensée. '
-                'Désactivé : seule la réponse finale est visible.'
-            )
+            ).style('color: #e5e7eb;').tooltip(t('cm_v2_tooltip_show_dialogue'))
             
             self.ui_controls['show_progress'] = ui.switch(
-                'Afficher indicateur de progression',
+                t('cm_v2_switch_show_progress'),
                 value=self.config.get("show_progress_indicator", True),
                 on_change=lambda e: self._on_setting_changed("show_progress_indicator", e.value)
-            ).style('color: #e5e7eb;').tooltip(
-                'Affiche la barre de progression et le numéro d\'échange en cours pendant l\'introspection.'
-            )
+            ).style('color: #e5e7eb;').tooltip(t('cm_v2_tooltip_show_progress'))
             
             self.ui_controls['typing_anim'] = ui.switch(
-                'Animation de saisie',
+                t('cm_v2_switch_typing'),
                 value=self.config.get("typing_animation", True),
                 on_change=lambda e: self._on_setting_changed("typing_animation", e.value)
-            ).style('color: #e5e7eb;').tooltip(
-                'Active l\'animation de frappe progressive lors de l\'affichage des réponses du dialogue. '
-                'Désactivé : les réponses apparaissent instantanément.'
-            )
+            ).style('color: #e5e7eb;').tooltip(t('cm_v2_tooltip_typing'))
     
     def _create_footer(self):
         """Footer avec boutons action"""
@@ -449,13 +418,13 @@ class IntrospectionParametersUI:
             border-radius: 0 0 12px 12px;
         '''):
             ui.button(
-                '🔄 Tout restaurer par défaut',
+                t('cm_v2_btn_restore_defaults'),
                 on_click=self._restore_all_defaults
             ).props('flat color=warning')
             
             with ui.row().classes('gap-2'):
-                ui.button('Annuler', on_click=self._close).props('flat color=grey')
-                ui.button('Appliquer', on_click=self._apply_and_close).props('color=primary')
+                ui.button(t('common_cancel'), on_click=self._close).props('flat color=grey')
+                ui.button(t('common_apply'), on_click=self._apply_and_close).props('color=primary')
     
     def _section_title(self, title: str, color: str):
         """Titre de section stylisé"""
@@ -478,7 +447,7 @@ class IntrospectionParametersUI:
         self.config.set("extension_enabled", new_state)
         if self.on_toggle:
             self.on_toggle(new_state)
-        ui.notify(f"Introspection {'activée' if new_state else 'désactivée'}", type='info')
+        ui.notify(t('cm_v2_notify_state_on') if new_state else t('cm_v2_notify_state_off'), type='info')
     
     def _on_mode_changed(self, e):
         """Changement mode"""
@@ -522,9 +491,9 @@ class IntrospectionParametersUI:
             new_text = self.config.get_instruction_text(step_key)
             if step_key in self.ui_controls:
                 self.ui_controls[step_key].value = new_text
-            ui.notify(f'Instruction restaurée', type='positive')
+            ui.notify(t('cm_v2_notify_instr_restored'), type='positive')
         else:
-            ui.notify('Erreur restauration', type='negative')
+            ui.notify(t('cm_v2_notify_restore_err'), type='negative')
     
     def _restore_all_instructions(self):
         """Restaure toutes les instructions"""
@@ -532,12 +501,12 @@ class IntrospectionParametersUI:
             self.config.reset_instruction_to_default(step_key)
             if step_key in self.ui_controls:
                 self.ui_controls[step_key].value = self.config.get_instruction_text(step_key)
-        ui.notify('Toutes les instructions restaurées', type='positive')
+        ui.notify(t('cm_v2_notify_all_restored'), type='positive')
     
     def _restore_all_defaults(self):
         """Restaure TOUT par défaut"""
         self.config.reset_all_to_default()
-        ui.notify('Configuration complète restaurée', type='positive')
+        ui.notify(t('cm_v2_notify_full_restored'), type='positive')
         # Fermer et rouvrir pour rafraîchir
         self._close()
     
@@ -549,7 +518,7 @@ class IntrospectionParametersUI:
     def _apply_and_close(self):
         """Applique et ferme"""
         self.config.save_config()
-        ui.notify('Configuration sauvegardée', type='positive')
+        ui.notify(t('cm_v2_notify_saved'), type='positive')
         self._close()
     
     # =========================================================================

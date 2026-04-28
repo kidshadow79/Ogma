@@ -13,6 +13,12 @@ Usage: Intégrer dans ui_components.py ou appeler manuellement
 """
 
 import asyncio
+
+try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
 from nicegui import ui
 
 class NotificationCleaner:
@@ -92,7 +98,7 @@ class NotificationCleaner:
             await asyncio.sleep(0.2)
             
             # Méthode 3: Notification de confirmation rapide
-            ui.notify('🔄 Interface rafraîchie', type='info', timeout=1.5)
+            ui.notify(t('bio_notify_refresh'), type='info', timeout=1.5)
             
             self.active_notifications.clear()
             print(f"[NOTIF-CLEANER] ✅ Nettoyage terminé: {cleaned_count} notifications")
@@ -121,7 +127,7 @@ class NotificationCleaner:
                 await asyncio.sleep(0.1)
             
             # Notification de redémarrage
-            ui.notify('🔄 Interface réinitialisée', type='warning', timeout=2)
+            ui.notify(t('bio_notify_reset'), type='warning', timeout=2)
             
             print(f"[NOTIF-CLEANER] ✅ Réinitialisation d'urgence terminée")
             

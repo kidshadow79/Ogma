@@ -19,6 +19,12 @@ Date: Janvier 2026
 
 from typing import Optional, Dict, Any
 
+try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
 # ========== SINGLETON ==========
 _project_rag_instance = None
 _initialized = False
@@ -148,7 +154,7 @@ def get_ui_components() -> Dict[str, Any]:
     return {
         'header_button': {
             'icon': 'folder_open',
-            'tooltip': 'Projet RAG',
+            'tooltip': t('pr_header_tooltip'),
             'on_click': show_ui,
         }
     }

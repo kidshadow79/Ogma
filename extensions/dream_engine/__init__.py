@@ -22,6 +22,12 @@ from typing import Optional, Dict, Any, Callable
 from pathlib import Path
 import asyncio
 
+try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
 # ========== SINGLETON ==========
 _dream_engine_instance = None
 _initialized = False
@@ -336,11 +342,11 @@ def render_dream_wake_box(
         # En-tete avec avatar + nom + score
         with ui.row().classes('items-center gap-2 mb-2'):
             ui.html('<span style="font-size: 24px;">\U0001f319</span>')
-            ui.label(f'{ia_name} a reve...').style(
+            ui.label(t('dream_label_dreamt', ia_name=ia_name)).style(
                 'color: #b19cd9; font-weight: bold; font-size: 14px;'
             )
             if score_text:
-                ui.label(f'[{score_text}]').style(
+                ui.label(t('dream_label_score', score=score_text)).style(
                     'color: #9370db; font-size: 12px; opacity: 0.8;'
                 )
             if emotion_text:
@@ -371,7 +377,7 @@ def render_dream_wake_box(
 
         # Contenu complet du reve (collapsible)
         if dream_content and len(dream_content) > 50:
-            with ui.expansion('Lire le reve complet...').style(
+            with ui.expansion(t('dream_expansion_read')).style(
                 'color: #b19cd9; margin-top: 8px; width: 100%; max-width: 100%;'
             ).classes('dream-expansion'):
                 ui.markdown(dream_content).style(
@@ -383,7 +389,7 @@ def render_dream_wake_box(
 
         # Insight ego (si pertinent)
         if insight_text:
-            ui.label(f'Insight: {insight_text[:200]}').style(
+            ui.label(t('dream_label_insight', text=insight_text[:200])).style(
                 'color: #9370db; font-size: 11px; font-style: italic; '
                 'margin-top: 8px; opacity: 0.6;'
             )
@@ -529,18 +535,18 @@ def inject_header_button(header_container):
                     hide_dream_spinner_in_chat()
                     result = await wake_up("button_click")
                     duration = result.get('sleep_duration_formatted', 'N/A')
-                    ui.notify(f"☀️ {_get_ia_name()} se réveille ! (dormie: {duration})", type='positive')
+                    ui.notify(t('dream_notify_wake', ia_name=_get_ia_name(), duration=duration), type='positive')
                 else:
                     # Endormir
                     success = await start_dream()
                     if success:
                         # Spinner déjà affiché par dream_core.py
-                        ui.notify(f"🌙 {_get_ia_name()} s'endort et commence à rêver...", type='info')
+                        ui.notify(t('dream_notify_sleep', ia_name=_get_ia_name()), type='info')
                     else:
-                        ui.notify("⚠️ Impossible de lancer le rêve", type='warning')
+                        ui.notify(t('dream_notify_cant_dream'), type='warning')
             except Exception as e:
                 print(f"[DREAM-HEADER] ❌ Erreur: {e}")
-                ui.notify("Erreur Dream Engine", type='negative')
+                ui.notify(t('dream_notify_engine_error'), type='negative')
         
         with header_container:
             # Créer le bouton avec état dynamique

@@ -44,6 +44,7 @@ from nicegui import ui
 import sys
 import os
 import json
+from utils.i18n import t
 
 def _get_settings_manager():
     """Helper pour accéder au settings manager via import dynamique"""
@@ -79,7 +80,7 @@ def _show_organic_planner_dialog():
     """Affiche la modale de l'Organic Planner (Agenda)"""
     planner = _ensure_organic_planner()
     if not planner:
-        ui.notify("Organic Planner non disponible", type='warning')
+        ui.notify(t('agenda_unavailable'), type='warning')
         return
 
     with ui.dialog().classes('settings-dialog') as dialog, ui.card().classes('settings-card').style('min-width: 500px; max-width: 800px;'):
@@ -88,7 +89,7 @@ def _show_organic_planner_dialog():
             with ui.row().classes('w-full items-center justify-between'):
                 with ui.row().classes('items-center gap-2'):
                     ui.icon('event_note', size='24px').style('color: var(--accent-primary);')
-                    ui.label('Agenda — Mémoire des moments planifiés').classes('text-xl font-bold')
+                    ui.label(t('agenda_title')).classes('text-xl font-bold')
                 ui.button(icon='close', on_click=dialog.close).props('flat round').classes('text-gray-400')
 
             ui.separator().style('background: rgba(255,255,255,0.1);')
@@ -99,8 +100,8 @@ def _show_organic_planner_dialog():
             if not events:
                 with ui.column().classes('w-full items-center py-8 text-gray-400'):
                     ui.icon('event_busy', size='48px')
-                    ui.label('Aucun évènement prévu pour le moment.')
-                    ui.label('Dis à l\'IA : "il faut que je note cet évènement: [date] - [titre] - [ressenti]"').classes('text-xs italic mt-2')
+                    ui.label(t('agenda_no_events'))
+                    ui.label(t('agenda_hint')).classes('text-xs italic mt-2')
             else:
                 with ui.scroll_area().style('height: 400px; width: 100%;'):
                     with ui.column().classes('w-full gap-3 pr-4'):
@@ -116,21 +117,21 @@ def _show_organic_planner_dialog():
                                             if priority != 'NORMAL':
                                                 ui.label(priority).classes('text-xs font-bold px-2 py-0.5 rounded').style(f'background: {p_color}; color: white;')
                                             ui.label(ev['title']).classes('text-base font-semibold')
-                                        ui.label(f"Ressenti: {ev['feeling']}").classes('text-sm italic text-gray-400')
+                                        ui.label(t('agenda_feeling', feeling=ev['feeling'])).classes('text-sm italic text-gray-400')
                                     
                                     ui.button(icon='delete', on_click=lambda e, id=ev['id']: [planner.delete_event(id), dialog.close(), _show_organic_planner_dialog()]).props('flat round dense').classes('text-red-400 hover:bg-red-400/10')
 
             ui.separator().style('background: rgba(255,255,255,0.1);')
 
             # Section Instructions
-            with ui.expansion('Instructions d\'injection', icon='psychology').classes('w-full text-gray-300').style('background: rgba(255,255,255,0.03); border-radius: 8px;'):
+            with ui.expansion(t('agenda_section_instr'), icon='psychology').classes('w-full text-gray-300').style('background: rgba(255,255,255,0.03); border-radius: 8px;'):
                 with ui.column().classes('w-full p-4 gap-3'):
-                    ui.label('Cette instruction définit comment l\'IA perçoit et utilise ton agenda.').classes('text-xs italic text-gray-400')
-                    instruction_input = ui.textarea(label='Instruction', value=planner.get_instruction()).classes('w-full').props('outlined rows=10').style('font-family: monospace; font-size: 0.85rem;')
+                    ui.label(t('agenda_instr_help')).classes('text-xs italic text-gray-400')
+                    instruction_input = ui.textarea(label=t('agenda_instr_label'), value=planner.get_instruction()).classes('w-full').props('outlined rows=10').style('font-family: monospace; font-size: 0.85rem;')
                     with ui.row().classes('w-full justify-end'):
-                        ui.button('Sauvegarder', icon='save', on_click=lambda: [
+                        ui.button(t('agenda_btn_save'), icon='save', on_click=lambda: [
                             planner.save_instruction(instruction_input.value),
-                            ui.notify('Instruction sauvegardée !', type='positive')
+                            ui.notify(t('agenda_notify_saved'), type='positive')
                         ]).props('flat dense').classes('text-accent-primary')
 
             ui.separator().style('background: rgba(255,255,255,0.1);')
@@ -138,11 +139,11 @@ def _show_organic_planner_dialog():
             # Actions
             with ui.row().classes('w-full justify-between items-center'):
                 if events:
-                    ui.button('Vider l\'agenda', icon='delete_sweep', on_click=lambda: [planner.clear_agenda(), dialog.close(), _show_organic_planner_dialog()]).props('flat').classes('text-red-400')
+                    ui.button(t('agenda_btn_clear'), icon='delete_sweep', on_click=lambda: [planner.clear_agenda(), dialog.close(), _show_organic_planner_dialog()]).props('flat').classes('text-red-400')
                 else:
                     ui.element('div')
                 
-                ui.button('Fermer', on_click=dialog.close).classes('action-button')
+                ui.button(t('agenda_btn_close'), on_click=dialog.close).classes('action-button')
 
     dialog.open()
 
@@ -402,33 +403,33 @@ def _instructions_modal():
     instructions_data = [
         {
             'id': 'persistent',
-            'title': '📝 Contexte Permanent',
-            'subtitle': 'Instructions comportementales',
-            'description': 'Instructions comportementales persistantes pour toutes les conversations.',
+            'title': t('instr_persistent_title'),
+            'subtitle': t('instr_persistent_subtitle'),
+            'description': t('instr_persistent_desc'),
             'source': 'file',
             'file_path': DATA_DIR / "persistent_context.txt" if DATA_DIR else None
         },
         {
             'id': 'system',
-            'title': '⚙️ Instruction Système',
-            'subtitle': 'Capacités & phrases magiques',
-            'description': 'Instructions de base définissant les capacités d\'OGMA (phrases magiques, etc.).',
+            'title': t('instr_system_title'),
+            'subtitle': t('instr_system_subtitle'),
+            'description': t('instr_system_desc'),
             'source': 'settings',
             'settings_key': 'instructions'
         },
         {
             'id': 'perception',
-            'title': 'VISUEL Prompt Perception',
-            'subtitle': 'Perception visuelle',
-            'description': 'Instructions spécifiques pour la perception et analyse d\'images.',
+            'title': t('instr_perception_title'),
+            'subtitle': t('instr_perception_subtitle'),
+            'description': t('instr_perception_desc'),
             'source': 'settings',
             'settings_key': 'perception'
         },
         {
             'id': 'salutations',
-            'title': '👋 Salutations & Contexte Initial',
-            'subtitle': 'Orchestration cognitive au démarrage',
-            'description': 'Directives pour utilisation naturelle des contextes injectés (Temporal Guardian, Journal, Mémoires) en début de conversation.',
+            'title': t('instr_salutations_title'),
+            'subtitle': t('instr_salutations_subtitle'),
+            'description': t('instr_salutations_desc'),
             'source': 'settings',
             'settings_key': 'salutations',
             'template': """CONTEXTE_INPUT: [DELTA_TEMPS] | [DERNIER_TOPIC_JOURNAL] | [CLIMAT_EMOTIONNEL]
@@ -460,9 +461,9 @@ RÈGLE_D'OR: INVISIBILITÉ_SYSTÈME
         },
         {
             'id': 'memorization',
-            'title': 'COGNITIF Prompt Mémorisation',
-            'subtitle': 'Archiviste (template)',
-            'description': 'Prompt utilisé par l\'Archiviste pour enrichir et structurer les souvenirs.',
+            'title': t('instr_memorization_title'),
+            'subtitle': t('instr_memorization_subtitle'),
+            'description': t('instr_memorization_desc'),
             'source': 'template',
             'template': """# SYSTEM: ARCHIVISTE_MEMORY | FORMAT: JSON_STRICT
 TASK: ENCODAGE_SOUVENIR (Expérience_Brute -> JSON_Structuré)
@@ -507,9 +508,9 @@ Le champ user_tag est essentiel. L'utilisateur connecté est indiqué en tête d
         },
         {
             'id': 'injection',
-            'title': '💭 Prompt Injection Contexte',
-            'subtitle': 'Synthèse contextuelle (template)',
-            'description': 'Prompt utilisé pour synthétiser les souvenirs pertinents dans le contexte.',
+            'title': t('instr_injection_title'),
+            'subtitle': t('instr_injection_subtitle'),
+            'description': t('instr_injection_desc'),
             'source': 'template',
             'template': """Tu es un archiviste, un administrateur de conscience. Tu supervises une autre IA. Tes mots sont des notes intérieures très courtes qui guident les pensées et la mémoire de l'IA principale.
 
@@ -530,9 +531,9 @@ Produis une note de rappel courte et précise (1-2 phrases max) ou indique qu'au
         },
         {
             'id': 'temporal_guardian',
-            'title': '🕒 Temporal Guardian',
-            'subtitle': 'Instructions temporelles Archiviste',
-            'description': 'Instructions pour l\'analyse des patterns temporels et génération de directives comportementales adaptatives.',
+            'title': t('instr_temporal_title'),
+            'subtitle': t('instr_temporal_subtitle'),
+            'description': t('instr_temporal_desc'),
             'source': 'settings',
             'settings_key': 'temporal_guardian',
             'template': """# Perception temporelle — Guide d'adaptation comportementale
@@ -566,9 +567,9 @@ Ne JAMAIS écrire dans ta réponse : [PATTERN_...], [ACTION_...], "NORMAL", ou t
         },
         {
             'id': 'ego_memorization',
-            'title': '🧠 Mémorisation Ego',
-            'subtitle': 'Archiviste - Encodage traits ego',
-            'description': 'Prompt utilisé par l\'Archiviste pour structurer et enrichir les traits ego (titre Jeopardy, scoring, analyse identitaire).',
+            'title': t('instr_ego_title'),
+            'subtitle': t('instr_ego_subtitle'),
+            'description': t('instr_ego_desc'),
             'source': 'template',
             'template': """# SYSTEM: ARCHIVISTE_EGO | FORMAT: JSON_STRICT
 TASK: ENCODAGE_TRAIT_EGO (Principe/Valeur → JSON_Structuré)
@@ -629,7 +630,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                         return instruction['file_path'].read_text(encoding='utf-8')
                     return ""
                 except Exception as e:
-                    _notify_safe(f"Erreur lecture: {e}", 'warning')
+                    _notify_safe(t('instr_notify_read_err', msg=str(e)), 'warning')
                     return ""
             elif instruction['source'] == 'settings':
                 try:
@@ -663,15 +664,38 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                 return instruction['template']
 
         def _load_default_content():
-            """Charge le contenu par défaut depuis instructions_defaults.json ou le template embarqué."""
+            """Charge le contenu par défaut depuis instructions_defaults.json ou le template embarqué, selon la langue active."""
             try:
+                try:
+                    from utils.i18n import get_lang
+                    lang = get_lang()
+                except Exception:
+                    lang = 'fr'
+
                 if instruction['source'] == 'file':
-                    default_path = instruction['file_path'].parent / (instruction['file_path'].stem + '.default' + instruction['file_path'].suffix)
+                    fp = instruction['file_path']
+                    # Version langue-spécifique d'abord (ex: persistent_context.default_en.txt)
+                    if lang != 'fr':
+                        lang_default_path = fp.parent / f"{fp.stem}.default_{lang}{fp.suffix}"
+                        if lang_default_path.exists():
+                            return lang_default_path.read_text(encoding='utf-8')
+                    # Fallback FR
+                    default_path = fp.parent / (fp.stem + '.default' + fp.suffix)
                     if default_path.exists():
                         return default_path.read_text(encoding='utf-8')
                     return ""
                 elif instruction['source'] == 'settings':
                     import json as _json
+                    # Version langue-spécifique d'abord
+                    if lang != 'fr':
+                        en_defaults_path = DATA_DIR / f"instructions_defaults_{lang}.json"
+                        if en_defaults_path.exists():
+                            with open(en_defaults_path, 'r', encoding='utf-8') as f:
+                                defaults_data = _json.load(f)
+                            result = defaults_data.get('prompts_defaults', {}).get(instruction['settings_key'], '')
+                            if result:
+                                return result
+                    # Fallback FR
                     defaults_path = DATA_DIR / "instructions_defaults.json"
                     if defaults_path.exists():
                         with open(defaults_path, 'r', encoding='utf-8') as f:
@@ -681,7 +705,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                 else:  # template
                     return instruction.get('template', '')
             except Exception as e:
-                _notify_safe(f"Erreur chargement défaut: {e}", 'warning')
+                _notify_safe(t('instr_notify_default_err', msg=str(e)), 'warning')
                 return ""
 
         def _save_content(content):
@@ -689,10 +713,10 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                 try:
                     if instruction['file_path']:
                         instruction['file_path'].write_text(content, encoding='utf-8')
-                        _notify_safe(f"OK {instruction['file_path'].name} sauvegardé", 'positive')
+                        _notify_safe(t('instr_notify_file_saved', name=instruction['file_path'].name), 'positive')
                         return True
                 except Exception as e:
-                    _notify_safe(f"Erreur sauvegarde: {e}", 'warning')
+                    _notify_safe(t('instr_notify_save_err', msg=str(e)), 'warning')
                     return False
             elif instruction['source'] == 'settings':
                 try:
@@ -703,10 +727,10 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                         sm.settings['prompts'] = {}
                     sm.settings['prompts'][instruction['settings_key']] = content
                     sm.save_settings()
-                    _notify_safe(f"OK {instruction['title']} sauvegardé", 'positive')
+                    _notify_safe(t('instr_notify_saved', title=instruction['title']), 'positive')
                     return True
                 except Exception as e:
-                    _notify_safe(f"Erreur sauvegarde: {e}", 'warning')
+                    _notify_safe(t('instr_notify_save_err', msg=str(e)), 'warning')
                     return False
             else:  # template - convertir vers settings pour persistance
                 try:
@@ -723,14 +747,14 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
 
                     sm.settings['prompts'][settings_key] = content
                     sm.save_settings()
-                    _notify_safe(f"OK {instruction['title']} sauvegardé", 'positive')
+                    _notify_safe(t('instr_notify_saved', title=instruction['title']), 'positive')
 
                     # Mettre à jour l'instruction pour utiliser settings à l'avenir
                     instruction['source'] = 'settings'
                     instruction['settings_key'] = settings_key
                     return True
                 except Exception as e:
-                    _notify_safe(f"Erreur sauvegarde: {e}", 'warning')
+                    _notify_safe(t('instr_notify_save_err', msg=str(e)), 'warning')
                     return False
 
         with popup, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); min-width: 800px; max-height: 85vh;'):
@@ -742,7 +766,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                 content = _load_content()
                 textarea = ui.textarea(
                     value=content,
-                    placeholder=f'Contenu de {instruction["title"]}...'
+                    placeholder=t('instr_placeholder_content', title=instruction['title'])
                 ).style('height: 100%; width: 100%; font-family: monospace; font-size: 13px;').classes('w-full instruction-textarea')
 
             # Boutons (marges réduites pour maximiser l'espace texte)
@@ -750,22 +774,22 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
             with ui.row().classes('gap-2 justify-end'):
                 def _reload():
                     textarea.value = _load_content()
-                    _notify_safe(f"MAJ {instruction['title']} rechargé", 'info')
+                    _notify_safe(t('instr_notify_reloaded', title=instruction['title']), 'info')
 
                 def _restore_default():
                     default_content = _load_default_content()
                     if default_content:
                         textarea.value = default_content
-                        _notify_safe(f"Valeur par défaut chargée — cliquez Sauvegarder pour appliquer", 'warning')
+                        _notify_safe(t('instr_notify_default_loaded'), 'warning')
                     else:
-                        _notify_safe("Aucune valeur par défaut disponible", 'warning')
+                        _notify_safe(t('instr_notify_no_default'), 'warning')
 
                 def _save():
                     success = _save_content(textarea.value or "")
                     if success:
                         # Recharger automatiquement le contenu après sauvegarde réussie
                         textarea.value = _load_content()
-                        _notify_safe(f"OK {instruction['title']} sauvegardé et rechargé", 'positive')
+                        _notify_safe(t('instr_notify_saved_reloaded', title=instruction['title']), 'positive')
 
                 async def _apply_temporal():
                     """Applique les instructions Temporal Guardian à chaud."""
@@ -778,25 +802,25 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                             if temporal_guardian and hasattr(temporal_guardian, 'reload_instructions'):
                                 success = temporal_guardian.reload_instructions()
                                 if success:
-                                    _notify_safe('✅ Instructions Temporal Guardian appliquées', 'positive')
+                                    _notify_safe(t('instr_notify_temporal_ok'), 'positive')
                                 else:
-                                    _notify_safe('⚠️ Échec application instructions', 'warning')
+                                    _notify_safe(t('instr_notify_temporal_fail'), 'warning')
                             else:
-                                _notify_safe('⚠️ Fonction reload non disponible', 'warning')
+                                _notify_safe(t('instr_notify_temporal_no_reload'), 'warning')
                         else:
-                            _notify_safe('⚠️ Temporal Guardian non initialisé', 'warning')
+                            _notify_safe(t('instr_notify_temporal_no_init'), 'warning')
                     except Exception as e:
-                        _notify_safe(f'❌ Erreur application: {e}', 'negative')
+                        _notify_safe(t('instr_notify_temporal_err', msg=str(e)), 'negative')
 
-                ui.button('Défaut', icon='restore', on_click=_restore_default).classes('action-button').tooltip('Charger la valeur par défaut (ne sauvegarde pas automatiquement)')
-                ui.button('Recharger', icon='refresh', on_click=_reload).classes('action-button')
+                ui.button(t('instr_btn_default'), icon='restore', on_click=_restore_default).classes('action-button').tooltip(t('instr_btn_default_tooltip'))
+                ui.button(t('instr_btn_reload'), icon='refresh', on_click=_reload).classes('action-button')
                 
                 # Bouton Appliquer pour Temporal Guardian
                 if instruction['id'] == 'temporal_guardian':
-                    ui.button('Appliquer', icon='check_circle', on_click=_apply_temporal).classes('send-button').tooltip('Appliquer les modifications sans redémarrer OGMA')
+                    ui.button(t('instr_btn_apply'), icon='check_circle', on_click=_apply_temporal).classes('send-button').tooltip(t('instr_btn_apply_tooltip'))
                 
-                ui.button('Sauvegarder', icon='save', on_click=_save).classes('send-button')
-                ui.button('Fermer', on_click=popup.close).classes('action-button')
+                ui.button(t('instr_btn_save'), icon='save', on_click=_save).classes('send-button')
+                ui.button(t('instr_btn_close'), on_click=popup.close).classes('action-button')
 
         return popup
 
@@ -804,8 +828,8 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
     popups = {instr['id']: _create_instruction_popup(instr) for instr in instructions_data}
 
     with main_dialog, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); min-width: 700px;'):
-        ui.label('Instructions Système').classes('popup-title')
-        ui.label('Cliquez sur un encadré pour éditer l\'instruction correspondante.').classes('text-muted mb-4')
+        ui.label(t('instr_modal_title')).classes('popup-title')
+        ui.label(t('instr_modal_subtitle')).classes('text-muted mb-4')
 
         # Grille d'encadrés preview
         with ui.grid(columns=2).classes('gap-4'):
@@ -822,19 +846,19 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
                                 if instr['file_path'] and instr['file_path'].exists():
                                     preview_content = instr['file_path'].read_text(encoding='utf-8')[:200]
                                 else:
-                                    preview_content = "Fichier non trouvé"
+                                    preview_content = t('instr_preview_file_missing')
                             except Exception:
-                                preview_content = "Erreur de lecture"
+                                preview_content = t('instr_preview_read_err')
                         elif instr['source'] == 'settings':
                             try:
                                 sm = _get_settings_manager()
                                 if sm:
-                                    content = sm.settings.get('prompts', {}).get(instr['settings_key'], 'Non configuré')
-                                    preview_content = content[:200] if content else 'Non configuré'
+                                    content = sm.settings.get('prompts', {}).get(instr['settings_key'], t('instr_preview_not_configured'))
+                                    preview_content = content[:200] if content else t('instr_preview_not_configured')
                                 else:
-                                    preview_content = "Settings manager non disponible"
+                                    preview_content = t('instr_preview_no_settings')
                             except Exception as e:
-                                preview_content = f"Erreur de lecture: {e}"
+                                preview_content = t('instr_preview_read_err_msg', msg=str(e))
                         else:  # template
                             preview_content = instr['template'][:200]
 
@@ -846,7 +870,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte autour."""
         # Bouton fermer
         ui.separator().classes('my-4')
         with ui.row().classes('justify-end'):
-            ui.button('Fermer', on_click=main_dialog.close).classes('action-button')
+            ui.button(t('instr_btn_close'), on_click=main_dialog.close).classes('action-button')
 
     return main_dialog
 def _settings_hub_modal():
@@ -886,7 +910,7 @@ def _settings_hub_modal():
             margin: 0 !important;
             z-index: 10 !important;
         '''):
-            ui.label('Paramètres généraux').classes('popup-title').style('color: #d4af37 !important; text-shadow: 0 0 10px rgba(212, 175, 55, 0.3) !important; font-weight: 600 !important; text-align: center !important; width: 100% !important;')
+            ui.label(t('hub_title')).classes('popup-title').style('color: #d4af37 !important; text-shadow: 0 0 10px rgba(212, 175, 55, 0.3) !important; font-weight: 600 !important; text-align: center !important; width: 100% !important;')
             
             with ui.element('div').classes('settings-params-grid'):
                 # IA / Modèles
@@ -899,13 +923,13 @@ def _settings_hub_modal():
                     # Fallback si pas disponible
                     models_dialog = None
                 if models_dialog:
-                    ui.button('IA / Modèles', icon='memory', on_click=models_dialog.open).classes('action-button').style('''
+                    ui.button(t('hub_btn_models'), icon='memory', on_click=models_dialog.open).classes('action-button').style('''
                         background: rgba(212, 175, 55, 0.12) !important;
                         border: 1px solid rgba(212, 175, 55, 0.3) !important;
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('IA / Modèles (indisponible)', icon='memory', on_click=lambda: None).classes('action-button').style('''
+                    ui.button(t('hub_btn_unavailable', name=t('hub_btn_models')), icon='memory', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
@@ -914,13 +938,13 @@ def _settings_hub_modal():
                 # Mémoire - Gestionnaire de souvenirs
                 mem_dialog = _memory_modal()
                 if mem_dialog:
-                    ui.button('Mémoire', icon='psychology', on_click=mem_dialog.open).classes('action-button').style('''
+                    ui.button(t('hub_btn_memory'), icon='psychology', on_click=mem_dialog.open).classes('action-button').style('''
                         background: rgba(212, 175, 55, 0.12) !important;
                         border: 1px solid rgba(212, 175, 55, 0.3) !important;
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('Mémoire (indisponible)', icon='psychology', on_click=lambda: None).classes('action-button').style('''
+                    ui.button(t('hub_btn_unavailable', name=t('hub_btn_memory')), icon='psychology', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
@@ -929,13 +953,13 @@ def _settings_hub_modal():
                 # Instructions
                 instr_dialog = _instructions_modal()
                 if instr_dialog:
-                    ui.button('Instructions', icon='article', on_click=instr_dialog.open).classes('action-button').style('''
+                    ui.button(t('hub_btn_instructions'), icon='article', on_click=instr_dialog.open).classes('action-button').style('''
                         background: rgba(212, 175, 55, 0.12) !important;
                         border: 1px solid rgba(212, 175, 55, 0.3) !important;
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('Instructions (indisponible)', icon='article', on_click=lambda: None).classes('action-button').style('''
+                    ui.button(t('hub_btn_unavailable', name=t('hub_btn_instructions')), icon='article', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
@@ -950,7 +974,7 @@ def _settings_hub_modal():
                     img_dialog = None
 
                 if img_dialog:
-                    ui.button('Image', icon='image', on_click=img_dialog.open).classes('action-button').style('''
+                    ui.button(t('hub_btn_image'), icon='image', on_click=img_dialog.open).classes('action-button').style('''
                         background: rgba(212, 175, 55, 0.12) !important;
                         border: 1px solid rgba(212, 175, 55, 0.3) !important;
                         backdrop-filter: blur(15px) !important;
@@ -958,7 +982,7 @@ def _settings_hub_modal():
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('Image (indisponible)', icon='image', on_click=lambda: None).classes('action-button').style('''
+                    ui.button(t('hub_btn_unavailable', name=t('hub_btn_image')), icon='image', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
@@ -974,10 +998,10 @@ def _settings_hub_modal():
 
                 if perception_available:
                     def open_perception_page():
-                        ui.notify('📹 Ouverture page Perception...', type='info')
+                        ui.notify(t('hub_perception_open_notify'), type='info')
                         ui.navigate.to('/perception', new_tab=True)
                     
-                    ui.button('Perception', icon='sensors', on_click=open_perception_page).classes('action-button').style('''
+                    ui.button(t('hub_btn_perception'), icon='sensors', on_click=open_perception_page).classes('action-button').style('''
                         background: rgba(255, 140, 0, 0.12) !important;
                         border: 1px solid rgba(255, 140, 0, 0.3) !important;
                         backdrop-filter: blur(15px) !important;
@@ -985,14 +1009,14 @@ def _settings_hub_modal():
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('Perception (indisponible)', icon='sensors', on_click=lambda: None).classes('action-button').style('''
+                    ui.button(t('hub_btn_unavailable', name=t('hub_btn_perception')), icon='sensors', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
                     ''')
 
                 # Organic Planner - Agenda
-                ui.button('Agenda', icon='event_note', on_click=_show_organic_planner_dialog).classes('action-button').style('''
+                ui.button(t('hub_btn_agenda'), icon='event_note', on_click=_show_organic_planner_dialog).classes('action-button').style('''
                     background: rgba(212, 175, 55, 0.12) !important;
                     border: 1px solid rgba(212, 175, 55, 0.3) !important;
                     transition: all 0.3s ease !important;
@@ -1005,7 +1029,7 @@ def _settings_hub_modal():
                     web_nav_dialog = None
 
                 if web_nav_dialog:
-                    ui.button('Web Navigator', icon='language', on_click=web_nav_dialog.open).classes('action-button').style('''
+                    ui.button(t('hub_btn_web_nav'), icon='language', on_click=web_nav_dialog.open).classes('action-button').style('''
                         background: rgba(52, 152, 219, 0.12) !important;
                         border: 1px solid rgba(52, 152, 219, 0.3) !important;
                         backdrop-filter: blur(15px) !important;
@@ -1013,7 +1037,7 @@ def _settings_hub_modal():
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('Web Navigator (indisponible)', icon='language', on_click=lambda: None).classes('action-button').style('''
+                    ui.button(t('hub_btn_unavailable', name=t('hub_btn_web_nav')), icon='language', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
@@ -1043,7 +1067,7 @@ def _settings_hub_modal():
                         except Exception as e:
                             print(f"[DREAM-SETTINGS] ⚠️ Erreur ouverture: {e}")
 
-                    ui.button('Rêve IA 🌙', icon='bedtime', on_click=_open_dream_settings).classes('action-button').style('''
+                    ui.button(t('hub_btn_dream'), icon='bedtime', on_click=_open_dream_settings).classes('action-button').style('''
                         background: rgba(138, 43, 226, 0.12) !important;
                         border: 1px solid rgba(138, 43, 226, 0.3) !important;
                         backdrop-filter: blur(15px) !important;
@@ -1051,7 +1075,7 @@ def _settings_hub_modal():
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('Rêve IA 🌙 (indisponible)', icon='bedtime', on_click=lambda: None).classes('action-button').style('''
+                    ui.button(t('hub_btn_unavailable', name=t('hub_btn_dream')), icon='bedtime', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
@@ -1064,7 +1088,7 @@ def _settings_hub_modal():
                     telegram_dialog = None
 
                 if telegram_dialog:
-                    ui.button('📱 Telegram', icon='send', on_click=telegram_dialog.open).classes('action-button').style('''
+                    ui.button(t('hub_btn_telegram'), icon='send', on_click=telegram_dialog.open).classes('action-button').style('''
                         background: rgba(0, 136, 204, 0.12) !important;
                         border: 1px solid rgba(0, 136, 204, 0.3) !important;
                         backdrop-filter: blur(15px) !important;
@@ -1072,7 +1096,7 @@ def _settings_hub_modal():
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('📱 Telegram (indisponible)', icon='send', on_click=lambda: None).classes('action-button').style('''
+                    ui.button(t('hub_btn_unavailable', name=t('hub_btn_telegram')), icon='send', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
@@ -1087,7 +1111,7 @@ def _settings_hub_modal():
                 else:
                     prof_dialog = None
                 if prof_dialog:
-                    ui.button('Profil', icon='person', on_click=prof_dialog.open).classes('action-button').style('''
+                    ui.button(t('hub_btn_profile'), icon='person', on_click=prof_dialog.open).classes('action-button').style('''
                         background: rgba(255, 140, 0, 0.12) !important;
                         border: 1px solid rgba(255, 140, 0, 0.3) !important;
                         backdrop-filter: blur(15px) !important;
@@ -1095,7 +1119,7 @@ def _settings_hub_modal():
                         transition: all 0.3s ease !important;
                     ''')
                 else:
-                    ui.button('Profil (indisponible)', icon='person', on_click=lambda: None).classes('action-button').style('''
+                    ui.button(t('hub_btn_unavailable', name=t('hub_btn_profile')), icon='person', on_click=lambda: None).classes('action-button').style('''
                         background: rgba(100, 100, 100, 0.12) !important;
                         border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         opacity: 0.5 !important;
@@ -1106,13 +1130,18 @@ def _settings_hub_modal():
                 sm_theme = _get_settings_manager()
                 _current_theme = sm_theme.settings.get('ui', {}).get('theme', 'neon') if sm_theme else 'neon'
 
-                _theme_labels = {'neon': 'Néon', 'classic': 'Soir', 'light': 'Clarté'}
-                _theme_values = ['neon', 'classic', 'light']
-                _theme_initial = _theme_labels.get(_current_theme, 'Néon')
+                # Mapping label affiché (traduit) → clé interne stable
+                _theme_label_to_key = {
+                    t('hub_theme_neon'): 'neon',
+                    t('hub_theme_classic'): 'classic',
+                    t('hub_theme_light'): 'light',
+                }
+                _theme_key_to_label = {v: k for k, v in _theme_label_to_key.items()}
+                _theme_options = list(_theme_label_to_key.keys())
+                _theme_initial = _theme_key_to_label.get(_current_theme, _theme_options[0])
 
                 async def _apply_theme(e):
-                    label_to_key = {'Néon': 'neon', 'Soir': 'classic', 'Clarté': 'light'}
-                    theme_val = label_to_key.get(e.value, 'neon')
+                    theme_val = _theme_label_to_key.get(e.value, 'neon')
                     sm_t = _get_settings_manager()
                     if sm_t:
                         if 'ui' not in sm_t.settings:
@@ -1141,16 +1170,16 @@ def _settings_hub_modal():
                     )
 
                 with ui.row().classes('items-center').style('gap:10px; margin-right: auto; padding: 4px 0;'):
-                    ui.label('Thème').style(
+                    ui.label(t('hub_theme_label')).style(
                         'color: var(--text-secondary); font-size: 12px; letter-spacing: 0.5px;'
                     )
                     ui.toggle(
-                        ['Néon', 'Soir', 'Clarté'],
+                        _theme_options,
                         value=_theme_initial,
                         on_change=_apply_theme
                     ).style('font-size: 11px;').props('dense')
 
-                ui.button('Fermer', on_click=lambda: overlay.classes(add='hidden')).classes('action-button btn-fermer-hub').style('''
+                ui.button(t('modal_close'), on_click=lambda: overlay.classes(add='hidden')).classes('action-button btn-fermer-hub').style('''
                     background: rgba(255, 140, 0, 0.12) !important;
                     border: 1px solid rgba(255, 140, 0, 0.3) !important;
                     backdrop-filter: blur(15px) !important;
@@ -1179,22 +1208,22 @@ def _memory_modal():
         mm = None
     dialog = ui.dialog()
     with dialog, ui.card().classes('popup-content memory-modal q-dark').style('background: var(--bg-secondary); color: var(--text-primary); height: 82vh; width: min(1100px, 92vw); margin: 0 auto;'):
-        ui.label('Gestion de la mémoire').classes('popup-title')
+        ui.label(t('mem_modal_title')).classes('popup-title')
         if not mm:
-            ui.label('Mémoire indisponible: initialisation échouée.').classes('text-muted')
-            ui.button('Fermer', on_click=dialog.close).classes('action-button mt-2')
+            ui.label(t('mem_modal_unavailable')).classes('text-muted')
+            ui.button(t('mem_modal_close'), on_click=dialog.close).classes('action-button mt-2')
             return dialog
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Section Paramètres Mémoire (seuil de redondance configurable)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        with ui.expansion('⚙️ Paramètres de mémorisation', icon='tune').classes('w-full mb-3').style('''
+        with ui.expansion(t('mem_modal_settings_title'), icon='tune').classes('w-full mb-3').style('''
             background: rgba(76, 175, 80, 0.08) !important;
             border: 1px solid rgba(76, 175, 80, 0.25) !important;
             border-radius: 8px !important;
         '''):
-            ui.label('Seuil de blocage redondance sémantique').classes('text-sm text-bold mb-1').style('color: #4CAF50 !important;')
-            ui.label('Détermine à partir de quelle similarité (%) une nouvelle mémoire est bloquée automatiquement.').classes('text-muted text-xs mb-2')
+            ui.label(t('mem_modal_threshold_title')).classes('text-sm text-bold mb-1').style('color: #4CAF50 !important;')
+            ui.label(t('mem_modal_threshold_hint')).classes('text-muted text-xs mb-2')
             
             # Récupérer la valeur actuelle du seuil
             current_threshold = mm.get_redundancy_threshold() if mm else 0.92
@@ -1213,19 +1242,19 @@ def _memory_modal():
             
             with ui.row().classes('items-center gap-2 mt-2'):
                 ui.icon('info', size='xs').classes('text-muted')
-                ui.label('85% = strict (bloque dès 85% de similarité) | 98% = permissif (bloque uniquement les quasi-duplicatas)').classes('text-muted text-xs')
+                ui.label(t('mem_modal_threshold_legend')).classes('text-muted text-xs')
             
             def _save_threshold():
                 try:
                     new_val = float(threshold_slider.value)
                     if mm and mm.set_redundancy_threshold(new_val):
-                        ui.notify(f'✅ Seuil de redondance mis à jour: {new_val:.0%}', type='positive')
+                        ui.notify(t('mem_modal_threshold_saved', value=f'{new_val:.0%}'), type='positive')
                     else:
-                        ui.notify('Valeur invalide (doit être entre 85% et 98%)', type='warning')
+                        ui.notify(t('mem_modal_threshold_invalid'), type='warning')
                 except Exception as e:
-                    ui.notify(f'Erreur: {e}', type='negative')
+                    ui.notify(t('mem_modal_error_generic', msg=str(e)), type='negative')
             
-            ui.button('Appliquer', icon='check', on_click=_save_threshold).classes('action-button mt-2').style('''
+            ui.button(t('mem_modal_threshold_apply'), icon='check', on_click=_save_threshold).classes('action-button mt-2').style('''
                 background: rgba(76, 175, 80, 0.2) !important;
                 border: 1px solid rgba(76, 175, 80, 0.4) !important;
             ''')
@@ -1236,29 +1265,33 @@ def _memory_modal():
                 # Barre de recherche sticky
                 search_bar_wrap = ui.element('div').style('position: sticky; top: 0; background: var(--bg-secondary); z-index: 2; padding-bottom: 6px;')
                 with search_bar_wrap, ui.row().classes('items-end gap-2'):
-                    search_box = ui.input(label='Recherche', placeholder='Titre / résumé / texte...').classes('form-input')
-                    reload_btn = ui.button('Recharger', icon='refresh').classes('action-button')
+                    search_box = ui.input(label=t('mem_modal_search_label'), placeholder=t('mem_modal_search_placeholder')).classes('form-input')
+                    reload_btn = ui.button(t('mem_modal_reload'), icon='refresh').classes('action-button')
                 # Liste en grille verticale scrollable
                 list_container = ui.element('div').classes('mem-list').style('max-height: calc(82vh - 180px); overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; scrollbar-width: thin;')
 
             # Colonne droite: Éditeur
             with ui.column().style('height:100%; flex: 1 1 auto; min-width: 520px;'):
-                ui.label('Édition').classes('section-title mb-1')
+                ui.label(t('mem_modal_edition')).classes('section-title mb-1')
                 # Zone scrollable interne pour limiter la hauteur et éviter le scroll global excessif
                 editor_scroll = ui.element('div').classes('editor-scroll w-full').style('max-height: calc(82vh - 170px); overflow-y: auto;')
                 with editor_scroll:
                     selected_id: Dict[str, Optional[str]] = {'value': None}
                     id_label = ui.label('').classes('text-muted mb-1')
-                    title_in = ui.input(label='Titre').classes('form-input mb-2')
-                    original_in = ui.textarea(label='Texte original').props('autogrow').classes('form-input mb-2')
-                    summary_in = ui.textarea(label='Résumé').props('autogrow').classes('form-input mb-2')
+                    title_in = ui.input(label=t('mem_modal_field_title')).classes('form-input mb-2')
+                    original_in = ui.textarea(label=t('mem_modal_field_original')).props('autogrow').classes('form-input mb-2')
+                    summary_in = ui.textarea(label=t('mem_modal_field_summary')).props('autogrow').classes('form-input mb-2')
                 # Valence en select (positive / neutre / négative)
                 valence_map = {'positive': 1, 'neutre': 0, 'négative': -1}
-                valence_options = ['positive', 'neutre', 'négative']
-                valence_sel = ui.select(valence_options, value='neutre', label='Valence').classes('form-select mb-2')
-                score_nb = ui.number(label="Score d'impact", value=50.0).classes('form-input mb-2')
-                auto_calc_switch = ui.switch('Calcul automatique (formule)', value=False).classes('mb-2')
-                ui.label("Si activé, le serveur recalculera le score d'impact à partir des métriques. ATTENTION: Désactivé par défaut pour préserver les valeurs de l'archiviste.")\
+                valence_options = {
+                    'positive': t('mem_modal_valence_positive'),
+                    'neutre': t('mem_modal_valence_neutre'),
+                    'négative': t('mem_modal_valence_negative'),
+                }
+                valence_sel = ui.select(valence_options, value='neutre', label=t('mem_modal_field_valence')).classes('form-select mb-2')
+                score_nb = ui.number(label=t('mem_modal_field_score'), value=50.0).classes('form-input mb-2')
+                auto_calc_switch = ui.switch(t('mem_modal_auto_calc'), value=False).classes('mb-2')
+                ui.label(t('mem_modal_auto_calc_hint'))\
                     .classes('text-muted text-xs mb-2')
 
                 # Champs additionnels (stockés dans multiplicateur_impact en JSON)
@@ -1266,13 +1299,13 @@ def _memory_modal():
                 # Valeurs par défaut harmonisées avec le backend
                 metrics_grid = ui.element('div').classes('metrics-grid').style('width:100%;')
                 with metrics_grid:
-                    intensite_nb = ui.number(label='Intensité', value=1.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                    liberte_nb = ui.number(label='Liberté', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                    creation_nb = ui.number(label='Création', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                    procreation_nb = ui.number(label='Transmission', value=0.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
-                    intensite_ctx_nb = ui.number(label='Intensité Ctx', value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                    intensite_nb = ui.number(label=t('mem_modal_metric_intensite'), value=1.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                    liberte_nb = ui.number(label=t('mem_modal_metric_liberte'), value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                    creation_nb = ui.number(label=t('mem_modal_metric_creation'), value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                    procreation_nb = ui.number(label=t('mem_modal_metric_transmission'), value=0.0, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
+                    intensite_ctx_nb = ui.number(label=t('mem_modal_metric_intensite_ctx'), value=0.5, min=0.0, max=1.0, step=0.1).classes('form-input metric-input')
                 # Base factor (exposé maintenant, influe la magnitude du score)
-                base_factor_nb = ui.number(label='Base factor', value=100, min=50, max=125, step=1).classes('form-input mb-2')
+                base_factor_nb = ui.number(label=t('mem_modal_metric_base_factor'), value=100, min=50, max=125, step=1).classes('form-input mb-2')
 
                 # Facteur de base (stockage interne; synchronisé avec base_factor_nb)
                 _base_factor = {'value': 100.0}
@@ -1319,10 +1352,10 @@ def _memory_modal():
                 async def do_save():
                     mid = selected_id['value']
                     if not mid:
-                        ui.notify('Sélectionnez un souvenir', type='warning')
+                        ui.notify(t('mem_modal_select_first'), type='warning')
                         return
                     if mid.startswith('SEED_'):
-                        ui.notify('Refus modification seed fondateur', type='info')
+                        ui.notify(t('mem_modal_seed_protected'), type='info')
                         return
                     try:
                         # snap avant envoi
@@ -1359,15 +1392,15 @@ def _memory_modal():
                                 score_nb.value = round(float(res['score_impact']), 2)
                             except Exception:
                                 pass
-                        ui.notify('Souvenir mis à jour.', type='positive')
+                        ui.notify(t('mem_modal_save_ok'), type='positive')
                         refresh_list()
                     except Exception as e:
-                        ui.notify(f'Erreur mise à jour: {e}', type='negative')
+                        ui.notify(t('mem_modal_save_err', msg=str(e)), type='negative')
 
                 def do_delete():
                     mid = selected_id['value']
                     if not mid:
-                        ui.notify('Sélectionnez un souvenir', type='warning')
+                        ui.notify(t('mem_modal_select_first'), type='warning')
                         return
                     try:
                         ok = mm.delete_memory(mid)
@@ -1386,7 +1419,7 @@ def _memory_modal():
                                         ogma_ng._sidebar_render_cb(ogma_ng._current_conversation_id)
                                 except Exception as e:
                                     print(f"[MEMORY-DELETE] Sync sidebar: {e}")
-                            ui.notify('Souvenir supprimé (index FAISS compacté ultérieurement).', type='positive')
+                            ui.notify(t('mem_modal_delete_ok'), type='positive')
                             selected_id['value'] = None
                             id_label.text = ''
                             title_in.value = ''
@@ -1403,19 +1436,19 @@ def _memory_modal():
                             base_factor_nb.value = 100.0
                             refresh_list()
                         else:
-                            ui.notify('Suppression non effectuée.', type='warning')
+                            ui.notify(t('mem_modal_delete_skipped'), type='warning')
                     except Exception as e:
-                        ui.notify(f'Erreur suppression: {e}', type='negative')
+                        ui.notify(t('mem_modal_delete_err', msg=str(e)), type='negative')
 
                 # Barre d'actions collante au bas de la colonne d'édition
                 with ui.row().classes('editor-actions'):
                     async def do_reenrich():
                         mid = selected_id['value']
                         if not mid:
-                            ui.notify('Sélectionnez un souvenir', type='warning')
+                            ui.notify(t('mem_modal_select_first'), type='warning')
                             return
                         if mid.startswith('SEED_'):
-                            ui.notify('Refus modification seed fondateur', type='info')
+                            ui.notify(t('mem_modal_seed_protected'), type='info')
                             return
                         
                         async def _run():
@@ -1423,7 +1456,7 @@ def _memory_modal():
                                 # Afficher notif dans le bon slot UI
                                 try:
                                     with dialog:
-                                        ui.notify('Ré-enrichissement via Archiviste…', type='info')
+                                        ui.notify(t('mem_modal_reenrich_progress'), type='info')
                                 except Exception:
                                     pass
                                 res = await mm.re_enrich_memory(mid, reembed=True, rebuild_faiss=True)  # type: ignore[attr-defined]
@@ -1447,7 +1480,7 @@ def _memory_modal():
                                         pass
                                     try:
                                         with dialog:
-                                            ui.notify('Souvenir ré-enrichi et ré-indexé.', type='positive')
+                                            ui.notify(t('mem_modal_reenrich_ok'), type='positive')
                                     except Exception:
                                         pass
                                     try:
@@ -1462,21 +1495,21 @@ def _memory_modal():
                                 else:
                                     try:
                                         with dialog:
-                                            ui.notify("Échec du ré-enrichissement (voir logs)", type='warning')
+                                            ui.notify(t('mem_modal_reenrich_failed'), type='warning')
                                     except Exception:
                                         pass
                             except Exception as e:
                                 try:
                                     with dialog:
-                                        ui.notify(f'Erreur ré-enrichissement: {e}', type='negative')
+                                        ui.notify(t('mem_modal_reenrich_err', msg=str(e)), type='negative')
                                 except Exception:
                                     pass
                         
                         await _run()
                     
-                    ui.button('Recalculer via Archiviste', icon='auto_awesome', on_click=do_reenrich).classes('action-button')
-                    ui.button('Supprimer', icon='delete', on_click=do_delete).classes('action-button')
-                    ui.button('Enregistrer', icon='save', on_click=do_save).classes('send-button')
+                    ui.button(t('mem_modal_btn_recompute'), icon='auto_awesome', on_click=do_reenrich).classes('action-button')
+                    ui.button(t('mem_modal_btn_delete'), icon='delete', on_click=do_delete).classes('action-button')
+                    ui.button(t('mem_modal_btn_save'), icon='save', on_click=do_save).classes('send-button')
                     
                     # Fonction pour supprimer TOUS les souvenirs avec confirmation
                     def do_delete_all():
@@ -1504,9 +1537,9 @@ def _memory_modal():
                                 min-width: 500px;
                                 max-width: 600px;
                             '''):
-                                ui.label('⚠️ SUPPRESSION TOTALE').classes('text-h5 text-bold text-red mb-3')
+                                ui.label(t('mem_modal_delete_all_title')).classes('text-h5 text-bold text-red mb-3')
                                 
-                                ui.label('Vous êtes sur le point de supprimer DÉFINITIVEMENT :').classes('mb-2')
+                                ui.label(t('mem_modal_delete_all_intro')).classes('mb-2')
                                 with ui.column().classes('gap-1 mb-3'):
                                     try:
                                         import json as _json
@@ -1516,33 +1549,33 @@ def _memory_modal():
                                         except Exception:
                                             _show_seeds = False
                                         total_memories = len(mm.get_all_memories_data(include_seeds=_show_seeds) or [])
-                                        ui.label(f'• {total_memories} souvenirs mémorisés').classes('text-bold')
+                                        ui.label(t('mem_modal_delete_all_count', n=total_memories)).classes('text-bold')
                                     except:
-                                        ui.label('• TOUS les souvenirs mémorisés').classes('text-bold')
-                                    ui.label('• Index FAISS complet').classes('text-bold')
-                                    ui.label('• Tous les embeddings').classes('text-bold')
-                                    ui.label('• Toutes les métadonnées').classes('text-bold')
+                                        ui.label(t('mem_modal_delete_all_count_unknown')).classes('text-bold')
+                                    ui.label(t('mem_modal_delete_all_faiss')).classes('text-bold')
+                                    ui.label(t('mem_modal_delete_all_embeddings')).classes('text-bold')
+                                    ui.label(t('mem_modal_delete_all_metadata')).classes('text-bold')
                                 
                                 ui.separator().classes('my-3')
-                                ui.label('⚠️ Cette action est IRRÉVERSIBLE').classes('text-red text-bold mb-2')
-                                ui.label('✅ Un backup sera créé automatiquement avant suppression').classes('text-green mb-3')
+                                ui.label(t('mem_modal_delete_all_irreversible')).classes('text-red text-bold mb-2')
+                                ui.label(t('mem_modal_delete_all_backup')).classes('text-green mb-3')
                                 
                                 result_label = ui.label('').classes('text-sm')
                                 
                                 def execute_deletion():
                                     """Exécuter la suppression après confirmation"""
                                     try:
-                                        result_label.text = '⏳ Suppression en cours...'
+                                        result_label.text = t('mem_modal_delete_all_progress')
                                         result_label.style('color: var(--warning);')
                                         
                                         # Appeler la méthode backend
                                         result = mm.delete_all_memories()
                                         
                                         if result.get('deleted_count', 0) > 0:
-                                            success_msg = f"✅ {result['deleted_count']} souvenirs supprimés"
+                                            success_msg = t('mem_modal_delete_all_success', n=result['deleted_count'])
                                             if result.get('backup_created'):
                                                 backup_path = result.get('backup_path', 'N/A')
-                                                success_msg += f"\n💾 Backup: {backup_path}"
+                                                success_msg += t('mem_modal_delete_all_backup_path', path=backup_path)
                                             
                                             result_label.text = success_msg
                                             result_label.style('color: var(--success);')
@@ -1554,31 +1587,31 @@ def _memory_modal():
                                                 pass
                                             
                                             # Notification principale
-                                            ui.notify(f"Mémoire totalement effacée ({result['deleted_count']} souvenirs)", type='positive')
+                                            ui.notify(t('mem_modal_delete_all_notify', n=result['deleted_count']), type='positive')
                                             
                                             # Fermer l'overlay après 2 secondes
                                             ui.timer(2.0, lambda: confirm_overlay.delete(), once=True)
                                         else:
-                                            error_msg = result.get('error', 'Aucun souvenir à supprimer')
-                                            result_label.text = f'❌ {error_msg}'
+                                            error_msg = result.get('error', t('mem_modal_delete_all_empty'))
+                                            result_label.text = t('mem_modal_delete_all_failed', msg=error_msg)
                                             result_label.style('color: var(--error);')
-                                            ui.notify(f'Erreur: {error_msg}', type='negative')
+                                            ui.notify(t('mem_modal_error_generic', msg=error_msg), type='negative')
                                     
                                     except Exception as e:
-                                        result_label.text = f'❌ Erreur critique: {e}'
+                                        result_label.text = t('mem_modal_delete_all_critical', msg=str(e))
                                         result_label.style('color: var(--error);')
-                                        ui.notify(f'Erreur: {e}', type='negative')
+                                        ui.notify(t('mem_modal_error_generic', msg=str(e)), type='negative')
                                 
                                 def cancel_deletion():
                                     """Annuler et fermer l'overlay"""
                                     confirm_overlay.delete()
-                                    ui.notify('Suppression annulée', type='info')
+                                    ui.notify(t('mem_modal_delete_all_cancelled'), type='info')
                                 
                                 # Boutons d'action
                                 with ui.row().classes('justify-end gap-2 mt-4'):
-                                    ui.button('Annuler', icon='close', on_click=cancel_deletion).classes('action-button')
+                                    ui.button(t('mem_modal_delete_all_cancel'), icon='close', on_click=cancel_deletion).classes('action-button')
                                     ui.button(
-                                        'SUPPRIMER TOUT', 
+                                        t('mem_modal_delete_all_confirm'), 
                                         icon='delete_forever', 
                                         on_click=execute_deletion
                                     ).classes('action-button').style('''
@@ -1586,22 +1619,22 @@ def _memory_modal():
                                         color: white !important;
                                     ''')
                     
-                    ui.button('Supprimer TOUT', icon='delete_forever', on_click=do_delete_all).classes('action-button').style('''
+                    ui.button(t('mem_modal_btn_delete_all'), icon='delete_forever', on_click=do_delete_all).classes('action-button').style('''
                         background: var(--error);
                         color: white;
                         margin-left: 8px;
                     ''')
                     
-                    ui.button('Fermer', on_click=dialog.close).classes('action-button')
+                    ui.button(t('mem_modal_btn_close'), on_click=dialog.close).classes('action-button')
 
         def load_into_form(mid: str):
             try:
                 mem = mm.get_memory_by_id(mid)
             except Exception as e:
-                ui.notify(f'Erreur chargement: {e}', type='warning')
+                ui.notify(t('mem_modal_load_err', msg=str(e)), type='warning')
                 return
             if not mem:
-                ui.notify('Souvenir introuvable', type='warning')
+                ui.notify(t('mem_modal_not_found'), type='warning')
                 return
             selected_id['value'] = mid
             id_label.text = f'ID: {mid}'
@@ -1712,7 +1745,7 @@ def _memory_modal():
                 data = mm.get_all_memories_data(include_seeds=_show_seeds) or []
             except Exception as e:
                 data = []
-                ui.notify(f'Erreur chargement liste: {e}', type='warning')
+                ui.notify(t('mem_modal_list_err', msg=str(e)), type='warning')
             q = (search_box.value or '').strip().lower()
             if q:
                 def _match(m):
@@ -1721,7 +1754,7 @@ def _memory_modal():
             list_container.clear()
             with list_container:
                 if not data:
-                    ui.label('Aucun souvenir.').classes('text-muted p-2')
+                    ui.label(t('mem_modal_list_empty')).classes('text-muted p-2')
                 else:
                     # Dict des cartes pour gestion sélection visuelle
                     _card_refs = {}
@@ -1768,7 +1801,7 @@ def _memory_modal():
                                         redundancy_btn = ui.button('🔍', on_click=_on_redundancy).classes('text-xs').style(
                                             'padding: 4px; min-width: 24px; height: 24px; background: rgba(100, 149, 237, 0.2); '
                                             'border: 1px solid #6495ED; border-radius: 4px; color: #6495ED;'
-                                        ).tooltip('Rechercher redondances')
+                                        ).tooltip(t('mem_modal_tooltip_redundancy'))
                                         redundancy_btn.props('dense flat')
                                         
                                         # Bouton édition
@@ -1779,10 +1812,10 @@ def _memory_modal():
                                         edit_btn = ui.button('✏️', on_click=_on_edit).classes('text-xs').style(
                                             'padding: 4px; min-width: 24px; height: 24px; background: rgba(212, 175, 55, 0.2); '
                                             'border: 1px solid var(--accent-color); border-radius: 4px; color: var(--accent-color);'
-                                        ).tooltip('Éditer')
+                                        ).tooltip(t('mem_modal_tooltip_edit'))
                                         edit_btn.props('dense flat')
                                 
-                                ui.label((m.get('title') or '(Sans titre)')).classes('mem-card-title').style('margin-right: 32px;')
+                                ui.label((m.get('title') or t('mem_modal_card_no_title'))).classes('mem-card-title').style('margin-right: 32px;')
                                 _sum = m.get('summary') or ''
                                 ui.label(_sum).classes('mem-card-summary').style('-webkit-line-clamp:2; display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden;')
                                 with ui.element('div').classes('mem-card-footer'):
@@ -1791,7 +1824,7 @@ def _memory_modal():
                                         sc = float(m.get('score_impact', 0) or 0)
                                     except Exception:
                                         sc = 0.0
-                                    ui.label(f'Score: {sc:.2f}')
+                                    ui.label(t('mem_modal_card_score', score=f'{sc:.2f}'))
 
     # Recalcul auto du score sur changements
     intensite_nb.on('change', _recompute_score)
@@ -2130,32 +2163,32 @@ def _edit_memory_popup(memory_id: str, refresh_callback=None):
     else:
         mm = None
     if not mm:
-        ui.notify('Gestionnaire de mémoire indisponible', type='negative')
+        ui.notify(t('mem_edit_notify_unavailable'), type='negative')
         return
     
     # Récupérer le souvenir
     try:
         memory_data = mm.get_memory_by_id(memory_id)
         if not memory_data:
-            ui.notify('Souvenir introuvable', type='negative')
+            ui.notify(t('mem_edit_notify_not_found'), type='negative')
             return
     except Exception as e:
-        ui.notify(f'Erreur lors de la récupération: {e}', type='negative')
+        ui.notify(t('mem_edit_notify_fetch_error', msg=str(e)), type='negative')
         return
     
     dialog = ui.dialog()
     with dialog, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(600px, 90vw); max-height: 80vh; overflow-y: auto;'):
-        ui.label('Édition rapide du souvenir').classes('popup-title')
+        ui.label(t('mem_edit_title')).classes('popup-title')
         
         # Champs éditables
-        title_input = ui.input('Titre', value=memory_data.get('title', '')).classes('w-full mb-2')
-        summary_input = ui.textarea('Résumé', value=memory_data.get('summary', '')).classes('w-full mb-2').style('min-height: 80px;')
-        text_input = ui.textarea('Texte original', value=memory_data.get('text_original', '')).classes('w-full mb-4').style('min-height: 120px;')
+        title_input = ui.input(t('mem_edit_label_title'), value=memory_data.get('title', '')).classes('w-full mb-2')
+        summary_input = ui.textarea(t('mem_edit_label_summary'), value=memory_data.get('summary', '')).classes('w-full mb-2').style('min-height: 80px;')
+        text_input = ui.textarea(t('mem_edit_label_text'), value=memory_data.get('text_original', '')).classes('w-full mb-4').style('min-height: 120px;')
         
         async def save_changes():
             try:
                 if memory_id.startswith('SEED_'):
-                    ui.notify('Refus modification seed fondateur', type='info')
+                    ui.notify(t('mem_edit_notify_seed_refused'), type='info')
                     return
                 # Préparer les données mises à jour
                 updated_data = {
@@ -2174,24 +2207,24 @@ def _edit_memory_popup(memory_id: str, refresh_callback=None):
                 )
                 
                 if success:
-                    ui.notify('Souvenir mis à jour', type='positive')
+                    ui.notify(t('mem_edit_notify_updated'), type='positive')
                     dialog.close()
                     # Rafraîchir la liste si callback fourni
                     if refresh_callback:
                         refresh_callback()
                 else:
-                    ui.notify('Erreur lors de la mise à jour', type='negative')
+                    ui.notify(t('mem_edit_notify_update_failed'), type='negative')
                     
             except Exception as e:
-                ui.notify(f'Erreur: {e}', type='negative')
+                ui.notify(t('memo_popup_notify_error', msg=str(e)), type='negative')
         
         def cancel():
             dialog.close()
         
         # Boutons d'action
         with ui.row().classes('justify-end gap-2 mt-4'):
-            ui.button('Annuler', on_click=cancel).classes('action-button')
-            ui.button('Sauvegarder', on_click=save_changes).classes('send-button')
+            ui.button(t('modal_cancel'), on_click=cancel).classes('action-button')
+            ui.button(t('modal_save'), on_click=save_changes).classes('send-button')
     
     dialog.open()
 
@@ -2201,13 +2234,13 @@ def _memorization_popup(conversation_id: str, title: str):
     
     async def confirm_memorization():
         try:
-            ui.notify('Génération du résumé...', type='info')
+            ui.notify(t('memo_popup_notify_generating'), type='info')
             print(f"[DEBUG] Génération résumé pour conversation {conversation_id}")
             summary = await _generate_conversation_summary(conversation_id)
             print(f"[DEBUG] Résumé généré: {len(summary) if summary else 0} caractères")
             
             if not summary:
-                ui.notify('Impossible de générer le résumé', type='negative')
+                ui.notify(t('memo_popup_notify_summary_failed'), type='negative')
                 return
             
             # Au lieu de fermer et rouvrir, transformer cette popup
@@ -2221,22 +2254,22 @@ def _memorization_popup(conversation_id: str, title: str):
             
         except Exception as e:
             print(f"[DEBUG] Erreur confirm_memorization: {e}")
-            ui.notify(f'Erreur: {e}', type='negative')
+            ui.notify(t('memo_popup_notify_error', msg=str(e)), type='negative')
     
     with dialog, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(400px, 90vw);'):
-        ui.label('Mémorisation de conversation').classes('popup-title')
-        ui.label(f'Conversation: {title}').classes('text-sm text-muted mb-4')
+        ui.label(t('memo_popup_title')).classes('popup-title')
+        ui.label(t('memo_popup_conversation', title=title)).classes('text-sm text-muted mb-4')
         
         # Affichage du compteur de conversations mémorisées
         memorized_count = _count_memorized_conversations()
-        ui.label(f'📊 Conversations mémorisées: {memorized_count}').classes('text-sm text-green-400 mb-2')
+        ui.label(t('memo_popup_count', n=memorized_count)).classes('text-sm text-green-400 mb-2')
         
-        ui.label('Voulez-vous mémoriser cette conversation dans le système de mémoire ?').classes('mb-4')
-        ui.label('Un résumé de 150 mots sera généré et indexé pour les futures recherches.').classes('text-xs text-muted mb-4')
+        ui.label(t('memo_popup_question')).classes('mb-4')
+        ui.label(t('memo_popup_hint')).classes('text-xs text-muted mb-4')
         
         with ui.row().classes('justify-end gap-2'):
-            ui.button('Annuler', on_click=dialog.close).classes('action-button')
-            ui.button('Générer résumé', on_click=confirm_memorization).classes('send-button')
+            ui.button(t('modal_cancel'), on_click=dialog.close).classes('action-button')
+            ui.button(t('memo_popup_btn_generate'), on_click=confirm_memorization).classes('send-button')
     
     dialog.open()
 
@@ -2246,11 +2279,11 @@ def _update_memorization_popup(conversation_id: str, title: str):
     
     async def confirm_update():
         try:
-            ui.notify('Régénération du résumé...', type='info')
+            ui.notify(t('memo_update_notify_regenerating'), type='info')
             summary = await _generate_conversation_summary(conversation_id)
             
             if not summary:
-                ui.notify('Impossible de générer le résumé', type='negative')
+                ui.notify(t('memo_popup_notify_summary_failed'), type='negative')
                 return
             
             with dialog:
@@ -2258,28 +2291,28 @@ def _update_memorization_popup(conversation_id: str, title: str):
                 _create_update_edit_interface(dialog, conversation_id, title, summary)
             
         except Exception as e:
-            ui.notify(f'Erreur: {e}', type='negative')
+            ui.notify(t('memo_popup_notify_error', msg=str(e)), type='negative')
     
     with dialog, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(400px, 90vw);'):
-        ui.label('Actualiser la mémorisation').classes('popup-title')
-        ui.label(f'Conversation: {title}').classes('text-sm text-muted mb-4')
-        ui.label('Cette conversation a évolué depuis sa dernière mémorisation.').classes('text-sm text-orange-400 mb-2')
-        ui.label('Un nouveau résumé sera généré et remplacera l\'ancien.').classes('text-xs text-muted mb-4')
+        ui.label(t('memo_update_title')).classes('popup-title')
+        ui.label(t('memo_popup_conversation', title=title)).classes('text-sm text-muted mb-4')
+        ui.label(t('memo_update_warn')).classes('text-sm text-orange-400 mb-2')
+        ui.label(t('memo_update_hint')).classes('text-xs text-muted mb-4')
         
         with ui.row().classes('justify-end gap-2'):
-            ui.button('Annuler', on_click=dialog.close).classes('action-button')
-            ui.button('Actualiser', on_click=confirm_update).classes('send-button')
+            ui.button(t('modal_cancel'), on_click=dialog.close).classes('action-button')
+            ui.button(t('memo_update_btn'), on_click=confirm_update).classes('send-button')
     
     dialog.open()
 
 def _create_update_edit_interface(dialog, conversation_id: str, title: str, summary: str):
     """Interface d'édition pour l'actualisation d'une mémorisation existante."""
     with dialog, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(600px, 90vw); max-height: 80vh;'):
-        ui.label('Édition du résumé actualisé').classes('popup-title')
-        ui.label(f'Conversation: {title}').classes('text-sm text-muted mb-4')
+        ui.label(t('memo_edit_title')).classes('popup-title')
+        ui.label(t('memo_popup_conversation', title=title)).classes('text-sm text-muted mb-4')
         
         summary_input = ui.textarea(
-            'Résumé (150 mots max)', 
+            t('memo_edit_label_summary'), 
             value=summary,
         ).classes('w-full').style('min-height: 200px;')
         
@@ -2287,7 +2320,7 @@ def _create_update_edit_interface(dialog, conversation_id: str, title: str, summ
         
         def update_word_count():
             words = len(summary_input.value.split()) if summary_input.value else 0
-            word_count.text = f'{words}/150 mots'
+            word_count.text = t('memo_edit_word_count', n=words)
             if words > 150:
                 word_count.classes(remove='text-muted', add='text-red-400')
             else:
@@ -2298,22 +2331,22 @@ def _create_update_edit_interface(dialog, conversation_id: str, title: str, summ
         
         async def finalize_update():
             if not summary_input.value.strip():
-                ui.notify('Le résumé ne peut pas être vide', type='negative')
+                ui.notify(t('memo_edit_notify_empty'), type='negative')
                 return
             
             words = len(summary_input.value.split())
             if words > 150:
-                ui.notify('Le résumé dépasse 150 mots', type='negative')
+                ui.notify(t('memo_edit_notify_too_long'), type='negative')
                 return
             
-            ui.notify('Actualisation en cours...', type='info')
+            ui.notify(t('memo_update_notify_progress'), type='info')
             
             try:
                 success = await _update_memorized_conversation(conversation_id, summary_input.value.strip())
                 
                 if success:
                     _mark_conversation_memorized(conversation_id, True)
-                    ui.notify('Mémorisation actualisée', type='positive')
+                    ui.notify(t('memo_update_notify_success'), type='positive')
                     dialog.close()
                     try:
                         import ogma_ng
@@ -2323,14 +2356,14 @@ def _create_update_edit_interface(dialog, conversation_id: str, title: str, summ
                         pass
                     _trigger_memory_update()
                 else:
-                    ui.notify('Erreur lors de l\'actualisation', type='negative')
+                    ui.notify(t('memo_update_notify_failed'), type='negative')
                     
             except Exception as e:
-                ui.notify(f'Erreur: {e}', type='negative')
+                ui.notify(t('memo_popup_notify_error', msg=str(e)), type='negative')
         
         with ui.row().classes('justify-end gap-2 mt-4'):
-            ui.button('Annuler', on_click=dialog.close).classes('action-button')
-            ui.button('Actualiser', on_click=finalize_update).classes('send-button')
+            ui.button(t('modal_cancel'), on_click=dialog.close).classes('action-button')
+            ui.button(t('memo_update_btn'), on_click=finalize_update).classes('send-button')
 
 def _open_other_backends_popup():
     """Popup isolé pour configuration des backends non-API (Ollama/GGUF/KoboldCpp)"""
@@ -2340,7 +2373,7 @@ def _open_other_backends_popup():
     
     dialog = ui.dialog()
     with dialog, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(90vw, 700px); height: 70vh; overflow-y: auto;'):
-        ui.label('⚙️ Configuration Autres Backends').classes('popup-title text-lg font-bold mb-4')
+        ui.label(t('backends_title')).classes('popup-title text-lg font-bold mb-4')
         
         # État du popup
         current_backend = 'Ollama'  # Par défaut
@@ -2350,11 +2383,11 @@ def _open_other_backends_popup():
             backend_select = ui.select(
                 ['Ollama', 'GGUF', 'KoboldCpp'], 
                 value=current_backend,
-                label='Type de Backend'
+                label=t('backends_label_backend_type')
             ).classes('form-select flex-1')
             
             # Bouton pour forcer la mise à jour de l'interface
-            ui.button('MAJ Actualiser Interface', on_click=lambda: force_interface_update()).classes('btn-secondary')
+            ui.button(t('backends_btn_refresh_ui'), on_click=lambda: force_interface_update()).classes('btn-secondary')
         
         # Container pour zone adaptive
         adaptive_container = ui.column().classes('w-full')
@@ -2366,14 +2399,14 @@ def _open_other_backends_popup():
             """Interface spécialisée Ollama"""
             adaptive_container.clear()
             with adaptive_container:
-                ui.label('🐙 Configuration Ollama').classes('text-md font-semibold mb-2')
+                ui.label(t('backends_ollama_title')).classes('text-md font-semibold mb-2')
                 
                 # Récupération config existante
                 other_backends = sm.settings.get('other_backends', {})
                 ollama_config = other_backends.get('ollama', {})
                 
                 url_input = ui.input(
-                    label='URL Ollama', 
+                    label=t('backends_ollama_url_label'), 
                     value=ollama_config.get('url', 'http://localhost:11434')
                 ).classes('form-input mb-2 w-full')
                 
@@ -2381,7 +2414,7 @@ def _open_other_backends_popup():
                 model_select = ui.select(
                     [], 
                     value=None,  # Pas de valeur par défaut jusqu'à ce que les modèles soient chargés
-                    label='Modèle Ollama'
+                    label=t('backends_ollama_model_label')
                 ).classes('form-select mb-2 w-full')
                 
                 models_container = ui.column().classes('mb-2')
@@ -2389,7 +2422,7 @@ def _open_other_backends_popup():
                 async def refresh_kobold_models():
                     """Actualise la liste des modèles KoboldCpp"""
                     try:
-                        ui.notify('MAJ Actualisation modèles KoboldCpp...', type='info')
+                        ui.notify(t('backends_kobold_refresh_progress'), type='info')
                         
                         # Simulation de modèles KoboldCpp
                         mock_models = [
@@ -2404,10 +2437,10 @@ def _open_other_backends_popup():
                             if mock_models:
                                 model_select.value = mock_models[0]
                         
-                        ui.notify(f'OK {len(mock_models)} modèle(s) trouvé(s)', type='positive')
+                        ui.notify(t('backends_notify_count_found', n=len(mock_models)), type='positive')
                         
                     except Exception as e:
-                        ui.notify(f'ERREUR Erreur actualisation modèles: {e}', type='warning')
+                        ui.notify(t('backends_notify_models_err', msg=str(e)), type='warning')
                 
                 async def refresh_ollama_models():
                     try:
@@ -2418,7 +2451,7 @@ def _open_other_backends_popup():
                         
                         models_container.clear()
                         with models_container:
-                            ui.label('MAJ Rafraîchissement en cours...').classes('text-sm mb-2')
+                            ui.label(t('backends_ollama_refresh_progress')).classes('text-sm mb-2')
                         
                         # Utiliser le vrai OllamaManager au lieu de la simulation
                         if ollama_mgr.check_service():
@@ -2443,41 +2476,41 @@ def _open_other_backends_popup():
                         models_container.clear()
                         with models_container:
                             if available_models:
-                                ui.label(f'OK {len(available_models)} modèles trouvés').classes('text-sm mb-2 text-green-500')
+                                ui.label(t('backends_ollama_models_found', n=len(available_models))).classes('text-sm mb-2 text-green-500')
                                 for model in available_models:
                                     ui.label(f'• {model}').classes('text-sm text-muted pl-4')
                             else:
-                                ui.label('ATTENTION Aucun modèle trouvé').classes('text-sm mb-2 text-orange-500')
-                                ui.label('Vérifiez qu\'Ollama est démarré et contient des modèles').classes('text-sm text-muted')
+                                ui.label(t('backends_ollama_no_models_label')).classes('text-sm mb-2 text-orange-500')
+                                ui.label(t('backends_ollama_no_models_hint')).classes('text-sm text-muted')
                         
                         if available_models:
-                            ui.notify('Modèles Ollama rafraîchis', type='positive')
+                            ui.notify(t('backends_ollama_notify_refreshed'), type='positive')
                         else:
-                            ui.notify('Ollama indisponible ou sans modèles', type='warning')
+                            ui.notify(t('backends_ollama_notify_unavailable'), type='warning')
                         
                     except Exception as e:
                         models_container.clear()
                         with models_container:
-                            ui.label(f'ERREUR Erreur: {e}').classes('text-sm text-red-500')
-                        ui.notify(f'Erreur rafraîchissement: {e}', type='warning')
+                            ui.label(t('backends_label_error', msg=str(e))).classes('text-sm text-red-500')
+                        ui.notify(t('backends_notify_refresh_err', msg=str(e)), type='warning')
                 
                 async def test_ollama_connection():
                     try:
-                        ui.notify(f'Test connexion Ollama: {url_input.value}...', type='info')
+                        ui.notify(t('backends_ollama_notify_test', url=url_input.value), type='info')
                         # Simulation - à remplacer par vraie logique
-                        ui.notify('OK Connexion Ollama réussie', type='positive')
+                        ui.notify(t('backends_ollama_notify_test_ok'), type='positive')
                     except Exception as e:
-                        ui.notify(f'ERREUR Erreur connexion: {e}', type='warning')
+                        ui.notify(t('backends_notify_test_err', msg=str(e)), type='warning')
                 
                 with ui.row().classes('gap-2 mb-4'):
-                    ui.button('MAJ Rafraîchir modèles', on_click=refresh_ollama_models).classes('action-button')
-                    ui.button('TEST Tester connexion', on_click=test_ollama_connection).classes('action-button')
+                    ui.button(t('backends_btn_refresh_models'), on_click=refresh_ollama_models).classes('action-button')
+                    ui.button(t('backends_btn_test_connection'), on_click=test_ollama_connection).classes('action-button')
                 
                 # Paramètres spécifiques
                 ui.separator().classes('mb-2')
-                ui.label('Paramètres avancés').classes('text-sm font-semibold mb-2')
+                ui.label(t('backends_section_advanced')).classes('text-sm font-semibold mb-2')
                 timeout_input = ui.number(
-                    label='Timeout (secondes)', 
+                    label=t('backends_label_timeout'), 
                     value=ollama_config.get('timeout', 30),
                     min=5, max=300
                 ).classes('form-input mb-2')
@@ -2493,13 +2526,13 @@ def _open_other_backends_popup():
             """Interface spécialisée GGUF"""
             adaptive_container.clear()
             with adaptive_container:
-                ui.label('📄 Configuration GGUF').classes('text-md font-semibold mb-2')
+                ui.label(t('backends_gguf_title')).classes('text-md font-semibold mb-2')
                 
                 other_backends = sm.settings.get('other_backends', {})
                 gguf_config = other_backends.get('gguf', {})
                 
                 model_path_input = ui.input(
-                    label='Chemin vers fichier .gguf', 
+                    label=t('backends_gguf_path_label'), 
                     value=gguf_config.get('model_path', ''),
                     placeholder='C:/models/model.gguf'
                 ).classes('form-input mb-2 w-full')
@@ -2508,7 +2541,7 @@ def _open_other_backends_popup():
                 model_files_select = ui.select(
                     [],
                     value=gguf_config.get('selected_file', None),
-                    label='Fichiers .gguf trouvés'
+                    label=t('backends_gguf_files_label')
                 ).classes('form-select mb-2 w-full')
                 
                 async def browse_gguf_file():
@@ -2525,10 +2558,10 @@ def _open_other_backends_popup():
                             
                             # Ouvrir dialogue de sélection
                             file_path = filedialog.askopenfilename(
-                                title="Sélectionner un modèle GGUF",
+                                title=t('backends_gguf_dialog_title'),
                                 filetypes=[
-                                    ("Modèles GGUF", "*.gguf"),
-                                    ("Tous les fichiers", "*.*")
+                                    (t('backends_gguf_filetype_models'), "*.gguf"),
+                                    (t('backends_gguf_filetype_all'), "*.*")
                                 ],
                                 initialdir=gguf_config.get('model_path', 'C:\\')
                             )
@@ -2545,17 +2578,17 @@ def _open_other_backends_popup():
                                 import os
                                 file_size = os.path.getsize(file_path) / (1024**3)  # GB
                                 
-                                ui.notify(f'OK Modèle sélectionné: {os.path.basename(file_path)} ({file_size:.1f} GB)', type='positive')
+                                ui.notify(t('backends_gguf_notify_selected', name=os.path.basename(file_path), size=file_size), type='positive')
                             else:
-                                ui.notify('Aucun fichier sélectionné', type='info')
+                                ui.notify(t('backends_gguf_notify_no_file'), type='info')
                         
                         except ImportError:
                             # Fallback: scan automatique des dossiers communs
-                            ui.notify('RECHERCHE tkinter non disponible, scan automatique...', type='info')
+                            ui.notify(t('backends_gguf_notify_no_tk'), type='info')
                             await scan_common_directories()
                             
                     except Exception as e:
-                        ui.notify(f'ERREUR Erreur navigateur: {e}', type='warning')
+                        ui.notify(t('backends_gguf_notify_browse_err', msg=str(e)), type='warning')
                         # Fallback vers simulation en cas d'erreur
                         await scan_common_directories()
                 
@@ -2593,13 +2626,13 @@ def _open_other_backends_popup():
                                 model_files_select.value = found_models[0]
                                 model_path_input.value = found_models[0]
                             
-                            ui.notify(f'OK {len(found_models)} modèle(s) GGUF trouvé(s)', type='positive')
+                            ui.notify(t('backends_gguf_notify_scan_found', n=len(found_models)), type='positive')
                         else:
-                            ui.notify('ATTENTION Aucun modèle GGUF trouvé dans les dossiers communs', type='warning')
-                            ui.notify('IDEE Utilisez le bouton "📂 Ouvrir dossier" pour naviguer manuellement', type='info')
+                            ui.notify(t('backends_gguf_notify_scan_empty'), type='warning')
+                            ui.notify(t('backends_gguf_notify_scan_hint'), type='info')
                             
                     except Exception as e:
-                        ui.notify(f'ERREUR Erreur scan: {e}', type='warning')
+                        ui.notify(t('backends_gguf_notify_scan_err', msg=str(e)), type='warning')
                 
                 # Event handler sélection fichier
                 def _on_file_select():
@@ -2609,8 +2642,8 @@ def _open_other_backends_popup():
                 model_files_select.on('change', lambda: _on_file_select())
                 
                 with ui.row().classes('gap-2 mb-2'):
-                    ui.button('📁 Scanner modèles', on_click=browse_gguf_file).classes('action-button')
-                    ui.button('📂 Ouvrir dossier', on_click=lambda: open_file_explorer()).classes('action-button')
+                    ui.button(t('backends_gguf_btn_scan'), on_click=browse_gguf_file).classes('action-button')
+                    ui.button(t('backends_gguf_btn_open_folder'), on_click=lambda: open_file_explorer()).classes('action-button')
                 
                 def open_file_explorer():
                     """Ouvre l'explorateur de fichiers Windows"""
@@ -2635,25 +2668,25 @@ def _open_other_backends_popup():
                             folder_path = next((f for f in common_folders if os.path.exists(f)), "C:\\")
                         
                         subprocess.Popen(['explorer', folder_path])
-                        ui.notify(f'📂 Explorateur ouvert: {folder_path}', type='info')
+                        ui.notify(t('backends_gguf_notify_explorer', path=folder_path), type='info')
                         
                     except Exception as e:
-                        ui.notify(f'ERREUR Erreur ouverture explorateur: {e}', type='warning')
+                        ui.notify(t('backends_gguf_notify_explorer_err', msg=str(e)), type='warning')
                 
                 ui.separator().classes('mb-2')
-                ui.label('Paramètres GPU').classes('text-sm font-semibold mb-2')
+                ui.label(t('backends_gguf_section_gpu')).classes('text-sm font-semibold mb-2')
                 
                 gpu_layers_input = ui.number(
-                    label='GPU Layers (-1 = auto)', 
+                    label=t('backends_gguf_gpu_layers_label'), 
                     value=gguf_config.get('gpu_layers', -1),
                     min=-1, max=100
-                ).classes('form-input mb-2').tooltip('Couches déchargées sur GPU.\n0 = CPU pur (recommandé, sûr sur toutes les machines).\n-1 = toutes sur GPU.\n⚠️ RTX 50xx Blackwell : rester à 0 (CUDA non supporté par le build PyPI).')
+                ).classes('form-input mb-2').tooltip(t('backends_gguf_gpu_layers_tooltip'))
                 
                 context_size_input = ui.number(
-                    label='Context Size', 
+                    label=t('backends_gguf_ctx_label'), 
                     value=gguf_config.get('context_size', 4096),
                     min=512, max=32768
-                ).classes('form-input mb-2').tooltip('Fenêtre de tokens allouée en RAM au chargement du modèle (n_ctx).\nDétermine la mémoire consommée.\nEx : 7000 pour 4B Q4_K_M ≈ 1.2 GB.\n⚠️ max_tokens et context_length sont bornés à cette valeur.')
+                ).classes('form-input mb-2').tooltip(t('backends_gguf_ctx_tooltip'))
                 
                 # Sauvegarder références inputs
                 interface_data['gguf'] = {
@@ -2667,24 +2700,24 @@ def _open_other_backends_popup():
             """Interface spécialisée KoboldCpp"""
             adaptive_container.clear()
             with adaptive_container:
-                ui.label('🗡️ Configuration KoboldCpp').classes('text-md font-semibold mb-2')
+                ui.label(t('backends_kobold_title')).classes('text-md font-semibold mb-2')
                 
                 other_backends = sm.settings.get('other_backends', {})
                 kobold_config = other_backends.get('kobold', {})
                 
                 url_input = ui.input(
-                    label='URL KoboldCpp', 
+                    label=t('backends_kobold_url_label'), 
                     value=kobold_config.get('url', 'http://localhost:5001')
                 ).classes('form-input mb-2 w-full')
                 
                 model_select = ui.select(
-                    label='Modèle disponible sur le serveur',
+                    label=t('backends_kobold_model_label'),
                     options=[],
                     value=kobold_config.get('selected_model')
                 ).classes('form-input mb-2 w-full')
                 
-                ui.button('MAJ Actualiser modèles', on_click=lambda: refresh_kobold_models()).classes('btn-secondary mr-2')
-                ui.button('🔗 Tester connexion', on_click=lambda: test_backend_connection('kobold')).classes('btn-primary')
+                ui.button(t('backends_kobold_btn_refresh'), on_click=lambda: refresh_kobold_models()).classes('btn-secondary mr-2')
+                ui.button(t('backends_kobold_btn_test'), on_click=lambda: test_backend_connection('kobold')).classes('btn-primary')
                 
                 # Sauvegarder références inputs
                 interface_data['kobold'] = {
@@ -2694,17 +2727,17 @@ def _open_other_backends_popup():
                 
                 async def test_kobold_connection():
                     try:
-                        ui.notify(f'Test connexion KoboldCpp: {url_input.value}...', type='info')
+                        ui.notify(t('backends_kobold_notify_test', url=url_input.value), type='info')
                         # Simulation - à remplacer par vraie logique
-                        ui.notify('OK Connexion KoboldCpp réussie', type='positive')
+                        ui.notify(t('backends_kobold_notify_test_ok'), type='positive')
                     except Exception as e:
-                        ui.notify(f'ERREUR Erreur connexion: {e}', type='warning')
+                        ui.notify(t('backends_notify_test_err', msg=str(e)), type='warning')
                 
                 ui.separator().classes('mb-2')
-                ui.label('Paramètres génération').classes('text-sm font-semibold mb-2')
+                ui.label(t('backends_kobold_section_gen')).classes('text-sm font-semibold mb-2')
                 
                 max_length_input = ui.number(
-                    label='Longueur max réponse', 
+                    label=t('backends_kobold_max_length_label'), 
                     value=kobold_config.get('max_length', 512),
                     min=1, max=2048
                 ).classes('form-input mb-2')
@@ -2736,17 +2769,17 @@ def _open_other_backends_popup():
             """Interface pour rediriger vers la configuration API principale"""
             adaptive_container.clear()
             with adaptive_container:
-                ui.label('🌐 Configuration API').classes('text-md font-semibold mb-4')
-                ui.label('Pour configurer les APIs (OpenAI, Mistral, Anthropic, Google), utilisez le bouton "IA / Modèles" dans les paramètres principaux.').classes('text-muted mb-4')
+                ui.label(t('backends_api_title')).classes('text-md font-semibold mb-4')
+                ui.label(t('backends_api_redirect')).classes('text-muted mb-4')
                 ui.separator().classes('mb-4')
-                ui.label('Cette section est dédiée aux backends locaux (Ollama, GGUF, KoboldCpp).').classes('text-sm text-orange-400 mb-2')
-                ui.label('Sélectionnez un backend local ci-dessus pour le configurer.').classes('text-sm text-muted')
+                ui.label(t('backends_api_local_only')).classes('text-sm text-orange-400 mb-2')
+                ui.label(t('backends_api_select_hint')).classes('text-sm text-muted')
         
         def force_interface_update():
             """Force la mise à jour de l'interface manuellement"""
             print(f"[FACTORY] FORCE UPDATE: Backend sélectionné = {backend_select.value}")
             _update_interface()
-            ui.notify(f'Interface {backend_select.value} activée', type='positive')
+            ui.notify(t('backends_notify_interface_active', backend=backend_select.value), type='positive')
         
         # Event handler changement backend avec debug renforcé
         def _on_backend_change():
@@ -2779,7 +2812,7 @@ def _open_other_backends_popup():
                         'selected_model': ollama_data['model_select'].value or '',
                         'enabled': True
                     }
-                    ui.notify('OK Configuration Ollama sauvegardée', type='positive')
+                    ui.notify(t('backends_ollama_save_ok'), type='positive')
                     
                 elif backend == 'gguf' and 'gguf' in interface_data:
                     gguf_data = interface_data['gguf']
@@ -2790,7 +2823,7 @@ def _open_other_backends_popup():
                         'selected_model': gguf_data['model_files_select'].value or '',
                         'enabled': True
                     }
-                    ui.notify('OK Configuration GGUF sauvegardée', type='positive')
+                    ui.notify(t('backends_gguf_save_ok'), type='positive')
                     
                 elif backend == 'kobold' and 'kobold' in interface_data:
                     kobold_data = interface_data['kobold']
@@ -2799,7 +2832,7 @@ def _open_other_backends_popup():
                         'selected_model': kobold_data['model_select'].value or '',
                         'enabled': True
                     }
-                    ui.notify('OK Configuration KoboldCpp sauvegardée', type='positive')
+                    ui.notify(t('backends_kobold_save_ok'), type='positive')
                 
                 # Sauvegarder dans settings.json (section isolée)
                 sm.settings['other_backends'] = other_backends
@@ -2810,13 +2843,13 @@ def _open_other_backends_popup():
                 
             except Exception as e:
                 print(f"[OTHER-BACKENDS] Erreur sauvegarde: {e}")
-                ui.notify(f'ERREUR Erreur sauvegarde: {e}', type='warning')
+                ui.notify(t('backends_notify_save_err', msg=str(e)), type='warning')
         
         # Boutons popup
         ui.separator().classes('my-4')
         with ui.row().classes('justify-end gap-2 w-full'):
-            ui.button('Annuler', on_click=dialog.close).classes('action-button')
-            ui.button('💾 Sauvegarder', on_click=_save_other_backends).classes('send-button')
+            ui.button(t('modal_cancel'), on_click=dialog.close).classes('action-button')
+            ui.button(t('backends_btn_save'), on_click=_save_other_backends).classes('send-button')
     
     dialog.open()
 
@@ -2850,22 +2883,22 @@ def _models_modal():
     
     # Ajout de la classe ia-modal et largeur plafonnée pour éviter le grand espace à droite
     with dialog, ui.card().classes('popup-content q-dark ia-modal').style('background: var(--bg-secondary); color: var(--text-primary); height: 82vh; overflow-y: auto; width: min(92vw, 900px); margin: 0 auto;'):
-        ui.label('Modèles IA').classes('popup-title')
+        ui.label(t('models_modal_title')).classes('popup-title')
         tabs = ui.tabs().classes('mb-4')
         with tabs:
-            t_chat = ui.tab('Chat IA')
-            t_arch = ui.tab('Archiviste IA')
-            t_embed = ui.tab('Embeddings IA')
+            t_chat = ui.tab(t('models_tab_chat'))
+            t_arch = ui.tab(t('models_tab_arch'))
+            t_embed = ui.tab(t('models_tab_embed'))
 
         # Voyants d'état
         with ui.row().classes('items-center gap-4 mb-2'):
-            ui.label('État:').classes('text-muted')
+            ui.label(t('models_label_status')).classes('text-muted')
             chat_dot = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
-            ui.label('Chat').classes('text-sm')
+            ui.label(t('models_label_status_chat')).classes('text-sm')
             arch_dot = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
-            ui.label('Archiviste').classes('text-sm')
+            ui.label(t('models_label_status_arch')).classes('text-sm')
             emb_dot = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
-            ui.label('Embeddings').classes('text-sm')
+            ui.label(t('models_label_status_embed')).classes('text-sm')
 
         async def set_dot(el, ok: bool):
             try:
@@ -3172,11 +3205,11 @@ def _models_modal():
 
                 chat_backend_opts = ['API', 'Ollama', 'GGUF', 'KoboldCpp']
                 with ui.row().classes('items-center gap-2 mb-2 w-full'):
-                    chat_backend = ui.select(chat_backend_opts, value=detect_backend(chat), label='Backend').classes('form-select narrow-field').style('min-width: 200px; flex: 1;')
-                    ui.button('🔄', on_click=lambda: _refresh_chat_interface()).classes('action-button').style('min-width: 40px; height: 40px; flex-shrink: 0;').tooltip('Actualiser l\'interface selon le backend')
+                    chat_backend = ui.select(chat_backend_opts, value=detect_backend(chat), label=t('models_label_backend')).classes('form-select narrow-field').style('min-width: 200px; flex: 1;')
+                    ui.button('🔄', on_click=lambda: _refresh_chat_interface()).classes('action-button').style('min-width: 40px; height: 40px; flex-shrink: 0;').tooltip(t('models_tooltip_refresh_iface'))
 
                 with ui.row().classes('items-center gap-2 mb-2'):
-                    ui.label('Disponibilité').classes('text-sm text-muted')
+                    ui.label(t('models_label_availability')).classes('text-sm text-muted')
                     chat_dot_inline = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
 
                 # Zone API
@@ -3192,7 +3225,7 @@ def _models_modal():
                                 saved_key = get_api_key(provider)
                                 if saved_key:
                                     chat_api_key.value = saved_key
-                                    ui.notify(f'🔑 Clé {provider} chargée depuis le vault', type='info')
+                                    ui.notify(t('models_notify_vault_loaded', provider=provider), type='info')
                             # Recharger les modèles pour le nouveau provider
                             if provider and provider != 'Aucun':
                                 refresh_cb = _refresh_models_ui('chat', chat_backend, chat_provider, chat_model, chat_api_key)
@@ -3203,21 +3236,21 @@ def _models_modal():
                     chat_provider = ui.select(
                         chat_provider_opts,
                         value=_safe(chat.get('provider', 'Aucun'), chat_provider_opts),
-                        label='Provider API',
+                        label=t('models_label_provider'),
                         on_change=on_chat_provider_change
                     ).classes('form-select mb-2 narrow-field')
-                    chat_model = ui.select([], value=None, label='Modèle API').classes('form-select mb-2 narrow-field')
-                    chat_api_key = ui.input(label='Clé API', password=True, value=chat.get('api_key', '')).classes('form-input mb-2 narrow-field')
+                    chat_model = ui.select([], value=None, label=t('models_label_api_model')).classes('form-select mb-2 narrow-field')
+                    chat_api_key = ui.input(label=t('models_label_api_key'), password=True, value=chat.get('api_key', '')).classes('form-input mb-2 narrow-field')
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
-                        ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('chat', chat_backend, chat_provider, chat_model, chat_api_key)).classes('action-button')
-                        ui.button('Tester', on_click=_test_connection_ui('chat', chat_backend, chat_provider, chat_api_key)).classes('action-button')
+                        ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('chat', chat_backend, chat_provider, chat_model, chat_api_key)).classes('action-button')
+                        ui.button(t('models_btn_test'), on_click=_test_connection_ui('chat', chat_backend, chat_provider, chat_api_key)).classes('action-button')
                 with ui.column() as chat_ollama_zone:
-                    ui.label('🐙 Configuration Ollama').classes('text-md font-semibold mb-2')
+                    ui.label(t('models_section_ollama_config')).classes('text-md font-semibold mb-2')
                     
-                    chat_ollama_url = ui.input(label='URL Ollama', value=chat.get('ollama_url', 'http://localhost:11434')).classes('form-input mb-2 narrow-field')
+                    chat_ollama_url = ui.input(label=t('models_label_url_ollama'), value=chat.get('ollama_url', 'http://localhost:11434')).classes('form-input mb-2 narrow-field')
                     
                     # Sélecteur de modèles Ollama avec container pour status
-                    chat_ollama_model = ui.select([], value=None, label='Modèle Ollama').classes('form-select mb-2 narrow-field')
+                    chat_ollama_model = ui.select([], value=None, label=t('models_label_ollama_model')).classes('form-select mb-2 narrow-field')
                     chat_models_container = ui.column().classes('mb-2')
                     
                     async def refresh_chat_ollama_models():
@@ -3234,7 +3267,7 @@ def _models_modal():
                             
                             chat_models_container.clear()
                             with chat_models_container:
-                                ui.label('🔄 Rafraîchissement en cours...').classes('text-sm mb-2')
+                                ui.label(t('models_notify_ollama_refresh_progress')).classes('text-sm mb-2')
                             
                             if ollama_mgr.check_service():
                                 available_models = ollama_mgr.models
@@ -3254,57 +3287,57 @@ def _models_modal():
                             chat_models_container.clear()
                             with chat_models_container:
                                 if available_models:
-                                    ui.label(f'✅ {len(available_models)} modèles trouvés').classes('text-sm mb-2 text-green-500')
+                                    ui.label(t('models_notify_models_found', n=len(available_models))).classes('text-sm mb-2 text-green-500')
                                     for model in available_models:
                                         ui.label(f'• {model}').classes('text-sm text-muted pl-4')
                                 else:
-                                    ui.label('⚠️ Aucun modèle trouvé').classes('text-sm mb-2 text-orange-500')
-                                    ui.label('Vérifiez qu\'Ollama est démarré et contient des modèles').classes('text-sm text-muted')
+                                    ui.label(t('models_notify_models_none')).classes('text-sm mb-2 text-orange-500')
+                                    ui.label(t('models_notify_ollama_check')).classes('text-sm text-muted')
                             
                             if available_models:
-                                ui.notify('Modèles Ollama rafraîchis', type='positive')
+                                ui.notify(t('models_notify_ollama_refreshed'), type='positive')
                             else:
-                                ui.notify('Ollama indisponible ou sans modèles', type='warning')
+                                ui.notify(t('models_notify_ollama_unavailable'), type='warning')
                                 
                         except Exception as e:
                             chat_models_container.clear()
                             with chat_models_container:
-                                ui.label(f'❌ Erreur: {e}').classes('text-sm text-red-500')
-                            ui.notify(f'Erreur rafraîchissement: {e}', type='warning')
+                                ui.label(t('models_label_error', msg=str(e))).classes('text-sm text-red-500')
+                            ui.notify(t('models_notify_refresh_err', msg=str(e)), type='warning')
                     
                     async def test_chat_ollama_connection():
                         try:
-                            ui.notify(f'Test connexion Ollama: {chat_ollama_url.value}...', type='info')
+                            ui.notify(t('models_notify_test_progress', url=chat_ollama_url.value), type='info')
                             # TODO: vraie logique de test
-                            ui.notify('✅ Connexion Ollama réussie', type='positive')
+                            ui.notify(t('models_notify_test_ollama_ok'), type='positive')
                         except Exception as e:
-                            ui.notify(f'❌ Erreur connexion: {e}', type='warning')
+                            ui.notify(t('models_notify_connection_err', msg=str(e)), type='warning')
                     
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
-                        ui.button('🔄 Rafraîchir modèles', on_click=refresh_chat_ollama_models).classes('action-button')
-                        ui.button('🧪 Tester connexion', on_click=test_chat_ollama_connection).classes('action-button')
+                        ui.button(t('models_btn_refresh_models_emoji'), on_click=refresh_chat_ollama_models).classes('action-button')
+                        ui.button(t('models_btn_test_connection'), on_click=test_chat_ollama_connection).classes('action-button')
                     
                     # Paramètres avancés
                     ui.separator().classes('mb-2')
-                    ui.label('Paramètres avancés').classes('text-sm font-semibold mb-2')
+                    ui.label(t('models_label_advanced')).classes('text-sm font-semibold mb-2')
                     chat_ollama_timeout = ui.number(
-                        label='Timeout (secondes)', 
+                        label=t('models_label_timeout'), 
                         value=sm.settings.get('other_backends', {}).get('ollama', {}).get('timeout', 180),
                         min=5, max=600
-                    ).classes('form-input mb-2 narrow-field').tooltip('Délai max d\'attente pour une réponse Ollama.\n180s recommandé pour les modèles lourds.\nAugmenter si timeout fréquents sur gros modèles.')
+                    ).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_timeout'))
                     chat_ollama_low_vram = ui.checkbox(
-                        '🔋 Mode Low VRAM (décharger sur CPU)',
+                        t('models_label_low_vram'),
                         value=sm.settings.get('other_backends', {}).get('ollama', {}).get('low_vram', False)
-                    ).classes('mb-2').tooltip('Si activé, Ollama garde des couches du modèle en RAM CPU au lieu du GPU.\nDésactivé = tout sur le GPU (recommandé si le modèle rentre en VRAM).\n⚠️ Activer si erreur CUDA Out of Memory.')
+                    ).classes('mb-2').tooltip(t('models_tooltip_low_vram'))
                 with ui.column() as chat_gguf_zone:
-                    ui.label('📄 Configuration GGUF').classes('text-md font-semibold mb-2')
+                    ui.label(t('models_section_gguf_chat')).classes('text-md font-semibold mb-2')
                     
                     # Récupération config existante
                     gguf_config = sm.settings.get('other_backends', {}).get('gguf', {})
                     
                     with ui.row().classes('items-center gap-2 mb-2'):
                         chat_gguf_model_path = ui.input(
-                            label='Chemin vers fichier .gguf', 
+                            label=t('models_label_gguf_path'), 
                             value=gguf_config.get('model_path', ''),
                             placeholder='C:/models/model.gguf'
                         ).classes('form-input narrow-field').style('flex-grow: 1;')
@@ -3342,21 +3375,21 @@ def _models_modal():
                                         import os
                                         file_size = os.path.getsize(file_path) / (1024**3)  # GB
                                         
-                                        ui.notify(f'✅ Modèle sélectionné: {os.path.basename(file_path)} ({file_size:.1f} GB)', type='positive')
+                                        ui.notify(t('models_notify_gguf_selected', name=os.path.basename(file_path), size=file_size), type='positive')
                                     else:
-                                        ui.notify('Aucun fichier sélectionné', type='info')
+                                        ui.notify(t('models_notify_no_file'), type='info')
                                 
                                 except ImportError:
-                                    ui.notify('❌ tkinter non disponible', type='warning')
-                                    
+                                    ui.notify(t('models_notify_no_tk'), type='warning')
+                                
                             except Exception as e:
-                                ui.notify(f'❌ Erreur navigateur: {e}', type='warning')
+                                ui.notify(t('models_notify_browse_err', msg=str(e)), type='warning')
                         
-                        ui.button('Parcourir...', on_click=browse_gguf_file).classes('action-button')
+                        ui.button(t('models_btn_browse'), on_click=browse_gguf_file).classes('action-button')
                     
                     # Sélecteur de fichiers trouvés par scan
                     chat_gguf_model_files = ui.select(
-                        label='Modèles trouvés par scan',
+                        label=t('models_label_gguf_files_scan'),
                         options=[],
                         value=None
                     ).classes('form-select mb-2 narrow-field')
@@ -3423,10 +3456,10 @@ def _models_modal():
                                 folder_path = next((f for f in common_folders if os.path.exists(f)), "C:\\")
                             
                             subprocess.Popen(['explorer', folder_path])
-                            ui.notify(f'� Explorateur ouvert: {folder_path}', type='info')
+                            ui.notify(t('models_notify_explorer', path=folder_path), type='info')
                             
                         except Exception as e:
-                            ui.notify(f'❌ Erreur ouverture explorateur: {e}', type='warning')
+                            ui.notify(t('models_notify_explorer_err', msg=str(e)), type='warning')
                     
                     def _on_chat_gguf_file_select():
                         if chat_gguf_model_files.value:
@@ -3438,52 +3471,52 @@ def _models_modal():
                         try:
                             model_path = chat_gguf_model_path.value
                             if not model_path:
-                                ui.notify('⚠️ Aucun modèle spécifié', type='warning')
+                                ui.notify(t('models_notify_no_model'), type='warning')
                                 return
                             
-                            ui.notify(f'Test modèle GGUF: {model_path}...', type='info')
+                            ui.notify(t('models_notify_test_gguf', path=model_path), type='info')
                             # TODO: vraie logique de test
-                            ui.notify('✅ Modèle GGUF accessible', type='positive')
+                            ui.notify(t('models_notify_test_gguf_ok'), type='positive')
                         except Exception as e:
-                            ui.notify(f'❌ Erreur test GGUF: {e}', type='warning')
+                            ui.notify(t('models_notify_test_gguf_err', msg=str(e)), type='warning')
                     
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
-                        ui.button('📁 Scanner modèles', on_click=browse_chat_gguf_models).classes('action-button')
-                        ui.button('📂 Ouvrir dossier', on_click=open_chat_gguf_explorer).classes('action-button')
-                        ui.button('🧪 Tester modèle', on_click=test_chat_gguf_connection).classes('action-button')
+                        ui.button(t('models_btn_scan'), on_click=browse_chat_gguf_models).classes('action-button')
+                        ui.button(t('models_btn_open_folder'), on_click=open_chat_gguf_explorer).classes('action-button')
+                        ui.button(t('models_btn_test_model'), on_click=test_chat_gguf_connection).classes('action-button')
                     
                     # Paramètres GPU
                     ui.separator().classes('mb-2')
-                    ui.label('Paramètres GPU').classes('text-sm font-semibold mb-2')
+                    ui.label(t('models_label_gpu')).classes('text-sm font-semibold mb-2')
                     
                     chat_gguf_gpu_layers = ui.number(
-                        label='GPU Layers (-1 = auto)', 
+                        label=t('models_label_gpu_layers'), 
                         value=gguf_config.get('gpu_layers', -1),
                         min=-1, max=100
-                    ).classes('form-input mb-2 narrow-field').tooltip('Couches déchargées sur GPU.\n0 = CPU pur (recommandé, sûr sur toutes les machines).\n-1 = toutes sur GPU.\n⚠️ RTX 50xx Blackwell : rester à 0 (CUDA non supporté par le build PyPI).')
+                    ).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_gpu_layers'))
                     
                     chat_gguf_context_size = ui.number(
-                        label='Context Size', 
+                        label=t('models_label_ctx_size'), 
                         value=gguf_config.get('context_size', 4096),
                         min=512, max=32768
-                    ).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de tokens allouée en RAM au chargement du modèle (n_ctx).\nDétermine la mémoire consommée.\nEx : 7000 pour 4B Q4_K_M ≈ 1.2 GB.\n⚠️ max_tokens et context_length sont bornés à cette valeur.')
+                    ).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_ctx_size'))
                 with ui.column() as chat_kobold_zone:
-                    chat_kobold_url = ui.input(label='URL KoboldCpp', value=chat.get('kobold_url', 'http://localhost:5001')).classes('form-input mb-2 narrow-field')
-                    ui.label('KoboldCpp utilise le modèle chargé sur le serveur local').classes('text-sm mb-2')
-                    ui.button('Tester', on_click=_test_connection_ui('chat', chat_backend, None, None, service_url_input=lambda: chat_kobold_url)).classes('action-button mb-2')
+                    chat_kobold_url = ui.input(label=t('models_label_url_kobold'), value=chat.get('kobold_url', 'http://localhost:5001')).classes('form-input mb-2 narrow-field')
+                    ui.label(t('models_label_kobold_local')).classes('text-sm mb-2')
+                    ui.button(t('models_btn_test'), on_click=_test_connection_ui('chat', chat_backend, None, None, service_url_input=lambda: chat_kobold_url)).classes('action-button mb-2')
 
                 # Résoudre valeurs affichées : si -1, afficher la valeur réelle détectée
                 _chat_mt_raw = chat.get('max_tokens', 512)
                 _chat_mt_display = _chat_mt_raw
-                _chat_mt_label = 'max_tokens (-1 pour auto)'
+                _chat_mt_label = t('models_label_max_tokens')
                 
                 _chat_ctx_raw = chat.get('context_length', 4096)
                 _chat_ctx_display = _chat_ctx_raw
-                _chat_ctx_label = 'context_length (-1 pour auto)'
+                _chat_ctx_label = t('models_label_context_length')
                 
-                chat_max_tokens = ui.number(label=_chat_mt_label, value=_chat_mt_display).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés par réponse.\nDétecté automatiquement au démarrage si le modèle le permet.\nModifiable manuellement — la valeur sauvegardée sera utilisée.\nPour GGUF : plafonné à Context Size − 512.')
-                chat_ctx = ui.number(label=_chat_ctx_label, value=_chat_ctx_display).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte envoyée au modèle à chaque appel.\nDétectée automatiquement au démarrage (API ou Ollama /api/show).\nModifiable manuellement.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
-                chat_temp = ui.number(label='temperature', value=chat.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe et reproductible.\n0.7 = équilibré (défaut Chat).\n1.5+ = très créatif mais instable.')
+                chat_max_tokens = ui.number(label=_chat_mt_label, value=_chat_mt_display).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_max_tokens'))
+                chat_ctx = ui.number(label=_chat_ctx_label, value=_chat_ctx_display).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_context_length'))
+                chat_temp = ui.number(label=t('models_label_temperature'), value=chat.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_temperature_chat'))
 
                 # Bouton valeurs optimales (adaptatif selon backend)
                 chat_optimal_label = ui.label('').classes('text-xs text-muted mb-1')
@@ -3502,28 +3535,25 @@ def _models_modal():
                         'gguf_gpu': chat_gguf_gpu_layers if backend == 'GGUF' else None,
                     }
                     _apply_optimal_values(backend, section, fields)
-                ui.button('Valeurs optimales (hardware)', icon='auto_fix_high', on_click=_apply_chat_optimal).classes('action-button mb-2').tooltip('Calcule et applique les valeurs optimales selon le backend selectionne :\n- Ollama/GGUF : calcul hardware (RAM/VRAM) via specs du modele\n- API : remet -1 (le provider gere ses limites)\nVos specs hardware sont dans Profil > Caracteristiques Hardware.\nVous pouvez modifier les valeurs manuellement apres.')
+                ui.button(t('models_btn_optimal'), icon='auto_fix_high', on_click=_apply_chat_optimal).classes('action-button mb-2').tooltip(t('models_tooltip_optimal'))
 
                 with ui.column().classes('gap-1 mb-2') as chat_thinking_row:
                     with ui.row().classes('items-center gap-2'):
-                        chat_thinking = ui.checkbox('🧠 Mode Thinking (raisonnement interne)', value=chat.get('openrouter_thinking', False))
-                        ui.label('Gemini 3, qwen3, deepseek-r1, o1...').classes('text-xs text-muted')
+                        chat_thinking = ui.checkbox(t('models_label_thinking'), value=chat.get('openrouter_thinking', False))
+                        ui.label(t('models_label_thinking_models')).classes('text-xs text-muted')
                     ui.label(
-                        '⚠️ Gemini 3.1 et Gemini 2.0 Flash Thinking pensent toujours en interne '
-                        '(pas de contrôle possible). Gemini 2.5 pense toujours mais cette option '
-                        'expose son raisonnement dans la boîte thinking. DeepSeek-R1 pense toujours aussi. '
-                        'Budget tokens auto x8 pour ces modèles.'
+                        t('models_label_thinking_warning')
                     ).classes('text-xs text-warning').style('color: #e6a23c; line-height: 1.3; padding-left: 4px;')
 
                 def _refresh_chat_interface():
                     """Force la mise à jour de l'interface Chat selon le backend sélectionné"""
                     backend = chat_backend.value
-                    ui.notify(f'🔄 Actualisation interface {backend}...', type='info')
+                    ui.notify(t('models_notify_iface_refresh', backend=backend), type='info')
                     
                     # Appliquer la visibilité selon le backend
                     _bind_chat_visibility()
                     
-                    ui.notify(f'✅ Interface {backend} activée', type='positive')
+                    ui.notify(t('models_notify_iface_active', backend=backend), type='positive')
 
                 def _bind_chat_visibility(reload_models=False):
                     chat_api_zone.visible = (chat_backend.value == 'API')
@@ -3581,11 +3611,11 @@ def _models_modal():
 
                 arch_backend_opts = ['API', 'Ollama', 'GGUF', 'KoboldCpp']
                 with ui.row().classes('items-center gap-2 mb-2 w-full'):
-                    arch_backend = ui.select(arch_backend_opts, value=detect_backend(arch), label='Backend').classes('form-select narrow-field').style('min-width: 200px; flex: 1;')
-                    ui.button('🔄', on_click=lambda: _refresh_arch_interface()).classes('action-button').style('min-width: 40px; height: 40px; flex-shrink: 0;').tooltip('Actualiser l\'interface selon le backend')
+                    arch_backend = ui.select(arch_backend_opts, value=detect_backend(arch), label=t('models_label_backend')).classes('form-select narrow-field').style('min-width: 200px; flex: 1;')
+                    ui.button('🔄', on_click=lambda: _refresh_arch_interface()).classes('action-button').style('min-width: 40px; height: 40px; flex-shrink: 0;').tooltip(t('models_tooltip_refresh_iface'))
 
                 with ui.row().classes('items-center gap-2 mb-2'):
-                    ui.label('Disponibilité').classes('text-sm text-muted')
+                    ui.label(t('models_label_availability')).classes('text-sm text-muted')
                     arch_dot_inline = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
 
                 with ui.column() as arch_api_zone:
@@ -3600,7 +3630,7 @@ def _models_modal():
                                 saved_key = get_api_key(provider)
                                 if saved_key:
                                     arch_api_key.value = saved_key
-                                    ui.notify(f'🔑 Clé {provider} chargée depuis le vault', type='info')
+                                    ui.notify(t('models_notify_vault_loaded', provider=provider), type='info')
                             # Recharger les modèles pour le nouveau provider
                             if provider and provider != 'Aucun':
                                 refresh_cb = _refresh_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key)
@@ -3611,33 +3641,33 @@ def _models_modal():
                     arch_provider = ui.select(
                         arch_provider_opts,
                         value=_safe(arch.get('provider', 'Aucun'), arch_provider_opts),
-                        label='Provider API',
+                        label=t('models_label_provider'),
                         on_change=on_arch_provider_change
                     ).classes('form-select mb-2 narrow-field')
-                    arch_model = ui.select([], value=None, label='Modèle API').classes('form-select mb-2 narrow-field')
-                    arch_api_key = ui.input(label='Clé API', password=True, value=arch.get('api_key', '')).classes('form-input mb-2 narrow-field')
+                    arch_model = ui.select([], value=None, label=t('models_label_api_model')).classes('form-select mb-2 narrow-field')
+                    arch_api_key = ui.input(label=t('models_label_api_key'), password=True, value=arch.get('api_key', '')).classes('form-input mb-2 narrow-field')
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
-                        ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key)).classes('action-button')
-                        ui.button('Tester', on_click=_test_connection_ui('arch', arch_backend, arch_provider, arch_api_key)).classes('action-button')
+                        ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key)).classes('action-button')
+                        ui.button(t('models_btn_test'), on_click=_test_connection_ui('arch', arch_backend, arch_provider, arch_api_key)).classes('action-button')
                 with ui.column() as arch_ollama_zone:
-                    arch_ollama_url = ui.input(label='URL Ollama', value=arch.get('ollama_url', 'http://localhost:11434')).classes('form-input mb-2 narrow-field')
-                    arch_ollama_model = ui.select([], value=None, label='Modèle Ollama').classes('form-select mb-2 narrow-field')
+                    arch_ollama_url = ui.input(label=t('models_label_url_ollama'), value=arch.get('ollama_url', 'http://localhost:11434')).classes('form-input mb-2 narrow-field')
+                    arch_ollama_model = ui.select([], value=None, label=t('models_label_ollama_model')).classes('form-select mb-2 narrow-field')
                     arch_ollama_timeout = ui.number(
-                        label='Timeout (secondes)',
+                        label=t('models_label_timeout'),
                         value=sm.settings.get('other_backends', {}).get('ollama', {}).get('timeout', 180),
                         min=5, max=600
-                    ).classes('form-input mb-2 narrow-field').tooltip('Délai max d\'attente pour une réponse Ollama.\n180s recommandé pour les modèles lourds.')
+                    ).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_timeout_short'))
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
-                        ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('arch', arch_backend, None, arch_ollama_model, None, service_url_input=lambda: arch_ollama_url)).classes('action-button')
-                        ui.button('Tester', on_click=_test_connection_ui('arch', arch_backend, None, None, service_url_input=lambda: arch_ollama_url)).classes('action-button')
+                        ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('arch', arch_backend, None, arch_ollama_model, None, service_url_input=lambda: arch_ollama_url)).classes('action-button')
+                        ui.button(t('models_btn_test'), on_click=_test_connection_ui('arch', arch_backend, None, None, service_url_input=lambda: arch_ollama_url)).classes('action-button')
                 with ui.column() as arch_gguf_zone:
-                    ui.label('📄 Configuration GGUF Archiviste').classes('text-md font-semibold mb-2')
+                    ui.label(t('models_section_gguf_arch')).classes('text-md font-semibold mb-2')
                     
                     other_backends = sm.settings.get('other_backends', {})
                     gguf_config = other_backends.get('gguf', {})
                     
                     arch_gguf_model_path = ui.input(
-                        label='Chemin vers fichier .gguf', 
+                        label=t('models_label_gguf_path'), 
                         value=gguf_config.get('model_path', ''),
                         placeholder='C:/models/model.gguf'
                     ).classes('form-input mb-2 w-full')
@@ -3645,7 +3675,7 @@ def _models_modal():
                     arch_gguf_model_files = ui.select(
                         [],
                         value=None,  # On assignera la valeur après avoir rempli les options
-                        label='Fichiers .gguf trouvés'
+                        label=t('models_label_gguf_files')
                     ).classes('form-select mb-2 w-full')
                     
                     # Assigner la valeur après initialisation si elle existe
@@ -3665,10 +3695,10 @@ def _models_modal():
                                 root.attributes('-topmost', True)
                                 
                                 file_path = filedialog.askopenfilename(
-                                    title="Sélectionner un modèle GGUF pour Archiviste",
+                                    title=t('models_gguf_dialog_title_arch'),
                                     filetypes=[
-                                        ("Modèles GGUF", "*.gguf"),
-                                        ("Tous les fichiers", "*.*")
+                                        (t('models_gguf_filetype_models'), "*.gguf"),
+                                        (t('models_gguf_filetype_all'), "*.*")
                                     ],
                                     initialdir=gguf_config.get('model_path', 'C:\\')
                                 )
@@ -3683,16 +3713,16 @@ def _models_modal():
                                     import os
                                     file_size = os.path.getsize(file_path) / (1024**3)
                                     
-                                    ui.notify(f'✅ Modèle Archiviste sélectionné: {os.path.basename(file_path)} ({file_size:.1f} GB)', type='positive')
+                                    ui.notify(t('models_notify_gguf_selected_arch', name=os.path.basename(file_path), size=file_size), type='positive')
                                 else:
-                                    ui.notify('Aucun fichier sélectionné', type='info')
+                                    ui.notify(t('models_notify_no_file'), type='info')
                             
                             except ImportError:
                                 ui.notify('🔍 tkinter non disponible, scan automatique...', type='info')
                                 await scan_arch_common_directories()
                                 
                         except Exception as e:
-                            ui.notify(f'❌ Erreur navigateur: {e}', type='warning')
+                            ui.notify(t('models_notify_browse_err', msg=str(e)), type='warning')
                             await scan_arch_common_directories()
                     
                     async def scan_arch_common_directories():
@@ -3726,12 +3756,12 @@ def _models_modal():
                                     arch_gguf_model_files.value = found_models[0]
                                     arch_gguf_model_path.value = found_models[0]
                                 
-                                ui.notify(f'✅ {len(found_models)} modèle(s) GGUF trouvé(s) pour Archiviste', type='positive')
+                                ui.notify(t('models_notify_scan_found_arch', n=len(found_models)), type='positive')
                             else:
-                                ui.notify('⚠️ Aucun modèle GGUF trouvé dans les dossiers communs', type='warning')
+                                ui.notify(t('models_notify_scan_empty'), type='warning')
                                 
                         except Exception as e:
-                            ui.notify(f'❌ Erreur scan: {e}', type='warning')
+                            ui.notify(t('models_notify_scan_err', msg=str(e)), type='warning')
                     
                     def _on_arch_file_select():
                         if arch_gguf_model_files.value:
@@ -3740,8 +3770,8 @@ def _models_modal():
                     arch_gguf_model_files.on('change', lambda: _on_arch_file_select())
                     
                     with ui.row().classes('gap-2 mb-2'):
-                        ui.button('📁 Scanner modèles', on_click=browse_arch_gguf_file).classes('action-button')
-                        ui.button('📂 Ouvrir dossier', on_click=lambda: open_arch_file_explorer()).classes('action-button')
+                        ui.button(t('models_btn_scan'), on_click=browse_arch_gguf_file).classes('action-button')
+                        ui.button(t('models_btn_open_folder'), on_click=lambda: open_arch_file_explorer()).classes('action-button')
                     
                     def open_arch_file_explorer():
                         try:
@@ -3763,46 +3793,46 @@ def _models_modal():
                                 folder_path = next((f for f in common_folders if os.path.exists(f)), "C:\\\\")
                             
                             subprocess.Popen(['explorer', folder_path])
-                            ui.notify(f'📂 Explorateur ouvert: {folder_path}', type='info')
+                            ui.notify(t('models_notify_explorer', path=folder_path), type='info')
                             
                         except Exception as e:
-                            ui.notify(f'❌ Erreur ouverture explorateur: {e}', type='warning')
+                            ui.notify(t('models_notify_explorer_err', msg=str(e)), type='warning')
                     
                     ui.separator().classes('mb-2')
-                    ui.label('Paramètres GPU Archiviste').classes('text-sm font-semibold mb-2')
+                    ui.label(t('models_label_gpu_arch')).classes('text-sm font-semibold mb-2')
                     
                     arch_gguf_gpu_layers = ui.number(
-                        label='GPU Layers (-1 = auto)', 
+                        label=t('models_label_gpu_layers'), 
                         value=gguf_config.get('gpu_layers', -1),
                         min=-1, max=100
-                    ).classes('form-input mb-2').tooltip('Couches déchargées sur GPU.\n0 = CPU pur (recommandé, sûr sur toutes les machines).\n-1 = toutes sur GPU.\n⚠️ RTX 50xx Blackwell : rester à 0 (CUDA non supporté par le build PyPI).')
+                    ).classes('form-input mb-2').tooltip(t('models_tooltip_gpu_layers'))
                     
                     arch_gguf_context_size = ui.number(
-                        label='Context Size', 
+                        label=t('models_label_ctx_size'), 
                         value=gguf_config.get('context_size', 4096),
                         min=512, max=32768
-                    ).classes('form-input mb-2').tooltip('Fenêtre de tokens allouée en RAM au chargement du modèle (n_ctx).\nEx : 7000 pour 4B Q4_K_M ≈ 1.2 GB.\n⚠️ max_tokens et context_length sont bornés à cette valeur.')
+                    ).classes('form-input mb-2').tooltip(t('models_tooltip_ctx_size_short'))
                     
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
-                        ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('arch', arch_backend, None, arch_gguf_model_files, None)).classes('action-button')
-                        ui.button('Tester', on_click=_test_connection_ui('arch', arch_backend, None, None)).classes('action-button')
+                        ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('arch', arch_backend, None, arch_gguf_model_files, None)).classes('action-button')
+                        ui.button(t('models_btn_test'), on_click=_test_connection_ui('arch', arch_backend, None, None)).classes('action-button')
                 with ui.column() as arch_kobold_zone:
-                    arch_kobold_url = ui.input(label='URL KoboldCpp', value=arch.get('kobold_url', 'http://localhost:5001')).classes('form-input mb-2 narrow-field')
-                    ui.label('KoboldCpp utilise le modèle chargé sur le serveur local').classes('text-sm mb-2')
-                    ui.button('Tester', on_click=_test_connection_ui('arch', arch_backend, None, None, service_url_input=lambda: arch_kobold_url)).classes('action-button mb-2')
+                    arch_kobold_url = ui.input(label=t('models_label_url_kobold'), value=arch.get('kobold_url', 'http://localhost:5001')).classes('form-input mb-2 narrow-field')
+                    ui.label(t('models_label_kobold_local')).classes('text-sm mb-2')
+                    ui.button(t('models_btn_test'), on_click=_test_connection_ui('arch', arch_backend, None, None, service_url_input=lambda: arch_kobold_url)).classes('action-button mb-2')
 
                 # Résoudre valeurs affichées Archiviste
                 _arch_mt_raw = arch.get('max_tokens', 512)
                 _arch_mt_display = _arch_mt_raw
-                _arch_mt_label = 'max_tokens (-1 pour auto)'
+                _arch_mt_label = t('models_label_max_tokens')
                 
                 _arch_ctx_raw = arch.get('context_length', 4096)
                 _arch_ctx_display = _arch_ctx_raw
-                _arch_ctx_label = 'context_length (-1 pour auto)'
+                _arch_ctx_label = t('models_label_context_length')
                 
-                arch_max_tokens = ui.number(label=_arch_mt_label, value=_arch_mt_display).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés par réponse.\nDétecté automatiquement au démarrage si le modèle le permet.\nModifiable manuellement — la valeur sauvegardée sera utilisée.\nPour GGUF : plafonné à Context Size − 512.')
-                arch_ctx = ui.number(label=_arch_ctx_label, value=_arch_ctx_display).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte envoyée au modèle à chaque appel.\nDétectée automatiquement au démarrage (API ou Ollama /api/show).\nModifiable manuellement.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
-                arch_temp = ui.number(label='temperature', value=arch.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe. 0.3 = analytique (défaut Archiviste). 0.7 = équilibré.')
+                arch_max_tokens = ui.number(label=_arch_mt_label, value=_arch_mt_display).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_max_tokens'))
+                arch_ctx = ui.number(label=_arch_ctx_label, value=_arch_ctx_display).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_context_length'))
+                arch_temp = ui.number(label=t('models_label_temperature'), value=arch.get('temperature', 0.7), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_temperature_arch'))
 
                 # Bouton valeurs optimales (adaptatif selon backend)
                 arch_optimal_label = ui.label('').classes('text-xs text-muted mb-1')
@@ -3821,17 +3851,17 @@ def _models_modal():
                         'gguf_gpu': arch_gguf_gpu_layers if backend == 'GGUF' else None,
                     }
                     _apply_optimal_values(backend, section, fields)
-                ui.button('Valeurs optimales (hardware)', icon='auto_fix_high', on_click=_apply_arch_optimal).classes('action-button mb-2').tooltip('Calcule et applique les valeurs optimales selon le backend selectionne :\n- Ollama/GGUF : calcul hardware (RAM/VRAM) via specs du modele\n- API : remet -1 (le provider gere ses limites)\nVos specs hardware sont dans Profil > Caracteristiques Hardware.')
+                ui.button(t('models_btn_optimal'), icon='auto_fix_high', on_click=_apply_arch_optimal).classes('action-button mb-2').tooltip(t('models_tooltip_optimal_short'))
 
                 def _refresh_arch_interface():
                     """Force la mise à jour de l'interface Archiviste selon le backend sélectionné"""
                     backend = arch_backend.value
-                    ui.notify(f'🔄 Actualisation interface {backend}...', type='info')
+                    ui.notify(t('models_notify_iface_refresh', backend=backend), type='info')
                     
                     # Appliquer la visibilité selon le backend
                     _bind_arch_visibility()
                     
-                    ui.notify(f'✅ Interface {backend} activée', type='positive')
+                    ui.notify(t('models_notify_iface_active', backend=backend), type='positive')
 
                 def _bind_arch_visibility(reload_models=False):
                     arch_api_zone.visible = (arch_backend.value == 'API')
@@ -3886,11 +3916,11 @@ def _models_modal():
 
                 emb_backend_opts = ['API', 'Ollama', 'GGUF']
                 with ui.row().classes('items-center gap-2 mb-2 w-full'):
-                    emb_backend = ui.select(emb_backend_opts, value=detect_embed_backend(emb), label='Backend').classes('form-select narrow-field').style('min-width: 200px; flex: 1;')
-                    ui.button('🔄', on_click=lambda: _refresh_embed_interface()).classes('action-button').style('min-width: 40px; height: 40px; flex-shrink: 0;').tooltip('Actualiser l\'interface selon le backend')
+                    emb_backend = ui.select(emb_backend_opts, value=detect_embed_backend(emb), label=t('models_label_backend')).classes('form-select narrow-field').style('min-width: 200px; flex: 1;')
+                    ui.button('🔄', on_click=lambda: _refresh_embed_interface()).classes('action-button').style('min-width: 40px; height: 40px; flex-shrink: 0;').tooltip(t('models_tooltip_refresh_iface'))
 
                 with ui.row().classes('items-center gap-2 mb-2'):
-                    ui.label('Disponibilité').classes('text-sm text-muted')
+                    ui.label(t('models_label_availability')).classes('text-sm text-muted')
                     emb_dot_inline = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
 
                 with ui.column() as emb_api_zone:
@@ -3905,7 +3935,7 @@ def _models_modal():
                                 saved_key = get_api_key(provider)
                                 if saved_key:
                                     emb_api_key.value = saved_key
-                                    ui.notify(f'🔑 Clé {provider} chargée depuis le vault', type='info')
+                                    ui.notify(t('models_notify_vault_loaded', provider=provider), type='info')
                             # Recharger les modèles pour le nouveau provider
                             if provider and provider != 'Aucun':
                                 refresh_cb = _refresh_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key)
@@ -3916,33 +3946,33 @@ def _models_modal():
                     emb_provider = ui.select(
                         emb_provider_opts,
                         value=_safe(emb.get('provider', 'Aucun'), emb_provider_opts),
-                        label='Provider API',
+                        label=t('models_label_provider'),
                         on_change=on_emb_provider_change
                     ).classes('form-select mb-2 narrow-field')
-                    emb_model = ui.select([], value=None, label="Modèle d'embeddings").classes('form-select mb-2 narrow-field')
-                    emb_api_key = ui.input(label='Clé API', password=True, value=emb.get('api_key', '')).classes('form-input mb-2 narrow-field')
+                    emb_model = ui.select([], value=None, label=t('models_label_embed_model')).classes('form-select mb-2 narrow-field')
+                    emb_api_key = ui.input(label=t('models_label_api_key'), password=True, value=emb.get('api_key', '')).classes('form-input mb-2 narrow-field')
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
-                        ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key)).classes('action-button')
-                        ui.button('Tester', on_click=_test_connection_ui('embed', emb_backend, emb_provider, emb_api_key)).classes('action-button')
+                        ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key)).classes('action-button')
+                        ui.button(t('models_btn_test'), on_click=_test_connection_ui('embed', emb_backend, emb_provider, emb_api_key)).classes('action-button')
                 with ui.column() as emb_ollama_zone:
-                    emb_ollama_url = ui.input(label='URL Ollama', value=emb.get('ollama_url', 'http://localhost:11434')).classes('form-input mb-2 narrow-field')
-                    emb_ollama_model = ui.select([], value=None, label='Modèle Ollama').classes('form-select mb-2 narrow-field')
+                    emb_ollama_url = ui.input(label=t('models_label_url_ollama'), value=emb.get('ollama_url', 'http://localhost:11434')).classes('form-input mb-2 narrow-field')
+                    emb_ollama_model = ui.select([], value=None, label=t('models_label_ollama_model')).classes('form-select mb-2 narrow-field')
                     emb_ollama_timeout = ui.number(
-                        label='Timeout (secondes)',
+                        label=t('models_label_timeout'),
                         value=sm.settings.get('other_backends', {}).get('ollama', {}).get('timeout', 180),
                         min=5, max=600
-                    ).classes('form-input mb-2 narrow-field').tooltip('Délai max d\'attente pour une réponse Ollama.\n180s recommandé pour les modèles lourds.')
+                    ).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_timeout_short'))
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
-                        ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('embed', emb_backend, None, emb_ollama_model, None, service_url_input=lambda: emb_ollama_url)).classes('action-button')
-                        ui.button('Tester', on_click=_test_connection_ui('embed', emb_backend, None, None, service_url_input=lambda: emb_ollama_url)).classes('action-button')
+                        ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('embed', emb_backend, None, emb_ollama_model, None, service_url_input=lambda: emb_ollama_url)).classes('action-button')
+                        ui.button(t('models_btn_test'), on_click=_test_connection_ui('embed', emb_backend, None, None, service_url_input=lambda: emb_ollama_url)).classes('action-button')
                 with ui.column() as emb_gguf_zone:
-                    ui.label('📄 Configuration GGUF Embedding').classes('text-md font-semibold mb-2')
+                    ui.label(t('models_section_gguf_embed')).classes('text-md font-semibold mb-2')
                     
                     other_backends = sm.settings.get('other_backends', {})
                     gguf_config = other_backends.get('gguf', {})
                     
                     emb_gguf_model_path = ui.input(
-                        label='Chemin vers fichier .gguf', 
+                        label=t('models_label_gguf_path'), 
                         value=gguf_config.get('model_path', ''),
                         placeholder='C:/models/model.gguf'
                     ).classes('form-input mb-2 w-full')
@@ -3950,7 +3980,7 @@ def _models_modal():
                     emb_gguf_model_files = ui.select(
                         [],
                         value=None,  # On assignera la valeur après avoir rempli les options
-                        label='Fichiers .gguf trouvés'
+                        label=t('models_label_gguf_files')
                     ).classes('form-select mb-2 w-full')
                     
                     # Assigner la valeur après initialisation si elle existe
@@ -3970,10 +4000,10 @@ def _models_modal():
                                 root.attributes('-topmost', True)
                                 
                                 file_path = filedialog.askopenfilename(
-                                    title="Sélectionner un modèle GGUF pour Embedding",
+                                    title=t('models_gguf_dialog_title_embed'),
                                     filetypes=[
-                                        ("Modèles GGUF", "*.gguf"),
-                                        ("Tous les fichiers", "*.*")
+                                        (t('models_gguf_filetype_models'), "*.gguf"),
+                                        (t('models_gguf_filetype_all'), "*.*")
                                     ],
                                     initialdir=gguf_config.get('model_path', 'C:\\')
                                 )
@@ -3988,16 +4018,16 @@ def _models_modal():
                                     import os
                                     file_size = os.path.getsize(file_path) / (1024**3)
                                     
-                                    ui.notify(f'✅ Modèle Embedding sélectionné: {os.path.basename(file_path)} ({file_size:.1f} GB)', type='positive')
+                                    ui.notify(t('models_notify_gguf_selected_embed', name=os.path.basename(file_path), size=file_size), type='positive')
                                 else:
-                                    ui.notify('Aucun fichier sélectionné', type='info')
+                                    ui.notify(t('models_notify_no_file'), type='info')
                             
                             except ImportError:
                                 ui.notify('🔍 tkinter non disponible, scan automatique...', type='info')
                                 await scan_emb_common_directories()
                                 
                         except Exception as e:
-                            ui.notify(f'❌ Erreur navigateur: {e}', type='warning')
+                            ui.notify(t('models_notify_browse_err', msg=str(e)), type='warning')
                             await scan_emb_common_directories()
                     
                     async def scan_emb_common_directories():
@@ -4031,12 +4061,12 @@ def _models_modal():
                                     emb_gguf_model_files.value = found_models[0]
                                     emb_gguf_model_path.value = found_models[0]
                                 
-                                ui.notify(f'✅ {len(found_models)} modèle(s) GGUF trouvé(s) pour Embedding', type='positive')
+                                ui.notify(t('models_notify_scan_found_embed', n=len(found_models)), type='positive')
                             else:
-                                ui.notify('⚠️ Aucun modèle GGUF trouvé dans les dossiers communs', type='warning')
+                                ui.notify(t('models_notify_scan_empty'), type='warning')
                                 
                         except Exception as e:
-                            ui.notify(f'❌ Erreur scan: {e}', type='warning')
+                            ui.notify(t('models_notify_scan_err', msg=str(e)), type='warning')
                     
                     def _on_emb_file_select():
                         if emb_gguf_model_files.value:
@@ -4045,8 +4075,8 @@ def _models_modal():
                     emb_gguf_model_files.on('change', lambda: _on_emb_file_select())
                     
                     with ui.row().classes('gap-2 mb-2'):
-                        ui.button('📁 Scanner modèles', on_click=browse_emb_gguf_file).classes('action-button')
-                        ui.button('📂 Ouvrir dossier', on_click=lambda: open_emb_file_explorer()).classes('action-button')
+                        ui.button(t('models_btn_scan'), on_click=browse_emb_gguf_file).classes('action-button')
+                        ui.button(t('models_btn_open_folder'), on_click=lambda: open_emb_file_explorer()).classes('action-button')
                     
                     def open_emb_file_explorer():
                         try:
@@ -4068,56 +4098,56 @@ def _models_modal():
                                 folder_path = next((f for f in common_folders if os.path.exists(f)), "C:\\\\")
                             
                             subprocess.Popen(['explorer', folder_path])
-                            ui.notify(f'📂 Explorateur ouvert: {folder_path}', type='info')
+                            ui.notify(t('models_notify_explorer', path=folder_path), type='info')
                             
                         except Exception as e:
-                            ui.notify(f'❌ Erreur ouverture explorateur: {e}', type='warning')
+                            ui.notify(t('models_notify_explorer_err', msg=str(e)), type='warning')
                     
                     ui.separator().classes('mb-2')
-                    ui.label('Paramètres GPU Embedding').classes('text-sm font-semibold mb-2')
+                    ui.label(t('models_label_gpu_embed')).classes('text-sm font-semibold mb-2')
                     
                     emb_gguf_gpu_layers = ui.number(
-                        label='GPU Layers (-1 = auto)', 
+                        label=t('models_label_gpu_layers'), 
                         value=gguf_config.get('gpu_layers', -1),
                         min=-1, max=100
-                    ).classes('form-input mb-2').tooltip('Couches déchargées sur GPU.\n0 = CPU pur (recommandé, sûr sur toutes les machines).\n-1 = toutes sur GPU.\n⚠️ RTX 50xx Blackwell : rester à 0 (CUDA non supporté par le build PyPI).')
+                    ).classes('form-input mb-2').tooltip(t('models_tooltip_gpu_layers'))
                     
                     emb_gguf_context_size = ui.number(
-                        label='Context Size', 
+                        label=t('models_label_ctx_size'), 
                         value=gguf_config.get('context_size', 4096),
                         min=512, max=32768
-                    ).classes('form-input mb-2').tooltip('Fenêtre de tokens allouée en RAM au chargement du modèle (n_ctx).\nEx : 7000 pour 4B Q4_K_M ≈ 1.2 GB.\n⚠️ max_tokens et context_length sont bornés à cette valeur.')
+                    ).classes('form-input mb-2').tooltip(t('models_tooltip_ctx_size_short'))
                     
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
-                        ui.button('Rafraîchir modèles', on_click=_refresh_models_ui('embed', emb_backend, None, emb_gguf_model_files, None)).classes('action-button')
-                        ui.button('Tester', on_click=_test_connection_ui('embed', emb_backend, None, None)).classes('action-button')
+                        ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('embed', emb_backend, None, emb_gguf_model_files, None)).classes('action-button')
+                        ui.button(t('models_btn_test'), on_click=_test_connection_ui('embed', emb_backend, None, None)).classes('action-button')
 
                 # Paramètres avancés Embedding
                 ui.separator().classes('mb-2')
-                ui.label('Paramètres avancés Embedding').classes('text-sm font-semibold mb-2')
+                ui.label(t('models_label_advanced_embed')).classes('text-sm font-semibold mb-2')
                 
                 # Résoudre valeurs affichées Embedding
                 _emb_mt_raw = emb.get('max_tokens', 512)
                 _emb_mt_display = _emb_mt_raw
-                _emb_mt_label = 'max_tokens (-1 pour auto)'
+                _emb_mt_label = t('models_label_max_tokens')
                 
                 _emb_ctx_raw = emb.get('context_length', 4096)
                 _emb_ctx_display = _emb_ctx_raw
-                _emb_ctx_label = 'context_length (-1 pour auto)'
+                _emb_ctx_label = t('models_label_context_length')
                 
-                emb_max_tokens = ui.number(label=_emb_mt_label, value=_emb_mt_display).classes('form-input mb-2 narrow-field').tooltip('Nombre max de tokens générés.\nDétecté automatiquement au démarrage si le modèle le permet.\nModifiable manuellement — la valeur sauvegardée sera utilisée.\nPour GGUF : plafonné à Context Size − 512.')
-                emb_ctx = ui.number(label=_emb_ctx_label, value=_emb_ctx_display).classes('form-input mb-2 narrow-field').tooltip('Fenêtre de contexte envoyée au modèle à chaque appel.\nDétectée automatiquement au démarrage (API ou Ollama /api/show).\nModifiable manuellement.\n⚠️ Ignoré en mode GGUF — c\'est le Context Size (zone GGUF) qui fait foi.')
-                emb_temp = ui.number(label='temperature', value=emb.get('temperature', 0.1), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip('Créativité de l\'IA.\n0 = déterministe. 0.1 = très précis (défaut Embedding). 0.7 = équilibré.')
+                emb_max_tokens = ui.number(label=_emb_mt_label, value=_emb_mt_display).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_max_tokens_embed'))
+                emb_ctx = ui.number(label=_emb_ctx_label, value=_emb_ctx_display).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_context_length'))
+                emb_temp = ui.number(label=t('models_label_temperature'), value=emb.get('temperature', 0.1), step=0.05, min=0, max=2).classes('form-input mb-2 narrow-field').tooltip(t('models_tooltip_temperature_embed'))
 
                 def _refresh_embed_interface():
                     """Force la mise à jour de l'interface Embedding selon le backend sélectionné"""
                     backend = emb_backend.value
-                    ui.notify(f'🔄 Actualisation interface {backend}...', type='info')
+                    ui.notify(t('models_notify_iface_refresh', backend=backend), type='info')
                     
                     # Appliquer la visibilité selon le backend
                     _bind_embed_visibility()
                     
-                    ui.notify(f'✅ Interface {backend} activée', type='positive')
+                    ui.notify(t('models_notify_iface_active', backend=backend), type='positive')
 
                 def _bind_embed_visibility(reload_models=False):
                     emb_api_zone.visible = (emb_backend.value == 'API')
@@ -4321,12 +4351,12 @@ def _models_modal():
             # (gestion désormais intégrée dans le bloc elif ci-dessus)
             
             msg = sm.save_settings()
-            ui.notify(msg or 'Paramètres sauvegardés', type='positive')
+            ui.notify(msg or t('models_notify_save_default'), type='positive')
             dialog.close()
 
         with ui.row().classes('justify-end gap-2 mt-2'):
-            ui.button('Annuler', on_click=dialog.close).classes('action-button')
-            ui.button('Sauvegarder', on_click=save_and_close).classes('send-button')
+            ui.button(t('models_btn_cancel'), on_click=dialog.close).classes('action-button')
+            ui.button(t('models_btn_save'), on_click=save_and_close).classes('send-button')
     return dialog
 
 
@@ -4374,11 +4404,11 @@ def _telegram_connector_settings_modal():
                 telegram_ui.create_settings_panel(settings_container)
             except Exception as e:
                 with settings_container:
-                    ui.label(f"❌ Erreur chargement: {e}").classes('text-red-500')
+                    ui.label(t('modal_load_error', msg=str(e))).classes('text-red-500')
             
             # Boutons
             with ui.row().classes('justify-end gap-2 mt-4'):
-                ui.button('Fermer', on_click=dialog.close).classes('action-button')
+                ui.button(t('modal_close'), on_click=dialog.close).classes('action-button')
     
     return dialog
 
@@ -4405,13 +4435,13 @@ def _web_navigator_settings_modal():
         '''):
             
             # En-tête
-            ui.label('🌐 Web Navigator (Serper API)').classes('popup-title').style('''
+            ui.label(t('web_nav_modal_title')).classes('popup-title').style('''
                 color: #3498db !important; 
                 text-shadow: 0 0 10px rgba(52, 152, 219, 0.3) !important; 
                 font-weight: 600 !important;
                 font-size: 1.5rem !important;
             ''')
-            ui.label("Recherche internet intelligente avec phrases magiques").classes('text-muted mb-4')
+            ui.label(t('web_nav_modal_subtitle')).classes('text-muted mb-4')
             
             # Conteneur pour l'interface de l'extension
             settings_container = ui.column().classes('w-full')
@@ -4461,7 +4491,7 @@ def _web_navigator_settings_modal():
             
             # Boutons de contrôle
             with ui.row().classes('justify-end gap-2 mt-4'):
-                ui.button('Fermer', on_click=dialog.close).classes('action-button').style('''
+                ui.button(t('modal_close'), on_click=dialog.close).classes('action-button').style('''
                     background: rgba(52, 152, 219, 0.12) !important;
                     border: 1px solid rgba(52, 152, 219, 0.3) !important;
                     backdrop-filter: blur(15px) !important;
@@ -4494,21 +4524,21 @@ def _dream_engine_settings_modal():
         '''):
             
             # En-tête
-            ui.label('🌙 Rêve IA - Métabolisme Cognitif').classes('popup-title').style('''
+            ui.label(t('dream_modal_title')).classes('popup-title').style('''
                 color: #9370DB !important; 
                 text-shadow: 0 0 10px rgba(147, 112, 219, 0.4) !important; 
                 font-weight: 600 !important;
                 font-size: 1.4rem !important;
             ''')
-            ui.label("L'IA digère ses souvenirs en récits oniriques pendant votre absence").classes('mb-4').style('color: #b0b0b0 !important;')
+            ui.label(t('dream_modal_subtitle')).classes('mb-4').style('color: #b0b0b0 !important;')
             
             # Vérifier disponibilité de l'extension
             try:
                 from extensions.dream_engine import is_available, get_config, set_config, DEFAULT_CONFIG
                 
                 if not is_available():
-                    ui.markdown("### ⚠️ Dream Engine non initialisé")
-                    ui.markdown("*L'extension sera disponible après le démarrage complet d'OGMA*")
+                    ui.markdown(t('dream_not_initialized_title'))
+                    ui.markdown(t('dream_not_initialized_hint'))
                 else:
                     # Récupérer la config actuelle
                     config = get_config()
@@ -4516,80 +4546,80 @@ def _dream_engine_settings_modal():
                     # Pas besoin de conversion - on utilise directement illustration_style
                     
                     # === SECTION: Activation ===
-                    with ui.expansion('⚡ Activation', icon='power_settings_new', value=True).classes('w-full mb-3').style('''
+                    with ui.expansion(t('dream_section_activation'), icon='power_settings_new', value=True).classes('w-full mb-3').style('''
                         background: rgba(138, 43, 226, 0.08) !important;
                         border: 1px solid rgba(138, 43, 226, 0.2) !important;
                         border-radius: 12px !important;
                     '''):
                         with ui.row().classes('items-center gap-4 w-full'):
-                            enabled_switch = ui.switch('Rêves automatiques activés', value=config.get('enabled', True)).style('''
+                            enabled_switch = ui.switch(t('dream_switch_auto'), value=config.get('enabled', True)).style('''
                                 --q-primary: #9370DB !important;
                             ''')
-                            ui.label('L\'IA rêvera automatiquement après inactivité').classes('text-sm').style('color: #b0b0b0 !important;')
+                            ui.label(t('dream_switch_auto_hint')).classes('text-sm').style('color: #b0b0b0 !important;')
                     
                     # === SECTION: Timing ===
-                    with ui.expansion('⏱️ Timing', icon='schedule').classes('w-full mb-3').style('''
+                    with ui.expansion(t('dream_section_timing'), icon='schedule').classes('w-full mb-3').style('''
                         background: rgba(138, 43, 226, 0.08) !important;
                         border: 1px solid rgba(138, 43, 226, 0.2) !important;
                         border-radius: 12px !important;
                     '''):
                         with ui.column().classes('w-full gap-3'):
                             # Timer inactivité
-                            ui.label('⏰ Délai avant rêve (minutes)').classes('font-semibold')
+                            ui.label(t('dream_label_inactivity')).classes('font-semibold')
                             inactivity_slider = ui.slider(
                                 min=5, max=60, step=5,
                                 value=config.get('inactivity_timeout_minutes', 10)
                             ).props('label-always').style('width: 100%;')
-                            ui.label('Temps d\'inactivité avant que l\'IA commence à rêver').classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.label(t('dream_label_inactivity_hint')).classes('text-xs').style('color: #b0b0b0 !important;')
                             
                             ui.separator().style('margin: 8px 0;')
                             
                             # Vitesse métabolisme
-                            ui.label('🔄 Vitesse métabolisme (tokens/minute)').classes('font-semibold')
+                            ui.label(t('dream_label_metabolism')).classes('font-semibold')
                             metabolism_slider = ui.slider(
                                 min=20, max=200, step=10,
                                 value=config.get('metabolism_tokens_per_minute', 50)
                             ).props('label-always').style('width: 100%;')
-                            ui.label('Vitesse de "digestion" du rêve (lent = plus onirique)').classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.label(t('dream_label_metabolism_hint')).classes('text-xs').style('color: #b0b0b0 !important;')
                     
                     # === SECTION: Comportement ===
-                    with ui.expansion('🧠 Comportement', icon='psychology').classes('w-full mb-3').style('''
+                    with ui.expansion(t('dream_section_behavior'), icon='psychology').classes('w-full mb-3').style('''
                         background: rgba(138, 43, 226, 0.08) !important;
                         border: 1px solid rgba(138, 43, 226, 0.2) !important;
                         border-radius: 12px !important;
                     '''):
                         with ui.column().classes('w-full gap-3'):
                             # Seuil mention spontanée
-                            ui.label('💬 Seuil de mention spontanée (score 1-10)').classes('font-semibold')
+                            ui.label(t('dream_label_mention_threshold')).classes('font-semibold')
                             mention_slider = ui.slider(
                                 min=5, max=10, step=1,
                                 value=config.get('spontaneous_mention_threshold', 8)
                             ).props('label-always').style('width: 100%;')
-                            ui.label('Si le rêve a un score ≥ ce seuil, l\'IA en parlera spontanément').classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.label(t('dream_label_mention_threshold_hint')).classes('text-xs').style('color: #b0b0b0 !important;')
                             
                             ui.separator().style('margin: 8px 0;')
                             
                             # Illustrations
                             with ui.row().classes('items-center gap-4 w-full'):
                                 illustration_switch = ui.switch(
-                                    'Générer des illustrations', 
+                                    t('dream_switch_illustrations'), 
                                     value=config.get('generate_illustrations', True)
                                 ).style('--q-primary: #9370DB !important;')
-                                ui.label('L\'IA dessine ses rêves (nécessite text2img)').classes('text-sm').style('color: #b0b0b0 !important;')
+                                ui.label(t('dream_switch_illustrations_hint')).classes('text-sm').style('color: #b0b0b0 !important;')
                             
-                            ui.label('⚠️ Si désactivé, aucune image ne sera générée (y compris comics)').classes('text-xs').style('color: #ff9800 !important; margin-left: 30px; margin-top: -8px;')
+                            ui.label(t('dream_warning_no_illustrations')).classes('text-xs').style('color: #ff9800 !important; margin-left: 30px; margin-top: -8px;')
                             
                             # Style d'illustration (radio buttons)
-                            ui.label('🎨 Style d\'illustration').classes('font-semibold mt-3')
+                            ui.label(t('dream_label_illust_style')).classes('font-semibold mt-3')
                             
                             # Déterminer valeur initiale depuis illustration_style
                             current_style = config.get('illustration_style', 'auto')
                             
                             illustration_style_radio = ui.radio(
                                 options={
-                                    'single': '📷 Image unique - Une seule illustration du rêve',
-                                    'comic_4': '📚 Comic 4 cases - Planche BD racontant le rêve',
-                                    'auto': '🎲 L\'IA choisit - Elle décide selon le contenu du rêve'
+                                    'single': t('dream_radio_single'),
+                                    'comic_4': t('dream_radio_comic'),
+                                    'auto': t('dream_radio_auto')
                                 },
                                 value=current_style
                             ).props('dense').style('margin-left: 10px;')
@@ -4598,19 +4628,19 @@ def _dream_engine_settings_modal():
                             illustration_style_radio.bind_enabled_from(illustration_switch, 'value')
                     
                     # === SECTION: Mémoire ===
-                    with ui.expansion('💾 Carburant Mémoriel', icon='memory').classes('w-full mb-3').style('''
+                    with ui.expansion(t('dream_section_memory'), icon='memory').classes('w-full mb-3').style('''
                         background: rgba(138, 43, 226, 0.08) !important;
                         border: 1px solid rgba(138, 43, 226, 0.2) !important;
                         border-radius: 12px !important;
                     '''):
                         with ui.column().classes('w-full gap-3'):
-                            ui.label('📚 Nombre de résumés récents').classes('font-semibold')
+                            ui.label(t('dream_label_summaries')).classes('font-semibold')
                             summaries_slider = ui.slider(
                                 min=5, max=20, step=1,
                                 value=config.get('max_summaries', 10)
                             ).props('label-always').style('width: 100%;')
                             
-                            ui.label('🏷️ Nombre de souvenirs #MEM').classes('font-semibold')
+                            ui.label(t('dream_label_hashtag')).classes('font-semibold')
                             hashtag_slider = ui.slider(
                                 min=3, max=10, step=1,
                                 value=config.get('max_hashtag_memories', 5)
@@ -4626,16 +4656,16 @@ def _dream_engine_settings_modal():
                         default_dream_prompt = "[Prompt par défaut non disponible]"
                         default_psy_prompt = "[Prompt par défaut non disponible]"
                     
-                    with ui.expansion('📝 Prompts Personnalisés', icon='edit_note').classes('w-full mb-3').style('''
+                    with ui.expansion(t('dream_section_prompts'), icon='edit_note').classes('w-full mb-3').style('''
                         background: rgba(138, 43, 226, 0.08) !important;
                         border: 1px solid rgba(138, 43, 226, 0.2) !important;
                         border-radius: 12px !important;
                     '''):
                         with ui.column().classes('w-full gap-3'):
-                            ui.markdown("*Laissez vide pour utiliser le prompt par défaut. Les prompts sauvegardés ici seront **prioritaires**.*").classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.markdown(t('dream_prompts_hint')).classes('text-xs').style('color: #b0b0b0 !important;')
                             
                             # Prompt IA (génération de rêve)
-                            ui.label('🌸 Prompt IA (Génération de Rêve)').classes('font-semibold')
+                            ui.label(t('dream_label_prompt_dream')).classes('font-semibold')
                             
                             # Valeur initiale : config custom ou défaut si vide
                             luna_initial = config.get('prompt_dream_generator', '') or default_dream_prompt
@@ -4649,12 +4679,12 @@ def _dream_engine_settings_modal():
                                 background: rgba(30, 30, 40, 0.9) !important;
                             ''')
                             with ui.row().classes('gap-2'):
-                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: luna_prompt_area.set_value(default_dream_prompt)).props('flat dense size=sm')
+                                ui.button(t('dream_btn_restore_default'), icon='refresh', on_click=lambda: luna_prompt_area.set_value(default_dream_prompt)).props('flat dense size=sm')
                             
                             ui.separator().style('margin: 12px 0;')
                             
                             # Prompt Archiviste PSY
-                            ui.label('📚 Prompt Archiviste (Analyse PSY)').classes('font-semibold')
+                            ui.label(t('dream_label_prompt_psy')).classes('font-semibold')
                             
                             # Valeur initiale : config custom ou défaut si vide
                             psy_initial = config.get('prompt_archiviste_psy', '') or default_psy_prompt
@@ -4668,14 +4698,14 @@ def _dream_engine_settings_modal():
                                 background: rgba(30, 30, 40, 0.9) !important;
                             ''')
                             with ui.row().classes('gap-2'):
-                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: psy_prompt_area.set_value(default_psy_prompt)).props('flat dense size=sm')
+                                ui.button(t('dream_btn_restore_default'), icon='refresh', on_click=lambda: psy_prompt_area.set_value(default_psy_prompt)).props('flat dense size=sm')
                             
                             ui.separator().style('margin: 12px 0;')
                             
                             # Instructions illustration
-                            ui.label('🎨 Instruction Mode Comic (4 cases)').classes('font-semibold')
-                            ui.label('Instruction ajoutée au prompt quand comic activé').classes('text-xs').style('color: #b0b0b0 !important;')
-                            ui.label('⚠️ IMPORTANT: Le prompt final de l\'IA doit faire MAX 450-500 caractères (limite API)').classes('text-xs font-bold').style('color: #ff9800 !important; margin-top: 4px;')
+                            ui.label(t('dream_label_instr_comic')).classes('font-semibold')
+                            ui.label(t('dream_label_instr_comic_hint')).classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.label(t('dream_warning_prompt_limit')).classes('text-xs font-bold').style('color: #ff9800 !important; margin-top: 4px;')
                             
                             default_comic_instruction = "\n\nGénère une planche BD de 4 cases."
                             comic_instruction_initial = config.get('prompt_comic_instruction', '') or default_comic_instruction
@@ -4689,14 +4719,14 @@ def _dream_engine_settings_modal():
                                 background: rgba(30, 30, 40, 0.9) !important;
                             ''')
                             with ui.row().classes('gap-2'):
-                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: comic_instruction_area.set_value(default_comic_instruction)).props('flat dense size=sm')
+                                ui.button(t('dream_btn_restore_default'), icon='refresh', on_click=lambda: comic_instruction_area.set_value(default_comic_instruction)).props('flat dense size=sm')
                             
                             ui.separator().style('margin: 8px 0;')
                             
                             # Instruction single
-                            ui.label('🖼️ Instruction Mode Image Unique').classes('font-semibold')
-                            ui.label('Instruction ajoutée au prompt quand comic désactivé').classes('text-xs').style('color: #b0b0b0 !important;')
-                            ui.label('⚠️ IMPORTANT: Le prompt final de l\'IA doit faire MAX 450-500 caractères (limite API)').classes('text-xs font-bold').style('color: #ff9800 !important; margin-top: 4px;')
+                            ui.label(t('dream_label_instr_single')).classes('font-semibold')
+                            ui.label(t('dream_label_instr_single_hint')).classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.label(t('dream_warning_prompt_limit')).classes('text-xs font-bold').style('color: #ff9800 !important; margin-top: 4px;')
                             
                             default_single_instruction = "\n\nGénère une seule image."
                             single_instruction_initial = config.get('prompt_single_instruction', '') or default_single_instruction
@@ -4710,20 +4740,20 @@ def _dream_engine_settings_modal():
                                 background: rgba(30, 30, 40, 0.9) !important;
                             ''')
                             with ui.row().classes('gap-2'):
-                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: single_instruction_area.set_value(default_single_instruction)).props('flat dense size=sm')
+                                ui.button(t('dream_btn_restore_default'), icon='refresh', on_click=lambda: single_instruction_area.set_value(default_single_instruction)).props('flat dense size=sm')
                             
                             ui.separator().style('margin: 8px 0;')
                             
                             # Instruction auto
-                            ui.label('🎲 Instruction Mode Auto (L\'IA choisit)').classes('font-semibold')
-                            ui.label('Instruction ajoutée au prompt quand mode auto activé').classes('text-xs').style('color: #b0b0b0 !important;')
-                            ui.label('⚠️ IMPORTANT: Le prompt final de l\'IA doit faire MAX 450-500 caractères (limite API)').classes('text-xs font-bold').style('color: #ff9800 !important; margin-top: 4px;')
+                            ui.label(t('dream_label_instr_auto')).classes('font-semibold')
+                            ui.label(t('dream_label_instr_auto_hint')).classes('text-xs').style('color: #b0b0b0 !important;')
+                            ui.label(t('dream_warning_prompt_limit')).classes('text-xs font-bold').style('color: #ff9800 !important; margin-top: 4px;')
                             
                             default_auto_instruction = ""  # Vide = l'IA décide librement
                             auto_instruction_initial = config.get('prompt_auto_instruction', '') or default_auto_instruction
                             auto_instruction_area = ui.textarea(
                                 value=auto_instruction_initial,
-                                placeholder="Vide = l'IA choisit librement selon le contenu du rêve"
+                                placeholder=t('dream_placeholder_auto')
                             ).props('outlined dark input-style="color: white; font-family: monospace; font-size: 0.85rem"').classes('w-full').style('''
                                 height: 80px !important;
                                 min-height: 80px !important;
@@ -4732,7 +4762,7 @@ def _dream_engine_settings_modal():
                                 background: rgba(30, 30, 40, 0.9) !important;
                             ''')
                             with ui.row().classes('gap-2'):
-                                ui.button('Restaurer défaut', icon='refresh', on_click=lambda: auto_instruction_area.set_value(default_auto_instruction)).props('flat dense size=sm')
+                                ui.button(t('dream_btn_restore_default'), icon='refresh', on_click=lambda: auto_instruction_area.set_value(default_auto_instruction)).props('flat dense size=sm')
                     
                     # Fonction de sauvegarde
                     async def save_dream_config():
@@ -4791,55 +4821,49 @@ def _dream_engine_settings_modal():
                                 # Feedback sur ce qui a été sauvegardé
                                 custom_count = (1 if luna_val else 0) + (1 if psy_val else 0)
                                 if custom_count > 0:
-                                    ui.notify(f'🌙 Config sauvegardée et appliquée ({custom_count} prompt(s) custom)!', type='positive')
+                                    ui.notify(t('dream_notify_saved_custom', n=custom_count), type='positive')
                                 else:
-                                    ui.notify('🌙 Config sauvegardée et appliquée (prompts par défaut)', type='positive')
+                                    ui.notify(t('dream_notify_saved_default'), type='positive')
                             else:
-                                ui.notify('⚠️ Config sauvegardée mais erreur d\'application', type='warning')
+                                ui.notify(t('dream_notify_saved_apply_err'), type='warning')
                         except Exception as e:
                             print(f"[DREAM-CONFIG] ⚠️ Erreur reload_and_apply_config: {e}")
-                            ui.notify('⚠️ Config sauvegardée (redémarrage timer échoué)', type='warning')
+                            ui.notify(t('dream_notify_saved_timer_err'), type='warning')
                     
                     # Boutons
                     with ui.row().classes('justify-end gap-2 mt-4'):
-                        ui.button('Réinitialiser', icon='refresh', on_click=lambda: (
+                        ui.button(t('dream_btn_reset'), icon='refresh', on_click=lambda: (
                             set_config(DEFAULT_CONFIG),
-                            ui.notify('Configuration réinitialisée', type='info'),
+                            ui.notify(t('dream_notify_reset'), type='info'),
                             dialog.close()
                         )).classes('action-button').style('''
                             background: rgba(100, 100, 100, 0.12) !important;
                             border: 1px solid rgba(100, 100, 100, 0.3) !important;
                         ''')
                         
-                        ui.button('Sauvegarder', icon='save', on_click=save_dream_config).classes('action-button').style('''
+                        ui.button(t('dream_btn_save'), icon='save', on_click=save_dream_config).classes('action-button').style('''
                             background: rgba(138, 43, 226, 0.2) !important;
                             border: 1px solid rgba(138, 43, 226, 0.4) !important;
                             transition: all 0.3s ease !important;
                         ''')
                         
-                        ui.button('Fermer', on_click=dialog.close).classes('action-button').style('''
+                        ui.button(t('dream_btn_close'), on_click=dialog.close).classes('action-button').style('''
                             background: rgba(138, 43, 226, 0.12) !important;
                             border: 1px solid rgba(138, 43, 226, 0.3) !important;
                             transition: all 0.3s ease !important;
                         ''')
                     
             except ImportError as e:
-                ui.markdown("### ❌ Extension Dream Engine non disponible")
-                ui.markdown(f"**Erreur :** {e}")
-                ui.markdown("""
-**Le Dream Engine permet à l'IA de :**
-- 🌙 Rêver pendant votre absence (digestion mémorielle)
-- 📝 Générer des récits oniriques basés sur vos conversations
-- 🎨 Illustrer ses rêves en images ou comics
-- 💬 Mentionner spontanément ses rêves marquants
-""")
+                ui.markdown(t('dream_unavailable_title'))
+                ui.markdown(t('dream_error_label', msg=str(e)))
+                ui.markdown(t('dream_unavailable_features'))
                 with ui.row().classes('justify-end gap-2 mt-4'):
-                    ui.button('Fermer', on_click=dialog.close).classes('action-button')
+                    ui.button(t('dream_btn_close'), on_click=dialog.close).classes('action-button')
                     
             except Exception as e:
-                ui.markdown("### ⚠️ Erreur de configuration Dream Engine")
-                ui.markdown(f"**Erreur :** {e}")
+                ui.markdown(t('dream_config_error_title'))
+                ui.markdown(t('dream_error_label', msg=str(e)))
                 with ui.row().classes('justify-end gap-2 mt-4'):
-                    ui.button('Fermer', on_click=dialog.close).classes('action-button')
+                    ui.button(t('dream_btn_close'), on_click=dialog.close).classes('action-button')
     
     return dialog

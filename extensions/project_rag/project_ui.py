@@ -13,6 +13,12 @@ from pathlib import Path
 from typing import Optional, Callable
 
 try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
+try:
     from nicegui import ui, events
     NICEGUI_AVAILABLE = True
 except ImportError:
@@ -158,7 +164,7 @@ class ProjectUI:
                 with ui.row().classes('w-full items-center justify-between mb-4'):
                     with ui.row().classes('items-center gap-3'):
                         ui.icon('folder_open', size='28px').style(f'color: {th["accent"]};')
-                        ui.label('Projet RAG').style(f'''
+                        ui.label(t('pr_label_title')).style(f'''
                             font-size: 1.4rem; font-weight: 600;
                             color: {th['accent']} !important;
                         ''')
@@ -166,7 +172,7 @@ class ProjectUI:
                     with ui.row().classes('items-center gap-2'):
                         # Toggle ON/OFF
                         self._toggle_switch = ui.switch(
-                            'Actif',
+                            t('pr_switch_active'),
                             value=self.config.active,
                             on_change=self._on_toggle
                         ).style(f'color: {th["text"]};')
@@ -181,29 +187,29 @@ class ProjectUI:
                 # Stats
                 stats = self.memory.get_stats()
                 self._stats_label = ui.label(
-                    f"{stats['files']} fichiers | {stats['chunks']} chunks"
+                    t('pr_label_stats', files=stats['files'], chunks=stats['chunks'])
                 ).classes('text-sm mb-3').style(f'color: {th["text2"]};')
 
                 # === Zone instruction projet ===
-                with ui.expansion('Instructions projet', icon='edit_note', value=bool(self.config.instruction)).classes('w-full mb-4').style(f'''
+                with ui.expansion(t('pr_expansion_instructions'), icon='edit_note', value=bool(self.config.instruction)).classes('w-full mb-4').style(f'''
                     background: {th['exp_bg']} !important;
                     border: {th['exp_border']} !important;
                     border-radius: 8px !important;
                 '''):
                     ui.label(
-                        'Ces instructions remplacent le contexte permanent quand le projet est actif.'
+                        t('pr_label_instructions_help')
                     ).classes('text-xs mb-2').style(f'color: {th["muted"]};')
 
                     instruction_area = ui.textarea(
                         value=self.config.instruction,
-                        placeholder='Instructions spécifiques au projet...\nEx: "Tu es un expert en architecture logicielle. Réponds en te basant sur les documents du projet."',
+                        placeholder=t('pr_placeholder_instructions'),
                     ).classes('w-full').style('min-height: 120px; font-size: 13px;')
 
                     def _save_instruction():
                         self.config.instruction = instruction_area.value or ''
-                        ui.notify('Instruction projet sauvegardée', type='positive')
+                        ui.notify(t('pr_notify_instr_saved'), type='positive')
 
-                    ui.button('Sauvegarder instruction', icon='save',
+                    ui.button(t('pr_btn_save_instr'), icon='save',
                               on_click=_save_instruction).classes('mt-2').style(f'''
                         background: {th['accent']} !important;
                         border: 1px solid {th['accent']} !important;
@@ -211,13 +217,13 @@ class ProjectUI:
                     ''')
 
                 # === Zone upload fichiers ===
-                ui.label('Documents du projet').classes('text-sm font-bold mb-2').style(
+                ui.label(t('pr_label_documents')).classes('text-sm font-bold mb-2').style(
                     f'color: {th["accent"]};'
                 )
 
                 # Upload zone
                 upload = ui.upload(
-                    label='Glissez des fichiers ici ou cliquez pour parcourir',
+                    label=t('pr_upload_label'),
                     multiple=True,
                     auto_upload=True,
                     on_upload=self._on_file_upload,
@@ -238,7 +244,7 @@ class ProjectUI:
 
                 # Boutons bas
                 with ui.row().classes('w-full justify-between items-center'):
-                    ui.button('Vider le projet', icon='delete_sweep',
+                    ui.button(t('pr_btn_clear'), icon='delete_sweep',
                               on_click=self._confirm_clear_all).style(f'''
                         background: rgba(185, 28, 28, 0.10) !important;
                         border: 1px solid rgba(185, 28, 28, 0.25) !important;
@@ -248,11 +254,11 @@ class ProjectUI:
                     with ui.row().classes('gap-2'):
                         # Stats cache
                         cache_stats = self.retriever.get_stats()
-                        ui.label(f"Cache: {cache_stats.get('cache_hit_rate', '0%')}").classes(
+                        ui.label(t('pr_label_cache', rate=cache_stats.get('cache_hit_rate', '0%'))).classes(
                             'text-xs'
                         ).style(f'color: {th["muted"]};')
 
-                        ui.button('Fermer', on_click=self._close_overlay).style(f'''
+                        ui.button(t('pr_btn_close'), on_click=self._close_overlay).style(f'''
                             background: {th['bg_item']} !important;
                             border: 1px solid {th['item_border']} !important;
                             color: {th['text']} !important;
@@ -274,8 +280,8 @@ class ProjectUI:
     def _on_toggle(self, e):
         """Active/désactive le projet."""
         self.config.active = e.value
-        status = "activé" if e.value else "désactivé"
-        ui.notify(f'Projet {self.config.name} {status}', type='positive' if e.value else 'info')
+        status = t('pr_status_enabled') if e.value else t('pr_status_disabled')
+        ui.notify(t('pr_notify_project_status', name=self.config.name, status=status), type='positive' if e.value else 'info')
         print(f"[PROJECT-UI] Projet {status}")
 
     async def _on_file_upload(self, e: events.UploadEventArguments):
@@ -285,7 +291,7 @@ class ProjectUI:
             file_ext = Path(filename).suffix.lower()
             file_id = str(uuid.uuid4())[:12]
 
-            ui.notify(f'Indexation de {filename}...', type='info')
+            ui.notify(t('pr_notify_indexing', filename=filename), type='info')
             print(f"[PROJECT-UI] Upload: {filename} ({file_ext})")
 
             # Sauver le fichier dans le dossier projet
@@ -296,7 +302,7 @@ class ProjectUI:
             # Extraire le texte via file_processor
             text_content = self._extract_text(dest_path, file_ext)
             if not text_content or not text_content.strip():
-                ui.notify(f'{filename}: aucun texte extractible', type='warning')
+                ui.notify(t('pr_notify_no_text', filename=filename), type='warning')
                 dest_path.unlink(missing_ok=True)
                 return
 
@@ -312,7 +318,7 @@ class ProjectUI:
             )
 
             if not chunks:
-                ui.notify(f'{filename}: chunking a produit 0 chunks', type='warning')
+                ui.notify(t('pr_notify_no_chunks', filename=filename), type='warning')
                 return
 
             # Vectorisation des petits chunks
@@ -346,7 +352,7 @@ class ProjectUI:
             # Vider le cache retriever (nouveaux chunks disponibles)
             self.retriever.clear_cache()
 
-            ui.notify(f'{filename}: {added} chunks indexés', type='positive')
+            ui.notify(t('pr_notify_indexed', filename=filename, added=added), type='positive')
             self._refresh_file_list()
             self._update_stats()
 
@@ -354,7 +360,7 @@ class ProjectUI:
             print(f"[PROJECT-UI] Erreur upload: {ex}")
             import traceback
             traceback.print_exc()
-            ui.notify(f'Erreur: {ex}', type='negative')
+            ui.notify(t('pr_notify_error', ex=ex), type='negative')
 
     def _extract_text(self, file_path: Path, extension: str) -> str:
         """Extrait le texte d'un fichier via file_processor d'OGMA."""
@@ -382,7 +388,7 @@ class ProjectUI:
 
         with self._file_list_container:
             if not files:
-                ui.label('Aucun fichier indexé').classes('text-sm').style(
+                ui.label(t('pr_label_no_files')).classes('text-sm').style(
                     'color: #6b7280; font-style: italic;'
                 )
             else:
@@ -414,7 +420,7 @@ class ProjectUI:
                     )
                     size_kb = (file_data.get('file_size', 0) or 0) / 1024
                     ui.label(
-                        f"{file_data.get('chunk_count', 0)} chunks | {size_kb:.1f} KB"
+                        t('pr_label_file_meta', chunks=file_data.get('chunk_count', 0), size=size_kb)
                     ).classes('text-xs').style(f'color: {th["muted"]}; line-height: 1.2;')
 
             # Bouton supprimer
@@ -430,11 +436,11 @@ class ProjectUI:
             self.memory.remove_file(file_id)
             self.config.remove_file_record(file_id)
             self.retriever.clear_cache()
-            ui.notify('Fichier et chunks supprimés', type='info')
+            ui.notify(t('pr_notify_file_removed'), type='info')
             self._refresh_file_list()
             self._update_stats()
         except Exception as e:
-            ui.notify(f'Erreur suppression: {e}', type='negative')
+            ui.notify(t('pr_notify_remove_err', err=str(e)), type='negative')
 
     def _confirm_clear_all(self):
         """Confirmation avant de vider tout le projet."""
@@ -443,10 +449,10 @@ class ProjectUI:
             with ui.card().classes(th['q_dark']).style(
                 f'background: {th["bg_card"]}; color: {th["text"]}; padding: 20px; border: 1px solid {th["item_border"]};'
             ):
-                ui.label('Vider le projet ?').classes('text-lg font-bold mb-2')
-                ui.label('Tous les fichiers et chunks seront supprimés. Cette action est irréversible.').classes('text-sm mb-4').style(f'color: {th["text2"]};')
+                ui.label(t('pr_dialog_clear_title')).classes('text-lg font-bold mb-2')
+                ui.label(t('pr_dialog_clear_help')).classes('text-sm mb-4').style(f'color: {th["text2"]};')
                 with ui.row().classes('justify-end gap-2'):
-                    ui.button('Annuler', on_click=confirm_dialog.close).style(
+                    ui.button(t('common_cancel'), on_click=confirm_dialog.close).style(
                         f'color: {th["text"]};'
                     )
 
@@ -463,11 +469,11 @@ class ProjectUI:
                                 pass
                         self.retriever.clear_cache()
                         confirm_dialog.close()
-                        ui.notify('Projet vidé', type='info')
+                        ui.notify(t('pr_notify_cleared'), type='info')
                         self._refresh_file_list()
                         self._update_stats()
 
-                    ui.button('Confirmer', on_click=_do_clear).style(f'''
+                    ui.button(t('pr_btn_confirm'), on_click=_do_clear).style(f'''
                         background: rgba(185, 28, 28, 0.12) !important;
                         border: 1px solid rgba(185, 28, 28, 0.30) !important;
                         color: {th['del_icon']} !important;

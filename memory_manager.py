@@ -316,6 +316,9 @@ class MemoryManager:
         # Thread-safety locks
         self._faiss_lock = threading.Lock()  # Protège les opérations FAISS
         self._mapping_lock = threading.Lock()  # Protège les mappings id<->faiss
+
+        # Dernières métadonnées Archiviste (valence/type) — pour le hologramme
+        self._last_enriched_data: Optional[Dict] = None
         
         # Initialisation
         self._init_database()
@@ -660,6 +663,7 @@ class MemoryManager:
             total = self.faiss_index.ntotal if self.faiss_index else 0
             print(f"[MEMORY-STATS] Total souvenirs: {total}, Mappings: {len(self.id_to_faiss)}")
             self.status_queue.put(f"[OK] Souvenir '{enriched_data.get('title', memory_id)}' mémorisé")
+            self._last_enriched_data = enriched_data  # Exposé au hologramme
             return True
             
         except Exception as e:

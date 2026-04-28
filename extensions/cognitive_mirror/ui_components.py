@@ -11,6 +11,12 @@ import asyncio
 import time
 
 try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
+try:
     from nicegui import ui
     NICEGUI_AVAILABLE = True
 except ImportError:
@@ -184,11 +190,11 @@ class SubconscienceParametersModal:
 
             with ui.card().style('width: 800px; max-height: 90vh; overflow-y: auto; padding: 24px'):
                 # ===== HEADER =====
-                ui.html('<h2 style="margin: 0 0 24px 0; text-align: center; color: #1f2937;">🧠 Introspection - Paramètres</h2>')
+                ui.html(f'<h2 style="margin: 0 0 24px 0; text-align: center; color: #1f2937;">{t("cm_modal_title")}</h2>')
                 
                 # Toggle principal ON/OFF - utilise état réel du core
                 with ui.row().style('width: 100%; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 12px; background: #f3f4f6; border-radius: 8px'):
-                    ui.label('Extension').style('font-weight: 600; font-size: 16px')
+                    ui.label(t('cm_label_extension')).style('font-weight: 600; font-size: 16px')
                     
                     # État initial depuis le core ou fallback config
                     if self.core_reference:
@@ -217,23 +223,23 @@ class SubconscienceParametersModal:
                 ui.separator().style('margin: 20px 0')
                 
                 # Section paramètres temporels
-                ui.label('Paramètres Temporels').style('font-weight: 600; margin-bottom: 16px; color: #374151')
+                ui.label(t('cm_section_temporal')).style('font-weight: 600; margin-bottom: 16px; color: #374151')
                 
                 with ui.column().style('width: 100%; gap: 16px; margin-bottom: 20px'):
                     self.inactivity_delay = ui.number(
-                        label='Temps avant activation (secondes)',
+                        label=t('cm_label_inactivity'),
                         value=self.config.DEFAULT_SETTINGS.get('trigger_delay_no_message', 30),
                         min=15, max=600, step=5
                     ).style('width: 100%').props('outlined dense')
                     
                     self.auto_send_delay = ui.number(
-                        label='Délai auto-envoi (secondes)', 
+                        label=t('cm_label_autosend'), 
                         value=self.config.DEFAULT_SETTINGS.get('auto_send_delay', 20),
                         min=10, max=60, step=5
                     ).style('width: 100%').props('outlined dense')
                     
                     self.max_duration = ui.number(
-                        label='Durée maximale (minutes)',
+                        label=t('cm_label_max_duration'),
                         value=self.config.DEFAULT_SETTINGS.get('max_reflection_duration', 300) / 60,
                         min=1, max=15, step=0.5  
                     ).style('width: 100%').props('outlined dense')
@@ -241,53 +247,53 @@ class SubconscienceParametersModal:
                     # Tokens séparés pour Entité IA et Archiviste
                     with ui.row().style('gap: 12px'):
                         self.entite_tokens = ui.number(
-                            label='Entité IA - Tokens max par message',
+                            label=t('cm_label_entite_tokens'),
                             value=self.config.get('entite_token_limit', 500),
                             min=100, max=2000, step=50
                         ).style('width: 100%').props('outlined dense').tooltip(
-                            'Limite tokens pour réponses de l\'entité IA en réflexion. Augmenter si texte coupé.'
+                            t('cm_tooltip_entite_tokens')
                         )
 
                         self.archiviste_tokens = ui.number(
-                            label='Archiviste - Tokens max par message',
+                            label=t('cm_label_archiviste_tokens'),
                             value=self.config.get('archiviste_token_limit', 400),
                             min=100, max=2000, step=50
                         ).style('width: 100%').props('outlined dense').tooltip(
-                            'Limite tokens pour analyses de l\'Archiviste. Augmenter si texte coupé.'
+                            t('cm_tooltip_archiviste_tokens')
                         )
                 
                 ui.separator().style('margin: 20px 0')
                 
                 # Instructions personnalisées (complètes et modifiables)
-                ui.label('Instructions Personnalisées').style('font-weight: 600; margin-bottom: 16px; color: #374151')
+                ui.label(t('cm_section_instructions')).style('font-weight: 600; margin-bottom: 16px; color: #374151')
 
                 self.main_ai_instruction = ui.textarea(
-                    label='Instruction Entité IA (modifiable)',
+                    label=t('cm_label_main_ai_instr'),
                     value=self.config.current_settings.get('main_ai_instruction', ''),
-                    placeholder='Instructions complètes pour l\'entité IA en phase réflexive...'
+                    placeholder=t('cm_placeholder_main_ai')
                 ).props('outlined').classes('w-full').style('margin-bottom: 20px')
 
                 self.archiviste_instruction = ui.textarea(
-                    label='Instruction Archiviste (modifiable)',
+                    label=t('cm_label_arch_instr'),
                     value=self.config.current_settings.get('archiviste_instruction', ''),
-                    placeholder='Instructions complètes pour l\'Archiviste subconscient...'
+                    placeholder=t('cm_placeholder_arch')
                 ).props('outlined').classes('w-full').style('margin-bottom: 20px')
                 
                 ui.separator().style('margin: 20px 0')
                 
                 # Section message déclencheur
-                ui.label('Message Déclencheur').style('font-weight: 600; margin-bottom: 12px; color: #374151')
-                ui.label('Message envoyé pour lancer la phase réflexive').style('font-size: 12px; color: #6b7280; margin-bottom: 8px')
+                ui.label(t('cm_section_trigger')).style('font-weight: 600; margin-bottom: 12px; color: #374151')
+                ui.label(t('cm_subtitle_trigger')).style('font-size: 12px; color: #6b7280; margin-bottom: 8px')
                 
                 self.trigger_message = ui.textarea(
                     value=self.config.DEFAULT_SETTINGS.get('trigger_message', 
                         "Jusqu'à mon retour tu es en phase réflexive intérieure avec ton subconscient, tu as accès à tes souvenirs et aux questionnements intérieurs"),
-                    placeholder='Décrivez le message qui déclenchera la réflexion...'
+                    placeholder=t('cm_placeholder_trigger')
                 ).props('outlined').classes('w-full').style('margin-bottom: 24px')
                 
                 # Boutons d'action
                 with ui.row().style('width: 100%; justify-content: space-between; gap: 12px'):
-                    ui.button('Sauvegarder', on_click=self._save_settings).props('color=primary size=md').style('flex: 1')
+                    ui.button(t('common_save'), on_click=self._save_settings).props('color=primary size=md').style('flex: 1')
                     ui.button('X', on_click=lambda: dialog.close()).props('flat color=grey size=md')
         
         print("[SUBCONSCIENCE-MODAL] Popup créé avec succès")

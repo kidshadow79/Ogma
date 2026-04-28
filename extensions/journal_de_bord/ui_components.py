@@ -11,6 +11,12 @@ import asyncio
 import time
 
 try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
+try:
     import importlib
     _ng = importlib.import_module('nicegui')
     _ui = getattr(_ng, 'ui', None)
@@ -100,7 +106,7 @@ class JournalUI:
 
                 # Tooltip explicatif
                 with self.header_button:
-                    ui.tooltip("Journal de Bord - Capturer et consulter vos conversations")
+                    ui.tooltip(t('jdb_tooltip_open'))
                     
                     # Badge compteur auto-archive (v2.0) - directement dans le bouton
                     if self.config.get("auto_archive_enabled", False):
@@ -110,7 +116,7 @@ class JournalUI:
                         ).style("font-size: 10px;")
                         
                         with self.auto_archive_counter:
-                            ui.tooltip("Progression vers prochaine auto-archive")
+                            ui.tooltip(t('jdb_tooltip_progress'))
 
             print("[JOURNAL-UI] OK Bouton header injecté avec succès")
 
@@ -125,7 +131,7 @@ class JournalUI:
             await self.open_main_modal()
         except Exception as e:
             print(f"[JOURNAL-UI] ERROR Erreur ouverture modal: {e}")
-            ui.notify(f"Erreur ouverture journal: {e}", type="negative")
+            ui.notify(t('jdb_notify_open_err', err=str(e)), type="negative")
 
     async def open_main_modal(self):
         """Ouvre le modal principal du journal"""
@@ -169,7 +175,7 @@ class JournalUI:
 
         except Exception as e:
             print(f"[JOURNAL-UI] ERROR Erreur création modal: {e}")
-            ui.notify(f"Erreur ouverture journal: {e}", type="negative")
+            ui.notify(t('jdb_notify_open_err', err=str(e)), type="negative")
 
     async def _create_modal_header(self):
         """Crée l'en-tête du modal"""
@@ -177,41 +183,41 @@ class JournalUI:
             # Titre avec icône
             with ui.row().classes("items-center gap-2"):
                 ui.icon("book", size="24px").classes("text-orange-600")
-                ui.label("Journal de Bord").classes("text-xl font-bold text-gray-800")
+                ui.label(t('jdb_label_title')).classes("text-xl font-bold text-gray-800")
 
                 # Badge avec stats
                 stats = self.core_journal.get_journal_stats()
-                ui.badge(f"{stats['total_entries']} entrées").classes("bg-orange-100 text-orange-800")
+                ui.badge(t('jdb_badge_entries', n=stats['total_entries'])).classes("bg-orange-100 text-orange-800")
 
             # Actions header
             with ui.row().classes("gap-2"):
                 # Bouton États Actifs v2.0
                 ui.button(
-                    "🎯 États Actifs",
+                    t('jdb_btn_active_states'),
                     on_click=self.open_active_states_modal
                 ).classes("bg-purple-600 hover:bg-purple-700 text-white")
                 
                 # Bouton Maintenance (Option C)
                 ui.button(
-                    "🧹 Maintenance",
+                    t('jdb_btn_maintenance'),
                     on_click=self.open_maintenance_modal
                 ).classes("bg-amber-600 hover:bg-amber-700 text-white")
                 
                 # Bouton nouvelle entrée
                 ui.button(
-                    "CREATE Capturer conversation",
+                    t('jdb_btn_capture_conv'),
                     on_click=self._on_create_entry_click
                 ).classes("bg-green-600 hover:bg-green-700 text-white")
 
                 # Bouton recherche
                 ui.button(
-                    "SEARCH",
+                    t('jdb_btn_search_toggle'),
                     on_click=self._toggle_search_panel
                 ).classes("bg-blue-600 hover:bg-blue-700 text-white").props('dense')
 
                 # Bouton fermer
                 ui.button(
-                    "✕",
+                    '✕',
                     on_click=lambda: self.main_modal.close()
                 ).classes("bg-gray-500 hover:bg-gray-600 text-white").props('dense')
 
@@ -219,7 +225,7 @@ class JournalUI:
         """Crée le panneau calendrier de navigation"""
         with ui.column().classes("w-80 border-r bg-gray-50 p-4").style("min-width: 320px; max-width: 320px;"):
             # Titre panneau
-            ui.label("📅 Navigation").classes("text-lg font-semibold mb-4")
+            ui.label(t('jdb_label_nav')).classes("text-lg font-semibold mb-4")
 
             # Sélecteur mois/année
             with ui.row().classes("w-full items-center gap-2 mb-4"):
@@ -238,20 +244,20 @@ class JournalUI:
 
             # Statistiques rapides
             with ui.card().classes("w-full mt-4 p-3"):
-                ui.label("STATS Statistiques").classes("font-medium mb-2")
+                ui.label(t('jdb_label_stats')).classes("font-medium mb-2")
 
                 stats = self.core_journal.get_journal_stats()
-                ui.label(f"Total entrées: {stats['total_entries']}").classes("text-sm")
-                ui.label(f"Jours actifs: {stats['days_with_entries']}").classes("text-sm")
+                ui.label(t('jdb_stat_total', n=stats['total_entries'])).classes("text-sm")
+                ui.label(t('jdb_stat_days', n=stats['days_with_entries'])).classes("text-sm")
                 if stats['last_entry_date']:
-                    ui.label(f"Dernière: {stats['last_entry_date']}").classes("text-sm")
+                    ui.label(t('jdb_stat_last', date=stats['last_entry_date'])).classes("text-sm")
 
     async def _create_mini_calendar(self):
         """Crée un mini calendrier de navigation"""
         # Pour le moment, liste simple des derniers jours
         # TODO: Implémenter vrai calendrier graphique
 
-        ui.label("Derniers jours:").classes("text-sm font-medium mb-2")
+        ui.label(t('jdb_label_recent_days')).classes("text-sm font-medium mb-2")
 
         with ui.column().classes("w-full gap-1"):
             # Générer les 14 derniers jours
@@ -275,9 +281,9 @@ class JournalUI:
                 # Bouton jour
                 day_label = check_date.strftime("%d/%m")
                 if i == 0:
-                    day_label = "Aujourd'hui"
+                    day_label = t('jdb_day_today')
                 elif i == 1:
-                    day_label = "Hier"
+                    day_label = t('jdb_day_yesterday')
 
                 ui.button(
                     f"{day_label} {indicator}",
@@ -289,13 +295,13 @@ class JournalUI:
         with ui.column().classes("flex-1 p-4").style("min-width: 400px;"):
             # Header panneau entrées
             with ui.row().classes("w-full items-center justify-between mb-4"):
-                self.entries_title = ui.label("📝 Entrées d'aujourd'hui").classes("text-lg font-semibold")
+                self.entries_title = ui.label(t('jdb_label_entries_today')).classes("text-lg font-semibold")
 
                 # Filtres rapides
                 with ui.row().classes("gap-2"):
                     ui.select(
-                        ["Toutes", "Importantes", "Normales", "Récentes"],
-                        value="Toutes",
+                        [t('jdb_filter_all'), t('jdb_filter_important'), t('jdb_filter_normal'), t('jdb_filter_recent')],
+                        value=t('jdb_filter_all'),
                         on_change=self._on_filter_change
                     ).classes("w-32").props('dense')
 
@@ -303,10 +309,10 @@ class JournalUI:
             self.search_panel = ui.row().classes("w-full gap-2 mb-4 hidden")
             with self.search_panel:
                 self.search_input = ui.input(
-                    placeholder="Rechercher dans les entrées...",
+                    placeholder=t('jdb_placeholder_search'),
                     on_change=self._on_search_change
                 ).classes("flex-1")
-                ui.button("SEARCH", on_click=self._perform_search).props('dense')
+                ui.button(t('jdb_btn_search'), on_click=self._perform_search).props('dense')
 
             # Liste des entrées
             with ui.scroll_area().classes("w-full").style("height: calc(100vh - 300px);"):
@@ -316,12 +322,12 @@ class JournalUI:
         """Crée le panneau détail d'entrée"""
         with ui.column().classes("w-96 border-l bg-gray-50 p-4").style("min-width: 384px; max-width: 384px;"):
             # Header détail
-            ui.label("SEARCH Détail").classes("text-lg font-semibold mb-4")
+            ui.label(t('jdb_label_detail')).classes("text-lg font-semibold mb-4")
 
             # Zone détail (vide par défaut)
             self.detail_container = ui.column().classes("w-full")
             with self.detail_container:
-                ui.label("Sélectionnez une entrée pour voir les détails").classes("text-gray-500 text-center")
+                ui.label(t('jdb_label_select_entry')).classes("text-gray-500 text-center")
 
     async def _load_today_entries(self):
         """Charge les entrées d'aujourd'hui"""
@@ -340,11 +346,11 @@ class JournalUI:
             # Mise à jour titre
             formatted_date = datetime.strptime(date_str, "%Y-%m-%d").strftime("%d/%m/%Y")
             if date_str == date.today().strftime("%Y-%m-%d"):
-                date_label = "aujourd'hui"
+                date_label = t('jdb_day_today_lower')
             else:
                 date_label = formatted_date
 
-            self.entries_title.text = f"📝 Entrées du {date_label} ({len(self.current_entries)})"
+            self.entries_title.text = t('jdb_entries_title', date=date_label, count=len(self.current_entries))
 
             # Effacer ancien contenu
             self.entries_container.clear()
@@ -355,9 +361,9 @@ class JournalUI:
                     await self._create_entry_card(entry)
             else:
                 with self.entries_container:
-                    ui.label("Aucune entrée pour cette date").classes("text-gray-500 text-center p-4")
+                    ui.label(t('jdb_label_no_entries')).classes("text-gray-500 text-center p-4")
                     ui.button(
-                        "CREATE Créer une entrée",
+                        t('jdb_btn_create_entry'),
                         on_click=self._on_create_entry_click
                     ).classes("bg-green-600 hover:bg-green-700 text-white mx-auto")
 
@@ -437,11 +443,11 @@ class JournalUI:
                         "low": "⚪"
                     }
                     ui.label(importance_icons.get(importance, "🔵")).classes("text-lg")
-                    ui.label("Détail de l'entrée").classes("font-semibold")
+                    ui.label(t('jdb_label_entry_detail')).classes("font-semibold")
 
                 # Métadonnées principales
                 with ui.card().classes("w-full p-3 mb-3"):
-                    ui.label("📋 Informations").classes("font-medium mb-2")
+                    ui.label(t('jdb_label_info')).classes("font-medium mb-2")
 
                     # ID et timestamp
                     ui.label(f"ID: {entry.get('id', 'N/A')}").classes("text-xs text-gray-600")
@@ -458,8 +464,8 @@ class JournalUI:
 
                 # Résumé complet
                 with ui.card().classes("w-full p-3 mb-3"):
-                    ui.label("📝 Résumé").classes("font-medium mb-2")
-                    summary = entry.get("summary", "Aucun résumé disponible")
+                    ui.label(t('jdb_label_summary_section')).classes("font-medium mb-2")
+                    summary = entry.get("summary", t('jdb_label_no_summary'))
                     ui.label(summary).classes("text-sm leading-relaxed")
 
                 # Tags et catégorie
@@ -481,17 +487,17 @@ class JournalUI:
                 # Actions
                 with ui.row().classes("w-full gap-2 mt-4"):
                     ui.button(
-                        "📋 Copier résumé",
+                        t('jdb_btn_copy_summary'),
                         on_click=lambda: self._copy_summary(entry)
                     ).classes("bg-blue-600 hover:bg-blue-700 text-white").props('dense')
 
                     ui.button(
-                        "🔗 Voir conversation",
+                        t('jdb_btn_view_conv'),
                         on_click=lambda: self._show_conversation(entry)
                     ).classes("bg-green-600 hover:bg-green-700 text-white").props('dense')
 
                     ui.button(
-                        "🗑️ Supprimer",
+                        t('jdb_btn_delete_entry'),
                         on_click=lambda: self._delete_entry(entry)
                     ).classes("bg-red-600 hover:bg-red-700 text-white").props('dense')
 
@@ -507,19 +513,19 @@ class JournalUI:
         date_str = timestamp[:10] if timestamp else entry.get("date", "")
         
         if not date_str:
-            ui.notify("❌ Impossible de déterminer la date de l'entrée", type="negative")
+            ui.notify(t('jdb_notify_date_err'), type="negative")
             return
         
         # Dialogue de confirmation créé directement dans le contexte UI
         with ui.dialog() as dialog, ui.card().classes("p-6"):
-            ui.label("⚠️ Confirmer la suppression").classes("text-lg font-bold mb-3")
-            ui.label(f"Voulez-vous vraiment supprimer cette entrée ?").classes("mb-2")
+            ui.label(t('jdb_confirm_delete_title')).classes("text-lg font-bold mb-3")
+            ui.label(t('jdb_confirm_delete_question')).classes("mb-2")
             ui.label(f"Date: {date_str}").classes("text-sm text-gray-600 mb-4")
-            ui.label("Cette action est irréversible.").classes("text-sm text-red-600 mb-4")
+            ui.label(t('jdb_confirm_irreversible')).classes("text-sm text-red-600 mb-4")
             
             with ui.row().classes("w-full gap-2 justify-end"):
-                ui.button("Annuler", on_click=dialog.close).classes("bg-gray-500 hover:bg-gray-600 text-white")
-                ui.button("Supprimer", on_click=lambda: self._confirm_delete_entry(entry_id, date_str, dialog)).classes("bg-red-600 hover:bg-red-700 text-white")
+                ui.button(t('common_cancel'), on_click=dialog.close).classes("bg-gray-500 hover:bg-gray-600 text-white")
+                ui.button(t('jdb_btn_delete'), on_click=lambda: self._confirm_delete_entry(entry_id, date_str, dialog)).classes("bg-red-600 hover:bg-red-700 text-white")
         
         dialog.open()
 
@@ -531,7 +537,7 @@ class JournalUI:
             
             if success:
                 print(f"[JOURNAL-UI] ✅ Entrée {entry_id} supprimée")
-                ui.notify("✅ Entrée supprimée avec succès", type="positive")
+                ui.notify(t('jdb_notify_delete_ok'), type="positive")
                 dialog.close()
                 
                 # Rafraîchir la liste
@@ -541,7 +547,7 @@ class JournalUI:
                 self.detail_container.clear()
             else:
                 print(f"[JOURNAL-UI] ❌ Échec suppression entrée {entry_id}")
-                ui.notify("❌ Erreur lors de la suppression", type="negative")
+                ui.notify(t('jdb_notify_delete_err'), type="negative")
                 
         except Exception as e:
             print(f"[JOURNAL-UI] ERROR Erreur suppression: {e}")
@@ -678,7 +684,7 @@ class JournalUI:
             )
 
             # Affichage résultats
-            self.entries_title.text = f"SEARCH Résultats recherche: '{self.search_query}' ({len(results)})"
+            self.entries_title.text = t('jdb_search_results', query=self.search_query, n=len(results))
 
             # Effacer liste actuelle
             self.entries_container.clear()
@@ -688,7 +694,7 @@ class JournalUI:
                     await self._create_entry_card(entry)
             else:
                 with self.entries_container:
-                    ui.label("Aucun résultat trouvé").classes("text-gray-500 text-center p-4")
+                    ui.label(t('jdb_label_no_results')).classes("text-gray-500 text-center p-4")
 
             # Callback externe si défini
             if self.on_search_performed:
@@ -708,17 +714,17 @@ class JournalUI:
             # Afficher dialog de confirmation
             with ui.dialog() as create_dialog:
                 with ui.card():
-                    ui.label("CREATE Créer une nouvelle entrée").classes("text-lg font-bold mb-4")
-                    ui.label("Cette action va capturer la conversation actuelle et générer un résumé via l'Archiviste.").classes("mb-4")
+                    ui.label(t('jdb_dialog_create_title')).classes("text-lg font-bold mb-4")
+                    ui.label(t('jdb_dialog_create_msg')).classes("mb-4")
 
                     with ui.row().classes("gap-2"):
                         ui.button(
-                            "Annuler",
+                            t('common_cancel'),
                             on_click=create_dialog.close
-                        ).classes("bg-gray-500 hover:bg-gray-600 text-white")
+                        ).classes('bg-gray-500 hover:bg-gray-600 text-white')
 
                         ui.button(
-                            "CREATE Créer l'entrée",
+                            t('jdb_btn_create_confirm'),
                             on_click=lambda: self._create_entry_confirmed(create_dialog)
                         ).classes("bg-green-600 hover:bg-green-700 text-white")
 
@@ -734,7 +740,7 @@ class JournalUI:
             dialog.close()
 
             # Notification en cours
-            ui.notify("🤖 Génération du résumé en cours...", type="info")
+            ui.notify(t('jdb_notify_generating'), type="info")
 
             # 🔧 FIX: Récupérer conversation_id et historique pour création
             import sys
@@ -758,7 +764,7 @@ class JournalUI:
             )
 
             if entry:
-                ui.notify("OK Entrée créée avec succès !", type="positive")
+                ui.notify(t('jdb_notify_created_ok'), type="positive")
 
                 # Recharger les entrées du jour actuel
                 await self._load_today_entries()
@@ -766,7 +772,7 @@ class JournalUI:
                 # Afficher le détail de la nouvelle entrée
                 self._show_entry_detail(entry)
             else:
-                ui.notify("ERROR Erreur lors de la création", type="negative")
+                ui.notify(t('jdb_notify_create_error'), type='negative')
 
         except Exception as e:
             print(f"[JOURNAL-UI] ERROR Erreur création entrée confirmée: {e}")
@@ -851,39 +857,39 @@ class JournalUI:
             with ui.dialog() as states_modal, ui.card().classes("w-full").style("width: 90vw; max-width: 1200px; max-height: 90vh; display: flex; flex-direction: column;"):
                 # Header
                 with ui.row().classes("w-full items-center justify-between mb-4 pb-4 border-b border-gray-300"):
-                    ui.label("🎯 États Actifs - Suivi en Cours").classes("text-2xl font-bold")
+                    ui.label(t("jdb_modal_active_title")).classes("text-2xl font-bold")
                     ui.button(icon="close", on_click=states_modal.close).props("flat dense").classes("text-gray-500")
                 
                 # Statistiques globales (compactes)
                 with ui.row().classes("w-full gap-4 mb-4"):
                     with ui.card().classes("flex-1 bg-blue-50").style("padding: 8px;"):
                         ui.label(f"{len(all_states)}").classes("text-xl font-bold text-blue-600")
-                        ui.label("Total états").classes("text-xs text-gray-600")
+                        ui.label(t("jdb_label_total_states")).classes("text-xs text-gray-600")
                     
                     with ui.card().classes("flex-1 bg-orange-50").style("padding: 8px;"):
                         ui.label(f"{len(unresolved)}").classes("text-xl font-bold text-orange-600")
-                        ui.label("En cours").classes("text-xs text-gray-600")
+                        ui.label(t("jdb_label_in_progress")).classes("text-xs text-gray-600")
                     
                     with ui.card().classes("flex-1 bg-green-50").style("padding: 8px;"):
                         resolved_count = len([s for s in all_states if s.get("resolved", False)])
                         ui.label(f"{resolved_count}").classes("text-xl font-bold text-green-600")
-                        ui.label("Résolus").classes("text-xs text-gray-600")
+                        ui.label(t("jdb_label_resolved_stat")).classes("text-xs text-gray-600")
                 
                 # Filtres
                 with ui.row().classes("w-full gap-4 mb-4"):
                     selected_category = ui.select(
-                        label="Catégorie",
-                        options=["Toutes", "santé", "projet", "humeur", "apprentissage", "technique", "personnel"],
-                        value="Toutes"
+                        label=t("jdb_label_category"),
+                        options=[t('jdb_filter_all'), "santé", "projet", "humeur", "apprentissage", "technique", "personnel"],
+                        value=t('jdb_filter_all')
                     ).classes("flex-1")
                     
                     selected_importance = ui.select(
-                        label="Importance",
-                        options=["Toutes", "high", "medium", "low"],
-                        value="Toutes"
+                        label=t("jdb_label_importance_filter"),
+                        options=[t('jdb_filter_all'), "high", "medium", "low"],
+                        value=t('jdb_filter_all')
                     ).classes("flex-1")
                     
-                    show_resolved = ui.checkbox("Afficher résolus", value=False)
+                    show_resolved = ui.checkbox(t("jdb_chk_show_resolved"), value=False)
                 
                 # Liste des états en grid 2 colonnes
                 states_container = ui.element('div').classes("w-full overflow-y-auto").style(
@@ -903,17 +909,17 @@ class JournalUI:
                         filtered_states = [s for s in filtered_states if not s.get("resolved", False)]
                     
                     # Filtre catégorie
-                    if selected_category.value != "Toutes":
+                    if selected_category.value != t('jdb_filter_all'):
                         filtered_states = [s for s in filtered_states if s.get("category") == selected_category.value]
                     
                     # Filtre importance
-                    if selected_importance.value != "Toutes":
+                    if selected_importance.value != t('jdb_filter_all'):
                         filtered_states = [s for s in filtered_states if s.get("importance") == selected_importance.value]
                     
                     # Affichage
                     with states_container:
                         if not filtered_states:
-                            ui.label("Aucun état actif correspondant aux filtres").classes("text-gray-500 text-center p-8")
+                            ui.label(t("jdb_label_no_states")).classes("text-gray-500 text-center p-8")
                         else:
                             for state in filtered_states:
                                 await self._create_state_card(state, refresh_states_list)
@@ -1022,19 +1028,19 @@ class JournalUI:
                         ui.button(
                             icon="check_circle",
                             on_click=lambda sid=state_id: self._resolve_state(sid, refresh_callback)
-                        ).props("flat dense").classes("text-green-600").tooltip("Marquer comme résolu")
+                        ).props("flat dense").classes("text-green-600").tooltip(t('jdb_tooltip_mark_resolved'))
                     
                     ui.button(
                         icon="info",
                         on_click=lambda s=state: self._show_state_details(s)
-                    ).props("flat dense").classes("text-blue-600").tooltip("Détails complets")
+                    ).props("flat dense").classes("text-blue-600").tooltip(t('jdb_tooltip_details'))
     
     async def _resolve_state(self, state_id: int, refresh_callback: Callable):
         """Marque un état comme résolu"""
         try:
             # Dialog de confirmation
             with ui.dialog() as confirm_dialog, ui.card():
-                ui.label("Marquer cet état comme résolu ?").classes("text-lg font-semibold mb-4")
+                ui.label(t('jdb_confirm_resolve_title')).classes("text-lg font-semibold mb-4")
                 
                 resolution_note = ui.input(
                     label="Note de résolution (optionnel)",
@@ -1042,7 +1048,7 @@ class JournalUI:
                 ).classes("w-full mb-4")
                 
                 with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button("Annuler", on_click=confirm_dialog.close).props("flat")
+                    ui.button(t('common_cancel'), on_click=confirm_dialog.close).props("flat")
                     
                     async def confirm_resolve():
                         success = self.json_manager.resolve_state(
@@ -1051,13 +1057,13 @@ class JournalUI:
                         )
                         
                         if success:
-                            ui.notify(f"✅ État résolu avec succès", type="positive")
+                            ui.notify(t('jdb_notify_resolve_ok'), type="positive")
                             confirm_dialog.close()
                             await refresh_callback()
                         else:
-                            ui.notify("❌ Erreur résolution état", type="negative")
+                            ui.notify(t('jdb_notify_resolve_err'), type="negative")
                     
-                    ui.button("✅ Confirmer", on_click=confirm_resolve).classes("bg-green-600 text-white")
+                    ui.button(t('jdb_btn_confirm_resolve'), on_click=confirm_resolve).classes("bg-green-600 text-white")
             
             confirm_dialog.open()
             
@@ -1105,14 +1111,14 @@ class JournalUI:
             with ui.dialog() as maintenance_modal, ui.card().classes("w-full").style("width: 90vw; max-width: 1200px; max-height: 90vh;"):
                 # Header
                 with ui.row().classes("w-full items-center justify-between mb-4 pb-4 border-b border-gray-300"):
-                    ui.label("🧹 Maintenance Journal v2.0").classes("text-2xl font-bold")
+                    ui.label(t("jdb_modal_maintenance_title")).classes("text-2xl font-bold")
                     ui.button(icon="close", on_click=maintenance_modal.close).props("flat dense").classes("text-gray-500")
                 
                 # Tabs navigation
                 with ui.tabs().classes("w-full") as tabs:
-                    purge_tab = ui.tab("🗜️ Purge")
-                    auto_resolve_tab = ui.tab("✅ Auto-Résolution")
-                    config_tab = ui.tab("⚙️ Configuration")
+                    purge_tab = ui.tab(t("jdb_tab_purge"))
+                    auto_resolve_tab = ui.tab(t("jdb_tab_auto_resolve"))
+                    config_tab = ui.tab(t("jdb_tab_maintenance_config"))
                 
                 # Tabs content
                 with ui.tab_panels(tabs, value=purge_tab).classes("w-full"):
@@ -1140,28 +1146,28 @@ class JournalUI:
     async def _create_purge_tab(self, purge_manager):
         """Onglet purge manuelle"""
         with ui.column().classes("w-full gap-4 p-4"):
-            ui.label("Purge et Compression des Entrées Anciennes").classes("text-xl font-bold mb-2")
-            ui.label("Compresse les entrées anciennes via résumé LLM et/ou archive dans FAISS").classes("text-sm text-gray-600 mb-4")
+            ui.label(t('jdb_purge_title')).classes('text-xl font-bold mb-2')
+            ui.label(t('jdb_purge_desc')).classes('text-sm text-gray-600 mb-4')
             
             # Configuration purge
             with ui.card().classes("w-full bg-gray-50"):
-                ui.label("Configuration").classes("font-semibold mb-3")
+                ui.label(t('jdb_purge_config_label')).classes('font-semibold mb-3')
                 
-                with ui.row().classes("w-full gap-4 items-end"):
+                with ui.row().classes('w-full gap-4 items-end'):
                     age_input = ui.number(
-                        label="Âge minimum (jours)",
+                        label=t('jdb_purge_age'),
                         value=90,
                         min=30,
                         max=365
                     ).classes("flex-1")
                     
                     mode_select = ui.select(
-                        label="Mode",
-                        options=["compress", "archive"],
-                        value="compress"
-                    ).classes("flex-1").tooltip("compress: Résumé LLM uniquement\narchive: Résumé + transfert FAISS")
+                        label=t('jdb_purge_mode'),
+                        options=['compress', 'archive'],
+                        value='compress'
+                    ).classes('flex-1').tooltip(t('jdb_purge_mode_tooltip'))
                     
-                    exclude_states = ui.checkbox("Exclure entrées avec états actifs", value=True).classes("mt-4")
+                    exclude_states = ui.checkbox(t('jdb_purge_exclude_states'), value=True).classes('mt-4')
             
             # Preview
             preview_container = ui.column().classes("w-full gap-2")
@@ -1171,11 +1177,11 @@ class JournalUI:
                     preview_container.clear()
                     
                     if not purge_manager:
-                        ui.notify("PurgeManager non disponible", type="warning")
+                        ui.notify(t('jdb_purge_unavailable'), type='warning')
                         return
                     
                     with preview_container:
-                        ui.label("🔍 Analyse en cours...").classes("text-blue-600")
+                        ui.label(t('jdb_btn_preview') + ' Analyse...').classes('text-blue-600')
                     
                     # Récupérer entrées purgeable
                     entries = purge_manager.get_purgeable_entries(
@@ -1186,9 +1192,9 @@ class JournalUI:
                     preview_container.clear()
                     with preview_container:
                         if not entries:
-                            ui.label("Aucune entrée éligible pour purge").classes("text-gray-500")
+                            ui.label(t('jdb_purge_no_entries')).classes('text-gray-500')
                         else:
-                            ui.label(f"✅ {len(entries)} entrées détectées").classes("text-green-600 font-bold mb-2")
+                            ui.label(t('jdb_purge_detected', n=len(entries))).classes('text-green-600 font-bold mb-2')
                             
                             # Statistiques
                             total_size = sum(e["size_bytes"] for e in entries)
@@ -1197,45 +1203,45 @@ class JournalUI:
                             with ui.row().classes("gap-4 mb-4"):
                                 with ui.card().classes("flex-1 bg-blue-50"):
                                     ui.label(f"{len(entries)}").classes("text-2xl font-bold text-blue-600")
-                                    ui.label("Entrées").classes("text-xs text-gray-600")
+                                    ui.label(t('jdb_purge_entries_count')).classes('text-xs text-gray-600')
                                 
                                 with ui.card().classes("flex-1 bg-orange-50"):
                                     ui.label(f"{total_size // 1024} KB").classes("text-2xl font-bold text-orange-600")
-                                    ui.label("Taille totale").classes("text-xs text-gray-600")
+                                    ui.label(t('jdb_purge_size_total')).classes('text-xs text-gray-600')
                                 
                                 with ui.card().classes("flex-1 bg-green-50"):
                                     ui.label(f"{compressed_count}").classes("text-2xl font-bold text-green-600")
-                                    ui.label("Déjà compressées").classes("text-xs text-gray-600")
+                                    ui.label(t('jdb_purge_already_compressed')).classes('text-xs text-gray-600')
                             
                             # Liste preview (10 premières)
-                            ui.label("Aperçu (10 premières):").classes("font-semibold mb-2")
+                            ui.label(t('jdb_purge_preview_header')).classes('font-semibold mb-2')
                             for entry in entries[:10]:
                                 with ui.card().classes("w-full bg-white border-l-4 border-gray-300"):
                                     with ui.row().classes("items-center justify-between"):
                                         ui.label(f"📅 {entry['date']}").classes("font-mono")
                                         ui.label(f"{entry['age_days']}j").classes("text-sm text-gray-500")
-                                        if entry["compressed"]:
-                                            ui.badge("Compressée").classes("bg-green-500")
+                                        if entry['compressed']:
+                                            ui.badge(t('jdb_purge_already_compressed')).classes('bg-green-500')
                 
-                ui.button("🔍 Preview", on_click=run_preview).classes("bg-blue-600 text-white")
+                ui.button(t('jdb_btn_preview'), on_click=run_preview).classes('bg-blue-600 text-white')
                 
                 async def run_purge():
                     if not purge_manager:
-                        ui.notify("PurgeManager non disponible", type="warning")
+                        ui.notify(t('jdb_purge_unavailable'), type='warning')
                         return
                     
                     # Confirmation
                     with ui.dialog() as confirm_dialog, ui.card():
-                        ui.label("⚠️ Confirmer la purge ?").classes("text-lg font-bold mb-2")
-                        ui.label(f"Âge: {age_input.value}j | Mode: {mode_select.value}").classes("text-sm mb-4")
-                        ui.label("Cette action est irréversible (sauf backup automatique)").classes("text-xs text-red-600 mb-4")
+                        ui.label(t('jdb_purge_confirm_title')).classes('text-lg font-bold mb-2')
+                        ui.label(t('jdb_purge_age_mode_line', age=age_input.value, mode=mode_select.value)).classes('text-sm mb-4')
+                        ui.label(t('jdb_purge_irreversible')).classes('text-xs text-red-600 mb-4')
                         
                         with ui.row().classes("gap-2"):
-                            ui.button("Annuler", on_click=confirm_dialog.close).props("flat")
+                            ui.button(t('common_cancel'), on_click=confirm_dialog.close).props('flat')
                             
                             async def confirm():
                                 confirm_dialog.close()
-                                ui.notify("🗜️ Purge en cours...", type="info")
+                                ui.notify(t('jdb_purge_notify_running'), type='info')
                                 
                                 stats = purge_manager.purge_old_entries(
                                     age_days=int(age_input.value),
@@ -1243,40 +1249,39 @@ class JournalUI:
                                     dry_run=False
                                 )
                                 
-                                ui.notify(f"✅ Purge terminée: {stats.get('compressed', 0)} compressées, "
-                                         f"{stats.get('archived', 0)} archivées", type="positive")
+                                ui.notify(t('jdb_purge_notify_done', compressed=stats.get('compressed',0), archived=stats.get('archived',0)), type='positive')
                                 
                                 # Rafraîchir preview
                                 await run_preview()
                             
-                            ui.button("✅ Confirmer Purge", on_click=confirm).classes("bg-red-600 text-white")
+                            ui.button(t('jdb_btn_confirm_purge'), on_click=confirm).classes('bg-red-600 text-white')
                     
                     confirm_dialog.open()
                 
-                ui.button("🗜️ Lancer Purge", on_click=run_purge).classes("bg-red-600 text-white")
+                ui.button(t('jdb_btn_launch_purge'), on_click=run_purge).classes('bg-red-600 text-white')
     
     async def _create_auto_resolve_tab(self):
         """Onglet auto-résolution états inactifs"""
         from .auto_resolution import detect_inactive_states, auto_resolve_states, get_auto_resolution_stats
         
         with ui.column().classes("w-full gap-4 p-4"):
-            ui.label("Auto-Résolution États Actifs Inactifs").classes("text-xl font-bold mb-2")
-            ui.label("Résout automatiquement les états non mis à jour depuis longtemps").classes("text-sm text-gray-600 mb-4")
+            ui.label(t('jdb_autoresolve_title')).classes('text-xl font-bold mb-2')
+            ui.label(t('jdb_autoresolve_desc')).classes('text-sm text-gray-600 mb-4')
             
             # Configuration
             with ui.card().classes("w-full bg-gray-50"):
-                ui.label("Configuration").classes("font-semibold mb-3")
+                ui.label(t('jdb_purge_config_label')).classes('font-semibold mb-3')
                 
-                with ui.row().classes("w-full gap-4 items-end"):
+                with ui.row().classes('w-full gap-4 items-end'):
                     threshold_input = ui.number(
-                        label="Inactivité minimum (jours)",
+                        label=t('jdb_autoresolve_threshold'),
                         value=30,
                         min=7,
                         max=180
                     ).classes("flex-1")
                     
-                    exclude_high = ui.checkbox("Exclure importance HIGH", value=True).classes("mt-4")
-                    llm_validation = ui.checkbox("Validation LLM (Archiviste)", value=True).classes("mt-4")
+                    exclude_high = ui.checkbox(t('jdb_autoresolve_exclude_high'), value=True).classes('mt-4')
+                    llm_validation = ui.checkbox(t('jdb_autoresolve_llm'), value=True).classes('mt-4')
             
             # Stats et détection
             stats_container = ui.column().classes("w-full gap-2")
@@ -1300,9 +1305,9 @@ class JournalUI:
                     stats_container.clear()
                     with stats_container:
                         if not inactive:
-                            ui.label("Aucun état inactif détecté").classes("text-gray-500")
+                            ui.label(t('jdb_autoresolve_none')).classes('text-gray-500')
                         else:
-                            ui.label(f"✅ {len(inactive)} états inactifs détectés").classes("text-orange-600 font-bold mb-4")
+                            ui.label(t('jdb_autoresolve_detected', n=len(inactive))).classes('text-orange-600 font-bold mb-4')
                             
                             # Stats par catégorie
                             from collections import Counter
@@ -1316,36 +1321,36 @@ class JournalUI:
                     states_container.clear()
                     with states_container:
                         if inactive:
-                            ui.label("États détectés:").classes("font-semibold mb-2")
+                            ui.label(t('jdb_autoresolve_detected_header')).classes('font-semibold mb-2')
                             for state in inactive:
                                 with ui.card().classes("w-full border-l-4 border-orange-400"):
                                     with ui.row().classes("items-start justify-between"):
                                         with ui.column().classes("flex-1"):
                                             ui.label(state["description"]).classes("font-semibold")
-                                            ui.label(f"Catégorie: {state['category']} | Importance: {state['importance']}").classes("text-xs text-gray-600")
-                                            ui.label(f"Inactif depuis: {state['days_inactive']} jours").classes("text-xs text-orange-600")
+                                            ui.label(t('jdb_autoresolve_cat_imp', cat=state['category'], imp=state['importance'])).classes('text-xs text-gray-600')
+                                            ui.label(t('jdb_autoresolve_inactive_since', n=state['days_inactive'])).classes('text-xs text-orange-600')
                 
-                ui.button("🔍 Détecter", on_click=run_detection).classes("bg-blue-600 text-white")
+                ui.button(t('jdb_btn_detect'), on_click=run_detection).classes('bg-blue-600 text-white')
                 
                 async def run_auto_resolve():
                     # Récupérer archiviste
                     archiviste = self.core_journal.archiviste_controller if hasattr(self.core_journal, 'archiviste_controller') else None
                     
                     if not archiviste and llm_validation.value:
-                        ui.notify("Archiviste non disponible pour validation LLM", type="warning")
+                        ui.notify(t('jdb_autoresolve_no_archivist'), type='warning')
                         return
                     
                     # Confirmation
                     with ui.dialog() as confirm_dialog, ui.card():
-                        ui.label("⚠️ Confirmer l'auto-résolution ?").classes("text-lg font-bold mb-2")
-                        ui.label(f"Seuil: {threshold_input.value}j | Validation LLM: {llm_validation.value}").classes("text-sm mb-4")
+                        ui.label(t('jdb_autoresolve_confirm_title')).classes('text-lg font-bold mb-2')
+                        ui.label(t('jdb_autoresolve_threshold_line', n=threshold_input.value, v=llm_validation.value)).classes('text-sm mb-4')
                         
                         with ui.row().classes("gap-2"):
-                            ui.button("Annuler", on_click=confirm_dialog.close).props("flat")
+                            ui.button(t('common_cancel'), on_click=confirm_dialog.close).props('flat')
                             
                             async def confirm():
                                 confirm_dialog.close()
-                                ui.notify("✅ Auto-résolution en cours...", type="info")
+                                ui.notify(t('jdb_autoresolve_notify_running'), type='info')
                                 
                                 stats = auto_resolve_states(
                                     json_manager=self.json_manager,
@@ -1355,27 +1360,26 @@ class JournalUI:
                                     require_llm_validation=llm_validation.value
                                 )
                                 
-                                ui.notify(f"✅ Terminé: {stats.get('resolved', 0)} résolus, "
-                                         f"{stats.get('rejected', 0)} rejetés", type="positive")
+                                ui.notify(t('jdb_autoresolve_notify_done', resolved=stats.get('resolved',0), rejected=stats.get('rejected',0)), type='positive')
                                 
                                 # Rafraîchir détection
                                 await run_detection()
                             
-                            ui.button("✅ Confirmer", on_click=confirm).classes("bg-green-600 text-white")
+                            ui.button(t('jdb_btn_confirm_generic'), on_click=confirm).classes('bg-green-600 text-white')
                     
                     confirm_dialog.open()
                 
-                ui.button("✅ Auto-Résoudre", on_click=run_auto_resolve).classes("bg-green-600 text-white")
+                ui.button(t('jdb_btn_autoresolve'), on_click=run_auto_resolve).classes('bg-green-600 text-white')
     
     async def _create_config_tab(self, scheduler):
         """Onglet configuration scheduler"""
         with ui.column().classes("w-full gap-4 p-4"):
-            ui.label("Configuration Maintenance Automatique").classes("text-xl font-bold mb-2")
-            ui.label("Planification hebdomadaire de la maintenance").classes("text-sm text-gray-600 mb-4")
+            ui.label(t('jdb_config_title')).classes('text-xl font-bold mb-2')
+            ui.label(t('jdb_config_desc')).classes('text-sm text-gray-600 mb-4')
             
             if not scheduler:
-                ui.label("⚠️ Scheduler non initialisé").classes("text-red-600 font-bold")
-                ui.label("Relancez OGMA pour activer le scheduler").classes("text-sm text-gray-500")
+                ui.label(t('jdb_config_no_scheduler')).classes('text-red-600 font-bold')
+                ui.label(t('jdb_config_restart_hint')).classes('text-sm text-gray-500')
                 return
             
             config = scheduler.config
@@ -1387,52 +1391,52 @@ class JournalUI:
                 with ui.row().classes("items-center gap-4"):
                     if status["is_running"]:
                         ui.icon("check_circle", size="32px").classes("text-green-600")
-                        ui.label("Scheduler actif").classes("text-lg font-bold text-green-600")
+                        ui.label(t('jdb_config_scheduler_active')).classes('text-lg font-bold text-green-600')
                     else:
-                        ui.icon("cancel", size="32px").classes("text-gray-400")
-                        ui.label("Scheduler inactif").classes("text-lg font-bold text-gray-600")
+                        ui.icon('cancel', size='32px').classes('text-gray-400')
+                        ui.label(t('jdb_config_scheduler_inactive')).classes('text-lg font-bold text-gray-600')
                 
                 if config.get("last_maintenance"):
-                    last_maint = datetime.fromisoformat(config["last_maintenance"]).strftime("%d/%m/%Y %H:%M")
-                    ui.label(f"Dernière maintenance: {last_maint}").classes("text-sm text-gray-600 mt-2")
+                    last_maint = datetime.fromisoformat(config['last_maintenance']).strftime('%d/%m/%Y %H:%M')
+                    ui.label(t('jdb_config_last_maintenance', dt=last_maint)).classes('text-sm text-gray-600 mt-2')
             
             # Configuration
             with ui.card().classes("w-full"):
-                ui.label("Paramètres").classes("font-semibold mb-3")
+                ui.label(t('jdb_config_params')).classes('font-semibold mb-3')
                 
                 auto_purge_enabled = ui.checkbox(
-                    "Activer purge automatique",
+                    t('jdb_config_auto_purge'),
                     value=config.get("auto_purge_enabled", False)
                 ).classes("mb-2")
                 
                 purge_age = ui.number(
-                    label="Âge purge (jours)",
+                    label=t('jdb_config_purge_age'),
                     value=config.get("purge_age_days", 90),
                     min=30,
                     max=365
                 ).classes("w-full mb-2")
                 
                 auto_resolve_enabled = ui.checkbox(
-                    "Activer auto-résolution",
+                    t('jdb_config_auto_resolve'),
                     value=config.get("auto_resolve_enabled", False)
                 ).classes("mb-2")
                 
                 resolve_threshold = ui.number(
-                    label="Seuil inactivité (jours)",
+                    label=t('jdb_config_resolve_threshold'),
                     value=config.get("resolve_threshold_days", 30),
                     min=7,
                     max=180
                 ).classes("w-full mb-2")
                 
                 maintenance_interval = ui.number(
-                    label="Intervalle maintenance (jours)",
+                    label=t('jdb_config_interval'),
                     value=config.get("maintenance_interval_days", 7),
                     min=1,
                     max=30
                 ).classes("w-full mb-2")
                 
                 require_llm = ui.checkbox(
-                    "Validation LLM pour auto-résolution",
+                    t('jdb_config_require_llm'),
                     value=config.get("require_llm_validation", True)
                 )
             
@@ -1449,31 +1453,30 @@ class JournalUI:
                     )
                     
                     if success:
-                        ui.notify("✅ Configuration sauvegardée", type="positive")
+                        ui.notify(t('jdb_notify_config_saved'), type='positive')
                     else:
-                        ui.notify("❌ Erreur sauvegarde", type="negative")
+                        ui.notify(t('jdb_notify_config_error'), type='negative')
                 
-                ui.button("💾 Sauvegarder", on_click=save_config).classes("bg-blue-600 text-white")
+                ui.button(t('jdb_btn_save_config'), on_click=save_config).classes('bg-blue-600 text-white')
                 
                 def toggle_scheduler():
                     if scheduler._is_running:
                         scheduler.stop()
-                        ui.notify("🛑 Scheduler arrêté", type="info")
+                        ui.notify(t('jdb_notify_scheduler_stopped'), type='info')
                     else:
                         scheduler.start()
-                        ui.notify("✅ Scheduler démarré", type="positive")
+                        ui.notify(t('jdb_notify_scheduler_started'), type='positive')
                 
-                ui.button("▶️ Toggle Scheduler", on_click=toggle_scheduler).classes("bg-green-600 text-white")
+                ui.button(t('jdb_btn_toggle_scheduler'), on_click=toggle_scheduler).classes('bg-green-600 text-white')
                 
                 async def run_manual():
-                    ui.notify("🧹 Maintenance manuelle en cours...", type="info")
+                    ui.notify(t('jdb_notify_maintenance_running'), type='info')
                     
                     stats = scheduler.run_maintenance_now(dry_run=False)
                     
-                    ui.notify(f"✅ Terminé: {stats.get('auto_resolution', {}).get('resolved', 0)} résolus, "
-                             f"{stats.get('purge', {}).get('compressed', 0)} compressées", type="positive")
+                    ui.notify(t('jdb_notify_maintenance_done', resolved=stats.get('auto_resolution',{}).get('resolved',0), compressed=stats.get('purge',{}).get('compressed',0)), type='positive')
                 
-                ui.button("🧹 Exécuter Maintenant", on_click=run_manual).classes("bg-orange-600 text-white")
+                ui.button(t('jdb_btn_run_now'), on_click=run_manual).classes('bg-orange-600 text-white')
     
     def cleanup(self):
         """Nettoyage des ressources UI"""

@@ -1789,7 +1789,17 @@ class AudioManager:
             with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
                 tts.save(tmp_file.name)
                 temp_file_path = tmp_file.name
-            
+
+            # Hologramme : extraire l'enveloppe RMS réelle
+            try:
+                from extensions.hologram_projector.audio_analyzer import extract_rms_envelope
+                from extensions.hologram_projector.state_emitter import send_envelope
+                envelope = extract_rms_envelope(temp_file_path, interval_ms=50)
+                if envelope:
+                    send_envelope(envelope, interval_ms=50)
+            except Exception as _e:
+                print(f"[TTS-HOLOGRAM] Analyse audio ignorée : {_e}")
+
             # Jouer le fichier avec pygame
             pygame.mixer.init()
             pygame.mixer.music.load(temp_file_path)
@@ -1845,7 +1855,19 @@ class AudioManager:
             
             # Sauvegarder l'audio
             await communicate.save(temp_file_path)
-            
+
+            # ── Hologramme : extraire l'enveloppe RMS réelle et l'envoyer ──
+            try:
+                from extensions.hologram_projector.audio_analyzer import extract_rms_envelope
+                from extensions.hologram_projector.state_emitter import send_envelope
+                envelope = extract_rms_envelope(temp_file_path, interval_ms=50)
+                if envelope:
+                    send_envelope(envelope, interval_ms=50)
+                    print(f"[TTS-HOLOGRAM] Enveloppe envoyée : {len(envelope)} frames")
+            except Exception as _e:
+                print(f"[TTS-HOLOGRAM] Analyse audio ignorée : {_e}")
+            # ─────────────────────────────────────────────────────────────────
+
             # Jouer le fichier avec pygame
             pygame.mixer.init()
             pygame.mixer.music.load(temp_file_path)

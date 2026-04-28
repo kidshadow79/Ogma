@@ -7,6 +7,12 @@ import asyncio
 from typing import Optional, Callable
 from nicegui import ui
 
+try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
 from .config import get_telegram_config
 from .bot_handler import get_bot_handler
 from . import (
@@ -47,7 +53,7 @@ class TelegramConnectorUI:
             with ui.card().classes('w-full'):
                 # En-tête
                 with ui.row().classes('w-full items-center justify-between'):
-                    ui.label('📱 Telegram Connector').classes('text-lg font-bold')
+                    ui.label(t('tg_modal_title')).classes('text-lg font-bold')
                     
                     # Indicateur de statut
                     self._status_label = ui.label().classes('text-sm')
@@ -58,21 +64,21 @@ class TelegramConnectorUI:
                 # Activation
                 with ui.row().classes('w-full items-center gap-4'):
                     self._enabled_switch = ui.switch(
-                        'Activer Telegram',
+                        t('tg_switch_enable'),
                         value=self.config.enabled,
                         on_change=self._on_enabled_change
                     )
                     
                     self._auto_start_switch = ui.switch(
-                        'Démarrage auto',
+                        t('tg_switch_auto_start'),
                         value=self.config.auto_start,
                         on_change=lambda e: self._save_setting('auto_start', e.value)
-                    ).tooltip('Démarrer le bot automatiquement au lancement d\'OGMA')
+                    ).tooltip(t('tg_tooltip_auto_start'))
                 
                 # Token
                 with ui.row().classes('w-full items-end gap-2'):
                     self._token_input = ui.input(
-                        'Token du Bot',
+                        t('tg_input_token'),
                         value=self.config.bot_token,
                         password=True,
                         password_toggle_button=True,
@@ -82,12 +88,12 @@ class TelegramConnectorUI:
                     ui.button(
                         '🔗',
                         on_click=lambda: ui.run_javascript('window.open("https://t.me/BotFather", "_blank")')
-                    ).tooltip('Ouvrir @BotFather pour créer un bot')
+                    ).tooltip(t('tg_tooltip_botfather'))
                 
                 # Bouton démarrer/arrêter
                 with ui.row().classes('w-full justify-center mt-4'):
                     self._start_stop_button = ui.button(
-                        '🚀 Démarrer le bot',
+                        t('tg_btn_start'),
                         on_click=self._toggle_bot
                     ).classes('w-48')
                     self._update_button_state()
@@ -95,29 +101,29 @@ class TelegramConnectorUI:
                 ui.separator()
                 
                 # Fonctionnalités
-                ui.label('Fonctionnalités').classes('font-semibold mt-2')
+                ui.label(t('tg_section_features')).classes('font-semibold mt-2')
                 
                 with ui.row().classes('w-full gap-4 flex-wrap'):
                     self._voice_input_switch = ui.switch(
-                        '🎤 Vocaux entrants',
+                        t('tg_switch_voice_in'),
                         value=self.config.voice_input_enabled,
                         on_change=lambda e: self._save_setting('voice_input_enabled', e.value)
                     ).tooltip('Transcrire les messages vocaux reçus')
                     
                     self._voice_output_switch = ui.switch(
-                        '🔊 Vocaux sortants',
+                        t('tg_switch_voice_out'),
                         value=self.config.voice_output_enabled,
                         on_change=lambda e: self._save_setting('voice_output_enabled', e.value)
                     ).tooltip('Répondre par message vocal')
                     
                     self._image_input_switch = ui.switch(
-                        '📷 Images entrantes',
+                        t('tg_switch_img_in'),
                         value=self.config.image_input_enabled,
                         on_change=lambda e: self._save_setting('image_input_enabled', e.value)
                     ).tooltip('Analyser les images reçues')
                     
                     self._image_output_switch = ui.switch(
-                        '🎨 Images sortantes',
+                        t('tg_switch_img_out'),
                         value=self.config.image_output_enabled,
                         on_change=lambda e: self._save_setting('image_output_enabled', e.value)
                     ).tooltip('Envoyer les images générées')
@@ -125,21 +131,20 @@ class TelegramConnectorUI:
                 ui.separator()
                 
                 # Sécurité
-                ui.label('Sécurité').classes('font-semibold mt-2')
+                ui.label(t('tg_section_security')).classes('font-semibold mt-2')
                 
                 with ui.row().classes('w-full items-end gap-2'):
                     current_users = ', '.join(map(str, self.config.allowed_user_ids))
                     self._allowed_users_input = ui.input(
-                        'User IDs autorisés',
+                        t('tg_input_allowed_users'),
                         value=current_users,
                         on_change=self._on_allowed_users_change
                     ).classes('flex-grow').tooltip(
-                        'Liste des IDs Telegram autorisés (séparés par virgule). '
-                        'Laisse vide pour autoriser le premier utilisateur.'
+                        t('tg_tooltip_allowed_users')
                     )
                 
                 # Instructions
-                with ui.expansion('📖 Instructions', value=False).classes('w-full mt-4'):
+                with ui.expansion(t('tg_expansion_instructions'), value=False).classes('w-full mt-4'):
                     ui.markdown('''
 **Configuration:**
 1. Ouvre Telegram et cherche `@BotFather`
@@ -180,10 +185,10 @@ class TelegramConnectorUI:
         # Mettre à jour l'apparence selon l'état
         if is_telegram_running():
             button.classes('text-green-500')
-            button.tooltip('Telegram: Connecté')
+            button.tooltip(t('tg_tooltip_connected'))
         else:
             button.classes('text-gray-400')
-            button.tooltip('Telegram: Déconnecté')
+            button.tooltip(t('tg_tooltip_disconnected'))
         
         return button
     
@@ -214,23 +219,23 @@ class TelegramConnectorUI:
             self.config.allowed_user_ids = user_ids
             self.config.save_config()
         except ValueError:
-            ui.notify('Format invalide. Utilise des nombres séparés par des virgules.', type='warning')
+            ui.notify(t('tg_notify_invalid_format'), type='warning')
     
     async def _toggle_bot(self) -> None:
         """Démarre ou arrête le bot"""
         if is_telegram_running():
             await stop_telegram_bot()
-            ui.notify('🛑 Bot Telegram arrêté', type='info')
+            ui.notify(t('tg_notify_bot_stopped'), type='info')
         else:
             if not self.config.is_configured():
-                ui.notify('⚠️ Configure d\'abord le token du bot', type='warning')
+                ui.notify(t('tg_notify_token_first'), type='warning')
                 return
             
             success = await start_telegram_bot()
             if success:
-                ui.notify('🚀 Bot Telegram démarré !', type='positive')
+                ui.notify(t('tg_notify_bot_started'), type='positive')
             else:
-                ui.notify('❌ Échec du démarrage du bot', type='negative')
+                ui.notify(t('tg_notify_start_failed'), type='negative')
         
         self._update_status_label()
         self._update_button_state()
@@ -245,7 +250,7 @@ class TelegramConnectorUI:
                 type='info'
             )
         else:
-            ui.notify('📱 Telegram inactif', type='warning')
+            ui.notify(t('tg_notify_inactive'), type='warning')
     
     # === Mises à jour UI ===
     
@@ -276,7 +281,7 @@ class TelegramConnectorUI:
             self._start_stop_button.text = '🛑 Arrêter le bot'
             self._start_stop_button.classes('bg-red-500', remove='bg-green-500')
         else:
-            self._start_stop_button.text = '🚀 Démarrer le bot'
+            self._start_stop_button.text = t('tg_btn_start')
             self._start_stop_button.classes('bg-green-500', remove='bg-red-500')
     
     def refresh(self) -> None:

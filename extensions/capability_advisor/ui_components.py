@@ -11,6 +11,12 @@ except ImportError:
     NICEGUI_AVAILABLE = False
     print("[CAPABILITY-ADVISOR] ⚠️ NiceGUI non disponible")
 
+try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
 from .capability_catalog import CAPABILITIES
 from .config import CapabilityAdvisorConfig
 from .led_manager import LEDManager
@@ -106,14 +112,14 @@ class CapabilityAdvisorUI:
         with overlay_container:
             # Header overlay compact
             with ui.row().classes('items-center justify-between w-full mb-3'):
-                ui.label('Capacités').classes('text-sm font-bold').style('color: var(--text-primary);')
+                ui.label(t('ca_label_capabilities')).classes('text-sm font-bold').style('color: var(--text-primary);')
                 
                 # Icône paramètres pour éditer prompt Archiviste
                 with ui.button(
                     icon='settings', 
                     on_click=lambda: self.open_prompt_editor()
                 ).classes('').props('flat dense round').style('padding: 4px;'):
-                    ui.tooltip('Config prompt')
+                    ui.tooltip(t('ca_tooltip_config'))
             
             ui.separator().classes('mb-2')
             
@@ -125,7 +131,7 @@ class CapabilityAdvisorUI:
             ui.separator().classes('mt-3')
             
             # Bouton fermer compact
-            ui.button('Fermer', on_click=lambda: setattr(overlay_container, 'visible', False)).classes('w-full').props('flat dense size=sm')
+            ui.button(t('ca_btn_close'), on_click=lambda: setattr(overlay_container, 'visible', False)).classes('w-full').props('flat dense size=sm')
         
         self.overlay_dialog = overlay_container
         print("[CAPABILITY-ADVISOR] ✅ Overlay container créé")
@@ -148,7 +154,10 @@ class CapabilityAdvisorUI:
             self.led_manager.led_ui_elements[cap_id] = led_indicator
             
             # Nom capacité compact
-            ui.label(cap_info['name']).classes('text-xs font-medium').style('color: var(--text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;')
+            cap_name = t(f'ca_cap_{cap_id}')
+            if cap_name == f'ca_cap_{cap_id}':
+                cap_name = cap_info['name']
+            ui.label(cap_name).classes('text-xs font-medium').style('color: var(--text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;')
     
     def create_prompt_editor_modal(self):
         """Crée modal édition prompt Archiviste + IDs mémoire"""
@@ -160,50 +169,50 @@ class CapabilityAdvisorUI:
         
         with ui.dialog() as prompt_modal:
             with ui.card().style('width: 900px; max-width: 95vw; max-height: 90vh; overflow-y: auto;'):
-                ui.label('⚙️ Configuration Extension Capability Advisor').classes('text-lg font-bold mb-2')
+                ui.label(t('ca_modal_title')).classes('text-lg font-bold mb-2')
                 ui.separator()
                 
                 # ======== SECTION 1: PROMPT ARCHIVISTE ========
-                ui.label('📝 Prompt Analyse Archiviste').classes('text-md font-semibold mt-4')
+                ui.label(t('ca_section_prompt')).classes('text-md font-semibold mt-4')
                 
                 # Zone édition prompt avec style visible
                 prompt_area = ui.textarea(
-                    label='Prompt Système',
+                    label=t('ca_label_prompt_system'),
                     value=current_prompt,
-                    placeholder='Prompt système pour analyse capacités...'
+                    placeholder=t('ca_placeholder_prompt')
                 ).classes('w-full').props('rows=12 outlined').style(
                     'color: white !important; '
                     'background-color: #2a2a2a !important;'
                 )
                 
                 # Variables disponibles
-                ui.label('Variables disponibles:').classes('text-sm font-semibold mt-2')
+                ui.label(t('ca_label_variables')).classes('text-sm font-semibold mt-2')
                 with ui.column().classes('text-xs text-gray-400 ml-4 gap-1'):
-                    ui.label('• {user_message} - Message utilisateur actuel')
-                    ui.label('• {recent_context} - Derniers échanges conversation')
-                    ui.label('• {available_capabilities} - Liste capacités disponibles')
+                    ui.label(t('ca_var_user_message'))
+                    ui.label(t('ca_var_recent_context'))
+                    ui.label(t('ca_var_capabilities'))
                 
                 ui.separator().classes('my-4')
                 
                 # ======== SECTION 2: ACTIVATION EXTENSION ========
-                ui.label('⚡ Activation Extension').classes('text-md font-semibold')
-                ui.label('Active ou désactive complètement Capability Advisor').classes('text-caption mb-2')
+                ui.label(t('ca_section_activation')).classes('text-md font-semibold')
+                ui.label(t('ca_section_activation_help')).classes('text-caption mb-2')
                 
                 with ui.row().classes('items-center gap-3 mb-4'):
                     is_currently_enabled = self.config.is_enabled()
                     
                     enable_switch = ui.switch(
-                        'Extension activée',
+                        t('ca_label_extension_enabled'),
                         value=is_currently_enabled
                     ).classes('text-base')
                     
-                    ui.label('(Désactiver = aucune suggestion)').classes('text-caption text-muted')
+                    ui.label(t('ca_label_disabled_note')).classes('text-caption text-muted')
                 
                 ui.separator().classes('my-4')
                 
                 # ======== SECTION 2: SEUILS CONFIANCE ========
-                ui.label('🎯 Seuils de Confiance').classes('text-md font-semibold')
-                ui.label('Ajuste la sensibilité de déclenchement pour chaque capacité (0.0 = toujours, 1.0 = jamais)').classes('text-xs text-gray-400 mb-2')
+                ui.label(t('ca_section_thresholds')).classes('text-md font-semibold')
+                ui.label(t('ca_section_thresholds_help')).classes('text-xs text-gray-400 mb-2')
                 
                 # Récupérer seuils actuels
                 current_thresholds = self.config.get_capability_thresholds()
@@ -216,10 +225,13 @@ class CapabilityAdvisorUI:
                         custom_threshold = current_thresholds.get(cap_id, None)
                         
                         with ui.column().classes('gap-1'):
-                            ui.label(f"{cap_info['icon']} {cap_info['name']}").classes('text-sm font-medium')
+                            cap_label = t(f'ca_cap_{cap_id}')
+                            if cap_label == f'ca_cap_{cap_id}':
+                                cap_label = cap_info['name']
+                            ui.label(f"{cap_info['icon']} {cap_label}").classes('text-sm font-medium')
                             
                             threshold_input = ui.number(
-                                label=f'Seuil confiance (défaut: {default_threshold})',
+                                label=t('ca_label_threshold', value=default_threshold),
                                 value=custom_threshold if custom_threshold is not None else default_threshold,
                                 min=0.0,
                                 max=1.0,
@@ -228,7 +240,7 @@ class CapabilityAdvisorUI:
                             ).classes('w-full').props('outlined dense')
                             
                             # Note explicative
-                            status_text = f'Actif: {custom_threshold:.2f} (custom)' if custom_threshold is not None else f'Défaut: {default_threshold:.2f} (catalog)'
+                            status_text = t('ca_status_active', value=custom_threshold) if custom_threshold is not None else t('ca_status_default', value=default_threshold)
                             ui.label(status_text).classes('text-xs text-gray-500')
                             
                             threshold_inputs[cap_id] = threshold_input
@@ -240,26 +252,26 @@ class CapabilityAdvisorUI:
                     # Gauche: Reset
                     with ui.row().classes('gap-2'):
                         ui.button(
-                            'Reset Prompt', 
+                            t('ca_btn_reset_prompt'), 
                             on_click=lambda: self._reset_prompt(prompt_area, prompt_modal)
                         ).props('flat color=warning size=sm')
                         
                         ui.button(
-                            'Reset IDs Mémoire', 
+                            t('ca_btn_reset_ids'), 
                             on_click=lambda: self._reset_memory_ids(memory_id_inputs)
                         ).props('flat color=warning size=sm')
                         
                         ui.button(
-                            'Reset Seuils', 
+                            t('ca_btn_reset_thresholds'), 
                             on_click=lambda: self._reset_thresholds(threshold_inputs)
                         ).props('flat color=warning size=sm')
                     
                     # Droite: Annuler/Enregistrer
                     with ui.row().classes('gap-2'):
-                        ui.button('Annuler', on_click=prompt_modal.close).props('flat')
+                        ui.button(t('common_cancel'), on_click=prompt_modal.close).props('flat')
                         
                         ui.button(
-                            'Enregistrer Tout', 
+                            t('ca_btn_save_all'), 
                             on_click=lambda: self._save_all_config(prompt_area.value, threshold_inputs, enable_switch, prompt_modal)
                         ).classes('bg-primary')
         
@@ -268,8 +280,8 @@ class CapabilityAdvisorUI:
     def _reset_prompt(self, prompt_area, modal):
         """Réinitialise prompt au défaut"""
         self.config.reset_to_default_prompt()
-        prompt_area.value = self.config.DEFAULT_ADVISOR_PROMPT
-        ui.notify('✅ Prompt réinitialisé au défaut', type='info')
+        prompt_area.value = self.config.get_advisor_prompt_template()
+        ui.notify(t('ca_notify_prompt_reset'), type='info')
     
     def _reset_thresholds(self, threshold_inputs: dict):
         """Réinitialise seuils aux valeurs par défaut du catalog"""
@@ -281,23 +293,23 @@ class CapabilityAdvisorUI:
             default_threshold = cap_info.get('confidence_threshold', 0.70)
             input_widget.value = default_threshold
         
-        ui.notify('✅ Seuils réinitialisés aux défauts catalog', type='info')
+        ui.notify(t('ca_notify_thresh_reset'), type='info')
     
     def _save_prompt(self, prompt_text: str, modal):
         """Sauvegarde prompt personnalisé"""
         if not prompt_text.strip():
-            ui.notify('Prompt vide non autorisé', type='warning')
+            ui.notify(t('ca_notify_empty_prompt'), type='warning')
             return
         
         self.config.save_custom_prompt(prompt_text)
-        ui.notify('✅ Prompt Archiviste enregistré', type='positive')
+        ui.notify(t('ca_notify_prompt_saved'), type='positive')
         modal.close()
     
     def _save_all_config(self, prompt_text: str, threshold_inputs: dict, enable_switch, modal):
         """Sauvegarde prompt + Seuils confiance + Activation"""
         # Valider prompt
         if not prompt_text.strip():
-            ui.notify('❌ Prompt vide non autorisé', type='negative')
+            ui.notify(t('ca_notify_empty_prompt_neg'), type='negative')
             return
         
         # Extraire seuils depuis inputs
@@ -316,7 +328,7 @@ class CapabilityAdvisorUI:
         # Sauvegarder état activation
         self.config.set_enabled(enable_switch.value)
         
-        ui.notify('✅ Configuration complète enregistrée (activation + prompt + IDs + seuils)', type='positive')
+        ui.notify(t('ca_notify_full_saved'), type='positive')
         modal.close()
     
     def open_overlay(self):

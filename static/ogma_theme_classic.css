@@ -336,6 +336,20 @@ html:not([data-ogma-theme="light"]) .nicegui-content {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12) !important;
 }
 
+[data-ogma-theme="light"] .header-btn-lang {
+    background: #e4dfd5 !important;
+    border: 1px solid rgba(0, 0, 0, 0.13) !important;
+    color: var(--text-secondary) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10) !important;
+    text-shadow: none !important;
+}
+
+[data-ogma-theme="light"] .header-btn-lang:hover {
+    background: #d8d2c5 !important;
+    border-color: rgba(160, 124, 10, 0.40) !important;
+    color: var(--accent-gold) !important;
+}
+
 [data-ogma-theme="light"] .sidebar-toggle,
 [data-ogma-theme="light"] .settings-floating-btn {
     background: #e4dfd5 !important;

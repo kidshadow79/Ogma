@@ -27,6 +27,15 @@ except ImportError:
     ui = None  # type: ignore
 
 # === IMPORTS MODULES OGMA ===
+try:
+    from utils.i18n import t, get_lang, set_lang, reload_strings
+except Exception:
+    def t(key, **kwargs):
+        return key
+    def get_lang(): return 'fr'
+    def set_lang(lang): return False
+    def reload_strings(): pass
+
 from utils.message_parsers import parse_thinking_format, parse_introspection_format
 from utils.formatting_utils import format_datetime, format_size, truncate_filename, get_file_icon
 from conversations import load_conversation_index, save_conversation_index
@@ -1293,7 +1302,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                         'font-size: 10px; '
                                         'font-family: monospace; '
                                         'align-self: center;'
-                                    ).tooltip('Lecture automatique activée')
+                                    ).tooltip(t('conv_tooltip_tts_auto'))
                             except:
                                 pass
                                 
@@ -1326,7 +1335,7 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                             padding: 0;
                             opacity: 0.5;
                         ''') \
-                        .tooltip('Modifier ce message')
+                        .tooltip(t('conv_tooltip_edit_message'))
     except Exception as e:
         print(f"[ERROR] Erreur création message {role}: {e}")
         # PROTECTION ANTI-CRASH: Vérifier si c'est une erreur de client supprimé
@@ -2395,10 +2404,10 @@ def _sidebar():
                 return
             d = ui.dialog()
             with d, ui.card().classes('popup-content'):
-                ui.label('Renommer la conversation').classes('popup-title')
-                new_title = ui.input(label='Nouveau titre', value=_get_ogma()._conv_index[cid].get('title', '')).classes('form-input')
+                ui.label(t('conv_dialog_rename_title')).classes('popup-title')
+                new_title = ui.input(label=t('conv_input_new_title'), value=_get_ogma()._conv_index[cid].get('title', '')).classes('form-input')
                 with ui.row().classes('justify-end gap-2 mt-4'):
-                    ui.button('Annuler', on_click=d.close).classes('action-button')
+                    ui.button(t('common_cancel'), on_click=d.close).classes('action-button')
                     def _apply():
                         title = (new_title.value or '').strip() or 'Sans titre'
                         _get_ogma()._conv_index[cid]['title'] = title
@@ -2413,7 +2422,7 @@ def _sidebar():
                                 render_items(cid)
                         except Exception:
                             render_items(cid)
-                    ui.button('Renommer', on_click=_apply).classes('send-button')
+                    ui.button(t('conv_btn_rename'), on_click=_apply).classes('send-button')
             d.open()
 
         def do_delete():
@@ -2428,8 +2437,8 @@ def _sidebar():
                 
                 d = ui.dialog()
                 with d, ui.card().classes('popup-content'):
-                    ui.label(f'Supprimer {count} conversations ?').classes('popup-title')
-                    ui.label("Cette action est définitive.").classes('text-muted')
+                    ui.label(t('conv_dialog_delete_multi_title', count=count)).classes('popup-title')
+                    ui.label(t('conv_dialog_delete_warning')).classes('text-muted')
                     
                     # Afficher la liste des titres à supprimer (max 5)
                     with ui.column().classes('mt-2').style('max-height: 150px; overflow-y: auto;'):
@@ -2437,10 +2446,10 @@ def _sidebar():
                             title = _get_ogma()._conv_index.get(conv_id, {}).get('title', conv_id)[:50]
                             ui.label(f"• {title}").style('font-size: 12px; color: #aaa;')
                         if count > 5:
-                            ui.label(f"... et {count - 5} autres").style('font-size: 12px; color: #888; font-style: italic;')
+                            ui.label(t('conv_label_and_more', count=count - 5)).style('font-size: 12px; color: #888; font-style: italic;')
                     
                     with ui.row().classes('justify-end gap-2 mt-4'):
-                        ui.button('Annuler', on_click=d.close).classes('action-button')
+                        ui.button(t('common_cancel'), on_click=d.close).classes('action-button')
                         def _apply_delete_multi():
                             global _selected_conversations
                             try:
@@ -2456,7 +2465,7 @@ def _sidebar():
                                 _selected_conversations.clear()
                                 
                                 ok, msg = _save_conversation_index()
-                                _notify_safe(f'{deleted} conversations supprimées', 'positive')
+                                _notify_safe(t('conv_notify_deleted_multi', count=deleted), 'positive')
                                 d.close()
                                 _new_conversation()
                                 try:
@@ -2467,8 +2476,8 @@ def _sidebar():
                                 except Exception:
                                     render_items(None)
                             except Exception as e:
-                                _notify_safe(f'Erreur suppression: {e}', 'negative')
-                        ui.button(f'Supprimer ({count})', on_click=_apply_delete_multi).classes('send-button')
+                                _notify_safe(t('conv_notify_delete_err', err=str(e)), 'negative')
+                        ui.button(t('conv_btn_delete_count', count=count), on_click=_apply_delete_multi).classes('send-button')
                 d.open()
             else:
                 # Mode simple: supprimer la conversation active (comportement original)
@@ -2478,10 +2487,10 @@ def _sidebar():
                     return
                 d = ui.dialog()
                 with d, ui.card().classes('popup-content'):
-                    ui.label('Supprimer la conversation ?').classes('popup-title')
-                    ui.label("Cette action est définitive.").classes('text-muted')
+                    ui.label(t('conv_dialog_delete_title')).classes('popup-title')
+                    ui.label(t('conv_dialog_delete_warning')).classes('text-muted')
                     with ui.row().classes('justify-end gap-2 mt-4'):
-                        ui.button('Annuler', on_click=d.close).classes('action-button')
+                        ui.button(t('common_cancel'), on_click=d.close).classes('action-button')
                         def _apply_delete():
                             try:
                                 path = DATA_DIR / 'conversations' / f'{cid}.json'
@@ -2518,7 +2527,7 @@ def _sidebar():
                 color: var(--text-primary);
             '''):
                 # Header
-                ui.label('ℹ️ Phrases Magiques OGMA').style('''
+                ui.label(t('mp_dialog_title')).style('''
                     font-size: 20px;
                     font-weight: bold;
                     color: var(--accent-gold);
@@ -2529,21 +2538,19 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.3; margin: 16px 0;')
 
                 # 📖 Journal de Bord
-                ui.label('📖 Journal de Bord').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_journal')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 journal_phrases = [
-                    # Phrases UTILISATEUR
-                    ("consulte le journal du [date YYYY-MM-DD]", "Affiche les entrées du journal pour une date précise"),
-                    ("consulte le journal d'hier / d'aujourd'hui / de lundi", "Affiche les entrées du journal pour une date relative"),
-                    ("consulte le journal de la semaine", "Affiche les entrées de la semaine en cours"),
-                    ("montre le contexte du [date] / d'hier", "Affiche le contexte formaté d'une journée"),
-                    ("journal recherche [terme]", "Recherche un terme dans toutes les entrées du journal"),
-                    ("résume la semaine du [date]", "Génère un résumé des entrées de la semaine"),
-                    ("résume le mois [YYYY-MM]", "Génère un résumé des entrées du mois"),
-                    ("sauvegarde la conversation dans le journal", "Crée une entrée manuelle depuis la conversation actuelle"),
-                    ("ouvre le journal d'hier / d'aujourd'hui", "Ouvre l'interface journal pour une date"),
-                    ("journal affiche [filtre]", "Affiche entrées filtrées par critère"),
-                    # Phrases IA (automatiques)
-                    ("Injection automatique contexte matinal", "L'IA principale reçoit automatiquement le journal du jour au premier message"),
+                    (t('mp_jdb_p1'), t('mp_jdb_d1')),
+                    (t('mp_jdb_p2'), t('mp_jdb_d2')),
+                    (t('mp_jdb_p3'), t('mp_jdb_d3')),
+                    (t('mp_jdb_p4'), t('mp_jdb_d4')),
+                    (t('mp_jdb_p5'), t('mp_jdb_d5')),
+                    (t('mp_jdb_p6'), t('mp_jdb_d6')),
+                    (t('mp_jdb_p7'), t('mp_jdb_d7')),
+                    (t('mp_jdb_p8'), t('mp_jdb_d8')),
+                    (t('mp_jdb_p9'), t('mp_jdb_d9')),
+                    (t('mp_jdb_p10'), t('mp_jdb_d10')),
+                    (t('mp_jdb_p11'), t('mp_jdb_d11')),
                 ]
                 for phrase, description in journal_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2554,13 +2561,13 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 👤 Biographie Profil
-                ui.label('👤 Biographie Profil').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_biography')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 bio_phrases = [
-                    ("il faut que je consulte la biographie de [prénom]", "L'IA consulte automatiquement la biographie d'une personne (phrase IA uniquement)"),
-                    ("complète ma biographie / complète ma bio", "Génère le Volume 2 narratif de votre biographie"),
-                    ("mets à jour ma biographie", "Régénère votre profil biographique avec les nouveaux souvenirs"),
-                    ("enrichis mon profil", "Enrichit votre profil avec l'analyse des conversations récentes"),
-                    ("Détection automatique prénom", "Injection automatique de la biographie lors de la première mention d'un prénom connu"),
+                    (t('mp_bio_p1'), t('mp_bio_d1')),
+                    (t('mp_bio_p2'), t('mp_bio_d2')),
+                    (t('mp_bio_p3'), t('mp_bio_d3')),
+                    (t('mp_bio_p4'), t('mp_bio_d4')),
+                    (t('mp_bio_p5'), t('mp_bio_d5')),
                 ]
                 for phrase, description in bio_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2571,21 +2578,18 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 🧠 Cognitive Mirror (Introspection)
-                ui.label('🧠 Miroir Cognitif (Introspection)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_mirror')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 mirror_phrases = [
-                    # Phrases UTILISATEUR (commandes directes)
-                    ("il faut que tu réfléchisses", "Déclenche immédiatement une session d'introspection (prioritaire)"),
-                    ("lance une introspection", "Démarre une phase de réflexion intérieure avec le subconscient"),
-                    ("déclenche une introspection", "Active la conversation entre l'IA et son subconscient"),
-                    ("active la subconscience", "Démarre le monitoring d'inactivité et l'introspection automatique"),
-                    ("réfléchis en profondeur", "Lance une analyse métacognitive approfondie"),
-                    ("arrête de réfléchir", "Interrompt l'introspection - L'IA génère organiquement une synthèse"),
-                    ("stop la réflexion", "Termine la réflexion - Synthèse organique générée par l'IA"),
-                    # Phrases IA (auto-déclenchement)
-                    ("il faut que je réfléchisse sur : [thème]", "L'IA principale démarre auto-introspection sur un sujet (phrase IA)"),
-                    # UI
-                    ("Bouton ⏹ dans zone introspection", "Arrêt d'urgence avec génération organique de synthèse"),
-                    ("Déclenchement automatique inactivité", "Introspection automatique après période sans interaction"),
+                    (t('mp_mir_p1'), t('mp_mir_d1')),
+                    (t('mp_mir_p2'), t('mp_mir_d2')),
+                    (t('mp_mir_p3'), t('mp_mir_d3')),
+                    (t('mp_mir_p4'), t('mp_mir_d4')),
+                    (t('mp_mir_p5'), t('mp_mir_d5')),
+                    (t('mp_mir_p6'), t('mp_mir_d6')),
+                    (t('mp_mir_p7'), t('mp_mir_d7')),
+                    (t('mp_mir_p8'), t('mp_mir_d8')),
+                    (t('mp_mir_p9'), t('mp_mir_d9')),
+                    (t('mp_mir_p10'), t('mp_mir_d10')),
                 ]
                 for phrase, description in mirror_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2596,18 +2600,16 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 💾 Mémorisation
-                ui.label('💾 Mémorisation').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_memory')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 memory_phrases = [
-                    # Phrases IA (mémorisation)
-                    ("il faut que je me souvienne de ça: [texte]", "L'IA principale mémorise explicitement un élément important (phrase IA)"),
-                    # Phrases UTILISATEUR
-                    ("mémorise ça: [texte]", "Commande utilisateur pour sauvegarder un souvenir avec haute importance"),
-                    ("mémorises ça: [texte]", "Variante impérative pour mémorisation"),
-                    ("souviens-toi de ça: [texte]", "Commande utilisateur pour créer un souvenir mémorable"),
-                    ("je vais mémoriser [texte]", "Mémorisation différée par l'utilisateur"),
-                    ("je dois mémoriser [texte]", "Mémorisation prioritaire par l'utilisateur"),
-                    ("lis le souvenir [usr-xxx...]", "Affiche le contenu complet d'un souvenir par son ID"),
-                    ("consulte le souvenir [usr-xxx...]", "Charge et affiche un souvenir spécifique depuis la base"),
+                    (t('mp_mem_p1'), t('mp_mem_d1')),
+                    (t('mp_mem_p2'), t('mp_mem_d2')),
+                    (t('mp_mem_p3'), t('mp_mem_d3')),
+                    (t('mp_mem_p4'), t('mp_mem_d4')),
+                    (t('mp_mem_p5'), t('mp_mem_d5')),
+                    (t('mp_mem_p6'), t('mp_mem_d6')),
+                    (t('mp_mem_p7'), t('mp_mem_d7')),
+                    (t('mp_mem_p8'), t('mp_mem_d8')),
                 ]
                 for phrase, description in memory_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2618,12 +2620,12 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 📚 Conversations Archivées
-                ui.label('📚 Conversations Archivées').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_archives')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 archive_phrases = [
-                    ("va lire la conversation [nom.json]", "Charge une conversation archivée pour consultation"),
-                    ("lis la conversation [nom]", "Affiche le contenu d'une conversation sauvegardée"),
-                    ("charge la conversation [nom]", "Ouvre une conversation depuis l'historique archivé"),
-                    ("ouvre la conversation [nom]", "Accède à une conversation enregistrée"),
+                    (t('mp_arc_p1'), t('mp_arc_d1')),
+                    (t('mp_arc_p2'), t('mp_arc_d2')),
+                    (t('mp_arc_p3'), t('mp_arc_d3')),
+                    (t('mp_arc_p4'), t('mp_arc_d4')),
                 ]
                 for phrase, description in archive_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2634,23 +2636,20 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 🌐 Recherche Internet (Web Navigator)
-                ui.label('🌐 Recherche Internet').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_web')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 web_phrases = [
-                    # Commandes UTILISATEUR slash
-                    ("/web [terme]", "Recherche web générale avec Serper API"),
-                    ("/news [sujet]", "Recherche d'actualités récentes"),
-                    ("/image [description]", "Recherche d'images avec description"),
-                    # Phrases UTILISATEUR naturelles
-                    ("cherche sur internet [terme]", "Phrase naturelle pour recherche web"),
-                    ("recherche sur le web [sujet]", "Demande de recherche en langage naturel"),
-                    ("trouve sur internet [information]", "Recherche d'information spécifique"),
-                    ("regarde sur google [terme]", "Recherche via phrase familière"),
-                    ("actualités sur [sujet]", "Recherche de news sur un sujet précis"),
-                    ("recherche des images de [description]", "Recherche d'images descriptive"),
-                    # Phrases IA (auto-déclenchement)
-                    ("il faut que je recherche sur le net", "L'IA principale auto-déclenche recherche web (phrase IA)"),
-                    ("il faut que je cherche sur internet", "Auto-recherche par l'IA principale dans ses réponses (phrase IA)"),
-                    ("je dois vérifier sur le web", "Vérification automatique par l'IA principale (phrase IA)"),
+                    (t('mp_web_p1'), t('mp_web_d1')),
+                    (t('mp_web_p2'), t('mp_web_d2')),
+                    (t('mp_web_p3'), t('mp_web_d3')),
+                    (t('mp_web_p4'), t('mp_web_d4')),
+                    (t('mp_web_p5'), t('mp_web_d5')),
+                    (t('mp_web_p6'), t('mp_web_d6')),
+                    (t('mp_web_p7'), t('mp_web_d7')),
+                    (t('mp_web_p8'), t('mp_web_d8')),
+                    (t('mp_web_p9'), t('mp_web_d9')),
+                    (t('mp_web_p10'), t('mp_web_d10')),
+                    (t('mp_web_p11'), t('mp_web_d11')),
+                    (t('mp_web_p12'), t('mp_web_d12')),
                 ]
                 for phrase, description in web_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2661,20 +2660,17 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 👁️ Perception Visuelle (Webcam)
-                ui.label('👁️ Perception Visuelle').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_perception')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 perception_phrases = [
-                    # Phrases IA (webcam activation/désactivation)
-                    ("il faut que je te vois", "L'IA principale active automatiquement la webcam pour vous voir (phrase IA)"),
-                    ("je veux te voir", "L'IA principale démarre la perception visuelle en temps réel (phrase IA)"),
-                    ("il faut que je vois", "L'IA principale active l'extension Perception pour vision webcam (phrase IA)"),
-                    ("je n'ai plus besoin de te voir", "L'IA principale désactive la webcam automatiquement (phrase IA)"),
-                    ("je peux arrêter de te voir", "L'IA principale coupe la perception visuelle (phrase IA)"),
-                    ("je ferme ma vision", "L'IA principale termine la session de perception (phrase IA)"),
-                    # Phrases UTILISATEUR (commandes directes)
-                    ("active la webcam", "Commande utilisateur pour démarrer perception visuelle"),
-                    ("désactive la webcam", "Commande utilisateur pour arrêter perception visuelle"),
-                    # Triggers automatiques
-                    ("Détection automatique demande visuelle", "Si l'IA principale a besoin de voir, elle active automatiquement"),
+                    (t('mp_per_p1'), t('mp_per_d1')),
+                    (t('mp_per_p2'), t('mp_per_d2')),
+                    (t('mp_per_p3'), t('mp_per_d3')),
+                    (t('mp_per_p4'), t('mp_per_d4')),
+                    (t('mp_per_p5'), t('mp_per_d5')),
+                    (t('mp_per_p6'), t('mp_per_d6')),
+                    (t('mp_per_p7'), t('mp_per_d7')),
+                    (t('mp_per_p8'), t('mp_per_d8')),
+                    (t('mp_per_p9'), t('mp_per_d9')),
                 ]
                 for phrase, description in perception_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2685,17 +2681,14 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 📅 Organic Planner (Agenda & Charge Mentale)
-                ui.label('📅 Organic Planner (Agenda & Charge Mentale)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_planner')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 planner_phrases = [
-                    # Phrases IA (auto-déclenchement)
-                    ("il faut que je note cet évènement: [date] - [titre] - [ressenti]", "L'IA principale note un évènement futur dans l'agenda (phrase IA)"),
-                    ("il faut que je note cet evenement: [date] - [titre] - [ressenti]", "Variante sans accent pour la mémorisation d'évènement (phrase IA)"),
-                    # Phrases UTILISATEUR (commandes directes)
-                    ("note cet évènement: [date] - [titre] - [ressenti]", "Commande utilisateur pour ajouter un évènement à l'agenda"),
-                    ("ajoute à l'agenda: [date] - [titre] - [ressenti]", "Ajout direct d'un évènement futur"),
-                    ("il faut que je mette à jour l'évènement: [titre] - [statut]", "Met à jour le statut (TERMINE, EN_COURS). Si 'TERMINE', l'évènement est archivé en mémoire."),
-                    # Fonctionnement
-                    ("Briefing automatique", "L'IA reçoit un résumé des évènements proches au début de la session ou sur demande"),
+                    (t('mp_pla_p1'), t('mp_pla_d1')),
+                    (t('mp_pla_p2'), t('mp_pla_d2')),
+                    (t('mp_pla_p3'), t('mp_pla_d3')),
+                    (t('mp_pla_p4'), t('mp_pla_d4')),
+                    (t('mp_pla_p5'), t('mp_pla_d5')),
+                    (t('mp_pla_p6'), t('mp_pla_d6')),
                 ]
                 for phrase, description in planner_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2706,12 +2699,12 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 🎨 Génération Images (Text-to-Image)
-                ui.label('🎨 Génération Images (Text-to-Image)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_image')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 image_phrases = [
-                    ("je dois créer une image de : [description]", "L'IA principale génère une image via Pollinations.AI (réponse IA)"),
-                    ("il faut que je crée une image de : [description]", "Variante phrase magique génération image (réponse IA)"),
-                    ("je vais créer une image de : [description]", "Variante phrase magique génération image (réponse IA)"),
-                    ("je dois générer une image de : [description]", "Variante phrase magique génération image (réponse IA)"),
+                    (t('mp_img_p1'), t('mp_img_d1')),
+                    (t('mp_img_p2'), t('mp_img_d2')),
+                    (t('mp_img_p3'), t('mp_img_d3')),
+                    (t('mp_img_p4'), t('mp_img_d4')),
                 ]
                 for phrase, description in image_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2720,13 +2713,13 @@ def _sidebar():
                     ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
 
                 # 🔄 Image-to-Image
-                ui.label('🔄 Image-to-Image (Modification)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
-                ui.label('⚠️ Nécessite une image uploadée via le bouton 📎').style('color: #ff9800; font-size: 11px; margin-bottom: 4px;')
+                ui.label(t('mp_section_img2img')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_img2img_warn')).style('color: #ff9800; font-size: 11px; margin-bottom: 4px;')
                 img2img_phrases = [
-                    ("je dois modifier cette image : [description des modifications]", "L'IA modifie l'image uploadée avec le modèle img2img configuré"),
-                    ("il faut que je modifie cette image : [description]", "Variante phrase magique modification image"),
-                    ("je vais modifier cette image : [description]", "Variante phrase magique modification image"),
-                    ("je dois transformer cette image : [description]", "Variante phrase magique transformation image"),
+                    (t('mp_i2i_p1'), t('mp_i2i_d1')),
+                    (t('mp_i2i_p2'), t('mp_i2i_d2')),
+                    (t('mp_i2i_p3'), t('mp_i2i_d3')),
+                    (t('mp_i2i_p4'), t('mp_i2i_d4')),
                 ]
                 for phrase, description in img2img_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2735,13 +2728,13 @@ def _sidebar():
                     ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
 
                 # 🧠 Enrichissement Guide i2i
-                ui.label('🧠 Enrichissement Guide i2i').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
-                ui.label('Restructure le guide interne img2img en integrant les lecons apprises').style('color: #ff9800; font-size: 11px; margin-bottom: 4px;')
+                ui.label(t('mp_section_i2i_guide')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_i2i_guide_desc')).style('color: #ff9800; font-size: 11px; margin-bottom: 4px;')
                 i2i_guide_phrases = [
-                    ("enrichis ton instruction d'image", "L'IA restructure son guide i2i en integrant toutes les lecons apprises + contexte conversation"),
-                    ("restructure ton guide i2i", "Variante : reecrit et optimise le guide img2img"),
-                    ("ameliore ton instruction d'image", "Variante : amelioration du guide avec lecons recentes"),
-                    ("optimise ton instruction d'image", "Variante : optimisation du guide img2img"),
+                    (t('mp_gui_p1'), t('mp_gui_d1')),
+                    (t('mp_gui_p2'), t('mp_gui_d2')),
+                    (t('mp_gui_p3'), t('mp_gui_d3')),
+                    (t('mp_gui_p4'), t('mp_gui_d4')),
                 ]
                 for phrase, description in i2i_guide_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2752,24 +2745,21 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 💭 Souvenirs Contextuels
-                ui.label('💭 Souvenirs Contextuels').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_recall')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 recall_phrases = [
-                    # Phrases IA (auto-déclenchement)
-                    ("il faut que je consulte notre conversation de [référence temporelle]", "L'IA principale auto-déclenche recherche contextuelle (phrase IA magique)"),
-                    ("je dois consulter notre conversation de hier/la semaine dernière", "L'IA principale consulte automatiquement l'historique (phrase IA)"),
-                    # Phrases UTILISATEUR (expressions temporelles)
-                    ("il y a [X] jours / [X] semaines", "Recherche souvenirs par période relative (ex: il y a 3 jours)"),
-                    ("hier / avant-hier / aujourd'hui", "Recherche souvenirs par date simple"),
-                    ("la semaine dernière / cette semaine", "Recherche souvenirs par période nommée"),
-                    ("le mois dernier / il y a [X] mois", "Recherche souvenirs du mois précédent ou relatif"),
-                    ("quand on a parlé de [sujet]", "Recherche souvenirs par conversation thématique"),
-                    ("tu te souviens de [événement]", "Trigger recherche mémorielle contextuelle"),
-                    ("tu te rappelles quand [contexte]", "Recherche souvenir par contexte événementiel"),
-                    ("notre conversation sur [thème]", "Recherche discussions passées par sujet"),
-                    ("ce qu'on a dit sur [sujet]", "Recherche contenu conversationnel thématique"),
-                    ("rappelle-moi ce que [contexte]", "Demande explicite rappel mémoriel"),
-                    # Détection automatique
-                    ("Injection automatique souvenirs pertinents", "Système injecte souvenirs contextuels selon requête temporelle"),
+                    (t('mp_rec_p1'), t('mp_rec_d1')),
+                    (t('mp_rec_p2'), t('mp_rec_d2')),
+                    (t('mp_rec_p3'), t('mp_rec_d3')),
+                    (t('mp_rec_p4'), t('mp_rec_d4')),
+                    (t('mp_rec_p5'), t('mp_rec_d5')),
+                    (t('mp_rec_p6'), t('mp_rec_d6')),
+                    (t('mp_rec_p7'), t('mp_rec_d7')),
+                    (t('mp_rec_p8'), t('mp_rec_d8')),
+                    (t('mp_rec_p9'), t('mp_rec_d9')),
+                    (t('mp_rec_p10'), t('mp_rec_d10')),
+                    (t('mp_rec_p11'), t('mp_rec_d11')),
+                    (t('mp_rec_p12'), t('mp_rec_d12')),
+                    (t('mp_rec_p13'), t('mp_rec_d13')),
                 ]
                 for phrase, description in recall_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2780,19 +2770,16 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 📝 Éditeur Docs
-                ui.label('📝 Éditeur Docs').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_docs')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 filewriter_phrases = [
-                    # Commande UTILISATEUR slash
-                    ("/doc [titre document]", "Commande slash pour créer un document markdown"),
-                    # Phrases UTILISATEUR naturelles
-                    ("crée un document markdown sur [sujet]", "Génération document .md avec titre et contenu"),
-                    ("écris un fichier markdown qui [description]", "Création fichier .md selon spécification"),
-                    ("rédige un .md sur [thème]", "Génération document markdown thématique"),
-                    ("fais-moi un fichier markdown pour [usage]", "Création document .md avec usage précis"),
-                    ("génère un document markdown de [type]", "Production automatique document .md typé"),
-                    ("écris un .md qui [objectif]", "Création fichier avec objectif défini"),
-                    # Détection automatique
-                    ("Détection automatique demande .md", "Système détecte intention création document et propose génération"),
+                    (t('mp_doc_p1'), t('mp_doc_d1')),
+                    (t('mp_doc_p2'), t('mp_doc_d2')),
+                    (t('mp_doc_p3'), t('mp_doc_d3')),
+                    (t('mp_doc_p4'), t('mp_doc_d4')),
+                    (t('mp_doc_p5'), t('mp_doc_d5')),
+                    (t('mp_doc_p6'), t('mp_doc_d6')),
+                    (t('mp_doc_p7'), t('mp_doc_d7')),
+                    (t('mp_doc_p8'), t('mp_doc_d8')),
                 ]
                 for phrase, description in filewriter_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2803,19 +2790,16 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.2; margin: 16px 0;')
 
                 # 🌙 Dream Engine (Rêves)
-                ui.label('🌙 Dream Engine (Rêves)').style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_section_dream')).style('font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
                 dream_phrases = [
-                    # Déclenchement rêve
-                    ("Bouton 🌙 dans le header", "Déclenche manuellement un cycle de rêve (Phase 1: génération + Phase 2: sommeil)"),
-                    ("Inactivité 10 minutes", "L'IA s'endort automatiquement et commence à rêver"),
-                    # Réveil et sursaut
-                    ("Envoi d'un message pendant le rêve", "Sursaut: L'IA se réveille, affiche son rêve + image, puis répond"),
-                    ("Réveil automatique après 7h", "L'IA se réveille naturellement et partage spontanément son rêve"),
-                    # Phrases UTILISATEUR pour consulter les rêves
-                    ("raconte-moi ton dernier rêve", "L'IA partage le contenu de son dernier rêve en détail"),
-                    ("tu as rêvé de quoi", "L'IA décrit son dernier rêve"),
-                    ("parle-moi de ton rêve", "L'IA évoque son expérience onirique récente"),
-                    ("c'était quoi ton rêve", "L'IA raconte son rêve"),
+                    (t('mp_drm_p1'), t('mp_drm_d1')),
+                    (t('mp_drm_p2'), t('mp_drm_d2')),
+                    (t('mp_drm_p3'), t('mp_drm_d3')),
+                    (t('mp_drm_p4'), t('mp_drm_d4')),
+                    (t('mp_drm_p5'), t('mp_drm_d5')),
+                    (t('mp_drm_p6'), t('mp_drm_d6')),
+                    (t('mp_drm_p7'), t('mp_drm_d7')),
+                    (t('mp_drm_p8'), t('mp_drm_d8')),
                 ]
                 for phrase, description in dream_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px;'):
@@ -2824,17 +2808,17 @@ def _sidebar():
                     ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 20px;')
 
                 # Sous-section Rapport PSY
-                ui.label('   🔮 Rapport Psychanalytique (Archiviste)').style('font-size: 14px; font-weight: bold; color: #b19cd9; margin-top: 8px; margin-left: 12px;')
+                ui.label(t('mp_section_psy')).style('font-size: 14px; font-weight: bold; color: #b19cd9; margin-top: 8px; margin-left: 12px;')
                 psy_phrases = [
-                    ("rapport psy", "Affiche l'analyse PSY complète du dernier rêve par l'Archiviste"),
-                    ("analyse psy", "Déclenche l'injection du rapport psychanalytique"),
-                    ("bilan psy", "L'IA partage le bilan psychanalytique de son rêve"),
-                    ("analyse du dernier rêve", "L'IA donne l'interprétation de son dernier rêve"),
-                    ("rapport du rêve", "Affiche le rapport complet (score, émotion, insight ego)"),
-                    ("psychanalyse de ton rêve", "L'IA partage ce que l'Archiviste a analysé"),
-                    ("décryptage de ton rêve", "L'IA explique les symboles de son rêve"),
-                    ("ce que l'archiviste a dit sur ton rêve", "L'IA cite l'analyse de son subconscient"),
-                    ("ce qu'il t'a dit sur ton rêve", "L'IA rapporte le verdict de l'Archiviste PSY"),
+                    (t('mp_psy_p1'), t('mp_psy_d1')),
+                    (t('mp_psy_p2'), t('mp_psy_d2')),
+                    (t('mp_psy_p3'), t('mp_psy_d3')),
+                    (t('mp_psy_p4'), t('mp_psy_d4')),
+                    (t('mp_psy_p5'), t('mp_psy_d5')),
+                    (t('mp_psy_p6'), t('mp_psy_d6')),
+                    (t('mp_psy_p7'), t('mp_psy_d7')),
+                    (t('mp_psy_p8'), t('mp_psy_d8')),
+                    (t('mp_psy_p9'), t('mp_psy_d9')),
                 ]
                 for phrase, description in psy_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px; margin-left: 12px;'):
@@ -2843,12 +2827,12 @@ def _sidebar():
                     ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 32px;')
 
                 # Sous-section Historique
-                ui.label('   📜 Historique des Rêves').style('font-size: 14px; font-weight: bold; color: #b19cd9; margin-top: 8px; margin-left: 12px;')
+                ui.label(t('mp_section_history')).style('font-size: 14px; font-weight: bold; color: #b19cd9; margin-top: 8px; margin-left: 12px;')
                 history_phrases = [
-                    ("tes rêves passés", "L'IA consulte son journal de rêves et en parle"),
-                    ("tes anciens rêves", "L'IA accède à l'historique de ses rêves"),
-                    ("ton journal de rêves", "L'IA parcourt son journal onirique"),
-                    ("rappelle-moi tes rêves", "L'IA récapitule ses rêves récents"),
+                    (t('mp_his_p1'), t('mp_his_d1')),
+                    (t('mp_his_p2'), t('mp_his_d2')),
+                    (t('mp_his_p3'), t('mp_his_d3')),
+                    (t('mp_his_p4'), t('mp_his_d4')),
                 ]
                 for phrase, description in history_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px; margin-left: 12px;'):
@@ -2857,12 +2841,12 @@ def _sidebar():
                     ui.label(f'   → {description}').style('color: #999; font-size: 12px; margin-left: 32px;')
 
                 # Fonctionnement automatique
-                ui.label('   ⚙️ Automatismes').style('font-size: 14px; font-weight: bold; color: #b19cd9; margin-top: 8px; margin-left: 12px;')
+                ui.label(t('mp_section_auto')).style('font-size: 14px; font-weight: bold; color: #b19cd9; margin-top: 8px; margin-left: 12px;')
                 auto_phrases = [
-                    ("Injection rapport PSY au réveil", "Au premier message après un rêve, l'IA reçoit le rapport et en parle spontanément"),
-                    ("Illustration du rêve", "Une image est générée (survol = prompt, clic = copie)"),
-                    ("Recherche web onirique", "L'IA peut explorer le web pendant son rêve sur un sujet qui l'intrigue"),
-                    ("Sauvegarde journal dual", "Chaque rêve est sauvé en .md (lisible) + .json (queryable)"),
+                    (t('mp_aut_p1'), t('mp_aut_d1')),
+                    (t('mp_aut_p2'), t('mp_aut_d2')),
+                    (t('mp_aut_p3'), t('mp_aut_d3')),
+                    (t('mp_aut_p4'), t('mp_aut_d4')),
                 ]
                 for phrase, description in auto_phrases:
                     with ui.row().style('margin: 6px 0; gap: 8px; margin-left: 12px;'):
@@ -2873,11 +2857,11 @@ def _sidebar():
                 ui.separator().style('background: var(--accent-gold); opacity: 0.3; margin: 16px 0;')
 
                 # Note explicative
-                ui.label('💡 Note').style('font-size: 14px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
-                ui.label('Les phrases magiques sont détectées automatiquement dans vos messages. Utilisez-les en langage naturel pour déclencher des fonctionnalités avancées d\'OGMA sans passer par l\'interface.').style('color: #ccc; font-size: 13px; line-height: 1.6;')
+                ui.label(t('mp_note_title')).style('font-size: 14px; font-weight: bold; color: var(--accent-gold); margin-top: 12px;')
+                ui.label(t('mp_note_text')).style('color: #ccc; font-size: 13px; line-height: 1.6;')
 
                 # Bouton fermer
-                ui.button('Fermer', on_click=lambda: magic_dialog.close()).classes('send-button').style('margin-top: 16px; width: 100%;')
+                ui.button(t('common_close'), on_click=lambda: magic_dialog.close()).classes('send-button').style('margin-top: 16px; width: 100%;')
 
             magic_dialog.open()
 
@@ -2905,7 +2889,7 @@ def _sidebar():
                         _notify_safe('Extension Project RAG non disponible', 'warning')
                     except Exception as ex:
                         _notify_safe(f'Erreur Project RAG: {ex}', 'negative')
-                ui.button(icon='folder_open', on_click=_open_project_rag).classes('header-btn').tooltip('Projet RAG')
+                ui.button(icon='folder_open', on_click=_open_project_rag).classes('header-btn').tooltip(t('conv_tooltip_project_rag'))
 
                 # Bouton delete avec badge pour sélection multiple
                 delete_container = ui.element('div').style('position: relative; display: inline-block;')
@@ -2957,7 +2941,7 @@ def _sidebar():
                 padding: 4px;
                 opacity: 0.7;
                 background: transparent !important;
-            ''').tooltip('Phrases magiques OGMA')
+            ''').tooltip(t('conv_tooltip_magic_phrases'))
             
         # Listener Echap pour désélectionner tout
         ui.keyboard(on_key=lambda e: _handle_keyboard_shortcuts(e, render_items))
@@ -3108,7 +3092,7 @@ def _sidebar():
                             )
                             copy_btn = ui.button('•', on_click=_on_copy_filename).style(copy_btn_style)
                             copy_btn.props('dense flat')
-                            copy_btn.tooltip(f'Copier le nom du fichier: {cid}.json')
+                            copy_btn.tooltip(t('conv_tooltip_copy_filename', name=cid))
                             
                             # UPDATE NOUVEAU: Bouton pour régénérer le titre via IA
                             def _on_regenerate_title(conv_id=cid):
@@ -3146,7 +3130,7 @@ def _sidebar():
                             )
                             refresh_btn = ui.button('↻', on_click=_on_regenerate_title).style(refresh_btn_style)
                             refresh_btn.props('dense flat')
-                            refresh_btn.tooltip('Régénérer le titre automatiquement')
+                            refresh_btn.tooltip(t('conv_tooltip_regenerate_title'))
                             
                             # Titre de la conversation - zone cliquable pour ouvrir la conversation
                             # Gestion Ctrl+Clic via argument dans l'événement
@@ -3465,8 +3449,8 @@ def _create_edit_interface(dialog, conversation_id: str, title: str, summary: st
                 ui.notify(f'ERROR Erreur: {e}', type='negative')
         
         with ui.row().classes('justify-end gap-2 mt-4'):
-            ui.button('Annuler', on_click=dialog.close).classes('action-button')
-            ui.button('Mémoriser', on_click=finalize_memorization).classes('send-button')
+            ui.button(t('common_cancel'), on_click=dialog.close).classes('action-button')
+            ui.button(t('conv_btn_memorize'), on_click=finalize_memorization).classes('send-button')
 
 
 def _edit_summary_popup(conversation_id: str, title: str, summary: str):
@@ -3607,7 +3591,7 @@ def _image_modal():
 
         # Boutons d'action
         with ui.row().classes('gap-2 mt-4 justify-end w-full'):
-            ui.button('Annuler', on_click=d.close).classes('action-button')
+            ui.button(t('common_cancel'), on_click=d.close).classes('action-button')
 
             def save_config():
                 # Construire nouvelle config
@@ -3630,10 +3614,10 @@ def _image_modal():
                 if new_config['enabled']:
                     initialize_text2img(sm)
 
-                ui.notify('✅ Configuration sauvegardée', type='positive')
+                ui.notify(t('notify_saved'), type='positive')
                 d.close()
 
-            ui.button('Sauvegarder', on_click=save_config).classes('primary-action-button')
+            ui.button(t('conv_btn_save'), on_click=save_config).classes('primary-action-button')
 
     return d
 
@@ -3726,7 +3710,7 @@ def _show_data_cleanup_dialog_OLD_SUPPRIMEE():
             else:
                 ui.label('Dossier de sauvegarde inexistant').classes('text-muted text-center')
             
-            ui.button('Fermer', on_click=backup_dialog.close).classes('bg-gray-500 text-white mt-4 w-full')
+            ui.button(t('common_close'), on_click=backup_dialog.close).classes('bg-gray-500 text-white mt-4 w-full')
         
         backup_dialog.open()
     
@@ -4167,8 +4151,8 @@ def _profile_modal():
             ui.separator().classes('my-4')
             
             with ui.row().classes('w-full justify-end gap-2'):
-                ui.button('Rafraîchir', on_click=refresh_content).classes('bg-blue-500 text-white')
-                ui.button('Fermer', on_click=d.close).classes('bg-gray-500 text-white')
+                ui.button(t('conv_btn_refresh'), on_click=refresh_content).classes('bg-blue-500 text-white')
+                ui.button(t('common_close'), on_click=d.close).classes('bg-gray-500 text-white')
     
     with d, ui.card().classes('w-full max-w-4xl mx-auto').style('min-height: 400px; max-height: 80vh; overflow-y: auto;'):
         ui.label('⚙️ Configuration OGMA').classes('text-xl font-bold mb-4')

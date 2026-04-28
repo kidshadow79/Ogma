@@ -18,6 +18,12 @@ from nicegui import ui
 from typing import Optional, Callable
 from datetime import datetime
 
+try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
 
 class FluxCognitifUI:
     """Interface NiceGUI pour le flux cognitif"""
@@ -69,7 +75,7 @@ class FluxCognitifUI:
             
             # Header
             with ui.row().classes('flux-header'):
-                ui.label('🧠 Flux Cognitif').classes('flux-title')
+                ui.label(t('flux_title')).classes('flux-title')
             
             # Zone logs (scroll)
             with ui.column().classes('flux-logs') as logs_container:
@@ -78,29 +84,29 @@ class FluxCognitifUI:
             # Footer contrôles
             with ui.row().classes('flux-footer'):
                 # Niveau (Phase 2: activé pour NORMAL et DEEP)
-                ui.label('Niveau:').classes('flux-label')
+                ui.label(t('flux_label_level')).classes('flux-label')
                 btn1 = ui.button('●', on_click=lambda: self._set_level(1)).classes('level-btn level-1 active').props('flat dense')
-                btn1.tooltip('SURFACE : Événements basiques (injections, recherches)')
+                btn1.tooltip(t('flux_tooltip_surface'))
                 btn2 = ui.button('○', on_click=lambda: self._set_level(2)).classes('level-btn level-2').props('flat dense')
-                btn2.tooltip('NORMAL : + Dialogues Archiviste (prompts/réponses enrichissement)')
+                btn2.tooltip(t('flux_tooltip_normal'))
                 btn3 = ui.button('○', on_click=lambda: self._set_level(3)).classes('level-btn level-3').props('flat dense')
-                btn3.tooltip('DEEP : Tous les événements cognitifs (métacognition incluse)')
+                btn3.tooltip(t('flux_tooltip_deep'))
                 self.level_buttons = [btn1, btn2, btn3]
                 
                 ui.separator().props('vertical')
                 
                 # Filtres catégories
-                ui.label('Filtres:').classes('flux-label')
+                ui.label(t('flux_label_filters')).classes('flux-label')
                 
                 # Définir descriptions filtres
                 filter_descriptions = {
-                    'archiviste': 'Archiviste : Enrichissement mémoire et souvenirs',
-                    'biography': 'Biographie : Phrases magiques et extraction souvenirs',
-                    'dream': 'Dream Engine : Rêves et métabolisme cognitif',
-                    'journal': 'Journal de Bord : États quotidiens et humeur',
-                    'directive': 'Directive : Conscience critique Archiviste (autonomie IA)',
-                    'web': 'Web Navigator : Recherches et scraping web',
-                    'capability': 'Capability Advisor : Conseils capacités modèles IA'
+                    'archiviste': t('flux_filter_archiviste'),
+                    'biography': t('flux_filter_biography'),
+                    'dream': t('flux_filter_dream'),
+                    'journal': t('flux_filter_journal'),
+                    'directive': t('flux_filter_directive'),
+                    'web': t('flux_filter_web'),
+                    'capability': t('flux_filter_capability'),
                 }
                 
                 with ui.row().classes('flux-filters'):
@@ -259,11 +265,11 @@ class FluxCognitifUI:
                 level_name = {1: 'SURFACE', 2: 'NORMAL', 3: 'DEEP'}.get(self.flux.level, '?')
                 
                 if not active_filters:
-                    ui.label('⚠️ Tous les filtres sont désactivés').classes('flux-empty').style('color: #ff9800')
-                    ui.label('Cliquez sur les icônes 🧠📖🌙📔.. pour activer').classes('flux-empty').style('font-size: 0.5rem; margin-top: 5px')
+                    ui.label(t('flux_empty_no_filters')).classes('flux-empty').style('color: #ff9800')
+                    ui.label(t('flux_empty_click_icons')).classes('flux-empty').style('font-size: 0.5rem; margin-top: 5px')
                 else:
-                    ui.label('Aucun événement récent').classes('flux-empty')
-                    ui.label(f'Niveau {level_name} • {len(active_filters)} filtres actifs').classes('flux-empty').style('font-size: 0.5rem; margin-top: 5px')
+                    ui.label(t('flux_empty_none')).classes('flux-empty')
+                    ui.label(t('flux_empty_status', level=level_name, count=len(active_filters))).classes('flux-empty').style('font-size: 0.5rem; margin-top: 5px')
             return
         
         # Afficher événements (du plus ancien au plus récent)

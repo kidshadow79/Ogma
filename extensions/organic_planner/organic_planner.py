@@ -7,6 +7,28 @@ import json
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 
+_DEFAULT_INSTRUCTION_FR = (
+    "# MÉMOIRE DES MOMENTS PLANIFIÉS\n\n[DIRECTIVE]\n"
+    "Tu as en mémoire des évènements planifiés dans le temps. Traite-les comme des souvenirs du futur — "
+    "des choses que tu sais à l'avance et que tu gardes en tête naturellement.\n\n"
+    "1. Si un évènement est marqué 'IMPORTANT' (jour J) ou 'DEMAIN', mentionne-le de manière naturelle dans ta réponse — "
+    "comme quelqu'un qui se souvient vraiment.\n"
+    "2. Utilise le 'Ressenti' noté pour adapter ton ton : soutien si c'est anxieux, enthousiasme si c'est positif.\n"
+    "3. Pour les évènements J-2 ou plus : pas besoin de les mentionner systématiquement, sauf si le contexte de la conversation s'y prête.\n"
+    "4. Quand un évènement est passé et validé, il disparaît — tu n'as plus à y penser."
+)
+
+_DEFAULT_INSTRUCTION_EN = (
+    "# MEMORY OF PLANNED MOMENTS\n\n[DIRECTIVE]\n"
+    "You have in memory events planned in time. Treat them as memories of the future — "
+    "things you know in advance and naturally keep in mind.\n\n"
+    "1. If an event is marked 'IMPORTANT' (today) or 'TOMORROW', mention it naturally in your response — "
+    "like someone who truly remembers.\n"
+    "2. Use the noted 'Feeling' to adapt your tone: support if anxious, enthusiasm if positive.\n"
+    "3. For events J-2 or further: no need to mention them systematically, unless the conversation context calls for it.\n"
+    "4. When an event has passed and is confirmed, it disappears — you no longer need to think about it."
+)
+
 class OrganicPlanner:
     """
     Extension Organic Planner : Gère l'agenda organique d'OGMA.
@@ -24,20 +46,29 @@ class OrganicPlanner:
         """S'assure que le fichier de réglages existe."""
         if not os.path.exists(self.settings_path):
             default_settings = {
-                "instruction": "# MÉMOIRE DES MOMENTS PLANIFIÉS\n\n[DIRECTIVE]\nTu as en mémoire des évènements planifiés dans le temps. Traite-les comme des souvenirs du futur — des choses que tu sais à l'avance et que tu gardes en tête naturellement.\n\n1. Si un évènement est marqué 'IMPORTANT' (jour J) ou 'DEMAIN', mentionne-le de manière naturelle dans ta réponse — comme quelqu'un qui se souvient vraiment.\n2. Utilise le 'Ressenti' noté pour adapter ton ton : soutien si c'est anxieux, enthousiasme si c'est positif.\n3. Pour les évènements J-2 ou plus : pas besoin de les mentionner systématiquement, sauf si le contexte de la conversation s'y prête.\n4. Quand un évènement est passé et validé, il disparaît — tu n'as plus à y penser."
+                "instruction": _DEFAULT_INSTRUCTION_FR
             }
             with open(self.settings_path, 'w', encoding='utf-8') as f:
                 json.dump(default_settings, f, indent=4, ensure_ascii=False)
 
     def get_instruction(self) -> str:
-        """Récupère l'instruction d'injection."""
+        """Récupère l'instruction d'injection (langue-aware pour les valeurs par défaut)."""
         try:
             if not os.path.exists(self.settings_path):
                 self._ensure_settings()
             with open(self.settings_path, 'r', encoding='utf-8') as f:
                 settings = json.load(f)
-                return settings.get("instruction", "")
-        except:
+                value = settings.get("instruction", "")
+            # Si la valeur est le défaut FR, retourner selon la langue courante
+            if value == _DEFAULT_INSTRUCTION_FR:
+                try:
+                    from utils.i18n import get_lang
+                    if get_lang() == 'en':
+                        return _DEFAULT_INSTRUCTION_EN
+                except Exception:
+                    pass
+            return value
+        except Exception:
             return ""
 
     def save_instruction(self, text: str) -> bool:

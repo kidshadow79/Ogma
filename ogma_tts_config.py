@@ -12,6 +12,7 @@ CONTIENT :
 
 from nicegui import ui
 import asyncio
+from utils.i18n import t
 
 
 def _get_global_var(var_name, default=None):
@@ -71,7 +72,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
 
     if current_engine == 'system':
         # Configuration voix système
-        ui.label('Configuration Système').classes('text-sm font-medium mb-2')
+        ui.label(t('tts_section_config', provider='System')).classes('text-sm font-medium mb-2')
 
         _audio_manager = _get_global_var('_audio_manager')
         if _audio_manager is None:
@@ -112,7 +113,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                         _audio_manager.set_voice(voice_id)
 
                     voice_name = 'Sélection automatique' if voice_id == 'auto' else voice_options.get(voice_id, voice_id)
-                    ui.notify(f'Voix changée: {voice_name}', type='positive')
+                    ui.notify(t('tts_notify_voice_changed', voice=voice_name), type='positive')
 
                 ui.select(
                     label='Voix système disponibles',
@@ -151,17 +152,17 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                     except:
                         asyncio.create_task(_test())
 
-                ui.button('🧪 Tester la voix système', on_click=test_system_voice).classes('mb-3')
+                ui.button(t('tts_btn_test_system'), on_click=test_system_voice).classes('mb-3')
             else:
                 ui.label("❌ Aucune voix système disponible").classes('text-red-500 mb-2')
-                ui.button('🔄 Réessayer', on_click=refresh_callback).classes('mb-2')
+                ui.button(t('tts_btn_retry'), on_click=refresh_callback).classes('mb-2')
         else:
             ui.label("❌ Audio manager non initialisé").classes('text-red-500 mb-2')
-            ui.button('🔄 Réessayer', on_click=refresh_callback).classes('mb-2')
+            ui.button(t('tts_btn_retry'), on_click=refresh_callback).classes('mb-2')
 
     elif current_engine == 'google':
         # Configuration Google Cloud TTS
-        ui.label('Configuration Google Cloud TTS').classes('text-sm font-medium mb-2')
+        ui.label(t('tts_section_config', provider='Google Cloud TTS')).classes('text-sm font-medium mb-2')
 
         # Clé API Google
         google_api_key = sm.settings.get('tts', {}).get('google_api_key', '')
@@ -170,11 +171,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 sm.settings['tts'] = {}
             sm.settings['tts']['google_api_key'] = e.value
             sm.save_settings()
-            ui.notify('Clé API Google sauvegardée', type='positive')
+            ui.notify(t('tts_notify_key_saved', provider='Google'), type='positive')
 
         ui.input(
             label='Clé API Google Cloud',
-            placeholder='Entrez votre clé API Google Cloud',
+            placeholder=t('tts_placeholder_key', provider='Google Cloud'),
             password=True,
             value=google_api_key,
             on_change=on_google_key_change
@@ -187,7 +188,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 sm.settings['tts'] = {}
             sm.settings['tts']['google_voice'] = e.value
             sm.save_settings()
-            ui.notify(f'Voix Google changée: {e.value}', type='positive')
+            ui.notify(t('tts_notify_voice_change', provider='Google', value=e.value), type='positive')
 
         google_voice_options = {
             'fr-FR-Standard-A': '🇫🇷 ♀️ Française Standard A',
@@ -243,11 +244,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             except:
                 asyncio.create_task(_test())
 
-        ui.button('🧪 Tester Google TTS', on_click=test_google_tts).classes('mb-3')
+        ui.button(t('tts_btn_test', provider='Google TTS'), on_click=test_google_tts).classes('mb-3')
 
     elif current_engine == 'elevenlabs':
         # Configuration ElevenLabs
-        ui.label('Configuration ElevenLabs').classes('text-sm font-medium mb-2')
+        ui.label(t('tts_section_config', provider='ElevenLabs')).classes('text-sm font-medium mb-2')
 
         # Clé API ElevenLabs
         elevenlabs_api_key = sm.settings.get('tts', {}).get('elevenlabs_api_key', '')
@@ -258,11 +259,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.save_settings()
             # Recharger la config TTS dans l'audio manager
             _reload_tts_config()
-            ui.notify('Clé API ElevenLabs sauvegardée', type='positive')
+            ui.notify(t('tts_notify_key_saved', provider='ElevenLabs'), type='positive')
 
         ui.input(
             label='Clé API ElevenLabs',
-            placeholder='Entrez votre clé API ElevenLabs',
+            placeholder=t('tts_placeholder_key', provider='ElevenLabs'),
             password=True,
             value=elevenlabs_api_key,
             on_change=on_elevenlabs_key_change
@@ -277,11 +278,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.save_settings()
             # Recharger la config TTS dans l'audio manager
             _reload_tts_config()
-            ui.notify('Voice ID ElevenLabs sauvegardé', type='positive')
+            ui.notify(t('tts_notify_voice_id_saved', provider='ElevenLabs'), type='positive')
 
         ui.input(
             label='Voice ID ElevenLabs',
-            placeholder='ID de la voix (ex: pNInz6obpgDQGcFmaJgB)',
+            placeholder=t('tts_placeholder_voice_id_eleven'),
             value=elevenlabs_voice_id,
             on_change=on_elevenlabs_voice_change
         ).classes('mb-3')
@@ -299,7 +300,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['elevenlabs_model'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify(f'Modèle ElevenLabs: {model_options.get(e.value, e.value)}', type='positive')
+            ui.notify(t('tts_notify_model_changed', provider='ElevenLabs', value=model_options.get(e.value, e.value)), type='positive')
 
         ui.select(
             label='Modèle',
@@ -321,10 +322,10 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 _reload_tts_config()
             
             with ui.row().classes('w-full items-center gap-2 mb-2'):
-                ui.label('Stabilité').classes('text-sm w-24')
+                ui.label(t('tts_label_stability')).classes('text-sm w-24')
                 ui.slider(min=0, max=1, step=0.05, value=elevenlabs_stability, on_change=on_stability_change).classes('flex-grow')
                 ui.label().bind_text_from(lambda: f'{sm.settings.get("tts", {}).get("elevenlabs_stability", 0.5):.2f}').classes('text-xs w-10')
-            ui.label('↑ Plus stable = voix cohérente | ↓ Plus variable = expressif').classes('text-xs text-muted mb-2')
+            ui.label(t('tts_label_stability_help')).classes('text-xs text-muted mb-2')
 
             # Similarity Boost (ressemblance à la voix originale)
             elevenlabs_similarity = sm.settings.get('tts', {}).get('elevenlabs_similarity', 0.75)
@@ -336,10 +337,10 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 _reload_tts_config()
             
             with ui.row().classes('w-full items-center gap-2 mb-2'):
-                ui.label('Similarité').classes('text-sm w-24')
+                ui.label(t('tts_label_similarity')).classes('text-sm w-24')
                 ui.slider(min=0, max=1, step=0.05, value=elevenlabs_similarity, on_change=on_similarity_change).classes('flex-grow')
                 ui.label().bind_text_from(lambda: f'{sm.settings.get("tts", {}).get("elevenlabs_similarity", 0.75):.2f}').classes('text-xs w-10')
-            ui.label('Ressemblance à la voix clonée/originale').classes('text-xs text-muted mb-2')
+            ui.label(t('tts_label_similarity_help')).classes('text-xs text-muted mb-2')
 
             # Style (expressivité)
             elevenlabs_style = sm.settings.get('tts', {}).get('elevenlabs_style', 0.0)
@@ -351,10 +352,10 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 _reload_tts_config()
             
             with ui.row().classes('w-full items-center gap-2 mb-2'):
-                ui.label('Style').classes('text-sm w-24')
+                ui.label(t('tts_label_style')).classes('text-sm w-24')
                 ui.slider(min=0, max=1, step=0.05, value=elevenlabs_style, on_change=on_style_change).classes('flex-grow')
                 ui.label().bind_text_from(lambda: f'{sm.settings.get("tts", {}).get("elevenlabs_style", 0.0):.2f}').classes('text-xs w-10')
-            ui.label('Expressivité émotionnelle (0 = neutre, 1 = très expressif)').classes('text-xs text-muted mb-2')
+            ui.label(t('tts_label_style_help')).classes('text-xs text-muted mb-2')
 
             # Speed (vitesse de parole)
             elevenlabs_speed = sm.settings.get('tts', {}).get('elevenlabs_speed', 1.0)
@@ -366,10 +367,10 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 _reload_tts_config()
             
             with ui.row().classes('w-full items-center gap-2 mb-2'):
-                ui.label('Vitesse').classes('text-sm w-24')
+                ui.label(t('tts_label_speed')).classes('text-sm w-24')
                 ui.slider(min=0.5, max=2.0, step=0.1, value=elevenlabs_speed, on_change=on_speed_change).classes('flex-grow')
                 ui.label().bind_text_from(lambda: f'{sm.settings.get("tts", {}).get("elevenlabs_speed", 1.0):.1f}x').classes('text-xs w-10')
-            ui.label('Vitesse de parole (0.5x lent → 2.0x rapide)').classes('text-xs text-muted mb-2')
+            ui.label(t('tts_label_speed_help')).classes('text-xs text-muted mb-2')
 
             # Speaker Boost (amélioration vocale)
             elevenlabs_speaker_boost = sm.settings.get('tts', {}).get('elevenlabs_speaker_boost', True)
@@ -422,13 +423,13 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             except:
                 asyncio.create_task(_test())
 
-        ui.button('🧪 Tester ElevenLabs', on_click=test_elevenlabs_tts).classes('mb-3')
+        ui.button(t('tts_btn_test', provider='ElevenLabs'), on_click=test_elevenlabs_tts).classes('mb-3')
 
-        ui.label('💡 Trouvez les Voice IDs sur votre tableau de bord ElevenLabs').classes('text-xs text-muted mb-3')
+        ui.label(t('tts_tip_eleven')).classes('text-xs text-muted mb-3')
 
     elif current_engine == 'fish_audio':
         # Configuration Fish Audio
-        ui.label('Configuration Fish Audio').classes('text-sm font-medium mb-2')
+        ui.label(t('tts_section_config', provider='Fish Audio')).classes('text-sm font-medium mb-2')
 
         # Clé API Fish Audio
         fish_audio_api_key = sm.settings.get('tts', {}).get('fish_audio_api_key', '')
@@ -438,11 +439,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['fish_audio_api_key'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify('Clé API Fish Audio sauvegardée', type='positive')
+            ui.notify(t('tts_notify_key_saved', provider='Fish Audio'), type='positive')
 
         ui.input(
             label='Clé API Fish Audio',
-            placeholder='Entrez votre clé API Fish Audio',
+            placeholder=t('tts_placeholder_key', provider='Fish Audio'),
             password=True,
             value=fish_audio_api_key,
             on_change=on_fish_audio_key_change
@@ -456,11 +457,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['fish_audio_voice_id'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify('Voice ID Fish Audio sauvegardé', type='positive')
+            ui.notify(t('tts_notify_voice_id_saved', provider='Fish Audio'), type='positive')
 
         ui.input(
             label='Reference ID (Voice)',
-            placeholder='ID du modèle de voix Fish Audio',
+            placeholder=t('tts_placeholder_voice_id_fish'),
             value=fish_audio_voice_id,
             on_change=on_fish_audio_voice_change
         ).classes('mb-3')
@@ -477,7 +478,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['fish_audio_model'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify(f'Modèle Fish Audio: {e.value}', type='positive')
+            ui.notify(t('tts_notify_model_changed', provider='Fish Audio', value=e.value), type='positive')
         ui.select(
             label='Modèle',
             options=fish_audio_models,
@@ -519,7 +520,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             value=fish_audio_emotion,
             on_change=on_fish_audio_emotion_change
         ).classes('mb-1')
-        ui.label('S1 : syntaxe (balise). S2-pro : syntaxe [balise] — langage naturel libre.').classes('text-xs text-muted mb-3')
+        ui.label(t('tts_tip_fish_syntax')).classes('text-xs text-muted mb-3')
 
         # Options avancées Fish Audio
         with ui.expansion('Options avancées', icon='tune').classes('mb-3 w-full'):
@@ -553,13 +554,13 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 sm.save_settings()
                 _reload_tts_config()
             with ui.row().classes('items-center gap-2 w-full mb-1'):
-                ui.label('Chunk length').classes('text-sm w-28')
+                ui.label(t('tts_label_chunk')).classes('text-sm w-28')
                 ui.number(
                     min=100, max=300, step=10, value=fish_audio_chunk,
                     format='%d', suffix='chars',
                     on_change=on_fish_audio_chunk_change
                 ).classes('w-32')
-            ui.label('Taille des blocs de texte traités (100-300). Plus court = plus rapide.').classes('text-xs text-muted mb-3')
+            ui.label(t('tts_label_chunk_help')).classes('text-xs text-muted mb-3')
 
             # Bitrate MP3
             fish_audio_bitrate = sm.settings.get('tts', {}).get('fish_audio_mp3_bitrate', 128)
@@ -590,7 +591,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 value=fish_audio_normalize,
                 on_change=on_fish_audio_normalize_change
             ).classes('mb-2')
-            ui.label('Normalise les nombres, abréviations, etc. avant synthèse.').classes('text-xs text-muted mb-2')
+            ui.label(t('tts_label_normalize_help')).classes('text-xs text-muted mb-2')
 
         # Bouton test Fish Audio
         def test_fish_audio_tts():
@@ -631,13 +632,13 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             except:
                 asyncio.create_task(_test())
 
-        ui.button('🧪 Tester Fish Audio', on_click=test_fish_audio_tts).classes('mb-3')
+        ui.button(t('tts_btn_test', provider='Fish Audio'), on_click=test_fish_audio_tts).classes('mb-3')
 
-        ui.label('💡 Créez vos voix sur fish.audio et copiez le Reference ID').classes('text-xs text-muted mb-3')
+        ui.label(t('tts_tip_fish')).classes('text-xs text-muted mb-3')
 
     elif current_engine == 'cartesia':
         # Configuration Cartesia AI
-        ui.label('Configuration Cartesia AI').classes('text-sm font-medium mb-2')
+        ui.label(t('tts_section_config', provider='Cartesia AI')).classes('text-sm font-medium mb-2')
 
         # Clé API Cartesia
         cartesia_api_key = sm.settings.get('tts', {}).get('cartesia_api_key', '')
@@ -647,11 +648,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['cartesia_api_key'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify('Clé API Cartesia sauvegardée', type='positive')
+            ui.notify(t('tts_notify_key_saved', provider='Cartesia'), type='positive')
 
         ui.input(
             label='Clé API Cartesia',
-            placeholder='Entrez votre clé API Cartesia',
+            placeholder=t('tts_placeholder_key', provider='Cartesia'),
             password=True,
             value=cartesia_api_key,
             on_change=on_cartesia_key_change
@@ -665,11 +666,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['cartesia_voice_id'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify('Voice ID Cartesia sauvegardé', type='positive')
+            ui.notify(t('tts_notify_voice_id_saved', provider='Cartesia'), type='positive')
 
         ui.input(
             label='Voice ID Cartesia',
-            placeholder='ID de la voix Cartesia',
+            placeholder=t('tts_placeholder_voice_id_cartesia'),
             value=cartesia_voice_id,
             on_change=on_cartesia_voice_change
         ).classes('mb-3')
@@ -686,7 +687,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['cartesia_model'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify(f'Modèle Cartesia: {e.value}', type='positive')
+            ui.notify(t('tts_notify_model_changed', provider='Cartesia', value=e.value), type='positive')
 
         ui.select(
             label='Modèle',
@@ -699,7 +700,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         cartesia_model_for_controls = sm.settings.get('tts', {}).get('cartesia_model', 'sonic-2')
         with ui.expansion('Options avancees (sonic-3)', icon='tune').classes('mb-3 w-full'):
             if cartesia_model_for_controls != 'sonic-3':
-                ui.label('Ces options sont disponibles uniquement avec le modele sonic-3.').classes('text-xs text-muted')
+                ui.label(t('tts_label_sonic3_only')).classes('text-xs text-muted')
             else:
                 # Vitesse
                 cartesia_speed = sm.settings.get('tts', {}).get('cartesia_speed', 1.0)
@@ -713,13 +714,13 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                     sm.save_settings()
                     _reload_tts_config()
                 with ui.row().classes('items-center gap-2 w-full mb-1'):
-                    ui.label('Vitesse').classes('text-sm w-20')
+                    ui.label(t('tts_label_speed_short')).classes('text-sm w-20')
                     ui.number(
                         min=0.6, max=1.5, step=0.05, value=cartesia_speed,
                         format='%.2f', suffix='x',
                         on_change=on_cartesia_speed_change
                     ).classes('w-28')
-                ui.label('0.6x (lent) → 1.0x (normal) → 1.5x (rapide)').classes('text-xs text-muted mb-3')
+                ui.label(t('tts_label_speed_help2')).classes('text-xs text-muted mb-3')
 
                 # Emotion
                 cartesia_emotion = sm.settings.get('tts', {}).get('cartesia_emotion', 'neutral')
@@ -741,14 +742,14 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                     sm.settings['tts']['cartesia_emotion'] = e.value
                     sm.save_settings()
                     _reload_tts_config()
-                    ui.notify(f'Emotion: {e.value}', type='positive')
+                    ui.notify(t('tts_notify_emotion', value=e.value), type='positive')
                 ui.select(
                     label='Emotion',
                     options=cartesia_emotions,
                     value=cartesia_emotion,
                     on_change=on_cartesia_emotion_change
                 ).classes('mb-1')
-                ui.label('Guide emotionnel pour la voix (beta Cartesia)').classes('text-xs text-muted mb-2')
+                ui.label(t('tts_label_emotion_help')).classes('text-xs text-muted mb-2')
 
         # Bouton test Cartesia
         def test_cartesia_tts():
@@ -791,13 +792,13 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             except:
                 asyncio.create_task(_test())
 
-        ui.button('🧪 Tester Cartesia', on_click=test_cartesia_tts).classes('mb-3')
+        ui.button(t('tts_btn_test', provider='Cartesia'), on_click=test_cartesia_tts).classes('mb-3')
 
-        ui.label('💡 Trouvez vos voix sur cartesia.ai dans la Voice Library').classes('text-xs text-muted mb-3')
+        ui.label(t('tts_tip_cartesia')).classes('text-xs text-muted mb-3')
 
     elif current_engine == 'hume_ai' or current_engine.strip().lower() == 'hume_ai':
         # Configuration Hume AI (Octave TTS)
-        ui.label('Configuration Hume AI (Octave TTS)').classes('text-sm font-medium mb-2')
+        ui.label(t('tts_section_config', provider='Hume AI (Octave TTS)')).classes('text-sm font-medium mb-2')
 
         # Clé API Hume AI
         hume_ai_api_key = sm.settings.get('tts', {}).get('hume_ai_api_key', '')
@@ -808,11 +809,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.save_settings()
             # Appliquer la config
             _reload_tts_config()
-            ui.notify('Clé API Hume AI sauvegardée', type='positive')
+            ui.notify(t('tts_notify_key_saved', provider='Hume AI'), type='positive')
 
         ui.input(
             label='Clé API Hume AI',
-            placeholder='Entrez votre clé API Hume AI',
+            placeholder=t('tts_placeholder_key', provider='Hume AI'),
             password=True,
             value=hume_ai_api_key,
             on_change=on_hume_ai_key_change
@@ -826,7 +827,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['hume_ai_version'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify(f'Version Octave {e.value} sélectionnée', type='positive')
+            ui.notify(t('tts_notify_octave_version', value=e.value), type='positive')
 
         octave_version_options = {
             1: '🎵 Octave 1 (stable)',
@@ -840,7 +841,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             on_change=on_hume_version_change
         ).classes('mb-3')
 
-        ui.label('💡 Octave 2 : ~100ms latence, 11 langues | Octave 1 : anglais/espagnol uniquement').classes('text-xs text-muted mb-2')
+        ui.label(t('tts_tip_hume_oct')).classes('text-xs text-muted mb-2')
 
         # Voice ID personnalisé (priorité haute)
         hume_ai_voice_id = sm.settings.get('tts', {}).get('hume_ai_voice_id', '')
@@ -850,16 +851,16 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['hume_ai_voice_id'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify('Voice ID Hume AI sauvegardé', type='positive')
+            ui.notify(t('tts_notify_voice_id_saved', provider='Hume AI'), type='positive')
 
         ui.input(
             label='Voice ID personnalisé (optionnel - prioritaire)',
-            placeholder='Ex: 09ad914d-8e7f-40f8-a279-e34f07f7dab2',
+            placeholder=t('tts_placeholder_voice_id_hume'),
             value=hume_ai_voice_id,
             on_change=on_hume_voice_id_change
         ).classes('mb-2')
 
-        ui.label('💡 Trouvez vos Voice IDs sur app.hume.ai/voices (voix créées ou clonées)').classes('text-xs text-muted mb-3')
+        ui.label(t('tts_tip_hume_voices')).classes('text-xs text-muted mb-3')
 
         # Nom de la voix Hume (Voice Library) - si pas de Voice ID
         hume_ai_voice_name = sm.settings.get('tts', {}).get('hume_ai_voice_name', '')
@@ -869,7 +870,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.settings['tts']['hume_ai_voice_name'] = e.value
             sm.save_settings()
             _reload_tts_config()
-            ui.notify('Voix Hume AI sauvegardée', type='positive')
+            ui.notify(t('tts_notify_voice_saved', provider='Hume AI'), type='positive')
 
         # Voix populaires de la Voice Library Hume
         hume_voice_options = {
@@ -900,16 +901,16 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             sm.save_settings()
             # Appliquer la config
             _reload_tts_config()
-            ui.notify('Description Hume AI sauvegardée', type='positive')
+            ui.notify(t('tts_notify_desc_saved'), type='positive')
 
         ui.textarea(
             label='Description de la voix (optionnel)',
-            placeholder='Ex: "Voix féminine chaleureuse et empathique, avec un léger accent français"',
+            placeholder=t('tts_placeholder_hume_desc'),
             value=hume_ai_description,
             on_change=on_hume_ai_description_change
         ).classes('mb-3').style('min-height: 80px')
 
-        ui.label('💡 Si aucune voix n\'est sélectionnée, Hume génère une voix à partir de la description').classes('text-xs text-muted mb-2')
+        ui.label(t('tts_tip_hume_desc')).classes('text-xs text-muted mb-2')
 
         # Bouton test Hume AI
         def test_hume_ai_tts():
@@ -956,14 +957,14 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             except:
                 asyncio.create_task(_test())
 
-        ui.button('🧪 Tester Hume AI', on_click=test_hume_ai_tts).classes('mb-3')
+        ui.button(t('tts_btn_test', provider='Hume AI'), on_click=test_hume_ai_tts).classes('mb-3')
 
-        ui.label('💡 Explorez les voix sur app.hume.ai/voices').classes('text-xs text-muted mb-3')
+        ui.label(t('tts_tip_hume_explore')).classes('text-xs text-muted mb-3')
 
     elif current_engine == 'azure' or current_engine.strip().lower() == 'azure':
         # Configuration Azure AI Speech
         print("[DEBUG-TTS] ✅ SECTION 1 AZURE ACTIVÉE DANS _render_tts_config")
-        ui.label('Configuration Azure AI Speech').classes('text-sm font-medium mb-2')
+        ui.label(t('tts_section_config', provider='Azure AI Speech')).classes('text-sm font-medium mb-2')
 
         # Clé API Azure
         azure_api_key = sm.settings.get('tts', {}).get('azure_api_key', '')
@@ -972,11 +973,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 sm.settings['tts'] = {}
             sm.settings['tts']['azure_api_key'] = e.value
             sm.save_settings()
-            ui.notify('Clé API Azure sauvegardée', type='positive')
+            ui.notify(t('tts_notify_key_saved', provider='Azure'), type='positive')
 
         ui.input(
             label='Clé API Azure',
-            placeholder='Entrez votre clé API Azure Speech',
+            placeholder=t('tts_placeholder_key', provider='Azure Speech'),
             password=True,
             value=azure_api_key,
             on_change=on_azure_key_change
@@ -989,11 +990,11 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 sm.settings['tts'] = {}
             sm.settings['tts']['azure_region'] = e.value
             sm.save_settings()
-            ui.notify(f'Région Azure: {e.value}', type='positive')
+            ui.notify(t('tts_notify_region_changed', value=e.value), type='positive')
 
         ui.input(
             label='Région Azure',
-            placeholder='eastus, westeurope, etc.',
+            placeholder=t('tts_placeholder_region'),
             value=azure_region,
             on_change=on_azure_region_change
         ).classes('mb-3')
@@ -1005,7 +1006,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                 sm.settings['tts'] = {}
             sm.settings['tts']['azure_voice'] = e.value
             sm.save_settings()
-            ui.notify(f'Voix Azure changée: {e.value}', type='positive')
+            ui.notify(t('tts_notify_voice_change', provider='Azure', value=e.value), type='positive')
 
         azure_voice_options = {
             'fr-FR-DeniseNeural': '🇫🇷 ♀️ Denise (Neural)',
@@ -1073,14 +1074,14 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             except:
                 asyncio.create_task(_test())
 
-        ui.button('🧪 Tester Azure AI Speech', on_click=test_azure_tts).classes('mb-3')
+        ui.button(t('tts_btn_test', provider='Azure AI Speech'), on_click=test_azure_tts).classes('mb-3')
 
-        ui.label('💡 Obtenez vos clés API sur le portail Azure Speech Services').classes('text-xs text-muted mb-3')
+        ui.label(t('tts_tip_azure')).classes('text-xs text-muted mb-3')
 
     elif current_engine == 'gtts' or current_engine.strip().lower() == 'gtts':
         # Configuration Google TTS Offline (gTTS)
         print("[DEBUG-TTS] ✅ SECTION gTTS ACTIVÉE")
-        ui.label('Configuration Google TTS Offline (gTTS)').classes('text-sm font-medium mb-2')
+        ui.label(t('tts_section_config', provider='Google TTS Offline (gTTS)')).classes('text-sm font-medium mb-2')
 
         # Langue gTTS
         gtts_lang = sm.settings.get('tts', {}).get('gtts_lang', 'fr')
@@ -1094,7 +1095,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             if _audio_manager:
                 _audio_manager.gtts_lang = e.value
 
-            ui.notify(f'Langue gTTS: {e.value}', type='positive')
+            ui.notify(t('tts_notify_lang_gtts', value=e.value), type='positive')
 
         gtts_lang_options = {
             'fr': '🇫🇷 Français',
@@ -1145,16 +1146,16 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             except:
                 asyncio.create_task(_test())
 
-        ui.button('🧪 Tester Google TTS Offline', on_click=test_gtts_tts).classes('mb-3')
+        ui.button(t('tts_btn_test', provider='Google TTS Offline'), on_click=test_gtts_tts).classes('mb-3')
 
-        ui.label('💡 Google TTS offline - gratuit mais nécessite une connexion internet pour la synthèse').classes('text-xs text-muted mb-3')
+        ui.label(t('tts_tip_gtts')).classes('text-xs text-muted mb-3')
 
     # Note: Edge TTS a été retiré (bloqué par Microsoft depuis 2024 - erreur 403 Forbidden)
     # Le service gratuit non-officiel n'est plus fonctionnel.
 
     # === PARAMÈTRES AUDIO COMMUNS ===
     ui.separator().classes('my-3')
-    ui.label('🔧 Paramètres audio').classes('text-md font-medium mb-2')
+    ui.label(t('tts_label_audio_params')).classes('text-md font-medium mb-2')
 
     # Vitesse de parole (SpinBox)
     tts_speed = sm.settings.get('tts', {}).get('speed', 150)
@@ -1170,10 +1171,10 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         if _audio_manager and hasattr(_audio_manager, 'set_tts_settings'):
             _audio_manager.set_tts_settings(speed=speed)
 
-        ui.notify(f'Vitesse: {speed} mots/min', type='positive')
+        ui.notify(t('tts_notify_speed', speed=speed), type='positive')
 
     with ui.row().classes('w-full items-center gap-2 mb-2'):
-        ui.label('Vitesse de parole:').classes('text-sm w-32').tooltip(
+        ui.label(t('tts_label_voice_speed')).classes('text-sm w-32').tooltip(
             'Actif pour : Windows SAPI, pyttsx3, Azure, Google TTS.\n'
             'ElevenLabs : utiliser le slider Vitesse dans ses options avancees.\n'
             'Cartesia : utiliser le slider Vitesse dans Options avancees (sonic-3).\n'
@@ -1207,10 +1208,10 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         if _audio_manager and hasattr(_audio_manager, 'set_tts_settings'):
             _audio_manager.set_tts_settings(volume=volume)
 
-        ui.notify(f'Volume: {int(volume * 100)}%', type='positive')
+        ui.notify(t('tts_notify_volume', volume=int(volume * 100)), type='positive')
 
     with ui.row().classes('w-full items-center gap-2 mb-4'):
-        ui.label('Volume:').classes('text-sm w-32')
+        ui.label(t('tts_label_volume')).classes('text-sm w-32')
         ui.number(
             label='%',
             value=int(tts_volume * 100),

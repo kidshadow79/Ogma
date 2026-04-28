@@ -13,6 +13,12 @@ from typing import Optional
 import asyncio
 from .notification_cleaner import notification_cleaner
 
+try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
 class BiographyUI:
     """Interface utilisateur de l'extension biographie"""
     
@@ -124,16 +130,16 @@ class BiographyUI:
                 
                 # Titre
                 with ui.row().classes('w-full justify-between items-center mb-4'):
-                    ui.label('🖋️ Extension Biographie Profil').classes('text-xl font-bold')
+                    ui.label(t('bio_modal_title')).classes('text-xl font-bold')
                     ui.button('✕', on_click=lambda: self._close_modal(dialog)).classes('text-lg').style('background: none; border: none')
                 
                 # Section ON/OFF
                 with ui.row().classes('w-full items-center mb-6'):
-                    ui.label('Statut de l\'extension:').classes('font-semibold')
+                    ui.label(t('bio_label_status')).classes('font-semibold')
                     ui.space()
 
                     # Bouton toggle custom pour éviter les problèmes de sérialisation Switch
-                    toggle_text = "✅ Activée" if self.is_enabled else "❌ Désactivée"
+                    toggle_text = t('bio_btn_enabled') if self.is_enabled else t('bio_btn_disabled')
                     toggle_color = "bg-green-500" if self.is_enabled else "bg-red-500"
 
                     def toggle_and_update():
@@ -145,7 +151,7 @@ class BiographyUI:
                         save_success = self._save_extension_state()
 
                         # Mettre à jour le bouton
-                        new_text = "✅ Activée" if self.is_enabled else "❌ Désactivée"
+                        new_text = t('bio_btn_enabled') if self.is_enabled else t('bio_btn_disabled')
                         new_color = "bg-green-500" if self.is_enabled else "bg-red-500"
                         status_toggle.text = new_text
                         status_toggle.classes(f'{new_color} text-white px-4 py-2 rounded')
@@ -171,118 +177,76 @@ class BiographyUI:
                 
                 # Section INFO
                 with ui.column().classes('w-full mb-6'):
-                    ui.label('ℹ️ À propos de cette extension').classes('text-lg font-semibold mb-2')
-                    info_text = """
-L'extension **Biographie Profil** permet à l'IA de se souvenir et d'utiliser automatiquement des informations personnelles sur vous ou vos proches, sans que vous ayez besoin de tout répéter à chaque conversation.
-
-**🔄 Pipeline de compilation (4 étapes, dans l'ordre) :**
-
-1. **Traiter souvenirs** — Extrait les souvenirs FAISS existants pour une personne et crée un fichier de base local.
-2. **Phase 1 : JSON IA** — Collecte tous les signaux disponibles (mémoires, cache, résumés) et génère une liste de faits structurés. À répéter régulièrement pour intégrer les nouvelles informations.
-3. **Bio Compiler** — Classe chaque fait dans un groupe thématique (ANIMAUX, GOÛTS, PROJETS…). Ce fichier est utilisé directement en conversation.
-4. **Journal Bio** — Génère un journal biographique narratif lisible en Markdown, enrichissable à chaque exécution.
-
-**🧠 Injection en conversation :**
-À chaque message, l'IA analytique sélectionne 0 à 3 groupes biographiques pertinents et les injecte discrètement en contexte. L'IA principale peut ainsi faire référence à des informations personnelles de façon naturelle, sans que vous les ayez répétées.
-
-**📁 Fichiers produits (dans `data/biographies/[nom]/`) :**
-- `volume1_memories.json` — souvenirs bruts extractés de FAISS  
-- `volume2_structured.json` — faits structurés (sortie Phase 1)  
-- `bio_compiled.json` — groupes thématiques (sortie Bio Compiler, injecte en conversation)  
-- `volume2_journal.md` — journal narratif lisible (sortie Journal Bio)
-                    """
-                    ui.markdown(info_text).classes('text-sm text-white p-4 rounded').style('background-color: #374151;')
+                    ui.label(t('bio_section_about')).classes('text-lg font-semibold mb-2')
+                    ui.markdown(t('bio_about_text')).classes('text-sm text-white p-4 rounded').style('background-color: #374151;')
                 
                 ui.separator()
 
                 # Section Actions
                 with ui.column().classes('w-full mb-4'):
-                    ui.label('🔧 Actions').classes('text-lg font-semibold mb-3')
+                    ui.label(t('bio_section_actions')).classes('text-lg font-semibold mb-3')
                     
                     # Liste des utilisateurs existants
                     users = self.biography_manager.get_existing_users()
                     if users:
-                        ui.label(f'📊 Utilisateurs avec biographies: {", ".join(users)}').classes('text-sm text-gray-600 mb-3')
+                        ui.label(t('bio_label_users_with_bios', users=', '.join(users))).classes('text-sm text-gray-600 mb-3')
                     else:
-                        ui.label('📊 Aucune biographie créée pour le moment').classes('text-sm text-gray-600 mb-3')
+                        ui.label(t('bio_label_no_bios')).classes('text-sm text-gray-600 mb-3')
                     
                     # Saisie du nom pour traitement biographie
                     with ui.column().classes('w-full mb-4'):
-                        ui.label('👤 Créer/Mettre à jour une biographie:').classes('font-medium mb-2')
+                        ui.label(t('bio_label_create_update')).classes('font-medium mb-2')
 
                         with ui.row().classes('w-full items-end gap-3'):
                             # Champ de saisie pour le nom
                             self.name_input = ui.input(
-                                label='Nom de la personne',
-                                placeholder='Ex: Yohan, Marie, Pierre...'
+                                label=t('bio_input_label_name'),
+                                placeholder=t('bio_input_placeholder_name')
                             ).classes('flex-1')
 
                             # Bouton traitement Volume 1
                             process_btn = ui.button(
-                                '🔄 Traiter souvenirs',
+                                t('bio_btn_process'),
                                 on_click=self.process_specific_user_memories
                             ).classes('bg-blue-500 text-white px-4 py-2')
-                            process_btn.tooltip(
-                                'Récupère les souvenirs FAISS existants pour cette personne '
-                                'et crée/met à jour sa base de souvenirs locale (volume1_memories.json). '
-                                'À faire avant la Phase 1 si la personne a des souvenirs dans FAISS.'
-                            )
+                            process_btn.tooltip(t('bio_tooltip_process'))
 
                             # PHASE 1: Collecte signaux biographiques + génération JSON structuré
                             json_btn = ui.button(
-                                '🧠 Phase 1 : JSON IA',
+                                t('bio_btn_phase1'),
                                 on_click=self.generate_volume2_json_ia
                             ).classes('bg-blue-600 text-white px-4 py-2 ml-2')
-                            json_btn.tooltip(
-                                'PHASE 1 : Collecte les signaux biographiques (mémoires SQLite, '
-                                'cache cognitif, résumés) et génère une liste de faits structurés '
-                                '(volume2_structured.json) via l\'IA analytique. '
-                                'À relancer régulièrement pour intégrer les nouveaux apprentissages.'
-                            )
+                            json_btn.tooltip(t('bio_tooltip_phase1'))
 
                             # BIO COMPILER: Analyse faits → bio_compiled.json (groupes thématiques)
                             md_btn = ui.button(
-                                '⚡ Bio Compiler',
+                                t('bio_btn_compiler'),
                                 on_click=self.generate_volume2_md_ia
                             ).classes('bg-green-600 text-white px-4 py-2 ml-2')
-                            md_btn.tooltip(
-                                'BIO COMPILER : Classe chaque fait de la Phase 1 dans un groupe '
-                                'thématique (ANIMAUX, GOÛTS, PROJETS…) via l\'IA analytique. '
-                                'Produit bio_compiled.json — la source d\'injection en conversation. '
-                                'À relancer après chaque Phase 1.'
-                            )
+                            md_btn.tooltip(t('bio_tooltip_compiler'))
 
                             # JOURNAL BIO: Génère / enrichit le journal narratif .md via IA
                             journal_btn = ui.button(
-                                '📓 Journal Bio',
+                                t('bio_btn_journal'),
                                 on_click=self.generate_journal_ia
                             ).classes('bg-purple-600 text-white px-4 py-2 ml-2')
-                            journal_btn.tooltip(
-                                'Génère ou enrichit le journal biographique narratif (volume2_journal.md). '
-                                'Mode enrichissement : conserve l\'ancien journal et y ajoute les nouveaux faits. '
-                                'Nécessite que le Bio Compiler ait été exécuté au moins une fois.'
-                            )
+                            journal_btn.tooltip(t('bio_tooltip_journal'))
 
                             # RESET JOURNAL: Efface le .md et force recompilation totale
                             reset_journal_btn = ui.button(
-                                '🗑️ Reset Journal',
+                                t('bio_btn_reset_journal'),
                                 on_click=self.reset_journal_ia
                             ).classes('bg-red-700 text-white px-4 py-2 ml-2')
-                            reset_journal_btn.tooltip(
-                                'Efface le journal .md et repart entièrement de zéro depuis tous '
-                                'les faits compilés. Utile si le journal est désynchronisé ou si '
-                                'vous voulez changer la structure après avoir modifié l\'instruction.'
-                            )
+                            reset_journal_btn.tooltip(t('bio_tooltip_reset_journal'))
 
                 
                 ui.separator()
 
                 # ── Section Instruction Journal (personnalisable) ───────────────────────────
                 with ui.column().classes('w-full mb-4'):
-                    ui.label('📝 Instruction du journal biographique').classes('text-lg font-semibold mb-1')
+                    ui.label(t('bio_section_instruction')).classes('text-lg font-semibold mb-1')
                     ui.label(
-                        'Définissez les sections et règles utilisées pour générer le journal .md. '
-                        'Modifiez ce texte pour donner une autre forme à votre biographie.'
+                        t('bio_section_instruction_help')
                     ).classes('text-sm text-gray-400 mb-3')
 
                     # Charger l'instruction courante
@@ -295,53 +259,53 @@ L'extension **Biographie Profil** permet à l'IA de se souvenir et d'utiliser au
                     self.journal_instruction_input = ui.textarea(
                         value=_current_instr
                     ).classes('w-full font-mono text-sm').props(
-                        'rows=14 outlined label="Instruction journal"'
+                        f'rows=14 outlined label="{t("bio_label_instr_journal")}"'
                     )
 
                     with ui.row().classes('w-full gap-3 mt-2'):
                         save_instr_btn = ui.button(
-                            '💾 Sauvegarder instruction',
+                            t('bio_btn_save_instr'),
                             on_click=self.save_journal_instruction_ui
                         ).classes('bg-blue-600 text-white px-4 py-2')
-                        save_instr_btn.tooltip('Sauvegarde l\'instruction personnalisée — sera utilisée lors du prochain Journal Bio')
+                        save_instr_btn.tooltip(t('bio_tooltip_save_instr'))
 
                         reset_instr_btn = ui.button(
-                            '↩️ Rétablir défaut',
+                            t('bio_btn_reset_instr'),
                             on_click=self.reset_journal_instruction_ui
                         ).classes('bg-gray-500 text-white px-4 py-2')
-                        reset_instr_btn.tooltip('Supprime l\'instruction personnalisée et revient aux sections/règles par défaut')
+                        reset_instr_btn.tooltip(t('bio_tooltip_reset_instr'))
 
                 # ── Outils ────────────────────────────────────────────────────────
                 # 🆕 BOUTON NETTOYAGE URGENCE
                 with ui.row().classes('w-full mt-4'):
-                    ui.label('🧹 Outils:').classes('font-semibold')
+                    ui.label(t('bio_section_tools')).classes('font-semibold')
                     ui.space()
                     
                     clean_btn = ui.button(
-                        '🧹 Nettoyer Notifications',
+                        t('bio_btn_clean_notif'),
                         on_click=self.emergency_cleanup_notifications
                     ).classes('bg-orange-500 text-white px-3 py-1')
-                    clean_btn.tooltip('URGENCE: Nettoie les notifications coincées dans l\'interface')
+                    clean_btn.tooltip(t('bio_tooltip_clean_notif'))
                 
                 ui.separator()
                 
                 # Section accès aux fichiers et sauvegarde
                 with ui.row().classes('w-full mt-4'):
-                    ui.label('📁 Accès aux données:').classes('font-semibold')
+                    ui.label(t('bio_section_data_access')).classes('font-semibold')
                     ui.space()
-                    files_btn = ui.button('Ouvrir dossier biographies', on_click=self.open_data_folder).classes('bg-gray-500 text-white')
-                    files_btn.tooltip('Ouvre le dossier data/biographies dans l\'explorateur')
+                    files_btn = ui.button(t('bio_btn_open_folder'), on_click=self.open_data_folder).classes('bg-gray-500 text-white')
+                    files_btn.tooltip(t('bio_tooltip_open_folder'))
 
                 # Section sauvegarde
                 with ui.row().classes('w-full mt-4'):
-                    ui.label('💾 Sauvegarde:').classes('font-semibold')
+                    ui.label(t('bio_section_save')).classes('font-semibold')
                     ui.space()
-                    save_btn = ui.button('💾 Sauvegarder paramètres', on_click=self.manual_save_settings).classes('bg-orange-500 text-white')
-                    save_btn.tooltip('Sauvegarde manuellement l\'état ON/OFF de l\'extension pour les prochaines sessions')
+                    save_btn = ui.button(t('bio_btn_save_settings'), on_click=self.manual_save_settings).classes('bg-orange-500 text-white')
+                    save_btn.tooltip(t('bio_tooltip_save_settings'))
                 
                 # Boutons de fermeture
                 with ui.row().classes('w-full justify-end mt-6'):
-                    ui.button('Fermer', on_click=lambda: self._close_modal(dialog)).classes('bg-gray-500 text-white px-6 py-2')
+                    ui.button(t('bio_btn_close'), on_click=lambda: self._close_modal(dialog)).classes('bg-gray-500 text-white px-6 py-2')
 
                 # Gestionnaire de fermeture automatique
                 dialog.on('close', self._on_modal_close)
@@ -676,19 +640,19 @@ L'extension **Biographie Profil** permet à l'IA de se souvenir et d'utiliser au
 
             # Confirmation via dialog
             with ui.dialog() as confirm_dialog, ui.card():
-                ui.label(f'🗑️ Réinitialiser le journal de {user_name} ?').classes('font-bold text-lg')
-                ui.label('Le journal .md sera effacé et entièrement reconstruit depuis les faits compilés.').classes('text-sm text-gray-600 mt-2')
+                ui.label(t('bio_confirm_reset_title', user_name=user_name)).classes('font-bold text-lg')
+                ui.label(t('bio_confirm_reset_help')).classes('text-sm text-gray-600 mt-2')
                 with ui.row().classes('mt-4 gap-3'):
-                    ui.button('Annuler', on_click=confirm_dialog.close).classes('bg-gray-400 text-white')
+                    ui.button(t('common_cancel'), on_click=confirm_dialog.close).classes('bg-gray-400 text-white')
                     async def do_reset():
                         confirm_dialog.close()
                         await self._execute_reset_journal(user_name)
-                    ui.button('🗑️ Réinitialiser', on_click=do_reset).classes('bg-red-600 text-white')
+                    ui.button(t('bio_btn_reset_confirm'), on_click=do_reset).classes('bg-red-600 text-white')
 
             confirm_dialog.open()
 
         except Exception as e:
-            ui.notify(f'❌ Erreur: {str(e)[:100]}', type='negative')
+            ui.notify(t('bio_notify_reset_err', err=str(e)[:100]), type='negative')
             print(f"[BIOGRAPHY-UI] ❌ Erreur reset journal: {e}")
 
     async def _execute_reset_journal(self, user_name: str):

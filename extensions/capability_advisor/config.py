@@ -55,6 +55,27 @@ EXEMPLES:
 ✅ "Actus IA?" → {{"needs_capability":true, "capability_id":"web_search", "reasoning":"Infos actuelles", "suggestion":"il faut que je cherche sur internet dernières actualités IA 2026", "confidence":0.92}}
 ❌ "Salut" → {{"needs_capability":false, "capability_id":null, "reasoning":"Social basique", "suggestion":"", "confidence":0.0}}
 """
+
+    DEFAULT_ADVISOR_PROMPT_EN = """ARCHIVIST | SUBCONSCIOUS | CAPABILITY_DECISION
+
+INPUT | MSG: {user_message} | CTX: {recent_context}
+TOOLS | {available_capabilities}
+THRESHOLDS | {capability_thresholds}
+
+OUTPUT_JSON | {{"needs_capability": bool, "capability_id": "ID|null", "reasoning": "1sentence", "suggestion": "FULL_PHRASE", "confidence": 0-1}}
+
+RULES:
+• suggestion = magic phrase WORD_FOR_WORD (copy example_usage + complete it)
+• ZERO meta ("ORDER", "YOU MUST") - JUST the phrase
+• confidence: reflects your REAL certainty — if your confidence < threshold of chosen capability (THRESHOLDS line) → needs_capability:false directly
+• Use context_chd to decide
+• Note: magic phrase suggestions must use the exact trigger syntax defined in OGMA (may be in French)
+
+EXAMPLES:
+✅ "Show me a dragon" → {{"needs_capability":true, "capability_id":"image_gen", "reasoning":"Visual requested", "suggestion":"je dois créer une image de : majestic dragon breathing fire, golden scales", "confidence":0.95}}
+✅ "AI news?" → {{"needs_capability":true, "capability_id":"web_search", "reasoning":"Current info needed", "suggestion":"il faut que je cherche sur internet latest AI news 2026", "confidence":0.92}}
+❌ "Hi" → {{"needs_capability":false, "capability_id":null, "reasoning":"Basic social", "suggestion":"", "confidence":0.0}}
+"""
     
     def __init__(self):
         """Initialise configuration"""
@@ -95,13 +116,23 @@ EXEMPLES:
             print(f"[CAPABILITY-ADVISOR] ❌ Erreur sauvegarde: {e}")
     
     def get_advisor_prompt_template(self) -> str:
-        """Récupère prompt Archiviste (custom ou défaut)"""
+        """Récupère prompt Archiviste (custom ou défaut langue-aware)"""
         if CUSTOM_PROMPT_FILE.exists():
             try:
                 with open(CUSTOM_PROMPT_FILE, 'r', encoding='utf-8') as f:
-                    return f.read().strip()
-            except:
+                    content = f.read().strip()
+                    # Si le fichier contient le défaut FR exact, appliquer logique langue
+                    if content != self.DEFAULT_ADVISOR_PROMPT.strip():
+                        return content  # Contenu personnalisé
+            except Exception:
                 pass
+        # Défaut selon langue courante
+        try:
+            from utils.i18n import get_lang
+            if get_lang() == 'en':
+                return self.DEFAULT_ADVISOR_PROMPT_EN
+        except Exception:
+            pass
         return self.DEFAULT_ADVISOR_PROMPT
     
     def save_custom_prompt(self, prompt_text: str):

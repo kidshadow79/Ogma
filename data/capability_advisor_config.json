@@ -6,5 +6,14 @@
   "max_tokens": 500,
   "temperature": 0.3,
   "recent_context_messages": 3,
-  "capability_thresholds": {}
+  "capability_thresholds": {
+    "memory": 0.85,
+    "ego_memory": 0.8,
+    "introspection": 0.7,
+    "image_gen": 0.7,
+    "webcam": 0.8,
+    "web_search": 0.75,
+    "biography": 0.8,
+    "contextual_recall": 0.7
+  }
 }

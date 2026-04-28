@@ -231,7 +231,7 @@ L'Archiviste effectue de nombreux appels en arrière-plan (filtrage mémoire, co
 Une page dédiée (`/hologram`) affiche le visage animé d'OGMA — un visage généré en Canvas 2D pur, dans une fumée bleue. La pyramide posée sur l'écran du téléphone crée l'illusion d'un hologramme flottant.
 
 - Le visage **réagit en temps réel** à la parole de l'IA (TTS) : il vibre et pulse quand OGMA s'exprime
-- Les **yeux changent de couleur et d'expression** selon la **tonalité du récit** détectée dans la conversation (joie, tristesse, attachement, saturation, peur, neutre — 6 registres tonaux, sourire/grimace, plissement des paupières)
+- Les **yeux changent de couleur et d'expression** selon l'émotion détectée dans la conversation (6 émotions, sourire/grimace, plissement des paupières)
 - L'URL à ouvrir sur le mobile est **auto-détectée** (IP LAN + port)
 
 Activation : Paramètres → Profil → section *Hologramme Projector*.

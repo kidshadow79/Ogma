@@ -15,6 +15,12 @@ import asyncio
 from pathlib import Path
 from datetime import datetime
 
+try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
 
 def _get_ogma_ng_function(func_name):
     """Helper pour récupérer une fonction d'ogma_ng"""
@@ -134,10 +140,7 @@ def _profile_modal():
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
                     ui.checkbox('Canny (contours nets - recommandé)', value=canny_enabled, on_change=on_canny_change).classes('text-sm')
-                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(
-                        'Détection de contours par gradient. Détecte les bords nets entre zones de luminosité différente. '
-                        'Idéal pour les formes bien définies.'
-                    )
+                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_canny'))
                 
                 # Sobel avec tooltip
                 sobel_enabled = sm.settings.get('perception', {}).get('contour_sobel', False)
@@ -148,10 +151,7 @@ def _profile_modal():
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
                     ui.checkbox('Sobel (gradients directionnels)', value=sobel_enabled, on_change=on_sobel_change).classes('text-sm')
-                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(
-                        'Calcule les gradients horizontaux et verticaux séparément. '
-                        'Détecte les transitions de luminosité dans toutes les directions. Plus sensible que Canny.'
-                    )
+                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_sobel'))
                 
                 # Laplacian avec tooltip
                 laplacian_enabled = sm.settings.get('perception', {}).get('contour_laplacian', False)
@@ -162,10 +162,7 @@ def _profile_modal():
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
                     ui.checkbox('Laplacian (contours fins)', value=laplacian_enabled, on_change=on_laplacian_change).classes('text-sm')
-                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(
-                        'Détecte les contours par dérivée seconde. Produit des lignes très fines. '
-                        'Sensible au bruit mais capture les détails subtils.'
-                    )
+                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_laplacian'))
                 
                 # Adaptive avec tooltip
                 adaptive_enabled = sm.settings.get('perception', {}).get('contour_adaptive', False)
@@ -176,10 +173,7 @@ def _profile_modal():
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
                     ui.checkbox('Adaptatif (formes contrastées)', value=adaptive_enabled, on_change=on_adaptive_change).classes('text-sm')
-                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(
-                        'Seuillage adaptatif local. Fonctionne bien avec un éclairage inégal. '
-                        'Détecte les formes même dans les zones sombres ou surexposées.'
-                    )
+                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_adaptive'))
                 
                 ui.label('Paramètres Canny :').classes('text-sm font-medium mt-2 mb-1')
                 
@@ -194,11 +188,7 @@ def _profile_modal():
                     with ui.column().classes('gap-0'):
                         with ui.row().classes('items-center gap-1'):
                             ui.label('Seuil bas').classes('text-xs')
-                            ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(
-                                'Seuil minimum pour considérer un pixel comme contour. '
-                                'Valeur basse (20-50) = plus de contours détectés, y compris le bruit. '
-                                'Valeur haute (80-120) = uniquement les contours les plus marqués.'
-                            )
+                            ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_canny_low'))
                         ui.number(value=canny_low, min=0, max=255, step=10, on_change=on_canny_low_change).classes('w-20')
                     
                     # Seuil haut Canny avec tooltip
@@ -211,11 +201,7 @@ def _profile_modal():
                     with ui.column().classes('gap-0'):
                         with ui.row().classes('items-center gap-1'):
                             ui.label('Seuil haut').classes('text-xs')
-                            ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(
-                                'Seuil maximum pour confirmer un contour. '
-                                'Les pixels entre seuil bas et haut sont gardés seulement s\'ils touchent un contour fort. '
-                                'Ratio recommandé : seuil haut = 2-3× seuil bas.'
-                            )
+                            ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_canny_high'))
                         ui.number(value=canny_high, min=0, max=255, step=10, on_change=on_canny_high_change).classes('w-20')
                     
                     # Épaisseur avec tooltip
@@ -228,10 +214,7 @@ def _profile_modal():
                     with ui.column().classes('gap-0'):
                         with ui.row().classes('items-center gap-1'):
                             ui.label('Épaisseur').classes('text-xs')
-                            ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(
-                                'Épaisseur du trait des contours en pixels. '
-                                '1-2 = tracé fin, 3-5 = tracé visible, 6-10 = tracé très épais.'
-                            )
+                            ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_thickness'))
                         ui.number(value=thickness, min=1, max=10, step=1, on_change=on_thickness_change).classes('w-20')
                 
                 # Couleur des tracés
@@ -248,12 +231,7 @@ def _profile_modal():
                         value=line_color,
                         on_change=on_line_color_change
                     ).classes('w-36')
-                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(
-                        'Couleur des contours tracés sur l\'image. '
-                        'Rouge = visible sur fond clair et sombre. '
-                        'Blanc = idéal sur fond noir. '
-                        'Noir = idéal sur fond blanc ou images claires.'
-                    )
+                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_line_color'))
                 
                 # Mode de rendu avec tooltip
                 ui.label('Mode de rendu :').classes('text-sm font-medium mt-2 mb-1')
@@ -269,11 +247,7 @@ def _profile_modal():
                         value=render_mode,
                         on_change=on_render_mode_change
                     ).classes('w-48')
-                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(
-                        'Superposé = contours dessinés par-dessus l\'image originale. '
-                        'Fond noir = uniquement les contours sur fond noir (style technique/schéma). '
-                        'Fond blanc = uniquement les contours sur fond blanc (style dessin).'
-                    )
+                    ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_render_mode'))
             
             ui.label('Les images traitées sont automatiquement sauvegardées dans le dossier captures/.').classes('text-xs text-muted mb-4')
 
@@ -570,7 +544,7 @@ def _profile_modal():
                                                  backup['path'], backup['profile_name'],
                                                  backup['user_name'], backup['ai_name'],
                                                  backup['size_mb']
-                                             )).classes('bg-red-700 text-white').tooltip('Supprimer cette sauvegarde')
+                                             )).classes('bg-red-700 text-white').tooltip(t('profile_tooltip_delete_backup'))
                 else:
                     ui.label('Aucune sauvegarde trouvée').classes('text-gray-500 text-center py-4')
             
@@ -707,7 +681,7 @@ def _profile_modal():
                                     ui.button('📂 Charger', icon='download',
                                              on_click=create_load_config_handler(snap['path'], snap['name'])).classes('bg-green-600 text-white')
                                     ui.button('🗑️', icon='delete',
-                                             on_click=create_delete_config_handler(snap['path'], snap['name'])).classes('bg-red-700 text-white').tooltip('Supprimer ce snapshot')
+                                             on_click=create_delete_config_handler(snap['path'], snap['name'])).classes('bg-red-700 text-white').tooltip(t('profile_tooltip_delete_snapshot'))
                 else:
                     ui.label('Aucun snapshot de config sauvegardé').classes('text-gray-500 text-center py-2')
 
@@ -1101,7 +1075,7 @@ DIRECTIVE :
                             pass
                     
                     ui.input(
-                        label='🔵 Mot d\'activation (pour commencer à parler / interrompre)',
+                        label=t('profile_label_stt_activation_word'),
                         value=trigger_activation,
                         on_change=on_trigger_activation_change
                     ).classes('w-full mb-2').props('dense')
@@ -1123,7 +1097,7 @@ DIRECTIVE :
                             pass
                     
                     ui.input(
-                        label='🟢 Mot d\'envoi (pour envoyer le message)',
+                        label=t('profile_label_stt_send_word'),
                         value=trigger_send,
                         on_change=on_trigger_send_change
                     ).classes('w-full mb-2').props('dense')
@@ -1156,7 +1130,7 @@ DIRECTIVE :
                             ui.notify('Valeur invalide', type='negative')
                     
                     ui.number(
-                        label='⏱️ Timeout initial (sec) - Délai avant de commencer à parler',
+                        label=t('profile_label_stt_timeout'),
                         value=listening_timeout,
                         min=0.5,
                         max=10.0,
@@ -1184,7 +1158,7 @@ DIRECTIVE :
                             ui.notify('Valeur invalide', type='negative')
                     
                     ui.number(
-                        label='📏 Durée max par segment (sec) - Durée maximale d\'enregistrement continu',
+                        label=t('profile_label_stt_max_duration'),
                         value=phrase_time_limit,
                         min=5.0,
                         max=60.0,
@@ -1212,7 +1186,7 @@ DIRECTIVE :
                             ui.notify('Valeur invalide', type='negative')
                     
                     ui.number(
-                        label='⏸️ Seuil de pause (sec) - Durée de silence avant coupure automatique',
+                        label=t('profile_label_stt_pause_threshold'),
                         value=pause_threshold,
                         min=0.5,
                         max=10.0,
@@ -1243,7 +1217,7 @@ DIRECTIVE :
                             ui.notify('Valeur invalide', type='negative')
                     
                     ui.number(
-                        label='🤫 Envoi automatique après silence (sec) - 0 pour désactiver',
+                        label=t('profile_label_stt_auto_send'),
                         value=auto_send_delay,
                         min=0.0,
                         max=60.0,
@@ -1381,7 +1355,7 @@ DIRECTIVE :
                     refresh_content()
 
                 ui.select(
-                    label='Moteur de synthèse vocale',
+                    label=t('profile_label_tts_engine'),
                     options=engine_options,
                     value=current_engine,
                     on_change=on_engine_change
@@ -1459,7 +1433,7 @@ DIRECTIVE :
                         
                         with ui.row().classes('w-full items-center gap-2'):
                             api_input = ui.input(
-                                label='Clé API OpenAI',
+                                label=t('profile_label_openai_key'),
                                 value=saved_key,
                                 password=True,
                                 password_toggle_button=True
@@ -1480,7 +1454,7 @@ DIRECTIVE :
                                 
                                 ui.notify('✅ Clé API Whisper sauvegardée', type='positive')
                             
-                            ui.button('💾', on_click=save_stt_api_key).props('size=sm color=primary').tooltip('Sauvegarder la clé')
+                            ui.button('💾', on_click=save_stt_api_key).props('size=sm color=primary').tooltip(t('profile_tooltip_save_key'))
                         
                         if saved_key:
                             ui.label(f'✅ Clé configurée: {masked_key}').classes('text-xs text-green-500')
@@ -1514,7 +1488,7 @@ DIRECTIVE :
                 render_stt_options()
             
             ui.select(
-                label='Moteur de transcription',
+                label=t('profile_label_stt_engine'),
                 options=stt_options,
                 value=current_stt_engine,
                 on_change=on_stt_engine_change
@@ -1715,21 +1689,21 @@ DIRECTIVE :
                     hw_status_label.set_text(f'Erreur detection : {e}')
                     ui.notify(f'Erreur : {e}', type='warning')
 
-            ui.button('Detecter automatiquement', icon='search', on_click=_auto_detect_hardware).classes('action-button mb-3').tooltip('Detecte automatiquement la RAM, le nombre de coeurs CPU et le GPU de votre machine.\nLes champs ci-dessous seront remplis. Vous pourrez les corriger manuellement si besoin.')
+            ui.button(t('profile_btn_detect_auto'), icon='search', on_click=_auto_detect_hardware).classes('action-button mb-3').tooltip(t('profile_tooltip_detect_auto'))
 
             with ui.row().classes('w-full gap-4 mb-2'):
                 hw_ram = ui.number(
-                    label='RAM totale (Go)',
+                    label=t('profile_label_ram'),
                     value=hw.get('ram_total_gb', 0),
                     min=0, max=1024, step=0.1
-                ).classes('form-input').style('flex: 1;').tooltip('Memoire vive totale de votre PC en gigaoctets.\nExemple : 8 Go, 16 Go, 32 Go.\nPlus vous avez de RAM, plus gros modeles vous pouvez utiliser.\nSans GPU, c\'est la RAM qui charge le modele.')
+                ).classes('form-input').style('flex: 1;').tooltip(t('profile_tooltip_ram'))
                 hw_ram.on('blur', lambda: _save_hw('ram_total_gb', hw_ram.value))
 
                 hw_cpu = ui.number(
-                    label='Threads CPU',
+                    label=t('profile_label_cpu_threads'),
                     value=hw.get('cpu_threads', 4),
                     min=1, max=256, step=1
-                ).classes('form-input').style('flex: 1;').tooltip('Nombre de fils d\'execution de votre processeur.\nExemple : 8 threads pour un i5, 16 pour un i7.\nUtilise pour le parametre num_thread d\'Ollama.\nPlus de threads = generation plus rapide sur CPU.')
+                ).classes('form-input').style('flex: 1;').tooltip(t('profile_tooltip_cpu_threads'))
                 hw_cpu.on('blur', lambda: _save_hw('cpu_threads', int(hw_cpu.value or 4)))
 
             with ui.row().classes('w-full gap-4 mb-2'):
@@ -1740,10 +1714,10 @@ DIRECTIVE :
                 hw_gpu_name.on('blur', lambda: _save_hw('gpu_name', hw_gpu_name.value))
 
                 hw_vram = ui.number(
-                    label='VRAM GPU (Go)',
+                    label=t('profile_label_gpu_vram'),
                     value=hw.get('gpu_vram_gb', 0),
                     min=0, max=256, step=0.1
-                ).classes('form-input').style('flex: 1;').tooltip('Memoire dediee de votre carte graphique en Go.\nExemple : 8 Go pour une RTX 4060, 16 Go pour une RTX 4080.\nSi >= 2 Go, les modeles Ollama seront charges en VRAM (rapide).\nSi 0, tout passe en RAM CPU (plus lent).')
+                ).classes('form-input').style('flex: 1;').tooltip(t('profile_tooltip_gpu_vram'))
                 hw_vram.on('blur', lambda: _save_hw('gpu_vram_gb', hw_vram.value))
 
             # Estimation mémoire pour Ollama
@@ -1869,7 +1843,7 @@ DIRECTIVE :
             ui.timer(0.5, _update_estimates, once=True)
 
             # Bouton recalculer
-            ui.button('Recalculer estimations', icon='calculate', on_click=_update_estimates).classes('action-button mt-2').tooltip('Recalcule les valeurs conseillee pour chaque modele Ollama installe,\nen tenant compte de vos specs hardware ci-dessus.\nModifiez la RAM ou la VRAM puis cliquez ici pour voir l\'impact.')
+            ui.button('Recalculer estimations', icon='calculate', on_click=_update_estimates).classes('action-button mt-2').tooltip(t('profile_tooltip_recalculate'))
 
     with d, ui.card().classes('popup-content profile-modal q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(800px, 90vw); max-height: 80vh; overflow-y: auto;'):
         ui.label('👤 Profil Utilisateur').classes('popup-title')

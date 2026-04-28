@@ -61,6 +61,29 @@ RÈGLES RÉDACTIONNELLES :
 - Toutes les sections ci-dessus doivent TOUJOURS être présentes dans le journal
 """.strip()
 
+JOURNAL_INSTRUCTION_DEFAULT_EN = """
+JOURNAL SECTIONS (in this order, all mandatory):
+## 🎭 General portrait
+## 🧠 Psyche & emotional life
+## 💡 Intellectual life
+## 🚀 Projects & creations
+## ☀️ Daily life & habits
+## 👥 Relationships & entourage
+## 📜 Personal history
+## ⚖️ Values & convictions
+## 🌿 Physical presence
+## 🎨 Tastes & preferences
+
+EDITORIAL RULES:
+- Write ONLY what is supported by a provided fact
+- Section with no corresponding fact → write exactly: No data observed.
+- ZERO clinical psychology, ZERO MBTI, ZERO IQ unless the user said so themselves
+- ZERO inference, ZERO extrapolation beyond the facts
+- Use "it seems that" or "based on their exchanges" when synthesizing multiple facts
+- You may add additional sections if the facts justify it
+- All sections above must ALWAYS be present in the journal
+""".strip()
+
 
 class StructuredBiographyManager:
     """
@@ -115,15 +138,22 @@ class StructuredBiographyManager:
 
     @staticmethod
     def get_journal_instruction() -> str:
-        """Charge l'instruction personnalisée du journal, ou retourne le défaut."""
+        """Charge l'instruction personnalisée du journal, ou retourne le défaut (langue-aware)."""
         instruction_file = Path("data/biographies/journal_instruction.txt")
         try:
             if instruction_file.exists():
                 content = instruction_file.read_text(encoding="utf-8").strip()
-                if content:
-                    return content
+                if content and content != JOURNAL_INSTRUCTION_DEFAULT:
+                    return content  # Contenu personnalisé — retourner tel quel
         except Exception as e:
             print(f"[STRUCTURED-MANAGER] Erreur lecture instruction journal: {e}")
+        # Retourner le défaut selon la langue courante
+        try:
+            from utils.i18n import get_lang
+            if get_lang() == 'en':
+                return JOURNAL_INSTRUCTION_DEFAULT_EN
+        except Exception:
+            pass
         return JOURNAL_INSTRUCTION_DEFAULT
 
     @staticmethod

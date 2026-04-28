@@ -302,7 +302,17 @@ class ConflictFreeTTSManager:
         
         tts = gTTS(text=text, lang=lang, slow=False)
         tts.save(tmp_path)
-        
+
+        # Hologramme : extraire l'enveloppe RMS réelle
+        try:
+            from extensions.hologram_projector.audio_analyzer import extract_rms_envelope
+            from extensions.hologram_projector.state_emitter import send_envelope
+            envelope = extract_rms_envelope(tmp_path, interval_ms=50)
+            if envelope:
+                send_envelope(envelope, interval_ms=50)
+        except Exception as _e:
+            print(f"[TTS-HOLOGRAM] Analyse audio ignorée : {_e}")
+
         # Jouer de manière isolée (fichier reste jusqu'à fermeture app)
         self._play_audio_file_safe(tmp_path)
         

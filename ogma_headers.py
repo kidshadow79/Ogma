@@ -8,9 +8,11 @@ CONTIENT :
 - Indicateurs de statut IA (Chat, Archiviste, Embeddings)
 - Bouton Archi Sensor flottant
 - Gestion des conteneurs d'en-tête
+- Sélecteur de langue FR/EN
 """
 
 from nicegui import ui
+from utils.i18n import t, get_lang, set_lang, reload_strings
 
 
 def _show_organic_planner_dialog():
@@ -20,7 +22,7 @@ def _show_organic_planner_dialog():
         return show_dialog()
     except Exception as e:
         print(f"[HEADERS] Erreur ouverture Organic Planner: {e}")
-        ui.notify("Erreur ouverture Organic Planner", type='negative')
+        ui.notify(t('header_notify_organic_error'), type='negative')
 
 
 def _get_ogma_ng_function(func_name):
@@ -109,8 +111,8 @@ def _header():
                     # Spinner d'activité IA Principale (vert)
                     chat_spinner = ui.spinner('audio', size='md').props('color="green"').style('display: none;')
                     with ui.element('div').style('display: flex; flex-direction: column; font-size: 12px;'):
-                        ui.label('IA PRINCIPALE').classes('text-xs font-semibold').style('color: var(--text-primary); margin: 0; line-height: 1.2;')
-                        chat_model = ui.label('Aucun modèle').classes('text-xs').style('color: var(--text-muted); margin: 0; line-height: 1.2;')
+                        ui.label(t('header_label_chat')).classes('text-xs font-semibold').style('color: var(--text-primary); margin: 0; line-height: 1.2;')
+                        chat_model = ui.label(t('header_label_no_model')).classes('text-xs').style('color: var(--text-muted); margin: 0; line-height: 1.2;')
 
                 # ARCHIVISTE
                 with ui.element('div').classes('ia-status-item').style('display: flex; align-items: center;'):
@@ -118,15 +120,15 @@ def _header():
                     # Spinner d'activité Archiviste (vert)
                     archiviste_spinner = ui.spinner('audio', size='md').props('color="green"').style('display: none;')
                     with ui.element('div').style('display: flex; flex-direction: column; font-size: 12px;'):
-                        ui.label('ARCHIVISTE').classes('text-xs font-semibold').style('color: var(--text-primary); margin: 0; line-height: 1.2;')
-                        archiviste_model = ui.label('Aucun modèle').classes('text-xs').style('color: var(--text-muted); margin: 0; line-height: 1.2;')
+                        ui.label(t('header_label_archiviste')).classes('text-xs font-semibold').style('color: var(--text-primary); margin: 0; line-height: 1.2;')
+                        archiviste_model = ui.label(t('header_label_no_model')).classes('text-xs').style('color: var(--text-muted); margin: 0; line-height: 1.2;')
 
                 # IA EMBED
                 with ui.element('div').classes('ia-status-item').style('display: flex; align-items: center;'):
                     embeddings_dot = None
                     with ui.element('div').style('display: flex; flex-direction: column; font-size: 12px;'):
-                        ui.label('IA EMBED').classes('text-xs font-semibold').style('color: var(--text-primary); margin: 0; line-height: 1.2;')
-                        embeddings_model = ui.label('Aucun modèle').classes('text-xs').style('color: var(--text-muted); margin: 0; line-height: 1.2;')
+                        ui.label(t('header_label_embed')).classes('text-xs font-semibold').style('color: var(--text-primary); margin: 0; line-height: 1.2;')
+                        embeddings_model = ui.label(t('header_label_no_model')).classes('text-xs').style('color: var(--text-muted); margin: 0; line-height: 1.2;')
 
         # Mettre à jour les indicateurs globaux
         try:
@@ -194,7 +196,7 @@ def _header():
             traceback.print_exc()
         
         # Bouton Journal de Bord - Création immédiate, initialisation lazy au clic
-        journal_btn = ui.button(icon='book').classes('settings-floating-btn').props('title="Journal de Bord"')
+        journal_btn = ui.button(icon='book').classes('settings-floating-btn').props(f'title="{t("header_btn_journal")}"')
         
         async def _open_journal_lazy():
             """Initialisation lazy du Journal au premier clic"""
@@ -228,36 +230,36 @@ def _header():
                         # Ouvrir modal (await car async)
                         await journal.ui_components.open_main_modal()
                     else:
-                        ui.notify("Impossible d'initialiser le journal", type='negative')
+                        ui.notify(t('header_notify_journal_init_error'), type='negative')
                         
             except Exception as e:
                 print(f"[JOURNAL-HEADER] ⚠️ Erreur ouverture journal: {e}")
                 import traceback
                 traceback.print_exc()
-                ui.notify(f"Erreur: {e}", type='negative')
+                ui.notify(t('header_notify_error_with_msg', msg=str(e)), type='negative')
         
         journal_btn.on('click', _open_journal_lazy)
 
         # Bouton Biographie Profil
-        biography_btn = ui.button(icon='person').classes('settings-floating-btn').props('title="Biographie Profil"')
+        biography_btn = ui.button(icon='person').classes('settings-floating-btn').props(f'title="{t("header_btn_biography")}"')
 
         # Bouton Perception avec style paramètres généraux
-        perception_btn = ui.button(icon='visibility').classes('settings-floating-btn').props('title="Vision Perception"')
+        perception_btn = ui.button(icon='visibility').classes('settings-floating-btn').props(f'title="{t("header_btn_perception")}"')
 
         # Bouton Cognitive Mirror - Transparence cognitive
-        cognitive_mirror_btn = ui.button(icon='psychology_alt').classes('settings-floating-btn q-btn--secondary').props('title="Cognitive Mirror - Réflexion visible"')
+        cognitive_mirror_btn = ui.button(icon='psychology_alt').classes('settings-floating-btn q-btn--secondary').props(f'title="{t("header_btn_cognitive_mirror")}"')
         
         # Bouton Capability Advisor - Conseils capacités IA (toujours créé, comme les autres)
-        capability_advisor_btn = ui.button(icon='lightbulb').classes('settings-floating-btn q-btn--accent').props('title="Capability Advisor - Conseils IA"')
+        capability_advisor_btn = ui.button(icon='lightbulb').classes('settings-floating-btn q-btn--accent').props(f'title="{t("header_btn_capability_advisor")}"')
 
         # Bouton Organic Planner - Agenda & Charge Mentale
-        organic_planner_btn = ui.button(icon='event_note').classes('settings-floating-btn').props('title="Organic Planner - Agenda"')
+        organic_planner_btn = ui.button(icon='event_note').classes('settings-floating-btn').props(f'title="{t("header_btn_organic_planner")}"')
 
         # Bouton Flux Cognitif - Visualisation transparence pensées
-        flux_cognitif_btn = ui.button(icon='psychology').classes('settings-floating-btn').props('title="Flux Cognitif - Transparence IA"')
+        flux_cognitif_btn = ui.button(icon='psychology').classes('settings-floating-btn').props(f'title="{t("header_btn_flux_cognitif")}"')
 
         # Bouton Dream Engine — toggle veille/réveil avec état visuel
-        dream_engine_btn = ui.button(icon='bedtime').classes('settings-floating-btn').props('title="Dream Engine - Rêves"')
+        dream_engine_btn = ui.button(icon='bedtime').classes('settings-floating-btn').props(f'title="{t("header_btn_dream_engine")}"')
         
         async def _async_dream_toggle():
             """Toggle rêve/réveil avec mise à jour visuelle du bouton."""
@@ -292,6 +294,10 @@ def _header():
         except Exception:
             pass
 
+        # ========== Sélecteur de langue FR / EN ==========
+        # Boutons déplacés dans la sidebar (ogma_ui_conversations.py)
+        # ========== Fin sélecteur de langue ==========
+
         # [FLUX COGNITIF] Handler pour toggle overlay ambre
         def toggle_flux_cognitif():
             """Active/désactive l'overlay Flux Cognitif"""
@@ -311,11 +317,11 @@ def _header():
                         flux_cognitif_ui = create_flux_ui(flux_instance)
                         flux_cognitif_visible = False  # Reset état visibilité
                     else:
-                        ui.notify("Flux Cognitif non initialisé", type='warning')
+                        ui.notify(t('header_notify_flux_uninit'), type='warning')
                         return
                 except Exception as e:
                     print(f"[FLUX-COGNITIF] ❌ Erreur initialisation UI: {e}")
-                    ui.notify(f"Erreur: {e}", type='negative')
+                    ui.notify(t('header_notify_error_with_msg', msg=str(e)), type='negative')
                     return
             
             # Toggle affichage
@@ -364,24 +370,24 @@ def _header():
                             with current_context:
                                 if success:
                                     print("[JOURNAL] Entrée créée avec succès")
-                                    ui.notify("✅ Conversation ajoutée au journal", type='positive')
+                                    ui.notify(t('header_notify_journal_added'), type='positive')
                                 else:
                                     print("[JOURNAL] Échec création entrée")
-                                    ui.notify("Erreur lors de la création de l'entrée", type='negative')
+                                    ui.notify(t('header_notify_journal_create_error'), type='negative')
                         except Exception as e:
                             print(f"[JOURNAL] Erreur création entrée: {e}")
                             with current_context:
-                                ui.notify("Erreur lors de la création de l'entrée", type='negative')
+                                ui.notify(t('header_notify_journal_create_error'), type='negative')
 
                     # Exécution asynchrone
                     asyncio.create_task(create_entry())
 
                 else:
                     print("[JOURNAL] Extension non disponible")
-                    ui.notify("Journal de Bord non disponible", type='warning')
+                    ui.notify(t('header_notify_journal_unavailable'), type='warning')
             except Exception as e:
                 print(f"[JOURNAL] Erreur traitement journal: {e}")
-                ui.notify("Erreur Journal de Bord", type='negative')
+                ui.notify(t('header_notify_journal_error'), type='negative')
 
         def toggle_biography():
             """Ouvre la modal de paramètres de l'extension Biographie Profil"""
@@ -395,13 +401,13 @@ def _header():
                         print("[BIOGRAPHY] Modal paramètres ouverte avec succès")
                     else:
                         print("[BIOGRAPHY] Erreur ouverture modal paramètres")
-                        ui.notify("Erreur ouverture paramètres biographie", type='negative')
+                        ui.notify(t('header_notify_biography_settings_error'), type='negative')
                 else:
                     print("[BIOGRAPHY] Extension non disponible")
-                    ui.notify("Extension Biographie Profil non disponible", type='warning')
+                    ui.notify(t('header_notify_biography_unavailable'), type='warning')
             except Exception as e:
                 print(f"[BIOGRAPHY] Erreur traitement biographie: {e}")
-                ui.notify("Erreur Extension Biographie Profil", type='negative')
+                ui.notify(t('header_notify_biography_error'), type='negative')
 
         def open_perception_page():
             """Ouvre la page Perception dans une fenêtre popup dédiée"""
@@ -471,46 +477,46 @@ def _header():
                 typing_anim = config.get("typing_animation", True)
                 
                 with ui.dialog() as main_dialog, ui.card().classes('p-4').style('min-width: 520px; max-height: 85vh; overflow-y: auto;'):
-                    ui.label('🧠 Introspection v2.1').classes('text-xl font-bold')
-                    ui.label('Configuration IA Principale ↔ Archiviste').classes('text-xs text-gray-400 mb-4')
+                    ui.label(t('intr_title')).classes('text-xl font-bold')
+                    ui.label(t('intr_subtitle')).classes('text-xs text-gray-400 mb-4')
                     
                     # === SECTION ÉTAT ===
-                    with ui.expansion('📊 État actuel', icon='info').classes('w-full').tooltip('Affiche l\'état actuel de l\'extension et les statistiques'):
+                    with ui.expansion(t('intr_section_status'), icon='info').classes('w-full').tooltip(t('intr_tooltip_status')):
                         with ui.row().classes('items-center gap-2'):
                             ui.icon('circle', color='green' if is_enabled else 'red').classes('text-xs')
-                            ui.label(f"Extension: {'Activée' if is_enabled else 'Désactivée'}")
+                            ui.label(t('intr_ext_enabled') if is_enabled else t('intr_ext_disabled'))
                         with ui.row().classes('items-center gap-2'):
                             ui.icon('psychology', color='blue' if is_active else 'gray')
-                            ui.label(f"Introspection: {'En cours...' if is_active else 'Inactive'}")
+                            ui.label(t('intr_running') if is_active else t('intr_inactive'))
                         with ui.row().classes('items-center gap-2'):
-                            ui.label(f"Sessions totales: {stats.get('total_sessions', 0)}")
+                            ui.label(t('intr_sessions', n=stats.get('total_sessions', 0)))
                     
                     # === SECTION ACTIVATION ===
-                    with ui.expansion('⚡ Activation', icon='power_settings_new', value=True).classes('w-full').tooltip('Active/désactive l\'introspection et définit le mode de déclenchement'):
+                    with ui.expansion(t('intr_section_activation'), icon='power_settings_new', value=True).classes('w-full').tooltip(t('intr_tooltip_activation')):
                         def toggle_enabled(e):
                             config.set("extension_enabled", e.value)
                             config.save_config()
                             _sync_btn = _get_ogma_ng_function('_sync_cognitive_mirror_button')
                             if _sync_btn: _sync_btn()
                         
-                        ui.switch('Activer l\'introspection', value=is_enabled, on_change=toggle_enabled).tooltip('Active ou désactive complètement l\'introspection')
+                        ui.switch(t('intr_switch_enable'), value=is_enabled, on_change=toggle_enabled).tooltip(t('intr_tooltip_enable'))
                         
                         def change_mode(e):
                             config.set("introspection_mode", e.value)
                             config.save_config()
                         
                         ui.select(
-                            label='Mode de déclenchement',
-                            options={'on_demand': '🎯 À la demande (phrases magiques)', 'always': '🔄 Automatique'},
+                            label=t('intr_label_mode'),
+                            options={'on_demand': t('intr_mode_on_demand'), 'always': t('intr_mode_auto')},
                             value=mode,
                             on_change=change_mode
-                        ).classes('w-full').tooltip('À la demande: déclenché par phrases magiques. Automatique: analyse chaque message.')
+                        ).classes('w-full').tooltip(t('intr_tooltip_mode'))
                         
-                        ui.label('💡 Phrases magiques: "réfléchis", "introspection", "qu\'en penses-tu vraiment"').classes('text-xs text-gray-400')
+                        ui.label(t('intr_hint_magic_phrases')).classes('text-xs text-gray-400')
                     
                     # === SECTION DIALOGUE ===
-                    with ui.expansion('💬 Paramètres du dialogue', icon='forum').classes('w-full').tooltip('Configure la durée et le nombre d\'échanges du dialogue interne'):
-                        ui.label('💡 Minimum d\'échanges = réflexion approfondie obligatoire').classes('text-xs text-gray-400 mb-2')
+                    with ui.expansion(t('intr_section_dialogue'), icon='forum').classes('w-full').tooltip(t('intr_tooltip_dialogue')):
+                        ui.label(t('intr_hint_min_exchanges')).classes('text-xs text-gray-400 mb-2')
                         
                         def update_min_exchanges(e):
                             new_val = int(e.value)
@@ -532,50 +538,50 @@ def _header():
                         
                         with ui.row().classes('w-full gap-4'):
                             ui.number(
-                                label='Minimum d\'échanges (obligatoire)',
+                                label=t('intr_label_min_exchanges'),
                                 value=min_exchanges, min=2, max=10, step=1,
                                 on_change=update_min_exchanges
-                            ).classes('flex-1').tooltip('Nombre minimum d\'allers-retours Conscient↔Archiviste avant de pouvoir conclure')
+                            ).classes('flex-1').tooltip(t('intr_tooltip_min_exchanges'))
                             
                             ui.number(
-                                label='Maximum d\'échanges',
+                                label=t('intr_label_max_exchanges'),
                                 value=max_exchanges, min=2, max=12, step=1,
                                 on_change=update_max_exchanges
-                            ).classes('flex-1').tooltip('Limite haute pour éviter des dialogues trop longs')
+                            ).classes('flex-1').tooltip(t('intr_tooltip_max_exchanges'))
                         
                         def update_duration(e):
                             config.set("max_introspection_duration", int(e.value))
                             config.save_config()
                         
                         ui.number(
-                            label='Durée max introspection (secondes)',
+                            label=t('intr_label_duration'),
                             value=max_duration, min=60, max=600, step=30,
                             on_change=update_duration
-                        ).classes('w-full').tooltip('Timeout global pour éviter les blocages (5min recommandé pour 8 échanges)')
+                        ).classes('w-full').tooltip(t('intr_tooltip_duration'))
                     
                     # === SECTION TOKENS ===
-                    with ui.expansion('📝 Tokens par étape', icon='tune').classes('w-full').tooltip('Contrôle la longueur des réponses générées à chaque étape'):
-                        ui.label('Contrôle la longueur des réponses à chaque étape').classes('text-xs text-gray-400 mb-2')
+                    with ui.expansion(t('intr_section_tokens'), icon='tune').classes('w-full').tooltip(t('intr_tooltip_tokens')):
+                        ui.label(t('intr_hint_tokens')).classes('text-xs text-gray-400 mb-2')
                         
                         def update_step1(e): config.set("step1_max_tokens", int(e.value)); config.save_config()
                         def update_conscious(e): config.set("step2_conscious_max_tokens", int(e.value)); config.save_config()
                         def update_unconscious(e): config.set("step2_unconscious_max_tokens", int(e.value)); config.save_config()
                         def update_step3(e): config.set("step3_max_tokens", int(e.value)); config.save_config()
                         
-                        ui.number(label='Étape 1 - Analyse', value=step1_tokens, min=100, max=1000, on_change=update_step1).classes('w-full').tooltip('Analyse initiale du message et récupération mémoire')
-                        ui.number(label='Étape 2 - IA Principale', value=step2_conscious_tokens, min=100, max=1500, on_change=update_conscious).classes('w-full').tooltip('Réponse de l\'IA Principale (pensée logique, expression)')
-                        ui.number(label='Étape 2 - Archiviste', value=step2_unconscious_tokens, min=100, max=1500, on_change=update_unconscious).classes('w-full').tooltip('Réponse de l\'Archiviste (mémoire profonde, souvenirs)')
-                        ui.number(label='Étape 3 - Synthèse finale', value=step3_tokens, min=200, max=2000, on_change=update_step3).classes('w-full').tooltip('Synthèse du dialogue pour la réponse utilisateur')
+                        ui.number(label=t('intr_label_step1'), value=step1_tokens, min=100, max=1000, on_change=update_step1).classes('w-full').tooltip(t('intr_tooltip_step1'))
+                        ui.number(label=t('intr_label_step2_main'), value=step2_conscious_tokens, min=100, max=1500, on_change=update_conscious).classes('w-full').tooltip(t('intr_tooltip_step2_main'))
+                        ui.number(label=t('intr_label_step2_arch'), value=step2_unconscious_tokens, min=100, max=1500, on_change=update_unconscious).classes('w-full').tooltip(t('intr_tooltip_step2_arch'))
+                        ui.number(label=t('intr_label_step3'), value=step3_tokens, min=200, max=2000, on_change=update_step3).classes('w-full').tooltip(t('intr_tooltip_step3'))
                     
                     # === SECTION MÉMOIRE ===
-                    with ui.expansion('🧠 Accès mémoire', icon='memory').classes('w-full').tooltip('Configure comment l\'introspection accède aux souvenirs'):
+                    with ui.expansion(t('intr_section_memory'), icon='memory').classes('w-full').tooltip(t('intr_tooltip_memory')):
                         with ui.row().classes('items-center gap-2 w-full'):
-                            threshold_label = ui.label(f'Seuil de similarité: {memory_threshold:.2f}').classes('text-sm')
-                            ui.icon('help_outline', size='xs').tooltip('Plus le seuil est bas, plus de souvenirs sont récupérés (même moins pertinents)')
+                            threshold_label = ui.label(t('intr_label_threshold', val=f'{memory_threshold:.2f}')).classes('text-sm')
+                            ui.icon('help_outline', size='xs').tooltip(t('intr_tooltip_threshold'))
                         def update_threshold(e, lbl=threshold_label): 
                             config.set("memory_search_threshold", float(e.value))
                             config.save_config()
-                            lbl.set_text(f'Seuil de similarité: {float(e.value):.2f}')
+                            lbl.set_text(t('intr_label_threshold', val=f'{float(e.value):.2f}'))
                         def update_results(e): config.set("memory_max_results", int(e.value)); config.save_config()
                         ui.slider(
                             value=memory_threshold, min=0.1, max=0.9, step=0.05,
@@ -583,44 +589,44 @@ def _header():
                         ).classes('w-full')
                         
                         ui.number(
-                            label='Nombre max de souvenirs récupérés',
+                            label=t('intr_label_max_memories'),
                             value=memory_results, min=1, max=15, step=1,
                             on_change=update_results
-                        ).classes('w-full').tooltip('Limite le nombre de souvenirs injectés dans le contexte')
+                        ).classes('w-full').tooltip(t('intr_tooltip_max_memories'))
                     
                     # === SECTION SAUVEGARDE ===
-                    with ui.expansion('💾 Sauvegarde automatique', icon='save').classes('w-full').tooltip('L\'IA peut décider de sauvegarder des insights importants'):
+                    with ui.expansion(t('intr_section_save'), icon='save').classes('w-full').tooltip(t('intr_tooltip_save')):
                         def toggle_autosave(e): config.set("auto_save_enabled", e.value); config.save_config()
                         def update_importance(e): config.set("importance_threshold", int(e.value)); config.save_config()
                         
-                        ui.switch('Sauvegarder automatiquement les insights', value=auto_save, on_change=toggle_autosave).tooltip('Permet à l\'IA de créer des souvenirs depuis ses réflexions')
+                        ui.switch(t('intr_switch_autosave'), value=auto_save, on_change=toggle_autosave).tooltip(t('intr_tooltip_autosave'))
                         ui.number(
-                            label='Seuil d\'importance (1-10)',
+                            label=t('intr_label_importance'),
                             value=importance_threshold, min=1, max=10, step=1,
                             on_change=update_importance
                         ).classes('w-full')
-                        ui.label('L\'IA évalue l\'importance et sauvegarde si ≥ seuil').classes('text-xs text-gray-400')
+                        ui.label(t('intr_hint_importance')).classes('text-xs text-gray-400')
                     
                     # === SECTION AFFICHAGE ===
-                    with ui.expansion('🎨 Affichage', icon='visibility').classes('w-full').tooltip('Options visuelles pour le rendu de l\'introspection'):
+                    with ui.expansion(t('intr_section_display'), icon='visibility').classes('w-full').tooltip(t('intr_tooltip_display')):
                         def toggle_dialogue(e): config.set("show_dialogue_details", e.value); config.save_config()
                         def toggle_progress(e): config.set("show_progress_indicator", e.value); config.save_config()
                         def toggle_typing(e): config.set("typing_animation", e.value); config.save_config()
                         
-                        ui.switch('Afficher le dialogue détaillé', value=show_dialogue, on_change=toggle_dialogue).tooltip('Montre les échanges IA Principale↔Archiviste en temps réel')
-                        ui.switch('Afficher l\'indicateur de progression', value=show_progress, on_change=toggle_progress).tooltip('Affiche une barre de progression pendant l\'introspection')
-                        ui.switch('Animation de frappe', value=typing_anim, on_change=toggle_typing).tooltip('Effet visuel de frappe pour les réponses')
+                        ui.switch(t('intr_switch_show_dialogue'), value=show_dialogue, on_change=toggle_dialogue).tooltip(t('intr_tooltip_show_dialogue'))
+                        ui.switch(t('intr_switch_show_progress'), value=show_progress, on_change=toggle_progress).tooltip(t('intr_tooltip_show_progress'))
+                        ui.switch(t('intr_switch_typing'), value=typing_anim, on_change=toggle_typing).tooltip(t('intr_tooltip_typing'))
                     
                     # === SECTION INSTRUCTIONS (intégré) ===
-                    with ui.expansion('📜 Instructions (avancé)', icon='code').classes('w-full').tooltip('Personnalisez les instructions données à chaque étape de l\'introspection'):
-                        ui.label('Modifiez les instructions de chaque étape').classes('text-xs text-gray-400 mb-2')
+                    with ui.expansion(t('intr_section_instructions'), icon='code').classes('w-full').tooltip(t('intr_tooltip_instructions')):
+                        ui.label(t('intr_hint_instructions')).classes('text-xs text-gray-400 mb-2')
                         
                         # Onglets pour les 4 instructions
                         with ui.tabs().classes('w-full').props('dense') as instr_tabs:
-                            tab_s1 = ui.tab('Analyse', icon='search')
-                            tab_conscious = ui.tab('IA Principale', icon='lightbulb')
-                            tab_unconscious = ui.tab('Archiviste', icon='nights_stay')
-                            tab_synth = ui.tab('Synthèse', icon='auto_awesome')
+                            tab_s1 = ui.tab(t('intr_tab_analysis'), icon='search')
+                            tab_conscious = ui.tab(t('intr_tab_main_ai'), icon='lightbulb')
+                            tab_unconscious = ui.tab(t('intr_tab_archivist'), icon='nights_stay')
+                            tab_synth = ui.tab(t('intr_tab_synthesis'), icon='auto_awesome')
                         
                         # Variables pour stocker les références aux textareas
                         instruction_fields = {}
@@ -629,25 +635,25 @@ def _header():
                             with ui.tab_panel(tab_s1):
                                 instruction_fields['step1'] = ui.textarea(
                                     value=config.get_instruction_text("step1_analysis") if hasattr(config, 'get_instruction_text') else "",
-                                    placeholder="Instructions pour l'analyse initiale..."
+                                    placeholder=t('intr_placeholder_step1')
                                 ).classes('w-full')
                             
                             with ui.tab_panel(tab_conscious):
                                 instruction_fields['conscious'] = ui.textarea(
                                     value=config.get_instruction_text("step2_conscious") if hasattr(config, 'get_instruction_text') else "",
-                                    placeholder="Instructions pour l'IA Principale..."
+                                    placeholder=t('intr_placeholder_step2_main')
                                 ).classes('w-full')
                             
                             with ui.tab_panel(tab_unconscious):
                                 instruction_fields['unconscious'] = ui.textarea(
                                     value=config.get_instruction_text("step2_unconscious") if hasattr(config, 'get_instruction_text') else "",
-                                    placeholder="Instructions pour l'Archiviste (gardien de la mémoire)..."
+                                    placeholder=t('intr_placeholder_step2_arch')
                                 ).classes('w-full')
                             
                             with ui.tab_panel(tab_synth):
                                 instruction_fields['synthesis'] = ui.textarea(
                                     value=config.get_instruction_text("step3_synthesis") if hasattr(config, 'get_instruction_text') else "",
-                                    placeholder="Instructions pour la synthèse finale..."
+                                    placeholder=t('intr_placeholder_step3')
                                 ).classes('w-full')
                         
                         # Boutons d'action
@@ -659,9 +665,9 @@ def _header():
                                     config.set_instruction("step2_unconscious", instruction_fields['unconscious'].value)
                                     config.set_instruction("step3_synthesis", instruction_fields['synthesis'].value)
                                     config.save_config()
-                                    ui.notify('✅ Instructions sauvegardées et actives immédiatement', type='positive')
+                                    ui.notify(t('intr_notify_saved'), type='positive')
                                 else:
-                                    ui.notify('❌ Méthode non disponible', type='warning')
+                                    ui.notify(t('intr_notify_unavailable'), type='warning')
                             
                             def reset_all_instructions():
                                 if hasattr(config, 'reset_instructions'):
@@ -671,17 +677,17 @@ def _header():
                                     instruction_fields['conscious'].value = config.get_instruction_text("step2_conscious")
                                     instruction_fields['unconscious'].value = config.get_instruction_text("step2_unconscious")
                                     instruction_fields['synthesis'].value = config.get_instruction_text("step3_synthesis")
-                                    ui.notify('🔄 Instructions réinitialisées aux valeurs par défaut', type='info')
+                                    ui.notify(t('intr_notify_reset'), type='info')
                                 else:
                                     ui.notify('❌ Méthode non disponible', type='warning')
                             
-                            ui.button('Appliquer', on_click=save_all_instructions, icon='check', color='positive').props('dense').tooltip('Sauvegarde et applique immédiatement les modifications')
-                            ui.button('Réinitialiser', on_click=reset_all_instructions, icon='restart_alt', color='warning').props('dense outline').tooltip('Restaure les instructions par défaut')
+                            ui.button(t('intr_btn_apply'), on_click=save_all_instructions, icon='check', color='positive').props('dense').tooltip(t('intr_tooltip_apply'))
+                            ui.button(t('intr_btn_reset'), on_click=reset_all_instructions, icon='restart_alt', color='warning').props('dense outline').tooltip(t('intr_tooltip_reset'))
                     
                     ui.separator()
                     
                     with ui.row().classes('justify-end gap-2 mt-2'):
-                        ui.button('Fermer', on_click=main_dialog.close).props('flat')
+                        ui.button(t('intr_btn_close'), on_click=main_dialog.close).props('flat')
                 
                 main_dialog.open()
                 # Force la hauteur des textareas après rendu Quasar
@@ -731,7 +737,7 @@ def _header():
                                 print("[CAPABILITY-ADVISOR] ✅ Overlay créé (lazy init)")
                     except Exception as init_e:
                         print(f"[CAPABILITY-ADVISOR] ⚠️ Erreur init: {init_e}")
-                        ui.notify("Capability Advisor non disponible", type='warning')
+                        ui.notify(t('header_notify_capability_unavailable'), type='warning')
                         return
                 
                 # Toggle overlay
@@ -740,7 +746,7 @@ def _header():
                     print(f"[CAPABILITY-ADVISOR] Overlay {'affiché' if capability_advisor_overlay.visible else 'masqué'}")
                 else:
                     print("[CAPABILITY-ADVISOR] Overlay non disponible")
-                    ui.notify("Capability Advisor non disponible", type='warning')
+                    ui.notify(t('header_notify_capability_unavailable'), type='warning')
             except Exception as e:
                 print(f"[CAPABILITY-ADVISOR] Erreur toggle: {e}")
                 import traceback

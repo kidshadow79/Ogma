@@ -7,6 +7,12 @@ Interface de configuration dans les paramètres OGMA (NiceGUI)
 from typing import Dict, Any, Optional, Callable
 
 try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
+try:
     import importlib
     _ng = importlib.import_module('nicegui')
     _ui = getattr(_ng, 'ui', None)
@@ -51,54 +57,53 @@ class WebNavigatorUI:
         
         with container:
             # En-tête de l'extension
-            ui.markdown("### 🌐 Extension Web Navigator")
-            ui.markdown("*Recherche internet intelligente avec phrases magiques*")
+            ui.markdown(t('wn_title'))
+            ui.markdown(t('wn_subtitle'))
             ui.separator()
 
             # ── SÉLECTEUR DE MOTEUR DE RECHERCHE ──────────────────────────────
             with ui.card().classes('w-full mb-4').style(
                 'background: rgba(46, 204, 113, 0.1); border: 1px solid rgba(46, 204, 113, 0.4);'
             ):
-                ui.markdown("**🚀 Moteur de recherche actif**").style('color: #27ae60; font-weight: bold;')
+                ui.markdown(t('wn_section_provider')).style('color: #27ae60; font-weight: bold;')
                 with ui.row().classes('w-full items-center gap-4'):
                     self.provider_select = ui.select(
-                        label="Moteur actif",
+                        label=t('wn_label_provider'),
                         options={
-                            "serper": "🔑 Serper (2 500 req/mois gratuites, clé API requise)",
-                            "duckduckgo": "🧡 DuckDuckGo (100% gratuit, sans clé API)",
+                            "serper": t('wn_provider_serper'),
+                            "duckduckgo": t('wn_provider_duckduckgo'),
                         },
                         value=self.config.get_search_provider()
                     ).on_value_change(self._on_provider_changed).classes('flex-1')
                 ui.markdown(
-                    "**DuckDuckGo** : gratuit et sans inscription, idéal en secours ou si quota Serper épuisé.  \n"
-                    "**Serper** : résultats Google, scraping intelligent des pages activé."
+                    t('wn_provider_explain')
                 ).style('color: #7f8c8d; font-size: 0.85em;')
 
             # Section clé API
             with ui.card().classes('w-full mb-4').style('background: rgba(52, 152, 219, 0.1); border: 1px solid rgba(52, 152, 219, 0.3);'):
-                ui.markdown("**🔑 Configuration API Serper**").style('color: #3498db; font-weight: bold;')
-                ui.markdown("📝 **Étapes pour obtenir votre clé API :**")
-                ui.markdown("1. Visitez [serper.dev](https://serper.dev)")
-                ui.markdown("2. Créez un compte gratuit")  
-                ui.markdown("3. Copiez votre clé API")
-                ui.markdown("4. Collez-la ci-dessous et cliquez sur 'Sauver'")
-                ui.markdown("**🎁 2500 requêtes gratuites par mois !**").style('color: #27ae60; font-weight: bold;')
+                ui.markdown(t('wn_section_api')).style('color: #3498db; font-weight: bold;')
+                ui.markdown(t('wn_steps_intro'))
+                ui.markdown(t('wn_step_1'))
+                ui.markdown(t('wn_step_2'))
+                ui.markdown(t('wn_step_3'))
+                ui.markdown(t('wn_step_4'))
+                ui.markdown(t('wn_free_quota')).style('color: #27ae60; font-weight: bold;')
                 
                 with ui.row().classes('w-full items-center'):
                     self.api_key_input = ui.input(
-                        "Clé API Serper",
+                        t('wn_label_api_key'),
                         value=self.config.get_serper_api_key(),
-                        placeholder="Entrez votre clé API Serper...",
+                        placeholder=t('wn_placeholder_api_key'),
                         password=True
                     ).on_value_change(self._on_api_key_changed).classes('flex-1')
                     
                     ui.button(
-                        "💾 Sauver",
+                        t('wn_btn_save'),
                         on_click=self._save_api_key
                     ).classes('bg-green-500 ml-2')
                     
                     ui.button(
-                        "🧪 Test",
+                        t('wn_btn_test'),
                         on_click=self._test_serper_connection
                     ).classes('bg-blue-500 ml-2')
                     
@@ -107,39 +112,39 @@ class WebNavigatorUI:
             
             # Section activation
             with ui.card().classes('w-full mb-4'):
-                ui.markdown("**📡 Activation des fonctionnalités**")
+                ui.markdown(t('wn_section_activation'))
                 
                 with ui.row().classes('w-full items-center'):
                     self.enabled_switch = ui.switch(
-                        "Extension activée",
+                        t('wn_switch_enabled'),
                         value=self.config.is_enabled()
                     ).on_value_change(self._on_enabled_changed)
                     
                 with ui.row().classes('w-full items-center'):
                     self.web_search_switch = ui.switch(
-                        "Recherche web (/web, 'cherche sur internet')",
+                        t('wn_switch_web'),
                         value=self.config.is_web_search_enabled()
                     ).on_value_change(self._on_web_search_changed)
                     
                 with ui.row().classes('w-full items-center'):
                     self.news_search_switch = ui.switch(
-                        "Recherche actualités (/news, 'actualités sur')",
+                        t('wn_switch_news'),
                         value=self.config.is_news_search_enabled()
                     ).on_value_change(self._on_news_search_changed)
                     
                 with ui.row().classes('w-full items-center'):
                     self.image_search_switch = ui.switch(
-                        "Recherche images (/image, 'cherche des images')",
+                        t('wn_switch_image'),
                         value=self.config.is_image_search_enabled()
                     ).on_value_change(self._on_image_search_changed)
             
             # Section paramètres de recherche Serper
             with ui.card().classes('w-full mb-4'):
-                ui.markdown("**⚙️ Paramètres de recherche**")
+                ui.markdown(t('wn_section_params'))
                 
                 with ui.row().classes('w-full gap-4'):
                     self.results_per_query_input = ui.number(
-                        "Résultats par requête",
+                        t('wn_label_results_per_query'),
                         value=self.config.get_results_per_query(),
                         min=1,
                         max=20,
@@ -147,14 +152,14 @@ class WebNavigatorUI:
                     ).on_value_change(self._on_results_per_query_changed).classes('flex-1')
                     
                     self.language_select = ui.select(
-                        label="Langue",
+                        label=t('wn_label_language'),
                         options={"fr": "Français", "en": "English", "es": "Español", "de": "Deutsch"},
                         value=self.config.get_language(),
                         on_change=self._on_language_changed
                     ).classes('flex-1')
                     
                     self.country_select = ui.select(
-                        label="Pays", 
+                        label=t('wn_label_country'), 
                         options={"fr": "France", "us": "United States", "gb": "United Kingdom", "de": "Germany"},
                         value=self.config.get_country(),
                         on_change=self._on_country_changed
@@ -162,7 +167,7 @@ class WebNavigatorUI:
                 
                 with ui.row().classes('w-full gap-4'):
                     self.timeout_input = ui.number(
-                        "Timeout requêtes (secondes)",
+                        t('wn_label_timeout'),
                         value=self.config.get_request_timeout(),
                         min=5,
                         max=60,
@@ -170,7 +175,7 @@ class WebNavigatorUI:
                     ).on_value_change(self._on_timeout_changed).classes('flex-1')
                     
                     self.rate_limit_input = ui.number(
-                        "Délai entre requêtes (secondes)",
+                        t('wn_label_rate_limit'),
                         value=self.config.get_rate_limit(),
                         min=0.5,
                         max=10.0,
@@ -179,17 +184,17 @@ class WebNavigatorUI:
             
             # Section gestion des images
             with ui.card().classes('w-full mb-4'):
-                ui.markdown("**�️ Gestion des images**")
+                ui.markdown(t('wn_section_images'))
                 
                 with ui.row().classes('w-full items-center'):
                     self.save_images_switch = ui.switch(
-                        "Sauvegarder images automatiquement",
+                        t('wn_switch_save_images'),
                         value=self.config.get("save_downloaded_images", True)
                     ).on_value_change(self._on_save_images_changed)
                 
-                ui.markdown(f"**Dossier de sauvegarde :** `{self.config.get('image_save_directory', 'data/uploads')}`")
-                ui.markdown(f"**Formats supportés :** {', '.join(self.config.get_supported_image_formats())}")
-                ui.markdown(f"**Taille max :** {self.config.get('max_image_size_mb', 10.0)} MB")
+                ui.markdown(t('wn_label_save_dir', dir=self.config.get('image_save_directory', 'data/uploads')))
+                ui.markdown(t('wn_label_formats', formats=', '.join(self.config.get_supported_image_formats())))
+                ui.markdown(t('wn_label_max_size', size=self.config.get('max_image_size_mb', 10.0)))
             
             # Section statistiques
             self.stats_container = ui.card().classes('w-full mb-4')
@@ -197,46 +202,30 @@ class WebNavigatorUI:
             
             # Section commandes et aide
             with ui.card().classes('w-full mb-4'):
-                ui.markdown("**📖 Commandes et Phrases Magiques**")
+                ui.markdown(t('wn_section_commands'))
                 
                 with ui.column().classes('w-full'):
-                    ui.markdown("""
-**Commandes directes :**
-- `/web intelligence artificielle` - Recherche web générale
-- `/news actualités technologie` - Actualités récentes
-- `/image robots humanoïdes` - Recherche d'images + téléchargement
-- `/scholar machine learning` - Articles académiques
-
-**Phrases magiques (détection automatique) :**
-- "cherche sur internet SUJET" 
-- "recherche sur internet SUJET"
-- "actualités sur SUJET"
-- "cherche des images de SUJET"
-- "fais une recherche SUJET"
-
-**Configuration :**
-- `/web-config` - Affiche configuration et quotas Serper
-""")
+                    ui.markdown(t('wn_help_block'))
                 
                 # Boutons d'action
                 with ui.row().classes('w-full gap-2'):
                     ui.button(
-                        "� Sauvegarder tous les paramètres",
+                        t('wn_btn_save_all'),
                         on_click=self._save_all_settings
                     ).classes('bg-green-600 text-white font-bold')
                     
                     ui.button(
-                        "�🔄 Actualiser statistiques",
+                        t('wn_btn_refresh_stats'),
                         on_click=self._update_stats_display
                     ).classes('bg-blue-500')
                     
                     ui.button(
-                        "⚙️ Réinitialiser config",
+                        t('wn_btn_reset_config'),
                         on_click=self._reset_config
                     ).classes('bg-orange-500')
                     
                     ui.button(
-                        "🧪 Tester API Serper", 
+                        t('wn_btn_test_api'), 
                         on_click=self._test_serper_connection
                     ).classes('bg-green-500')
     
@@ -246,9 +235,9 @@ class WebNavigatorUI:
         success = self.config.set("search_provider", value)
         if success:
             label = "DuckDuckGo (gratuit)" if value == "duckduckgo" else "Serper (API)"
-            ui.notify(f"Moteur de recherche : {label}", type='positive')
+            ui.notify(t('wn_notify_provider_set', label=label), type='positive')
         else:
-            ui.notify("Erreur sauvegarde du moteur de recherche", type='negative')
+            ui.notify(t('wn_notify_provider_save_err'), type='negative')
 
     def _on_enabled_changed(self, event):
         """Gestionnaire changement activation générale"""
@@ -260,7 +249,7 @@ class WebNavigatorUI:
                 type='positive' if value else 'info'
             )
         else:
-            ui.notify("Erreur sauvegarde configuration", type='negative')
+            ui.notify(t('wn_notify_save_err'), type='negative')
             if self.enabled_switch:
                 self.enabled_switch.value = not value
     
@@ -279,13 +268,13 @@ class WebNavigatorUI:
         if value:
             success = self.config.set("serper_api_key", value)
             if success:
-                ui.notify("✅ Clé API Serper sauvegardée avec succès", type='positive')
+                ui.notify(t('wn_notify_api_saved'), type='positive')
                 self._update_api_status()
             else:
-                ui.notify("❌ Erreur lors de la sauvegarde", type='negative')
+                ui.notify(t('wn_notify_api_save_err'), type='negative')
         else:
             self.config.set("serper_api_key", "")
-            ui.notify("🗑️ Clé API Serper supprimée", type='info')
+            ui.notify(t('wn_notify_api_removed'), type='info')
             self._update_api_status()
     
     def _update_api_status(self):
@@ -351,7 +340,7 @@ class WebNavigatorUI:
         if value and value > 0:
             success = self.config.set("results_per_query", value)
             if success:
-                ui.notify(f"Résultats par requête: {value}", type='positive')
+                ui.notify(t('wn_notify_results_per_query', value=value), type='positive')
     
     def _on_language_changed(self, event):
         """Gestionnaire changement langue"""
@@ -359,7 +348,7 @@ class WebNavigatorUI:
         if value:
             success = self.config.set("language", value)
             if success:
-                ui.notify(f"Langue: {value}", type='positive')
+                ui.notify(t('wn_notify_language', value=value), type='positive')
     
     def _on_country_changed(self, event):
         """Gestionnaire changement pays"""
@@ -367,7 +356,7 @@ class WebNavigatorUI:
         if value:
             success = self.config.set("country", value)
             if success:
-                ui.notify(f"Pays: {value}", type='positive')
+                ui.notify(t('wn_notify_country', value=value), type='positive')
     
     def _on_timeout_changed(self, event):
         """Gestionnaire changement timeout"""
@@ -375,7 +364,7 @@ class WebNavigatorUI:
         if value and value > 0:
             success = self.config.set("request_timeout", value)
             if success:
-                ui.notify(f"Timeout: {value}s", type='positive')
+                ui.notify(t('wn_notify_timeout', value=value), type='positive')
     
     def _on_rate_limit_changed(self, event):
         """Gestionnaire changement rate limit"""
@@ -383,7 +372,7 @@ class WebNavigatorUI:
         if value and value > 0:
             success = self.config.set("rate_limit_seconds", value)
             if success:
-                ui.notify(f"Délai entre requêtes: {value}s", type='positive')
+                ui.notify(t('wn_notify_rate_limit', value=value), type='positive')
     
     def _on_save_images_changed(self, event):
         """Gestionnaire changement sauvegarde images"""
@@ -402,33 +391,33 @@ class WebNavigatorUI:
         
         with self.stats_container:
             self.stats_container.clear()
-            ui.markdown("**📊 Statistiques de Session Serper**")
+            ui.markdown(t('wn_section_stats'))
             
             stats = self.commands_handler.get_stats()
             
             with ui.row().classes('w-full gap-4'):
                 with ui.column().classes('flex-1'):
-                    ui.markdown(f"**Recherches web :** {stats.get('web_searches', 0)}")
-                    ui.markdown(f"**Recherches actualités :** {stats.get('news_searches', 0)}")
+                    ui.markdown(t('wn_stat_web', n=stats.get('web_searches', 0)))
+                    ui.markdown(t('wn_stat_news', n=stats.get('news_searches', 0)))
                 
                 with ui.column().classes('flex-1'):
-                    ui.markdown(f"**Recherches images :** {stats.get('image_searches', 0)}")
-                    ui.markdown(f"**Images téléchargées :** {stats.get('image_downloads', 0)}")
+                    ui.markdown(t('wn_stat_image', n=stats.get('image_searches', 0)))
+                    ui.markdown(t('wn_stat_image_dl', n=stats.get('image_downloads', 0)))
                 
                 with ui.column().classes('flex-1'):
-                    ui.markdown(f"**Requêtes réussies :** {stats.get('successful_requests', 0)}")
-                    ui.markdown(f"**Erreurs :** {stats.get('errors', 0)}")
-                    ui.markdown(f"**Dernière utilisation :** {stats.get('last_used', 'Jamais')}")
+                    ui.markdown(t('wn_stat_success', n=stats.get('successful_requests', 0)))
+                    ui.markdown(t('wn_stat_errors', n=stats.get('errors', 0)))
+                    ui.markdown(t('wn_stat_last_used', value=stats.get('last_used', t('wn_stat_never'))))
     
     def _reset_config(self):
         """Remet la configuration aux valeurs par défaut"""
         success = self.config.reset_to_defaults()
         if success:
-            ui.notify("Configuration réinitialisée", type='positive')
+            ui.notify(t('wn_notify_reset_ok'), type='positive')
             # Recharger les valeurs dans l'interface
             self._reload_ui_values()
         else:
-            ui.notify("Erreur réinitialisation configuration", type='negative')
+            ui.notify(t('wn_notify_reset_err'), type='negative')
     
     def _reload_ui_values(self):
         """Recharge les valeurs dans l'interface après reset"""
@@ -461,7 +450,7 @@ class WebNavigatorUI:
     def _test_serper_connection(self):
         """Test de connexion à l'API Serper"""
         if not self.config.has_valid_api_key():
-            ui.notify("❌ Clé API Serper manquante ou invalide", type='negative')
+            ui.notify(t('wn_notify_api_missing'), type='negative')
             return
         
         try:
@@ -473,12 +462,12 @@ class WebNavigatorUI:
             response, error = client.search_web("test")
             
             if error:
-                ui.notify(f"❌ Test API Serper échoué: {error}", type='negative')
+                ui.notify(t('wn_notify_api_test_failed', error=error), type='negative')
             else:
-                ui.notify("✅ API Serper fonctionnelle", type='positive')
+                ui.notify(t('wn_notify_api_ok'), type='positive')
                 
         except Exception as e:
-            ui.notify(f"❌ Erreur test API Serper: {str(e)}", type='negative')
+            ui.notify(t('wn_notify_api_test_err', err=str(e)), type='negative')
     
     def _save_all_settings(self):
         """Sauvegarde tous les paramètres de l'extension"""
@@ -492,13 +481,13 @@ class WebNavigatorUI:
             # Forcer la sauvegarde de tous les paramètres
             if hasattr(self.config, 'settings_manager') and self.config.settings_manager:
                 self.config.settings_manager.save_settings()
-                ui.notify("✅ Tous les paramètres sauvegardés avec succès", type='positive')
+                ui.notify(t('wn_notify_all_saved'), type='positive')
                 self._update_api_status()
             else:
-                ui.notify("⚠️ Gestionnaire de paramètres non disponible", type='warning')
+                ui.notify(t('wn_notify_no_manager'), type='warning')
                 
         except Exception as e:
-            ui.notify(f"❌ Erreur lors de la sauvegarde: {str(e)}", type='negative')
+            ui.notify(t('wn_notify_save_all_err', err=str(e)), type='negative')
 
 # ========== SPINNER RECHERCHE WEB DANS LE CHAT ==========
 _web_search_spinner_container = None

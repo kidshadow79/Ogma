@@ -414,6 +414,47 @@ body::after {
     transform: translateY(-1px);
 }
 
+/* Boutons FR / EN langue — même fond que header-btn, taille adaptée au texte */
+.header-btn-lang {
+    background: radial-gradient(circle at 30% 30%, #3c3a35 0%, #2f2d28 60%, #242320 100%) !important;
+    border: 1px solid rgba(255, 45, 155, 0.35) !important;
+    color: #d1c9b6 !important;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.6) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 245, 220, 0.05),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+        0 2px 6px rgba(0,0,0,0.35) !important;
+    border-radius: 6px !important;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px;
+    min-width: 28px !important;
+    width: 28px !important;
+    height: 14px !important;
+    min-height: 14px !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+}
+.header-btn-lang .q-btn__wrapper {
+    padding: 0 !important;
+    min-height: 0 !important;
+}
+.header-btn-lang .q-btn__content {
+    font-size: 10px !important;
+    line-height: 1 !important;
+}
+.header-btn-lang:hover {
+    background: radial-gradient(circle at 40% 40%, #4a4740 0%, #383530 60%, #2a2825 100%) !important;
+    border-color: var(--neon-pink) !important;
+    color: var(--neon-pink) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 245, 220, 0.1),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+        var(--neon-pink-glow) !important;
+}
+
 .sidebar-list { 
     padding: 8px; 
     display: flex; 

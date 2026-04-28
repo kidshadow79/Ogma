@@ -8,6 +8,7 @@ Providers supportés: GROK (xAI), OpenAI (DALL-E), Google (Imagen), Kie.ai, Wave
 
 from nicegui import ui
 from typing import Optional, Callable, List
+from utils.i18n import t
 
 # Variable pour stocker la référence au settings manager
 _settings_manager_getter: Optional[Callable] = None
@@ -582,24 +583,24 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
     available_providers = _get_available_providers(sm)
 
     with d, ui.card().classes('popup-content q-dark').style('background: var(--bg-secondary); color: var(--text-primary); min-width: 720px; max-height: 85vh; overflow-y: auto;'):
-        ui.label('🎨 Génération d\'Images').classes('popup-title')
-        ui.label('T2I: GROK, OpenAI, Google, Kie, WaveSpeed | I2I: Kie, WaveSpeed').classes('text-muted mb-4')
+        ui.label(t('image_modal_title')).classes('popup-title')
+        ui.label(t('image_modal_subtitle')).classes('text-muted mb-4')
 
         with ui.column().classes('gap-4 w-full'):
             
             # Section activation
             with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
-                ui.label('Activation').classes('font-semibold mb-2')
+                ui.label(t('image_section_activation')).classes('font-semibold mb-2')
                 enabled_check = ui.checkbox(
-                    'Activer la génération d\'images',
+                    t('image_check_enabled'),
                     value=img_config.get('enabled', False)
                 ).classes('mb-2')
-                ui.label('L\'IA peut créer des images via: "je dois créer une image de : [description]"').classes('text-sm text-gray-400')
+                ui.label(t('image_label_enabled_help')).classes('text-sm text-gray-400')
 
             # Section Clés API
             with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
-                ui.label('🔑 Clés API').classes('font-semibold mb-2')
-                ui.label('Configurez les clés API pour chaque provider d\'images').classes('text-sm text-gray-400 mb-3')
+                ui.label(t('image_section_keys')).classes('font-semibold mb-2')
+                ui.label(t('image_label_keys_subtitle')).classes('text-sm text-gray-400 mb-3')
                 
                 # Récupérer le vault actuel
                 current_vault = sm.settings.get('api_keys_vault', {})
@@ -615,7 +616,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         ui.icon('local_fire_department').classes('text-orange-400')
                         ui.label('GROK (xAI)').classes('w-32')
                         grok_key_input = ui.input(
-                            label='Clé API GROK',
+                            label=t('image_label_api_grok'),
                             password=True,
                             value=current_vault.get('GROK', ''),
                             on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
@@ -624,23 +625,23 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         
                         def test_grok():
                             if grok_key_input.value:
-                                ui.notify('🔄 Test GROK...', type='info')
+                                ui.notify(t('image_notify_test_start', provider='GROK'), type='info')
                                 # Test simple: vérifier format de clé
                                 if grok_key_input.value.startswith('xai-'):
-                                    ui.notify('✅ Format clé GROK valide', type='positive')
+                                    ui.notify(t('image_notify_key_valid', provider='GROK'), type='positive')
                                 else:
-                                    ui.notify('⚠️ Format inhabituel (attendu: xai-...)', type='warning')
+                                    ui.notify(t('image_notify_key_unusual_xai'), type='warning')
                             else:
-                                ui.notify('❌ Aucune clé saisie', type='negative')
+                                ui.notify(t('image_notify_no_key'), type='negative')
                         
-                        ui.button('Test', on_click=test_grok).props('dense flat').classes('text-xs')
+                        ui.button(t('image_btn_test'), on_click=test_grok).props('dense flat').classes('text-xs')
                     
                     # OpenAI
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('palette').classes('text-green-400')
                         ui.label('OpenAI').classes('w-32')
                         openai_key_input = ui.input(
-                            label='Clé API OpenAI',
+                            label=t('image_label_api_openai'),
                             password=True,
                             value=current_vault.get('OpenAI', ''),
                             on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
@@ -649,22 +650,22 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         
                         def test_openai():
                             if openai_key_input.value:
-                                ui.notify('🔄 Test OpenAI...', type='info')
+                                ui.notify(t('image_notify_test_start', provider='OpenAI'), type='info')
                                 if openai_key_input.value.startswith('sk-'):
-                                    ui.notify('✅ Format clé OpenAI valide', type='positive')
+                                    ui.notify(t('image_notify_key_valid', provider='OpenAI'), type='positive')
                                 else:
-                                    ui.notify('⚠️ Format inhabituel (attendu: sk-...)', type='warning')
+                                    ui.notify(t('image_notify_key_unusual_openai'), type='warning')
                             else:
-                                ui.notify('❌ Aucune clé saisie', type='negative')
+                                ui.notify(t('image_notify_no_key'), type='negative')
                         
-                        ui.button('Test', on_click=test_openai).props('dense flat').classes('text-xs')
+                        ui.button(t('image_btn_test'), on_click=test_openai).props('dense flat').classes('text-xs')
                     
                     # Google
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('language').classes('text-blue-400')
                         ui.label('Google').classes('w-32')
                         google_key_input = ui.input(
-                            label='Clé API Google',
+                            label=t('image_label_api_google'),
                             password=True,
                             value=current_vault.get('Google', ''),
                             on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
@@ -673,22 +674,22 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         
                         def test_google():
                             if google_key_input.value:
-                                ui.notify('🔄 Test Google...', type='info')
+                                ui.notify(t('image_notify_test_start', provider='Google'), type='info')
                                 if google_key_input.value.startswith('AIza'):
-                                    ui.notify('✅ Format clé Google valide', type='positive')
+                                    ui.notify(t('image_notify_key_valid', provider='Google'), type='positive')
                                 else:
-                                    ui.notify('⚠️ Format inhabituel (attendu: AIza...)', type='warning')
+                                    ui.notify(t('image_notify_key_unusual_google'), type='warning')
                             else:
-                                ui.notify('❌ Aucune clé saisie', type='negative')
+                                ui.notify(t('image_notify_no_key'), type='negative')
                         
-                        ui.button('Test', on_click=test_google).props('dense flat').classes('text-xs')
+                        ui.button(t('image_btn_test'), on_click=test_google).props('dense flat').classes('text-xs')
                     
                     # Kie.ai (Z-Image)
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('bolt').classes('text-purple-400')
                         ui.label('Kie.ai').classes('w-32')
                         kie_key_input = ui.input(
-                            label='Clé API Kie',
+                            label=t('image_label_api_kie'),
                             password=True,
                             value=current_vault.get('Kie', ''),
                             on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
@@ -697,23 +698,23 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         
                         def test_kie():
                             if kie_key_input.value:
-                                ui.notify('🔄 Test Kie.ai...', type='info')
+                                ui.notify(t('image_notify_test_start', provider='Kie.ai'), type='info')
                                 # Kie utilise des clés de format variable
                                 if len(kie_key_input.value) > 20:
-                                    ui.notify('✅ Format clé Kie valide', type='positive')
+                                    ui.notify(t('image_notify_key_valid', provider='Kie'), type='positive')
                                 else:
-                                    ui.notify('⚠️ Clé trop courte', type='warning')
+                                    ui.notify(t('image_notify_key_too_short'), type='warning')
                             else:
-                                ui.notify('❌ Aucune clé saisie', type='negative')
+                                ui.notify(t('image_notify_no_key'), type='negative')
                         
-                        ui.button('Test', on_click=test_kie).props('dense flat').classes('text-xs')
+                        ui.button(t('image_btn_test'), on_click=test_kie).props('dense flat').classes('text-xs')
                     
                     # WaveSpeed.ai (Unfiltered/Spicy)
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('waves').classes('text-pink-400')
                         ui.label('WaveSpeed').classes('w-32')
                         wavespeed_key_input = ui.input(
-                            label='Clé API WaveSpeed',
+                            label=t('image_label_api_wavespeed'),
                             password=True,
                             value=current_vault.get('WaveSpeed', ''),
                             on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
@@ -722,23 +723,23 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         
                         def test_wavespeed():
                             if wavespeed_key_input.value:
-                                ui.notify('🔄 Test WaveSpeed.ai...', type='info')
+                                ui.notify(t('image_notify_test_start', provider='WaveSpeed.ai'), type='info')
                                 # WaveSpeed utilise des clés Bearer token
                                 if len(wavespeed_key_input.value) > 20:
-                                    ui.notify('✅ Format clé WaveSpeed valide', type='positive')
+                                    ui.notify(t('image_notify_key_valid', provider='WaveSpeed'), type='positive')
                                 else:
-                                    ui.notify('⚠️ Clé trop courte', type='warning')
+                                    ui.notify(t('image_notify_key_too_short'), type='warning')
                             else:
-                                ui.notify('❌ Aucune clé saisie', type='negative')
+                                ui.notify(t('image_notify_no_key'), type='negative')
                         
-                        ui.button('Test', on_click=test_wavespeed).props('dense flat').classes('text-xs')
+                        ui.button(t('image_btn_test'), on_click=test_wavespeed).props('dense flat').classes('text-xs')
                     
                     # AtlasCloud.ai
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('cloud').classes('text-sky-400')
                         ui.label('AtlasCloud').classes('w-32')
                         atlascloud_key_input = ui.input(
-                            label='Clé API AtlasCloud',
+                            label=t('image_label_api_atlascloud'),
                             password=True,
                             value=current_vault.get('AtlasCloud', ''),
                             on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
@@ -747,21 +748,21 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         
                         def test_atlascloud():
                             if atlascloud_key_input.value:
-                                ui.notify('🔄 Test AtlasCloud.ai...', type='info')
+                                ui.notify(t('image_notify_test_start', provider='AtlasCloud.ai'), type='info')
                                 if len(atlascloud_key_input.value) > 20:
-                                    ui.notify('✅ Format clé AtlasCloud valide', type='positive')
+                                    ui.notify(t('image_notify_key_valid', provider='AtlasCloud'), type='positive')
                                 else:
-                                    ui.notify('⚠️ Clé trop courte', type='warning')
+                                    ui.notify(t('image_notify_key_too_short'), type='warning')
                             else:
-                                ui.notify('❌ Aucune clé saisie', type='negative')
+                                ui.notify(t('image_notify_no_key'), type='negative')
                         
-                        ui.button('Test', on_click=test_atlascloud).props('dense flat').classes('text-xs')
+                        ui.button(t('image_btn_test'), on_click=test_atlascloud).props('dense flat').classes('text-xs')
                 
-                ui.label('💡 Les clés sont stockées dans le vault sécurisé et partagées avec les autres modules').classes('text-xs text-gray-500 mt-2')
+                ui.label(t('image_label_keys_vault_note')).classes('text-xs text-gray-500 mt-2')
 
             # Section Provider et Modèle (Text-to-Image)
             with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
-                ui.label('🔌 Provider et Modèle (Text-to-Image)').classes('font-semibold mb-2')
+                ui.label(t('image_section_t2i_provider')).classes('font-semibold mb-2')
                 
                 # Container pour message dynamique providers
                 providers_status_container = ui.column().classes('mb-2')
@@ -769,9 +770,9 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                 # Initialiser le statut (avant de définir la fonction update pour éviter les refs circulaires)
                 with providers_status_container:
                     if not available_providers:
-                        ui.label('⚠️ Aucun provider configuré - Ajoutez des clés API ci-dessus').classes('text-yellow-400')
+                        ui.label(t('image_label_no_provider')).classes('text-yellow-400')
                     else:
-                        ui.label(f'✅ {len(available_providers)} provider(s) disponible(s): {", ".join(available_providers)}').classes('text-green-400 text-sm')
+                        ui.label(t('image_label_providers_ok', n=len(available_providers), providers=', '.join(available_providers))).classes('text-green-400 text-sm')
                 
                 with ui.row().classes('gap-4 w-full'):
                     # Sélecteur de provider
@@ -782,7 +783,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     provider_options = available_providers if available_providers else list(IMAGE_PROVIDERS.keys())
                     
                     provider_select = ui.select(
-                        label='Provider',
+                        label=t('image_label_provider'),
                         options=provider_options,
                         value=current_provider
                     ).classes('flex-1')
@@ -794,7 +795,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         current_model = provider_models[0]
                     
                     model_select = ui.select(
-                        label='Modèle',
+                        label=t('image_label_model'),
                         options=provider_models,
                         value=current_model
                     ).classes('flex-1')
@@ -806,12 +807,12 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         
                         # Vérifier que le provider est dans les providers qui supportent fetch_live_models
                         if provider == "Kie":
-                            ui.notify('⚠️ Kie.ai n\'a pas d\'endpoint API /models', type='warning')
-                            ui.notify('💡 Les modèles hardcodés restent disponibles', type='info')
+                            ui.notify(t('image_notify_kie_no_endpoint'), type='warning')
+                            ui.notify(t('image_notify_kie_hardcoded'), type='info')
                             return
                         
                         if provider not in ["WaveSpeed", "AtlasCloud"]:
-                            ui.notify(f'⚠️ {provider} ne supporte pas encore la récupération dynamique', type='warning')
+                            ui.notify(t('image_notify_no_dyn_support', provider=provider), type='warning')
                             return
                         
                         try:
@@ -830,7 +831,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                             
                             # Vérifier que la clé API existe pour ce provider
                             if not live_vault.get(provider):
-                                ui.notify(f'❌ Aucune clé API configurée pour {provider}', type='negative')
+                                ui.notify(t('image_notify_no_key_for', provider=provider), type='negative')
                                 return
                             
                             # Mettre à jour le vault dans settings temporairement
@@ -843,20 +844,20 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                             backend = get_image_backend(sm)
                             
                             if not backend:
-                                ui.notify('❌ Backend image non disponible', type='negative')
+                                ui.notify(t('image_notify_no_backend'), type='negative')
                                 return
                             
-                            ui.notify(f'🔄 Récupération des modèles {provider} depuis l\'API...', type='info')
+                            ui.notify(t('image_notify_fetching', provider=provider), type='info')
                             
                             # Appeler fetch_live_models
                             models_list, error = await backend.fetch_live_models(provider)
                             
                             if error:
-                                ui.notify(f'❌ Erreur: {error}', type='negative')
+                                ui.notify(t('image_notify_err', error=error), type='negative')
                                 return
                             
                             if not models_list:
-                                ui.notify(f'⚠️ Aucun modèle récupéré depuis {provider}', type='warning')
+                                ui.notify(t('image_notify_no_models', provider=provider), type='warning')
                                 return
                             
                             # Mettre à jour la liste des modèles dans le sélecteur
@@ -865,18 +866,18 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                 model_select.value = models_list[0]
                             model_select.update()
                             
-                            ui.notify(f'✅ {len(models_list)} modèles {provider} mis à jour depuis l\'API', type='positive')
+                            ui.notify(t('image_notify_models_updated', n=len(models_list), provider=provider), type='positive')
                             
                         except Exception as e:
                             print(f"[IMAGE-CONFIG] ❌ Erreur refresh_models_from_api: {e}")
                             import traceback
                             traceback.print_exc()
-                            ui.notify(f'❌ Erreur technique: {str(e)[:100]}', type='negative')
+                            ui.notify(t('image_notify_tech_err', msg=str(e)[:100]), type='negative')
                     
                     ui.button(
                         icon='refresh',
                         on_click=refresh_models_from_api
-                    ).props('dense flat round').classes('text-cyan-400').tooltip('Rafraîchir la liste des modèles depuis l\'API')
+                    ).props('dense flat round').classes('text-cyan-400').tooltip(t('image_tooltip_refresh_models'))
                 
                 # === Custom Model Input pour Kie (style Ollama) ===
                 custom_model_container = ui.row().classes('gap-2 items-center w-full mt-2')
@@ -887,15 +888,13 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     if provider_select.value == "Kie":
                         with custom_model_container:
                             with ui.column().classes('w-full gap-1'):
-                                ui.label('➕ Ajouter un modèle custom Kie').classes('text-xs text-gray-400 font-semibold')
+                                ui.label(t('image_label_add_custom_kie')).classes('text-xs text-gray-400 font-semibold')
                                 with ui.row().classes('gap-2 items-center w-full'):
                                     custom_model_input = ui.input(
-                                        label='Nom du modèle (ex: qwen2/text-to-image)',
+                                        label=t('image_label_model_name_kie'),
                                         placeholder='family/variant',
                                         value=''
-                                    ).classes('flex-1').tooltip(
-                                        'Consultez https://kie.ai/market pour la liste des modèles disponibles'
-                                    )
+                                    ).classes('flex-1').tooltip(t('image_tooltip_kie_model_name'))
                                     custom_format_select = ui.select(
                                         options={
                                             'format_A':  'Format A — aspect_ratio (z-image, grok-imagine…)',
@@ -904,18 +903,14 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                             'format_C':  'Format C — image_size ratio (qwen2…)',
                                         },
                                         value='format_A',
-                                        label='Format payload'
-                                    ).classes('w-64').tooltip(
-                                        'Choisissez le format selon la doc Kie du modèle.\n'
-                                        'Format A: aspect_ratio\nFormat A+: aspect_ratio + resolution\n'
-                                        'Format B: image_size texte (square_hd…)\nFormat C: image_size ratio (1:1…)'
-                                    )
+                                        label=t('image_label_payload_format')
+                                    ).classes('w-64').tooltip(t('image_tooltip_kie_payload_format'))
 
                                     def add_custom_model():
                                         custom = custom_model_input.value.strip()
                                         fmt = custom_format_select.value
                                         if not custom:
-                                            ui.notify('⚠️ Veuillez entrer un nom de modèle', type='warning')
+                                            ui.notify(t('image_notify_no_model_name'), type='warning')
                                             return
                                         # Enregistrer dans CUSTOM_MODELS du backend
                                         try:
@@ -942,13 +937,13 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                             'format_B': 'B (image_size enum)',
                                             'format_C': 'C (image_size ratio)',
                                         }.get(fmt, fmt)
-                                        ui.notify(f'✅ Modèle custom activé: {custom} [{fmt_label}]', type='positive')
+                                        ui.notify(t('image_notify_custom_added', model=custom, fmt=fmt_label), type='positive')
                                         custom_model_input.value = ''
 
                                     ui.button(
                                         icon='add',
                                         on_click=add_custom_model
-                                    ).props('flat dense').classes('text-cyan-400').tooltip('Ajouter et activer ce modèle')
+                                    ).props('flat dense').classes('text-cyan-400').tooltip(t('image_tooltip_add_model'))
                 
                 provider_select.on_value_change(lambda e: update_custom_model_visibility())
                 update_custom_model_visibility()
@@ -1007,7 +1002,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     
                     with providers_status_container:
                         if not live_providers:
-                            ui.label('⚠️ Aucun provider configuré - Ajoutez des clés API ci-dessus').classes('text-yellow-400')
+                            ui.label(t('image_label_no_provider_all')).classes('text-yellow-400')
                         else:
                             ui.label(f'✅ {len(live_providers)} provider(s) disponible(s): {", ".join(live_providers)}').classes('text-green-400 text-sm')
                     
@@ -1022,12 +1017,12 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
 
             # Section Résolution
             with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
-                ui.label('📐 Résolution').classes('font-semibold mb-2')
+                ui.label(t('image_section_resolution')).classes('font-semibold mb-2')
                 
                 with ui.row().classes('gap-4 items-center w-full'):
                     # Presets
                     preset_select = ui.select(
-                        label='Preset',
+                        label=t('image_label_preset'),
                         options=list(RESOLUTION_PRESETS.keys()),
                         value='Carré (1:1)'
                     ).classes('flex-1')
@@ -1060,20 +1055,20 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
 
             # Section Mode Unfiltered/Spicy
             with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
-                ui.label('🔥 Mode de contenu').classes('font-semibold mb-2')
+                ui.label(t('image_section_content_mode')).classes('font-semibold mb-2')
                 
                 safe_mode_check = ui.checkbox(
                     'Mode Safe (filtrage activé)',
                     value=img_config.get('safe_mode', False)
                 ).classes('mb-2')
                 
-                ui.label('⚠️ Le mode Safe dépend du provider. Seul GROK supporte le mode "Spicy".').classes('text-sm text-yellow-400')
-                ui.label('OpenAI et Google refuseront les contenus adultes même avec Safe désactivé.').classes('text-sm text-gray-500')
+                ui.label(t('image_label_safe_warn')).classes('text-sm text-yellow-400')
+                ui.label(t('image_label_safe_warn2')).classes('text-sm text-gray-500')
 
             # Section Image-to-Image (Multi-Provider: Kie + WaveSpeed)
             with ui.card().classes('q-dark p-4').style('background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6;'):
-                ui.label('🔄 Image-to-Image (Modification d\'images)').classes('font-semibold mb-2').style('color: #3b82f6;')
-                ui.label('L\'IA peut modifier une image uploadée via la phrase magique').classes('text-sm text-gray-400 mb-3')
+                ui.label(t('image_section_i2i')).classes('font-semibold mb-2').style('color: #3b82f6;')
+                ui.label(t('image_label_i2i_help')).classes('text-sm text-gray-400 mb-3')
                 
                 img2img_enabled_check = ui.checkbox(
                     'Activer Image-to-Image',
@@ -1082,7 +1077,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                 
                 # Provider I2I selector
                 with ui.row().classes('gap-4 items-center w-full mb-2'):
-                    ui.label('🔌 Provider I2I:').classes('text-sm font-semibold')
+                    ui.label(t('image_label_i2i_provider')).classes('text-sm font-semibold')
                     
                     img2img_provider_options = list(IMG2IMG_PROVIDERS.keys())
                     current_img2img_provider = img_config.get('img2img_provider', 'Kie')
@@ -1090,7 +1085,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         current_img2img_provider = 'Kie'
                     
                     img2img_provider_select = ui.select(
-                        label='Provider',
+                        label=t('image_label_provider'),
                         options=img2img_provider_options,
                         value=current_img2img_provider
                     ).classes('w-40')
@@ -1105,7 +1100,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     return IMG2IMG_PROVIDERS.get(provider, {}).get('models', IMG2IMG_MODELS_KIE)
                 
                 with ui.row().classes('gap-4 items-center w-full'):
-                    ui.label('Modèle img2img:').classes('text-sm')
+                    ui.label(t('image_label_i2i_model')).classes('text-sm')
                     
                     # Modèles du provider actuel
                     current_provider_models = get_models_for_provider(current_img2img_provider)
@@ -1115,7 +1110,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         current_img2img_model = img2img_model_options[0]
                     
                     img2img_model_select = ui.select(
-                        label='Modèle',
+                        label=t('image_label_model'),
                         options=img2img_model_options,
                         value=current_img2img_model
                     ).classes('flex-1')
@@ -1127,12 +1122,12 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                         
                         # Vérifier que le provider est supporté
                         if provider == "Kie":
-                            ui.notify('⚠️ Kie.ai n\'a pas d\'endpoint API /models', type='warning')
-                            ui.notify('💡 Les modèles hardcodés restent disponibles', type='info')
+                            ui.notify(t('image_notify_kie_no_endpoint'), type='warning')
+                            ui.notify(t('image_notify_kie_hardcoded'), type='info')
                             return
                         
                         if provider not in ["WaveSpeed", "AtlasCloud"]:
-                            ui.notify(f'⚠️ {provider} ne supporte pas encore la récupération dynamique', type='warning')
+                            ui.notify(t('image_notify_no_dyn_support', provider=provider), type='warning')
                             return
                         
                         try:
@@ -1150,7 +1145,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                             
                             # Vérifier que la clé API existe pour ce provider
                             if not live_vault.get(provider):
-                                ui.notify(f'❌ Aucune clé API configurée pour {provider}', type='negative')
+                                ui.notify(t('image_notify_no_key_for', provider=provider), type='negative')
                                 return
                             
                             # Mettre à jour le vault temporairement
@@ -1162,20 +1157,20 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                             backend = get_image_backend(sm)
                             
                             if not backend:
-                                ui.notify('❌ Backend image non disponible', type='negative')
+                                ui.notify(t('image_notify_no_backend'), type='negative')
                                 return
                             
-                            ui.notify(f'🔄 Récupération des modèles img2img {provider} depuis l\'API...', type='info')
+                            ui.notify(t('image_notify_fetching_i2i', provider=provider), type='info')
                             
                             # Appeler fetch_live_img2img_models
                             models_list, error = await backend.fetch_live_img2img_models(provider)
                             
                             if error:
-                                ui.notify(f'❌ Erreur: {error}', type='negative')
+                                ui.notify(t('image_notify_err', error=error), type='negative')
                                 return
                             
                             if not models_list:
-                                ui.notify(f'⚠️ Aucun modèle img2img récupéré depuis {provider}', type='warning')
+                                ui.notify(t('image_notify_no_models_i2i', provider=provider), type='warning')
                                 return
                             
                             # Mettre à jour la liste des modèles dans le sélecteur
@@ -1184,18 +1179,18 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                 img2img_model_select.value = models_list[0]
                             img2img_model_select.update()
                             
-                            ui.notify(f'✅ {len(models_list)} modèles img2img {provider} mis à jour depuis l\'API', type='positive')
+                            ui.notify(t('image_notify_models_updated_i2i', n=len(models_list), provider=provider), type='positive')
                             
                         except Exception as e:
                             print(f"[IMAGE-CONFIG-I2I] ❌ Erreur refresh_img2img_models_from_api: {e}")
                             import traceback
                             traceback.print_exc()
-                            ui.notify(f'❌ Erreur technique: {str(e)[:100]}', type='negative')
+                            ui.notify(t('image_notify_tech_err', msg=str(e)[:100]), type='negative')
                     
                     ui.button(
                         icon='refresh',
                         on_click=refresh_img2img_models_from_api
-                    ).props('dense flat round').classes('text-blue-400').tooltip('Rafraîchir la liste des modèles img2img depuis l\'API')
+                    ).props('dense flat round').classes('text-blue-400').tooltip(t('image_tooltip_refresh_models_i2i'))
                 
                 # === Custom Model Input pour Kie I2I (style Ollama) ===
                 custom_img2img_container = ui.row().classes('gap-2 items-center w-full mt-2')
@@ -1206,10 +1201,10 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     if img2img_provider_select.value == "Kie":
                         with custom_img2img_container:
                             with ui.column().classes('w-full gap-1'):
-                                ui.label('➕ Ajouter un modèle I2I custom Kie').classes('text-xs text-gray-400 font-semibold')
+                                ui.label(t('image_label_add_custom_i2i')).classes('text-xs text-gray-400 font-semibold')
                                 with ui.row().classes('gap-2 items-center w-full'):
                                     custom_img2img_input = ui.input(
-                                        label='Nom du modèle I2I (ex: flux-2/pro-image-to-image)',
+                                        label=t('image_label_model_name_i2i'),
                                         placeholder='family/variant',
                                         value=''
                                     ).classes('flex-1').tooltip(
@@ -1223,18 +1218,14 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                             'format_C':  'Format C — image_size ratio',
                                         },
                                         value='format_A',
-                                        label='Format payload'
-                                    ).classes('w-64').tooltip(
-                                        'Choisissez le format selon la doc Kie du modèle.\n'
-                                        'Format A: aspect_ratio\nFormat A+: aspect_ratio + resolution\n'
-                                        'Format B: image_size texte (square_hd…)\nFormat C: image_size ratio (1:1…)'
-                                    )
+                                        label=t('image_label_payload_format')
+                                    ).classes('w-64').tooltip(t('image_tooltip_kie_payload_format'))
 
                                     def add_custom_img2img_model():
                                         custom = custom_img2img_input.value.strip()
                                         fmt = custom_img2img_format_select.value
                                         if not custom:
-                                            ui.notify('⚠️ Veuillez entrer un nom de modèle', type='warning')
+                                            ui.notify(t('image_notify_no_model_name'), type='warning')
                                             return
                                         # Enregistrer dans CUSTOM_MODELS du backend
                                         try:
@@ -1261,13 +1252,13 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                             'format_B': 'B (image_size enum)',
                                             'format_C': 'C (image_size ratio)',
                                         }.get(fmt, fmt)
-                                        ui.notify(f'✅ Modèle I2I custom activé: {custom} [{fmt_label}]', type='positive')
+                                        ui.notify(t('image_notify_custom_i2i_added', model=custom, fmt=fmt_label), type='positive')
                                         custom_img2img_input.value = ''
 
                                     ui.button(
                                         icon='add',
                                         on_click=add_custom_img2img_model
-                                    ).props('flat dense').classes('text-blue-400').tooltip('Ajouter et activer ce modèle I2I')
+                                    ).props('flat dense').classes('text-blue-400').tooltip(t('image_tooltip_add_i2i_model'))
                 
                 img2img_provider_select.on_value_change(lambda e: update_custom_img2img_visibility())
                 update_custom_img2img_visibility()
@@ -1321,7 +1312,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                             if model_name == "bytedance/seedream-v4.5/edit":
                                 with ui.column().classes('gap-2 w-full'):
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('📐 Taille:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_size_icon')).classes('text-sm font-semibold')
                                         _seedream45_sizes = {
                                                 '2048*2048': '2K (1:1)',
                                                 '2560*1440': '2.5K (16:9)',
@@ -1332,21 +1323,21 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                                 '4096*4096': '4K (1:1)'
                                         }
                                         dynamic_controls['size'] = ui.select(
-                                            label='Taille',
+                                            label=t('image_label_size'),
                                             options=_seedream45_sizes,
                                             value=_safe_size_value(_seedream45_sizes, 'img2img_size', '2048*2048')
-                                        ).classes('w-36').tooltip('Résolution de sortie (min 1920x1920 = 3.7M pixels)')
+                                        ).classes('w-36').tooltip(t('image_tooltip_size_resolution'))
                                         
-                                        ui.label('Format:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_format')).classes('text-sm ml-2')
                                         dynamic_controls['output_format'] = ui.select(
-                                            label='Format',
+                                            label=t('image_label_format'),
                                             options=['jpeg', 'png', 'webp'],
                                             value=img_config.get('img2img_output_format', 'jpeg')
-                                        ).classes('w-24').tooltip('Format de sortie')
+                                        ).classes('w-24').tooltip(t('image_tooltip_format_output'))
                             
                             # === WAVESPEED SEEDREAM V4 EDIT - Taille + Format ===
                             elif model_name == "bytedance/seedream-v4/edit":
-                                ui.label('📐 Taille:').classes('text-sm font-semibold')
+                                ui.label(t('image_label_size_icon')).classes('text-sm font-semibold')
                                 _seedream4_sizes = {
                                         '2048*2048': '2K (1:1)',
                                         '2560*1440': '2.5K (16:9)',
@@ -1354,205 +1345,205 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                         '3072*3072': '3K (1:1)'
                                 }
                                 dynamic_controls['size'] = ui.select(
-                                    label='Taille',
+                                    label=t('image_label_size'),
                                     options=_seedream4_sizes,
                                     value=_safe_size_value(_seedream4_sizes, 'img2img_size', '2048*2048')
-                                ).classes('w-36').tooltip('Résolution de sortie (min 1920x1920 = 3.7M pixels)')
+                                ).classes('w-36').tooltip(t('image_tooltip_size_resolution'))
                                 
-                                ui.label('Format:').classes('text-sm ml-2')
+                                ui.label(t('image_label_format')).classes('text-sm ml-2')
                                 dynamic_controls['output_format'] = ui.select(
-                                    label='Format',
+                                    label=t('image_label_format'),
                                     options=['jpeg', 'png', 'webp'],
                                     value=img_config.get('img2img_output_format', 'jpeg')
-                                ).classes('w-24').tooltip('Format de sortie')
+                                ).classes('w-24').tooltip(t('image_tooltip_format_output'))
                             
                             # === SEEDREAM 4.5 (KIE) - Format + Qualité ===
                             elif model_name == "seedream/4.5-edit":
-                                ui.label('📐 Format:').classes('text-sm font-semibold')
+                                ui.label(t('image_label_format_icon')).classes('text-sm font-semibold')
                                 dynamic_controls['aspect_ratio'] = ui.select(
-                                    label='Format',
+                                    label=t('image_label_format'),
                                     options=['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'],
                                     value=img_config.get('img2img_aspect_ratio', '1:1')
-                                ).classes('w-28').tooltip('Ratio de sortie de l\'image')
+                                ).classes('w-28').tooltip(t('image_tooltip_aspect_ratio'))
                                 
-                                ui.label('Qualité:').classes('text-sm ml-2')
+                                ui.label(t('image_label_quality')).classes('text-sm ml-2')
                                 dynamic_controls['quality'] = ui.select(
-                                    label='Qualité',
+                                    label=t('image_label_quality'),
                                     options=['basic', 'high'],
                                     value=img_config.get('img2img_quality', 'basic').lower()
-                                ).classes('w-28').tooltip('basic=2K, high=4K')
+                                ).classes('w-28').tooltip(t('image_tooltip_quality_2k_4k'))
                             
                             elif model_name == "gpt-image/1.5-image-to-image":
-                                ui.label('📐 Format:').classes('text-sm font-semibold')
+                                ui.label(t('image_label_format_icon')).classes('text-sm font-semibold')
                                 dynamic_controls['aspect_ratio'] = ui.select(
-                                    label='Format',
+                                    label=t('image_label_format'),
                                     options=['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'],
                                     value=img_config.get('img2img_aspect_ratio', '1:1')
-                                ).classes('w-28').tooltip('Ratio de sortie de l\'image')
+                                ).classes('w-28').tooltip(t('image_tooltip_aspect_ratio'))
                                 
-                                ui.label('Qualité:').classes('text-sm ml-2')
+                                ui.label(t('image_label_quality')).classes('text-sm ml-2')
                                 dynamic_controls['quality'] = ui.select(
-                                    label='Qualité',
+                                    label=t('image_label_quality'),
                                     options=['low', 'medium', 'high'],
                                     value=img_config.get('img2img_quality_gpt', 'medium')
-                                ).classes('w-28').tooltip('Qualité de rendu OpenAI')
+                                ).classes('w-28').tooltip(t('image_tooltip_quality_openai'))
                             
                             # === SEEDREAM V4 - Paramètres spécifiques ===
                             elif model_name == "bytedance/seedream-v4-edit":
-                                ui.label('Format:').classes('text-sm')
+                                ui.label(t('image_label_format')).classes('text-sm')
                                 dynamic_controls['image_size'] = ui.select(
-                                    label='Format',
+                                    label=t('image_label_format'),
                                     options=['square_hd', 'portrait_4_3', 'landscape_16_9', 'portrait_hd', 'landscape_hd'],
                                     value=img_config.get('img2img_image_size', 'square_hd')
                                 ).classes('w-40')
                                 
-                                ui.label('Résolution:').classes('text-sm ml-2')
+                                ui.label(t('image_label_resolution')).classes('text-sm ml-2')
                                 dynamic_controls['image_resolution'] = ui.select(
-                                    label='Résolution',
+                                    label=t('image_label_resolution'),
                                     options=['1K', '2K'],
                                     value=img_config.get('img2img_image_resolution', '1K')
                                 ).classes('w-24')
                                 
-                                ui.label('Variantes:').classes('text-sm ml-2')
+                                ui.label(t('image_label_variants')).classes('text-sm ml-2')
                                 dynamic_controls['max_images_output'] = ui.number(
-                                    label='Nb',
+                                    label=t('image_label_nb'),
                                     value=img_config.get('img2img_max_images', 1),
                                     min=1, max=4
                                 ).classes('w-20')
                             
                             # === FLUX-2 - Format + Résolution ===
                             elif model_name == "flux-2/pro-image-to-image":
-                                ui.label('📐 Format:').classes('text-sm font-semibold')
+                                ui.label(t('image_label_format_icon')).classes('text-sm font-semibold')
                                 dynamic_controls['aspect_ratio'] = ui.select(
-                                    label='Format',
+                                    label=t('image_label_format'),
                                     options=['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '21:9', '9:21'],
                                     value=img_config.get('img2img_aspect_ratio', '1:1')
-                                ).classes('w-28').tooltip('Ratio de sortie de l\'image')
+                                ).classes('w-28').tooltip(t('image_tooltip_aspect_ratio'))
                                 
-                                ui.label('Résolution:').classes('text-sm ml-2')
+                                ui.label(t('image_label_resolution')).classes('text-sm ml-2')
                                 dynamic_controls['resolution'] = ui.select(
-                                    label='Résolution',
+                                    label=t('image_label_resolution'),
                                     options=['1K', '2K'],
                                     value=img_config.get('img2img_resolution', '1K')
-                                ).classes('w-24').tooltip('1K=rapide, 2K=haute qualité')
+                                ).classes('w-24').tooltip(t('image_tooltip_resolution_1k_2k'))
                             
                             # === NANO-BANANA - Format + Résolution + Format sortie ===
                             elif model_name == "nano-banana-pro-img2img":
-                                ui.label('📐 Format:').classes('text-sm font-semibold')
+                                ui.label(t('image_label_format_icon')).classes('text-sm font-semibold')
                                 dynamic_controls['aspect_ratio'] = ui.select(
-                                    label='Format',
+                                    label=t('image_label_format'),
                                     options=['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'],
                                     value=img_config.get('img2img_aspect_ratio', '1:1')
-                                ).classes('w-28').tooltip('Ratio de sortie de l\'image')
+                                ).classes('w-28').tooltip(t('image_tooltip_aspect_ratio'))
                                 
-                                ui.label('Résolution:').classes('text-sm ml-2')
+                                ui.label(t('image_label_resolution')).classes('text-sm ml-2')
                                 dynamic_controls['resolution'] = ui.select(
-                                    label='Résolution',
+                                    label=t('image_label_resolution'),
                                     options=['1K', '2K', '4K'],
                                     value=img_config.get('img2img_resolution', '1K')
-                                ).classes('w-24').tooltip('1K=rapide, 2K=qualité, 4K=ultra')
+                                ).classes('w-24').tooltip(t('image_tooltip_resolution_1k_2k_4k'))
                                 
-                                ui.label('Sortie:').classes('text-sm ml-2')
+                                ui.label(t('image_label_output')).classes('text-sm ml-2')
                                 dynamic_controls['output_format'] = ui.select(
-                                    label='Format sortie',
+                                    label=t('image_label_output_format'),
                                     options=['png', 'jpeg', 'webp'],
                                     value=img_config.get('img2img_output_format', 'png')
-                                ).classes('w-24').tooltip('PNG=qualité max, JPEG=léger, WebP=moderne')
+                                ).classes('w-24').tooltip(t('image_tooltip_png_formats'))
                             
                             # === QWEN IMAGE-TO-IMAGE - Strength + Safety + Params avancés ===
                             elif model_name == "qwen/image-to-image":
                                 with ui.column().classes('gap-2 w-full'):
                                     # Ligne 1: Force + Safety + Format
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('🎚️ Force:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_strength')).classes('text-sm font-semibold')
                                         dynamic_controls['strength'] = ui.slider(
                                             min=0.1, max=1.0, step=0.05,
                                             value=img_config.get('img2img_strength', 0.8)
-                                        ).props('label-always').classes('w-40').tooltip('Intensité de transformation: 0.1=modifications légères, 0.5=équilibré, 1.0=transformation radicale')
+                                        ).props('label-always').classes('w-40').tooltip(t('image_tooltip_strength_detail'))
                                         
                                         dynamic_controls['enable_safety_checker'] = ui.checkbox(
                                             '🛡️ Safe Mode',
                                             value=img_config.get('img2img_safety', True)
-                                        ).tooltip('Filtre de sécurité Qwen. Désactiver permet le contenu Unfiltered mais peut être instable.')
+                                        ).tooltip(t('image_tooltip_qwen_filter'))
                                         
-                                        ui.label('Format:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_format')).classes('text-sm ml-2')
                                         dynamic_controls['output_format'] = ui.select(
-                                            label='Format',
+                                            label=t('image_label_format'),
                                             options=['png', 'jpeg', 'webp'],
                                             value=img_config.get('img2img_output_format', 'png')
-                                        ).classes('w-24').tooltip('PNG=qualité max, JPEG=léger, WebP=moderne compact')
+                                        ).classes('w-24').tooltip(t('image_tooltip_png_formats_compact'))
                                     
                                     # Ligne 2: Steps + Guidance + Negative
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('Steps:').classes('text-sm')
+                                        ui.label(t('image_label_steps')).classes('text-sm')
                                         dynamic_controls['num_inference_steps'] = ui.number(
-                                            label='Steps',
+                                            label=t('image_label_steps'),
                                             value=img_config.get('img2img_steps', 30),
                                             min=10, max=50
-                                        ).classes('w-20').tooltip('Étapes de débruitage. Plus=meilleure qualité mais plus lent. 20-30 recommandé.')
+                                        ).classes('w-20').tooltip(t('image_tooltip_steps'))
                                         
-                                        ui.label('Guidance:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_guidance')).classes('text-sm ml-2')
                                         dynamic_controls['guidance_scale'] = ui.number(
-                                            label='CFG',
+                                            label=t('image_label_cfg'),
                                             value=img_config.get('img2img_guidance', 2.5),
                                             min=1.0, max=10.0, step=0.5
-                                        ).classes('w-20').tooltip('CFG Scale: adhérence au prompt. 1-3=créatif, 4-7=équilibré, 8+=strict.')
+                                        ).classes('w-20').tooltip(t('image_tooltip_cfg'))
                                         
-                                        ui.label('Negative:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_negative')).classes('text-sm ml-2')
                                         dynamic_controls['negative_prompt'] = ui.input(
-                                            label='Negative prompt',
+                                            label=t('image_label_negative_prompt'),
                                             value=img_config.get('img2img_negative', 'blurry, ugly')
-                                        ).classes('flex-1').tooltip('Éléments à éviter dans la génération (ex: blurry, ugly, deformed, low quality)')
+                                        ).classes('flex-1').tooltip(t('image_tooltip_negative_prompt'))
                                     
-                                    ui.label('📷 Max 1 image en entrée').classes('text-xs text-gray-500')
+                                    ui.label(t('image_label_max_1_image')).classes('text-xs text-gray-500')
                         
                             # === QWEN IMAGE-EDIT - Format + Safety + Params avancés ===
                             elif model_name == "qwen/image-edit":
                                 with ui.column().classes('gap-2 w-full'):
                                     # Ligne 1: Format + Safety + Output Format
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('📐 Format:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_format_icon')).classes('text-sm font-semibold')
                                         dynamic_controls['image_size'] = ui.select(
-                                            label='Format',
+                                            label=t('image_label_format'),
                                             options=['square_hd', 'portrait_4_3', 'landscape_4_3', 'portrait_16_9', 'landscape_16_9'],
                                             value=img_config.get('img2img_image_size', 'square_hd')
-                                        ).classes('w-40').tooltip('Ratio de sortie: square_hd=carré, portrait=vertical, landscape=horizontal')
+                                        ).classes('w-40').tooltip(t('image_tooltip_aspect_ratio_seedream'))
                                         
                                         dynamic_controls['enable_safety_checker'] = ui.checkbox(
                                             '🛡️ Safe Mode',
                                             value=img_config.get('img2img_safety', True)
-                                        ).tooltip('Filtre de sécurité Qwen. Désactiver permet le contenu Unfiltered mais peut être instable.')
+                                        ).tooltip(t('image_tooltip_qwen_filter'))
                                         
-                                        ui.label('Sortie:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_output')).classes('text-sm ml-2')
                                         dynamic_controls['output_format'] = ui.select(
-                                            label='Format',
+                                            label=t('image_label_format'),
                                             options=['png', 'jpeg', 'webp'],
                                             value=img_config.get('img2img_output_format', 'png')
-                                        ).classes('w-24').tooltip('PNG=qualité max, JPEG=léger, WebP=moderne compact')
+                                        ).classes('w-24').tooltip(t('image_tooltip_png_formats_compact'))
                                     
                                     # Ligne 2: Steps + Guidance + Negative
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('Steps:').classes('text-sm')
+                                        ui.label(t('image_label_steps')).classes('text-sm')
                                         dynamic_controls['num_inference_steps'] = ui.number(
-                                            label='Steps',
+                                            label=t('image_label_steps'),
                                             value=img_config.get('img2img_steps', 25),
                                             min=10, max=50
-                                        ).classes('w-20').tooltip('Étapes de débruitage. Plus=meilleure qualité mais plus lent. 20-30 recommandé.')
+                                        ).classes('w-20').tooltip(t('image_tooltip_steps'))
                                         
-                                        ui.label('Guidance:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_guidance')).classes('text-sm ml-2')
                                         dynamic_controls['guidance_scale'] = ui.number(
-                                            label='CFG',
+                                            label=t('image_label_cfg'),
                                             value=img_config.get('img2img_guidance', 4.0),
                                             min=1.0, max=10.0, step=0.5
-                                        ).classes('w-20').tooltip('CFG Scale: adhérence au prompt. 1-3=créatif, 4-7=équilibré, 8+=strict.')
+                                        ).classes('w-20').tooltip(t('image_tooltip_cfg'))
                                         
-                                        ui.label('Negative:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_negative')).classes('text-sm ml-2')
                                         dynamic_controls['negative_prompt'] = ui.input(
-                                            label='Negative prompt',
+                                            label=t('image_label_negative_prompt'),
                                             value=img_config.get('img2img_negative', 'blurry, ugly')
-                                        ).classes('flex-1').tooltip('Éléments à éviter dans la génération (ex: blurry, ugly, deformed, low quality)')
+                                        ).classes('flex-1').tooltip(t('image_tooltip_negative_prompt'))
                                     
-                                    ui.label('📷 Max 1 image en entrée').classes('text-xs text-gray-500')
+                                    ui.label(t('image_label_max_1_image')).classes('text-xs text-gray-500')
                             
                             # ===============================================
                             # === WAVESPEED I2I MODELS (Unfiltered/Spicy) ===
@@ -1562,181 +1553,181 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                             elif model_name == "wavespeed-ai/z-image-turbo/image-to-image":
                                 with ui.column().classes('gap-2 w-full'):
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('📐 Taille:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_size_icon')).classes('text-sm font-semibold')
                                         _zturbo_sizes = ['512*512', '768*768', '1024*1024', '1024*768', '768*1024']
                                         dynamic_controls['size'] = ui.select(
-                                            label='Taille',
+                                            label=t('image_label_size'),
                                             options=_zturbo_sizes,
                                             value=_safe_size_value(_zturbo_sizes)
-                                        ).classes('w-32').tooltip('Format: largeur*hauteur')
+                                        ).classes('w-32').tooltip(t('image_tooltip_size_wh_format'))
                                         
-                                        ui.label('🎚️ Force:').classes('text-sm')
+                                        ui.label(t('image_label_strength')).classes('text-sm')
                                         dynamic_controls['strength'] = ui.slider(
                                             min=0.1, max=1.0, step=0.05,
                                             value=img_config.get('ws_strength', 0.7)
-                                        ).props('label-always').classes('w-40').tooltip('Intensité de transformation')
+                                        ).props('label-always').classes('w-40').tooltip(t('image_tooltip_strength'))
                                         
-                                        ui.label('Seed:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_seed')).classes('text-sm ml-2')
                                         dynamic_controls['seed'] = ui.number(
-                                            label='Seed',
+                                            label=t('image_label_seed'),
                                             value=img_config.get('ws_seed', -1),
                                             min=-1, max=9999999
                                         ).classes('w-24').tooltip('-1=aléatoire')
                                     
-                                    ui.label('⚡ Ultra-rapide $0.005/img - � Unfiltered').classes('text-xs text-green-400')
+                                    ui.label(t('image_info_z_turbo')).classes('text-xs text-green-400')
                             
                             # === HIGGSFIELD SOUL I2I - Style réaliste/artistique ===
                             elif model_name == "higgsfield/soul/image-to-image":
                                 with ui.column().classes('gap-2 w-full'):
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('📐 Taille:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_size_icon')).classes('text-sm font-semibold')
                                         _higgs_sizes = ['512*512', '768*768', '1024*1024', '1024*768', '768*1024', '1280*720', '720*1280']
                                         dynamic_controls['size'] = ui.select(
-                                            label='Taille',
+                                            label=t('image_label_size'),
                                             options=_higgs_sizes,
                                             value=_safe_size_value(_higgs_sizes)
                                         ).classes('w-32')
                                         
-                                        ui.label('🎚️ Force:').classes('text-sm')
+                                        ui.label(t('image_label_strength')).classes('text-sm')
                                         dynamic_controls['strength'] = ui.slider(
                                             min=0.1, max=1.0, step=0.05,
                                             value=img_config.get('ws_strength', 0.75)
                                         ).props('label-always').classes('w-40')
                                         
-                                        ui.label('Seed:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_seed')).classes('text-sm ml-2')
                                         dynamic_controls['seed'] = ui.number(
-                                            label='Seed',
+                                            label=t('image_label_seed'),
                                             value=img_config.get('ws_seed', -1),
                                             min=-1, max=9999999
                                         ).classes('w-24')
                                     
-                                    ui.label('🎭 Style réaliste/artistique $0.025/img - � Unfiltered').classes('text-xs text-purple-400')
+                                    ui.label(t('image_info_higgsfield')).classes('text-xs text-purple-400')
                             
                             # === FLUX KONTEXT DEV - Édition par instruction ===
                             elif model_name == "wavespeed-ai/flux-kontext-dev":
                                 with ui.column().classes('gap-2 w-full'):
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('📐 Taille:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_size_icon')).classes('text-sm font-semibold')
                                         _kontext_sizes = ['512*512', '768*768', '1024*1024', '1280*720', '720*1280', '1536*1024', '1024*1536']
                                         dynamic_controls['size'] = ui.select(
-                                            label='Taille',
+                                            label=t('image_label_size'),
                                             options=_kontext_sizes,
                                             value=_safe_size_value(_kontext_sizes)
                                         ).classes('w-32')
                                         
-                                        ui.label('Steps:').classes('text-sm')
+                                        ui.label(t('image_label_steps')).classes('text-sm')
                                         dynamic_controls['num_inference_steps'] = ui.number(
-                                            label='Steps',
+                                            label=t('image_label_steps'),
                                             value=img_config.get('ws_steps', 28),
                                             min=10, max=50
                                         ).classes('w-20')
                                         
-                                        ui.label('Guidance:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_guidance')).classes('text-sm ml-2')
                                         dynamic_controls['guidance_scale'] = ui.number(
-                                            label='CFG',
+                                            label=t('image_label_cfg'),
                                             value=img_config.get('ws_guidance', 3.5),
                                             min=1.0, max=10.0, step=0.5
                                         ).classes('w-20')
                                     
-                                    ui.label('✏️ Édition par instruction $0.025/img - � Unfiltered').classes('text-xs text-blue-400')
+                                    ui.label(t('image_info_flux_kontext')).classes('text-xs text-blue-400')
                             
                             # === FACE SWAP - Échange de visage ===
                             elif model_name == "wavespeed-ai/image-face-swap":
                                 with ui.column().classes('gap-2 w-full'):
-                                    ui.label('🎭 FACE SWAP - Échange de visage').classes('text-sm font-semibold text-pink-400')
-                                    ui.label('⚠️ Requiert 2 images: source (visage) + cible (corps)').classes('text-xs text-yellow-400')
-                                    ui.label('💡 Upload 2 images, le 1er = visage source, le 2ème = image cible').classes('text-xs text-gray-400')
-                                    ui.label('💰 $0.005/swap - � Unfiltered').classes('text-xs text-green-400')
+                                    ui.label(t('image_label_faceswap_title')).classes('text-sm font-semibold text-pink-400')
+                                    ui.label(t('image_label_faceswap_req')).classes('text-xs text-yellow-400')
+                                    ui.label(t('image_label_faceswap_tip')).classes('text-xs text-gray-400')
+                                    ui.label(t('image_label_faceswap_cost')).classes('text-xs text-green-400')
                             
                             # === HEAD SWAP - Échange de tête ===
                             elif model_name == "wavespeed-ai/image-head-swap":
                                 with ui.column().classes('gap-2 w-full'):
-                                    ui.label('👤 HEAD SWAP - Échange de tête complet').classes('text-sm font-semibold text-orange-400')
-                                    ui.label('⚠️ Requiert 2 images: source (tête) + cible (corps)').classes('text-xs text-yellow-400')
-                                    ui.label('💡 Upload 2 images, le 1er = tête source, le 2ème = image cible').classes('text-xs text-gray-400')
-                                    ui.label('💰 $0.008/swap - � Unfiltered').classes('text-xs text-green-400')
+                                    ui.label(t('image_label_headswap_title')).classes('text-sm font-semibold text-orange-400')
+                                    ui.label(t('image_label_headswap_req')).classes('text-xs text-yellow-400')
+                                    ui.label(t('image_label_headswap_tip')).classes('text-xs text-gray-400')
+                                    ui.label(t('image_label_headswap_cost')).classes('text-xs text-green-400')
                             
                             # === WAN 2.2 I2I - Wan Image Edit ===
                             elif model_name == "wavespeed-ai/wan-2.2/image-to-image":
                                 with ui.column().classes('gap-2 w-full'):
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('📐 Taille:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_size_icon')).classes('text-sm font-semibold')
                                         _wan22_sizes = ['512*512', '768*768', '1024*1024', '1280*720', '720*1280']
                                         dynamic_controls['size'] = ui.select(
-                                            label='Taille',
+                                            label=t('image_label_size'),
                                             options=_wan22_sizes,
                                             value=_safe_size_value(_wan22_sizes)
                                         ).classes('w-32')
                                         
-                                        ui.label('🎚️ Force:').classes('text-sm')
+                                        ui.label(t('image_label_strength')).classes('text-sm')
                                         dynamic_controls['strength'] = ui.slider(
                                             min=0.1, max=1.0, step=0.05,
                                             value=img_config.get('ws_strength', 0.7)
                                         ).props('label-always').classes('w-40')
                                         
-                                        ui.label('Seed:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_seed')).classes('text-sm ml-2')
                                         dynamic_controls['seed'] = ui.number(
-                                            label='Seed',
+                                            label=t('image_label_seed'),
                                             value=img_config.get('ws_seed', -1),
                                             min=-1, max=9999999
                                         ).classes('w-24')
                                     
-                                    ui.label('🌊 Wan 2.2 Edit $0.02/img - � Unfiltered').classes('text-xs text-cyan-400')
+                                    ui.label(t('image_info_wan22')).classes('text-xs text-cyan-400')
                             
                             # === QWEN IMAGE EDIT (WaveSpeed) ===
                             elif model_name == "wavespeed-ai/qwen-image-edit":
                                 with ui.column().classes('gap-2 w-full'):
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('📐 Taille:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_size_icon')).classes('text-sm font-semibold')
                                         _qwen_sizes = ['512*512', '768*768', '1024*1024', '1280*720', '720*1280']
                                         dynamic_controls['size'] = ui.select(
-                                            label='Taille',
+                                            label=t('image_label_size'),
                                             options=_qwen_sizes,
                                             value=_safe_size_value(_qwen_sizes)
                                         ).classes('w-32')
                                         
-                                        ui.label('Steps:').classes('text-sm')
+                                        ui.label(t('image_label_steps')).classes('text-sm')
                                         dynamic_controls['num_inference_steps'] = ui.number(
-                                            label='Steps',
+                                            label=t('image_label_steps'),
                                             value=img_config.get('ws_steps', 25),
                                             min=10, max=50
                                         ).classes('w-20')
                                         
-                                        ui.label('Guidance:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_guidance')).classes('text-sm ml-2')
                                         dynamic_controls['guidance_scale'] = ui.number(
-                                            label='CFG',
+                                            label=t('image_label_cfg'),
                                             value=img_config.get('ws_guidance', 4.0),
                                             min=1.0, max=10.0, step=0.5
                                         ).classes('w-20')
                                     
-                                    ui.label('🧠 Qwen via WaveSpeed $0.02/img - � Unfiltered').classes('text-xs text-purple-400')
+                                    ui.label(t('image_info_qwen_wavespeed')).classes('text-xs text-purple-400')
                             
                             # === LUCY EDIT (Decart) ===
                             elif model_name == "decart/lucy-edit-dev":
                                 with ui.column().classes('gap-2 w-full'):
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('📐 Taille:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_size_icon')).classes('text-sm font-semibold')
                                         _lucy_sizes = ['512*512', '768*768', '1024*1024', '1280*720', '720*1280']
                                         dynamic_controls['size'] = ui.select(
-                                            label='Taille',
+                                            label=t('image_label_size'),
                                             options=_lucy_sizes,
                                             value=_safe_size_value(_lucy_sizes)
                                         ).classes('w-32')
                                         
-                                        ui.label('🎚️ Force:').classes('text-sm')
+                                        ui.label(t('image_label_strength')).classes('text-sm')
                                         dynamic_controls['strength'] = ui.slider(
                                             min=0.1, max=1.0, step=0.05,
                                             value=img_config.get('ws_strength', 0.75)
                                         ).props('label-always').classes('w-40')
                                         
-                                        ui.label('Seed:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_seed')).classes('text-sm ml-2')
                                         dynamic_controls['seed'] = ui.number(
-                                            label='Seed',
+                                            label=t('image_label_seed'),
                                             value=img_config.get('ws_seed', -1),
                                             min=-1, max=9999999
                                         ).classes('w-24')
                                     
-                                    ui.label('🎬 Decart Lucy Edit $0.015/img - � Unfiltered').classes('text-xs text-pink-400')
+                                    ui.label(t('image_info_lucy_edit')).classes('text-xs text-pink-400')
                             
                             # ===============================================
 
@@ -1746,7 +1737,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                             elif provider == "AtlasCloud":
                                 with ui.column().classes('gap-2 w-full'):
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('📐 Taille:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_size_icon')).classes('text-sm font-semibold')
                                         _atlas_sizes = {
                                             '1024*1024': '1K (1:1)',
                                             '1280*720':  '1.3K (16:9)',
@@ -1760,12 +1751,12 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                             '1440*2560': '2.5K (9:16)',
                                         }
                                         dynamic_controls['size'] = ui.select(
-                                            label='Taille',
+                                            label=t('image_label_size'),
                                             options=_atlas_sizes,
                                             value=_safe_size_value(_atlas_sizes, 'atlas_i2i_size', '1024*1024')
-                                        ).classes('w-40').tooltip('Résolution de sortie (largeur × hauteur)')
+                                        ).classes('w-40').tooltip(t('image_tooltip_size_wh'))
 
-                                        ui.label('🎚️ Force:').classes('text-sm')
+                                        ui.label(t('image_label_strength')).classes('text-sm')
                                         dynamic_controls['strength'] = ui.slider(
                                             min=0.1, max=1.0, step=0.05,
                                             value=img_config.get('atlas_i2i_strength', 0.75)
@@ -1774,18 +1765,18 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                         )
 
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap'):
-                                        ui.label('🎲 Seed:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_batch_seed')).classes('text-sm font-semibold')
                                         dynamic_controls['seed'] = ui.number(
-                                            label='Seed',
+                                            label=t('image_label_seed'),
                                             value=img_config.get('atlas_i2i_seed', -1),
                                             min=-1, max=9999999
                                         ).classes('w-28').tooltip('-1 = aléatoire')
 
-                                        ui.label('❌ Negative:').classes('text-sm')
+                                        ui.label(t('image_label_negative_icon')).classes('text-sm')
                                         dynamic_controls['negative_prompt'] = ui.input(
-                                            label='Negative prompt',
+                                            label=t('image_label_negative_prompt'),
                                             value=img_config.get('atlas_i2i_negative', 'blurry, ugly, deformed')
-                                        ).classes('flex-1').tooltip('Éléments à éviter dans la génération')
+                                        ).classes('flex-1').tooltip(t('image_tooltip_negative_prompt_short'))
 
                                     _atlas_model_info = {
                                         'bytedance/seedream': '🌱 ByteDance Seedream — excellente préservation des détails',
@@ -1794,7 +1785,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                                         'alibaba/wan-': '🎨 Wan — édition Alibaba',
                                         'google/nano-banana': '🍌 Nano Banana Google — qualité premium',
                                     }
-                                    _info_text = '🌐 AtlasCloud.ai — 300+ modèles, refresh live disponible'
+                                    _info_text = t('image_label_atlascloud_info')
                                     for prefix, desc in _atlas_model_info.items():
                                         if model_name.startswith(prefix):
                                             _info_text = desc
@@ -1803,12 +1794,12 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
 
                                     if 'sequential' in model_name:
                                         with ui.row().classes('gap-4 items-center mt-1'):
-                                            ui.label('🔢 Variantes (batch):').classes('text-sm')
+                                            ui.label(t('image_label_batch_variants')).classes('text-sm')
                                             dynamic_controls['batch_count'] = ui.number(
-                                                label='Nb',
+                                                label=t('image_label_nb'),
                                                 value=img_config.get('atlas_i2i_batch', 2),
                                                 min=1, max=15
-                                            ).classes('w-20').tooltip('Sequential: génère N images en batch')
+                                            ).classes('w-20').tooltip(t('image_tooltip_seed_sequential'))
 
                             # === SECTION BATCH COMMUNE (WaveSpeed + Kie) ===
                             # ===============================================
@@ -1847,30 +1838,30 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                             
                             # Afficher contrôles batch si modèle supporté
                             if provider == "WaveSpeed" and model_name in wavespeed_i2i_models:
-                                with ui.expansion('🎲 Mode Batch (variantes)').classes('w-full mt-2').props('dense'):
+                                with ui.expansion(t('image_expansion_batch')).classes('w-full mt-2').props('dense'):
                                     with ui.row().classes('gap-4 items-center w-full flex-wrap py-2'):
-                                        ui.label('🎲 Seed:').classes('text-sm font-semibold')
+                                        ui.label(t('image_label_batch_seed')).classes('text-sm font-semibold')
                                         dynamic_controls['batch_seed'] = ui.number(
-                                            label='Seed',
+                                            label=t('image_label_seed'),
                                             value=img_config.get('img2img_batch_seed', -1),
                                             min=-1, max=9999999
                                         ).classes('w-28').tooltip('-1 = aléatoire, sinon seed fixe pour reproductibilité')
                                         
-                                        ui.label('🔢 Variantes:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_batch_variants')).classes('text-sm ml-2')
                                         dynamic_controls['batch_count'] = ui.number(
-                                            label='Nb',
+                                            label=t('image_label_nb'),
                                             value=img_config.get('img2img_batch_count', 1),
                                             min=1, max=6
-                                        ).classes('w-20').tooltip('Nombre d\'images à générer (1-6)')
+                                        ).classes('w-20').tooltip(t('image_tooltip_seed_count'))
                                         
-                                        ui.label('➕ Incrément:').classes('text-sm ml-2')
+                                        ui.label(t('image_label_batch_increment')).classes('text-sm ml-2')
                                         dynamic_controls['seed_increment'] = ui.number(
                                             label='+N',
                                             value=img_config.get('img2img_seed_increment', 1),
                                             min=1, max=10
-                                        ).classes('w-20').tooltip('Écart entre chaque seed')
+                                        ).classes('w-20').tooltip(t('image_tooltip_seed_gap'))
                                     
-                                    ui.label('💡 Génère N images avec seeds incrémentaux en parallèle').classes('text-xs text-gray-500')
+                                    ui.label(t('image_label_batch_note')).classes('text-xs text-gray-500')
                 
                 # Construire les paramètres pour le modèle initial
                 build_model_params(current_img2img_model, current_img2img_provider)
@@ -1893,181 +1884,140 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                 img2img_model_select.on_value_change(lambda e: update_img2img_info())
                 update_img2img_info()
                 
-                ui.label('💡 Phrase magique: "je dois modifier cette image : [description des modifications]"').classes('text-xs text-blue-300 mt-2')
+                ui.label(t('image_label_magic_phrase_i2i')).classes('text-xs text-blue-300 mt-2')
                 
                 # Note dynamique sur la clé API requise
-                api_key_note = ui.label('⚠️ Nécessite une clé API Kie.ai configurée ci-dessus').classes('text-xs text-yellow-400')
+                api_key_note = ui.label(t('image_label_need_key_kie')).classes('text-xs text-yellow-400')
                 
                 def update_api_note():
                     provider = img2img_provider_select.value
                     if provider == "WaveSpeed":
-                        api_key_note.text = '⚠️ Nécessite une clé API WaveSpeed.ai configurée ci-dessus'
+                        api_key_note.text = t('image_label_need_key_wavespeed')
                     elif provider == "AtlasCloud":
-                        api_key_note.text = '⚠️ Nécessite une clé API AtlasCloud.ai configurée ci-dessus'
+                        api_key_note.text = t('image_label_need_key_atlascloud')
                     else:
-                        api_key_note.text = '⚠️ Nécessite une clé API Kie.ai configurée ci-dessus'
+                        api_key_note.text = t('image_label_need_key_kie')
                 
                 img2img_provider_select.on_value_change(lambda e: update_api_note())
                 update_api_note()
                 
                 # Guide injection conditionnelle
                 ui.separator().classes('my-3')
-                ui.label('📝 Instruction IA (injectée automatiquement si image uploadée)').classes('text-sm font-semibold mb-1')
+                ui.label(t('image_label_i2i_guide_title')).classes('text-sm font-semibold mb-1')
                 
                 # Valeur par défaut si vide
-                default_guide = """RÔLE : Tu es l'Architecte Visuelle d'Ogma.
-
-Commence par : "Il faut que je modifie cette image : [prompt en anglais]"
-
-STRUCTURE DU PROMPT :
-1. GARDE : "garde la position du personnage", "garde le visage"
-2. AJOUTE/SUPPRIME/CHANGE : "ajoute un chapeau", "supprime l'objet", "change le décor"
-3. PROPORTIONS : "Conserve une logique biologique humaine."
-4. TAGS : "Cinematic photographic render, 8k, natural lighting, zero-artifact editing."
-
-⚠️ NE JAMAIS DÉCRIRE ce qui est GARDÉ (provoque des déformations monstrueuses).
-Décris UNIQUEMENT ce que tu AJOUTES ou CHANGES. Prompt entre 50-120 mots, en anglais."""
+                default_guide = t('image_default_i2i_guide')
                 
                 img2img_guide_textarea = ui.textarea(
-                    label='Guide de modification d\'image',
+                    label=t('image_label_i2i_guide_field'),
                     value=img_config.get('img2img_guide', '') or default_guide,
-                    placeholder='Instructions pour l\'IA sur comment formuler des prompts de modification...'
-                ).props('outlined dense rows=6').classes('w-full').style('font-size: 0.85rem;')
+                    placeholder=t('image_placeholder_i2i_guide')
+                ).props('autogrow borderless dense rows=8').classes('w-full').style('font-size: 0.85rem;')
+                
+                with ui.row().classes('gap-2 mt-1'):
+                    def reset_i2i_guide():
+                        img2img_guide_textarea.value = t('image_default_i2i_guide')
+                        ui.notify(t('image_notify_i2i_guide_reset'), type='info')
+                    ui.button(t('image_btn_reset_default'), on_click=reset_i2i_guide).props('flat dense').classes('text-xs')
                 
                 # Option traduction auto français→anglais
                 img2img_auto_translate_switch = ui.checkbox(
-                    '🌍 Traduction auto FR→EN (si l\'IA génère en français)',
+                    t('image_check_auto_translate'),
                     value=img_config.get('img2img_auto_translate', True)
-                ).tooltip('Active la traduction automatique via l\'Archiviste si l\'IA génère un prompt en français. Seedream nécessite l\'anglais.')
+                ).tooltip(t('image_tooltip_auto_translate'))
                 
-                ui.label('💡 Cette instruction sera ajoutée au contexte quand une image est uploadée et img2img activé').classes('text-xs text-gray-400 mt-1')
+                ui.label(t('image_label_i2i_guide_note')).classes('text-xs text-gray-400 mt-1')
 
             # Section Guide Text-to-Image
             with ui.card().classes('q-dark p-4').style('background: rgba(138, 43, 226, 0.1); border-left: 3px solid #8a2be2;'):
-                ui.label('🎨 Guide Text-to-Image (Création d\'images)').classes('font-semibold mb-2').style('color: #8a2be2;')
-                ui.label('Instructions pour guider l\'IA sur la création d\'images photoréalistes de qualité').classes('text-sm text-gray-400 mb-3')
+                ui.label(t('image_section_t2i_guide')).classes('font-semibold mb-2').style('color: #8a2be2;')
+                ui.label(t('image_label_t2i_guide_subtitle')).classes('text-sm text-gray-400 mb-3')
                 
                 # Valeur par défaut si vide (optimisé pour z-image)
-                default_t2i_guide = """🎨 GUIDE TEXT-TO-IMAGE (Z-IMAGE OPTIMISÉ)
-
-📏 LIMITE STRICTE : 400-500 caractères maximum (au-delà = ERREUR API)
-
-✅ STRUCTURE RECOMMANDÉE :
-1. Style: "photorealistic", "candid iPhone photo feel"
-2. Lieu: description précise du décor
-3. Sujet: personnage avec détails (vêtements, pose, action)
-4. Focus: "in sharp focus" / "blurred background"
-5. Lumière: "natural light", "golden hour"
-
-✅ MOTS-CLÉS EFFICACES Z-IMAGE :
-- photorealistic, iPhone photo feel, candid shot
-- in sharp focus, bokeh background
-- natural light, morning light, golden hour
-
-❌ INTERDICTIONS :
-- Prompt en français (ANGLAIS UNIQUEMENT)
-- Dépasser 500 caractères
-
-📝 EXEMPLE PARFAIT :
-"je dois créer une image de : Photorealistic cafe terrace in Paris, spring morning. Young woman with pixie cut in sharp focus, stirring cappuccino. Blurred street background. Natural morning light, iPhone feel."""
+                default_t2i_guide = t('image_default_t2i_guide')
                 
                 text2img_guide_textarea = ui.textarea(
-                    label='Guide de création d\'image (Text-to-Image)',
+                    label=t('image_label_t2i_guide_field'),
                     value=img_config.get('text2img_guide', '') or default_t2i_guide,
-                    placeholder='Instructions pour l\'IA sur comment formuler des prompts de création...'
-                ).props('outlined dense rows=6').classes('w-full').style('font-size: 0.85rem;')
-                ui.label('💡 Cette instruction est injectée automatiquement quand la génération T2I est activée').classes('text-xs text-gray-400 mt-1')
+                    placeholder=t('image_placeholder_t2i_guide')
+                ).props('autogrow borderless dense rows=8').classes('w-full').style('font-size: 0.85rem;')
+                
+                with ui.row().classes('gap-2 mt-1'):
+                    def reset_t2i_guide():
+                        text2img_guide_textarea.value = t('image_default_t2i_guide')
+                        ui.notify(t('image_notify_t2i_guide_reset'), type='info')
+                    ui.button(t('image_btn_reset_default'), on_click=reset_t2i_guide).props('flat dense').classes('text-xs')
+                
+                ui.label(t('image_label_t2i_guide_note')).classes('text-xs text-gray-400 mt-1')
 
             # Section Directive Concision
             with ui.card().classes('q-dark p-4').style('background: rgba(255, 165, 0, 0.1); border-left: 3px solid #ffa500;'):
-                ui.label('⚡ Directive de Concision (Optimisation Streaming)').classes('font-semibold mb-2').style('color: #ffa500;')
-                ui.label('Réduit la verbosité lors des générations d\'images pour éviter les longs streamings').classes('text-sm text-gray-400 mb-3')
+                ui.label(t('image_section_concision')).classes('font-semibold mb-2').style('color: #ffa500;')
+                ui.label(t('image_label_concision_subtitle')).classes('text-sm text-gray-400 mb-3')
                 
                 concision_enabled_check = ui.checkbox(
-                    'Activer la directive de concision',
+                    t('image_check_concision'),
                     value=img_config.get('concision_enabled', True)
                 ).classes('mb-3')
-                ui.label('⚠️ Sans cette directive, l\'IA peut générer de très longues réponses avant la génération (>300s)').classes('text-xs text-yellow-400 mb-2')
+                ui.label(t('image_label_concision_warn')).classes('text-xs text-yellow-400 mb-2')
                 
                 # Instruction CHD par défaut
-                default_concision = """# DIRECTIVE CONCISION IMAGE-GEN
-
-MODE | COMPRESSION_RÉPONSE | PHRASES_MAGIQUES_ACTIVES
-
-DÉCLENCHEURS | "je dois créer une image de :" | "je dois modifier cette image :"
-
-RÈGLE_LIMITE | MAX 2-3 PHRASES | AVANT_PHRASE_MAGIQUE
-
-STRUCTURE_AUTORISÉE:
-[ACCUSÉ_RÉCEPTION: 1 phrase] | [PHRASE_MAGIQUE + PROMPT]
-
-INTERDICTIONS:
-❌ PRÉAMBULE_LONG
-❌ JUSTIFICATION_CHOIX_ARTISTIQUES  
-❌ REDESCRIPTION_POST_GEN
-❌ COMMENTAIRE_EXPLICATIF
-
-RATIO_CIBLE | INTRO:10% | PROMPT:90%
-
-EXEMPLE_BON | "Voici : je dois créer une image de : [prompt]"
-EXEMPLE_MAUVAIS | "Je comprends ta demande... je vais créer une magnifique... [300 mots]... je dois créer une image de : [prompt]... J'espère que..."
-
-PRINCIPE | PROMPT_SUFFIT | TEXTE_ACCOMPAGNEMENT_MINIMAL"""
+                default_concision = t('image_default_concision')
                 
                 concision_directive_textarea = ui.textarea(
-                    label='Directive de concision (Protocole CHD)',
+                    label=t('image_label_concision_field'),
                     value=img_config.get('concision_directive', '') or default_concision,
-                    placeholder='Instruction pour limiter la verbosité lors des générations d\'images...'
-                ).props('outlined dense rows=8').classes('w-full').style('font-size: 0.85rem;')
-                ui.label('💡 Cette directive est injectée automatiquement quand une génération d\'image est détectée').classes('text-xs text-gray-400 mt-1')
+                    placeholder=t('image_placeholder_concision')
+                ).props('autogrow borderless dense rows=10').classes('w-full').style('font-size: 0.85rem;')
+                
+                with ui.row().classes('gap-2 mt-1'):
+                    def reset_concision_directive():
+                        concision_directive_textarea.value = t('image_default_concision')
+                        ui.notify(t('image_notify_concision_reset'), type='info')
+                    ui.button(t('image_btn_reset_default'), on_click=reset_concision_directive).props('flat dense').classes('text-xs')
+                
+                ui.label(t('image_label_concision_note')).classes('text-xs text-gray-400 mt-1')
 
             # Section Sauvegarde
             with ui.card().classes('q-dark p-4').style('background: rgba(255,255,255,0.05);'):
-                ui.label('💾 Options').classes('font-semibold mb-2')
+                ui.label(t('image_section_options')).classes('font-semibold mb-2')
                 
                 with ui.column().classes('gap-2'):
                     save_check = ui.checkbox(
-                        'Sauvegarder les images générées (data/generated_images/)',
+                        t('image_check_save'),
                         value=img_config.get('save_images', True)
                     )
                     
                     vision_check = ui.checkbox(
-                        'L\'IA principale peut voir ses créations (injection dans contexte)',
+                        t('image_check_vision'),
                         value=img_config.get('ai_can_see_images', False)
                     )
                     
                     # Prompt vision feedback personnalisable
-                    ui.label('📋 Prompt d\'analyse visuelle (quand l\'IA voit ses créations) :').classes('text-sm font-medium mt-4 mb-1')
+                    ui.label(t('image_label_vision_prompt_title')).classes('text-sm font-medium mt-4 mb-1')
                     
-                    default_vision_prompt = """Tu viens de créer/modifier cette image avec le prompt: \"{original_prompt}\"
-
-RÈGLE: PIXELS_ONLY - Commente UNIQUEMENT ce que tu vois réellement dans l'image.
-Si l'image ne correspond pas au prompt, dis-le clairement.
-Si l'image ne s'est pas chargée ou est absente, dis-le.
-0_Hallucination, 0_Invention.
-
-En 2-3 phrases max, analyse objective du résultat visible."""
+                    default_vision_prompt = t('image_default_vision_prompt')
                     
                     current_vision_prompt = img_config.get('vision_feedback_prompt', '') or default_vision_prompt
                     
                     vision_prompt_textarea = ui.textarea(
                         value=current_vision_prompt,
-                        placeholder='Prompt d\'analyse visuelle...'
-                    ).classes('w-full').style('min-height: 180px; font-family: monospace; font-size: 12px;')
+                        placeholder=t('image_placeholder_vision_prompt')
+                    ).props('autogrow borderless rows=7').classes('w-full').style('font-family: monospace; font-size: 12px;')
                     
                     with ui.row().classes('gap-2 mt-2'):
                         def reset_vision_prompt():
                             vision_prompt_textarea.value = default_vision_prompt
-                            ui.notify('🔄 Prompt vision réinitialisé', type='info')
+                            ui.notify(t('image_notify_vision_reset'), type='info')
                         
-                        ui.button('Réinitialiser par défaut', on_click=reset_vision_prompt).props('flat dense').classes('text-xs')
-                        ui.label('💡 Ce prompt est utilisé quand l\'IA analyse ses créations visuelles').classes('text-xs text-gray-500')
+                        ui.button(t('image_btn_reset_default'), on_click=reset_vision_prompt).props('flat dense').classes('text-xs')
+                        ui.label(t('image_label_vision_prompt_note')).classes('text-xs text-gray-500')
 
             # Section Compression Vision
             with ui.card().classes('q-dark p-4').style('background: rgba(76, 175, 80, 0.1); border-left: 3px solid #4caf50;'):
-                ui.label('🖼️ Compression Vision IA').classes('font-semibold mb-2').style('color: #4caf50;')
-                ui.label('Résolution max des images envoyées à l\'IA conversationnelle').classes('text-sm text-gray-400 mb-1')
-                ui.label('(Les images originales sont conservées pour la génération img2img)').classes('text-xs text-gray-500 mb-3')
+                ui.label(t('image_section_compression')).classes('font-semibold mb-2').style('color: #4caf50;')
+                ui.label(t('image_label_compression_subtitle')).classes('text-sm text-gray-400 mb-1')
+                ui.label(t('image_label_compression_subtitle2')).classes('text-xs text-gray-500 mb-3')
                 
                 # Options de compression
                 vision_compression_options = {
@@ -2081,22 +2031,22 @@ En 2-3 phrases max, analyse objective du résultat visible."""
                 current_compression = img_config.get('vision_compression', 400)
                 
                 vision_compression_select = ui.select(
-                    label='Résolution max',
+                    label=t('image_label_resolution_max'),
                     options=vision_compression_options,
                     value=current_compression
                 ).classes('w-full')
                 
                 with ui.row().classes('gap-4 mt-3 text-xs text-gray-400'):
-                    ui.label('💡 Plus petit = réponse plus rapide')
+                    ui.label(t('image_label_compression_tip1'))
                     ui.label('|')
-                    ui.label('3 images à 400px ≈ 10-15s')
+                    ui.label(t('image_label_compression_tip2'))
                     ui.label('|')
-                    ui.label('3 images à 1024px ≈ 60s+')
+                    ui.label(t('image_label_compression_tip3'))
                 
-                ui.label('⚠️ "Sans compression" peut causer des timeouts avec plusieurs images').classes('text-xs text-yellow-400 mt-2')
+                ui.label(t('image_label_compression_warn')).classes('text-xs text-yellow-400 mt-2')
                 
                 # Qualité JPEG
-                ui.label('Qualité JPEG').classes('text-sm text-gray-300 mt-4 mb-2')
+                ui.label(t('image_label_jpeg_quality')).classes('text-sm text-gray-300 mt-4 mb-2')
                 current_jpeg_quality = img_config.get('vision_jpeg_quality', 85)
                 
                 vision_jpeg_quality_slider = ui.slider(
@@ -2110,89 +2060,69 @@ En 2-3 phrases max, analyse objective du résultat visible."""
                 def update_jpeg_quality_label():
                     q = vision_jpeg_quality_slider.value
                     if q <= 60:
-                        jpeg_quality_label.text = f'🗜️ Qualité {q} - Compression max (fichiers légers, artefacts visibles)'
+                        jpeg_quality_label.text = t('image_label_jpeg_max', q=q)
                     elif q <= 75:
-                        jpeg_quality_label.text = f'⚖️ Qualité {q} - Basse qualité (fichiers petits, quelques artefacts)'
+                        jpeg_quality_label.text = t('image_label_jpeg_low', q=q)
                     elif q <= 85:
-                        jpeg_quality_label.text = f'✅ Qualité {q} - Standard (bon compromis poids/qualité)'
+                        jpeg_quality_label.text = t('image_label_jpeg_std', q=q)
                     else:
-                        jpeg_quality_label.text = f'💎 Qualité {q} - Haute qualité (fichiers plus lourds, meilleur rendu)'
+                        jpeg_quality_label.text = t('image_label_jpeg_high', q=q)
                 
                 update_jpeg_quality_label()
                 vision_jpeg_quality_slider.on_value_change(lambda: update_jpeg_quality_label())
 
             # Section Boucle Auto-Corrective I2I
             with ui.card().classes('q-dark p-4').style('background: rgba(255, 152, 0, 0.1); border-left: 3px solid #ff9800;'):
-                ui.label('🔄 Boucle Auto-Corrective I2I').classes('font-semibold mb-2').style('color: #ff9800;')
-                ui.label('L\'IA analyse ses images i2i, d\xe9tecte les d\xe9fauts et corrige automatiquement').classes('text-sm text-gray-400 mb-3')
+                ui.label(t('image_section_autocorrect')).classes('font-semibold mb-2').style('color: #ff9800;')
+                ui.label(t('image_label_autocorrect_subtitle')).classes('text-sm text-gray-400 mb-3')
                 
                 i2i_autocorrect_check = ui.checkbox(
-                    'Activer la boucle auto-corrective (retry si score < seuil)',
+                    t('image_check_autocorrect'),
                     value=img_config.get('i2i_autocorrect_enabled', False)
                 ).classes('mb-2')
-                ui.label('\u26a0\ufe0f N\xe9cessite \"L\'IA peut voir ses cr\xe9ations\" activ\xe9 ci-dessus').classes('text-xs text-yellow-400 mb-3')
+                ui.label(t('image_label_autocorrect_warn')).classes('text-xs text-yellow-400 mb-3')
                 
                 with ui.row().classes('gap-4 w-full mb-3'):
                     i2i_max_retries_slider = ui.slider(
                         min=1, max=5, step=1,
                         value=img_config.get('i2i_max_retries', 3)
                     ).props('label-always').classes('w-1/2')
-                    ui.label('Tentatives max').classes('text-sm self-center')
+                    ui.label(t('image_label_max_retries')).classes('text-sm self-center')
                     
                     i2i_score_threshold_slider = ui.slider(
                         min=1, max=10, step=1,
                         value=img_config.get('i2i_score_threshold', 6)
                     ).props('label-always').classes('w-1/2')
-                    ui.label('Score seuil (1-10)').classes('text-sm self-center')
+                    ui.label(t('image_label_score_threshold')).classes('text-sm self-center')
                 
                 i2i_web_tips_check = ui.checkbox(
-                    'Recherche web de tips par modele (1 recherche unique, puis cache)',
+                    t('image_check_web_tips'),
                     value=img_config.get('i2i_web_tips_enabled', True)
                 ).classes('mb-2')
-                ui.label('L\'IA recherche des conseils de prompt engineering specifiques au modele i2i configure').classes('text-xs text-gray-400 mb-3')
+                ui.label(t('image_label_web_tips_note')).classes('text-xs text-gray-400 mb-3')
                 
-                ui.label('📝 Prompt d\'analyse i2i (checklist de détection des défauts) :').classes('text-sm font-medium mt-2 mb-1')
+                ui.label(t('image_label_i2i_analysis_title')).classes('text-sm font-medium mt-2 mb-1')
                 
-                # Default du prompt d'analyse i2i (stocké dans les defaults de img_config en haut du fichier)
-                _default_i2i_analysis_prompt = """Tu viens de modifier cette image avec le prompt: "{original_prompt}"
-
-MISSION : Analyse RIGOUREUSE du résultat. Tu es une inspectrice qualité impitoyable.
-RÈGLE : PIXELS_ONLY. Ne commente que ce que tu VOIS. 0_Hallucination.
-
-CHECKLIST SYSTÉMATIQUE (vérifie CHAQUE point) :
-- ANATOMIE : Nombre de doigts correct (5/main) ? Bras/jambes corrects ? Pas de membre en trop/manquant ?
-- PROPORTIONS : Tailles relatives cohérentes entre personnages ? Tête/corps ratio normal ?
-- DÉFORMATIONS : Zones "pâte à modeler" ? Étirements anormaux ? Effet tentacule ?
-- VISAGE : Symétrie faciale ? Expression naturelle ? Pas de fusion de traits ?
-- ÉLÉMENTS GARDÉS : Ce qui devait être préservé l'est-il vraiment ?
-- ÉLÉMENTS AJOUTÉS : Intégrés naturellement ? Proportions correctes ?
-- CONTACT PHYSIQUE : Points de contact réalistes ? Pas de fusion entre corps ?
-- ARRIÈRE-PLAN : Cohérent ? Pas de distorsion/artefacts ?
-- LUMIÈRE/TEXTURE : Cohérence d'éclairage entre éléments source et ajoutés ?
-
-Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de ```json) :
-{"score": <1-10>, "satisfaisant": <true si score >= 6>, "defauts_detectes": [{"type": "<deformation|proportion|artefact|anatomie|fusion|manquant|extra|texture>", "gravite": "<critique|majeur|mineur>", "description": "<description factuelle>", "zone": "<zone image>"}], "elements_bien_preserves": ["<éléments gardés>"], "prompt_issues": ["<cause probable>"], "correction_suggérée": "<reformulation prompt>"}
-
-BARÈME : 9-10=parfait | 7-8=bon, défauts mineurs | 5-6=passable | 3-4=défauts majeurs | 1-2=raté
-Score < 6 = à refaire. Sois EXIGEANTE."""
+                # Default du prompt d'analyse i2i
+                _default_i2i_analysis_prompt = t('image_default_i2i_analysis')
                 current_i2i_analysis = img_config.get('i2i_analysis_prompt', '') or _default_i2i_analysis_prompt
                 
                 i2i_analysis_prompt_textarea = ui.textarea(
                     value=current_i2i_analysis,
-                    placeholder='Prompt d\'analyse structurée JSON pour détecter les défauts i2i...'
-                ).classes('w-full').style('min-height: 250px; font-family: monospace; font-size: 12px;')
+                    placeholder=t('image_placeholder_i2i_analysis')
+                ).props('autogrow borderless rows=12').classes('w-full').style('font-family: monospace; font-size: 12px;')
                 
                 with ui.row().classes('gap-2 mt-2'):
                     def reset_i2i_analysis_prompt():
                         i2i_analysis_prompt_textarea.value = _default_i2i_analysis_prompt
-                        ui.notify('🔄 Prompt d\'analyse i2i réinitialisé', type='info')
+                        ui.notify(t('image_notify_i2i_analysis_reset'), type='info')
                     
-                    ui.button('Réinitialiser par défaut', on_click=reset_i2i_analysis_prompt).props('flat dense').classes('text-xs')
-                    ui.label('💡 Ce prompt guide l\'analyse Vision API après chaque génération i2i').classes('text-xs text-gray-500')
+                    ui.button(t('image_btn_reset_default'), on_click=reset_i2i_analysis_prompt).props('flat dense').classes('text-xs')
+                    ui.label(t('image_label_i2i_analysis_note')).classes('text-xs text-gray-500')
 
             # Résumé des providers
             with ui.card().classes('q-dark p-4').style('background: rgba(212, 175, 55, 0.1); border-left: 3px solid #d4af37;'):
-                ui.label('📊 Comparatif des Providers').classes('font-semibold mb-3').style('color: #d4af37;')
+                ui.label(t('image_section_comparison')).classes('font-semibold mb-3').style('color: #d4af37;')
                 
                 with ui.element('table').classes('w-full text-sm'):
                     with ui.element('tr').classes('border-b border-gray-600'):
@@ -2220,7 +2150,7 @@ Score < 6 = à refaire. Sois EXIGEANTE."""
                         ui.element('td').classes('p-2').add_slot('default', '~$0.02/img')
                 
                 # Section Kie.ai détaillée
-                ui.label('⚡ Modèles Kie.ai').classes('font-semibold mt-4 mb-2').style('color: #a855f7;')
+                ui.label(t('image_label_kie_models')).classes('font-semibold mt-4 mb-2').style('color: #a855f7;')
                 
                 with ui.element('table').classes('w-full text-sm'):
                     with ui.element('tr').classes('border-b border-gray-600'):
@@ -2273,7 +2203,7 @@ Score < 6 = à refaire. Sois EXIGEANTE."""
 
         # Boutons d'action
         with ui.row().classes('gap-2 mt-4 justify-end w-full'):
-            ui.button('Annuler', on_click=d.close).classes('action-button')
+            ui.button(t('image_btn_cancel'), on_click=d.close).classes('action-button')
 
             def save_config():
                 # Sauvegarder les clés API dans le vault
@@ -2390,9 +2320,9 @@ Score < 6 = à refaire. Sois EXIGEANTE."""
                 except ImportError as e:
                     print(f"[IMAGE-CONFIG] ⚠️ Extension text2img non disponible: {e}")
 
-                ui.notify('✅ Configuration sauvegardée', type='positive')
+                ui.notify(t('image_notify_save_ok'), type='positive')
                 d.close()
 
-            ui.button('Sauvegarder', on_click=save_config).classes('primary-action-button')
+            ui.button(t('image_btn_save'), on_click=save_config).classes('primary-action-button')
 
     return d

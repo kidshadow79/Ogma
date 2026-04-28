@@ -177,4 +177,116 @@ Le `cognitive_cache` d'OGMA est conceptuellement très proche — cache sémanti
 
 ---
 
+## CONCEPT 04 — Outil de Captionning Guidé pour LoRA (LoRA Dataset Builder)
+**Date** : 25 avril 2026  
+**Statut** : 💡 Idée originale validée — projet indépendant à fort potentiel communautaire
+
+### L'idée
+Un outil web/desktop qui automatise la création de datasets d'entraînement pour LoRAs image (FLUX, SDXL, WAN...). L'utilisateur définit via un formulaire ce qu'il veut que le LoRA retienne (visage, mains, style, etc.), uploade ses images, et l'outil génère automatiquement les paires `image.jpg + image.txt` prêtes pour kohya_ss ou CivitAI Training.
+
+**Problème résolu** : aujourd'hui les créateurs de LoRAs écrivent les captions à la main ou utilisent des outils génériques (Joy Caption) qui décrivent tout sans intention. Le manque c'est l'**intention guidée** — "je veux capturer X, ignorer Y".
+
+### Pipeline technique
+```
+[Formulaire]  →  focus : "visage, mains"
+                 trigger word : "yw_person"
+                 modèle cible : FLUX.1 / SDXL / WAN
+
+[Upload images]  →  stockées temporairement
+
+[Molmo2 via API Wavespeed]  →  description visuelle brute orientée
+                                ($0.002/image, REST simple)
+
+[LLM reformateur]  →  reçoit description brute + contexte formulaire
+                       produit la caption LoRA ciblée avec trigger word
+
+[Export ZIP]  →  dossier prêt pour kohya / CivitAI :
+                  image_001.jpg + image_001.txt
+                  image_002.jpg + image_002.txt
+                  ...
+```
+
+### Format de caption LoRA idéal (exemple visage)
+
+**Prompt Molmo2 orienté** :
+> *"Describe only the person. Focus exclusively on: face shape, skin tone, eye color and shape, eyebrow style, nose, lips, hair color, hair texture, hair length. Ignore clothing, background, objects."*
+
+**Caption finale produite** :
+> `yw_woman, young woman, oval face, light olive skin, dark brown almond eyes, thick arched eyebrows, full lips, long dark brown hair, detailed face, photorealistic, portrait`
+
+### Règle d'or du captionning ciblé
+| Élément | Dans la caption ? |
+|---|---|
+| Visage détaillé (si focus visage) | ✅ Toujours, avec précision |
+| Vêtements | ✅ 2-3 mots maximum |
+| Fond / lieu | ✅ 1 mot (outdoor, bar, studio) |
+| Émotions figées (smiling) | ⚠️ Seulement si constant sur toutes les images |
+| Accessoires non constants | ❌ À éviter |
+
+**Principe** : le LoRA apprend par superposition similarités/différences. Ce qui est constant entre toutes les images = ce qui est encodé. Décrire avec la même densité tous les éléments dilue le signal de l'élément cible.
+
+### Compatibilité
+- **kohya_ss** : format natif (dossier image + txt)
+- **CivitAI Training** : zip upload direct, même format
+- **SimpleTuner / AI-Toolkit** : même format
+
+### Stack technique envisagée
+- **Backend** : Python + FastAPI
+- **Vision** : `wavespeed-ai/molmo2/image-captioner` (3 niveaux : low/medium/high, $0.002/img)
+- **Reformatage** : GPT-4o mini ou Mistral (Molmo2 = les yeux, LLM = le rédacteur ciblé)
+- **UI** : NiceGUI ou Gradio
+- **Export** : ZIP généré côté serveur
+
+### Distribution potentielle
+- GitHub + post CivitAI section "Tools"
+- Communauté r/StableDiffusion, r/LocalLLaMA
+- Version locale (Python) ou SaaS léger (quota API à l'usage)
+
+---
+
+## CONCEPT 05 — Assistant IA Permanent sur Android (Edge AI)
+**Date** : 25 avril 2026  
+**Statut** : 💡 Idée exploratoire — dépend de la maturité des SDK Gemma mobile
+
+### L'idée
+Un assistant IA qui tourne **nativement sur un téléphone Android**, sans dépendance cloud, disponible en permanence même hors ligne. Basé sur Gemma 4 de Google, optimisé pour les SoC mobiles (Snapdragon/Tensor/Kirin).
+
+Ce n'est pas un accès à un LLM distant (comme l'app Gemini) — c'est un modèle qui **vit sur le téléphone**.
+
+### Ce que ça change fondamentalement
+| Approche actuelle | Edge AI |
+|---|---|
+| Requiert internet | Fonctionne hors ligne |
+| Données envoyées au cloud | 100% privé, données sur device |
+| Coût par requête | Zéro coût d'inférence |
+| Latence réseau | Réponse en millisecondes |
+
+### Modèles réalistes selon hardware
+| Modèle | Faisabilité sur Kirin 980 / 8GB RAM |
+|---|---|
+| Gemma 4 1B (quantisé 4-bit) | ✅ Confortable |
+| Gemma 4 2B (quantisé 4-bit) | ✅ Fonctionnel, légèrement lent |
+| Gemma 4 4B+ | ❌ Trop lourd |
+
+### SDK / frameworks possibles
+- **Google AI Edge / MediaPipe** (officiel, nécessite Google Play Services)
+- **MLC-LLM** : framework open-source, pas de dépendance Google
+- **llama.cpp Android** : via Termux ou app native, très flexible
+
+### Vision à deux niveaux
+
+**Niveau 1 — Standalone** : assistant personnel sur téléphone, répond à des questions, accède au contexte local (agenda, notes, messages).
+
+**Niveau 2 — Interface mobile d'OGMA** : quand le téléphone est sur WiFi, se synchronise avec OGMA (mémoire persistante, historique, contexte long). Le modèle mobile = interface légère. OGMA = cerveau étendu.
+
+```
+[Hors ligne]  →  Gemma 4 local sur device  →  réponses légères
+[Sur WiFi]    →  Gemma 4 + sync OGMA       →  mémoire longue + personnalité complète
+```
+
+### Lien avec OGMA
+Ce concept est naturellement complémentaire à OGMA plutôt que concurrent. OGMA reste le cerveau principal (PC, mémoire longue, Archiviste) ; l'app mobile est sa **présence mobile légère** — toujours disponible, avec accès partiel à la mémoire quand connecté.
+
+---
+
 *Prochaines idées à documenter ici au fil du brainstorming*

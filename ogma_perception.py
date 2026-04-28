@@ -10,6 +10,12 @@ CONTIENT :
 
 from nicegui import ui
 
+try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
 # Import du style depuis ogma_displays
 try:
     from ogma_displays import _link_styles
@@ -75,18 +81,18 @@ def perception_page():
         
         # Header
         with ui.row().classes('w-full items-center justify-between'):
-            ui.label('🎥 Perception Agent').classes('text-3xl font-bold')
+            ui.label(t('perc_title')).classes('text-3xl font-bold')
             
             with ui.row().classes('gap-2'):
                 # Switch ON/OFF
                 perception_toggle = ui.switch(
-                    text='Extension',
+                    text=t('perc_switch_extension'),
                     value=perception_ui.is_enabled
                 ).props('color="green"')
                 
                 # Bouton fermer popup
                 ui.button(
-                    'Fermer', 
+                    t('perc_btn_close'), 
                     icon='close',
                     on_click=lambda: ui.run_javascript('window.close();')
                 ).props('outline color="negative"')
@@ -96,12 +102,12 @@ def perception_page():
             
             # COLONNE GAUCHE: Webcam display (réduite de 40% comme demandé)
             with ui.column().style('flex: 1.2; min-width: 400px; max-width: 600px; gap: 12px;'):
-                ui.label('👁️ Eye Vision').classes('text-xl font-semibold')
+                ui.label(t('perc_section_vision')).classes('text-xl font-semibold')
                 
                 # Webcam container (hauteur réduite)
                 with ui.card().classes('w-full').style('background: #000; padding: 0; min-height: 300px; max-height: 400px;'):
                     webcam_display = ui.image().classes('w-full').style('object-fit: contain;')
-                    webcam_placeholder = ui.label('📷 Webcam non active').classes('absolute-center text-gray-400')
+                    webcam_placeholder = ui.label(t('perc_placeholder_webcam')).classes('absolute-center text-gray-400')
                 
                 # Status bar
                 with ui.row().classes('items-center gap-2'):
@@ -112,40 +118,40 @@ def perception_page():
                         background: #dc2626;
                         box-shadow: 0 0 8px rgba(220, 38, 38, 0.6);
                     ''')
-                    status_label = ui.label('Inactif').classes('text-sm')
+                    status_label = ui.label(t('perc_status_inactive')).classes('text-sm')
                 
                 # Boutons action
                 with ui.row().classes('gap-2'):
                     capture_btn = ui.button(
-                        '📸 Capturer', 
+                        t('perc_btn_capture'), 
                         icon='camera'
                     ).props('color="primary"')
                     
                     motion_btn = ui.button(
-                        '🎬 Chronophoto',
+                        t('perc_btn_chrono'),
                         icon='video_library'
                     ).props('color="purple" outline')
             
             # COLONNE DROITE: Contrôles (scrollable si nécessaire)
             with ui.column().style('flex: 1; min-width: 350px; max-width: 450px; gap: 16px;'):
-                ui.label('⚙️ Paramètres').classes('text-xl font-semibold')
+                ui.label(t('perc_section_params')).classes('text-xl font-semibold')
                 
                 with ui.card().classes('w-full'):
                     with ui.column().style('gap: 12px; padding: 12px;'):
                         
                         # Mode capture
-                        ui.label('Mode de capture').classes('text-sm font-medium text-gray-400')
+                        ui.label(t('perc_label_capture_mode')).classes('text-sm font-medium text-gray-400')
                         motion_toggle = ui.switch(
-                            text='🎬 Mode Pellicule', 
+                            text=t('perc_switch_film_mode'), 
                             value=perception_ui.current_config.get('motion_capture_enabled', False)
                         ).props('color="purple"')
                         
                         ui.separator()
                         
                         # Délai capture
-                        ui.label('Délai avant capture').classes('text-sm font-medium text-gray-400')
+                        ui.label(t('perc_label_capture_delay')).classes('text-sm font-medium text-gray-400')
                         with ui.row().classes('items-center justify-between w-full'):
-                            ui.label('Délai:').classes('text-sm')
+                            ui.label(t('perc_label_delay')).classes('text-sm')
                             capture_delay_label = ui.label(
                                 f"{perception_ui.current_config.get('capture_delay', 0.0):.1f}s"
                             ).classes('text-sm text-gray-400')
@@ -158,11 +164,11 @@ def perception_page():
                         motion_params = ui.column().style('gap: 12px;')
                         with motion_params:
                             ui.separator()
-                            ui.label('Paramètres Pellicule').classes('text-sm font-medium text-gray-400')
+                            ui.label(t('perc_label_film_params')).classes('text-sm font-medium text-gray-400')
                             
                             # Intervalle entre images
                             with ui.row().classes('items-center justify-between w-full'):
-                                ui.label('Intervalle:').classes('text-sm')
+                                ui.label(t('perc_label_interval')).classes('text-sm')
                                 motion_interval_label = ui.label(
                                     f"{perception_ui.current_config.get('motion_interval', 0.5):.1f}s"
                                 ).classes('text-sm text-gray-400')
@@ -173,7 +179,7 @@ def perception_page():
                             
                             # Nombre d'images (jusqu'à 20)
                             with ui.row().classes('items-center justify-between w-full'):
-                                ui.label('Nombre d\'images:').classes('text-sm')
+                                ui.label(t('perc_label_num_frames')).classes('text-sm')
                                 frames_count_label = ui.label(
                                     f"{perception_ui.current_config.get('motion_frames_after', 6)}"
                                 ).classes('text-sm text-gray-400')
@@ -184,7 +190,7 @@ def perception_page():
                             
                             # Durée totale calculée
                             with ui.row().classes('items-center justify-between w-full'):
-                                ui.label('Durée totale:').classes('text-sm')
+                                ui.label(t('perc_label_total_duration')).classes('text-sm')
                                 initial_duration = (
                                     perception_ui.current_config.get('motion_frames_after', 6) - 1
                                 ) * perception_ui.current_config.get('motion_interval', 0.5)
@@ -192,7 +198,7 @@ def perception_page():
                             
                             # Layout (jusqu'à 4x5)
                             with ui.row().classes('items-center justify-between w-full'):
-                                ui.label('Layout:').classes('text-sm')
+                                ui.label(t('perc_label_layout')).classes('text-sm')
                                 layout_select = ui.select(
                                     options={
                                         '2x2': '2×2 (4)', '3x2': '3×2 (6)', '2x3': '2×3 (6)',
@@ -206,32 +212,32 @@ def perception_page():
                             
                             # Options chronophoto avancées
                             ui.separator()
-                            ui.label('Options affichage').classes('text-xs font-medium text-gray-500')
+                            ui.label(t('perc_label_display_options')).classes('text-xs font-medium text-gray-500')
                             
                             timeline_toggle = ui.switch(
-                                text='Timeline temporelle',
+                                text=t('perc_switch_timeline'),
                                 value=perception_ui.current_config.get('motion_timeline', False)
                             ).props('color="purple" dense').classes('text-xs')
                             
                             annotations_toggle = ui.switch(
-                                text='Annotations temps',
+                                text=t('perc_switch_annotations'),
                                 value=perception_ui.current_config.get('motion_annotations', False)
                             ).props('color="purple" dense').classes('text-xs')
                         
                         ui.separator()
                         
                         # Sauvegarde captures
-                        ui.label('Sauvegarde').classes('text-sm font-medium text-gray-400')
+                        ui.label(t('perc_label_save_section')).classes('text-sm font-medium text-gray-400')
                         save_captures_toggle = ui.switch(
-                            text='💾 Sauvegarder captures localement',
+                            text=t('perc_switch_save_local'),
                             value=perception_ui.current_config.get('save_captures', False)
                         ).props('color="amber"')
-                        ui.label('📁 Dossier: ./captures/').classes('text-xs text-gray-500')
+                        ui.label(t('perc_label_folder')).classes('text-xs text-gray-500')
                         
                         ui.separator()
                         
                         # Source caméra
-                        ui.label('Source & Qualité').classes('text-sm font-medium text-gray-400')
+                        ui.label(t('perc_label_source')).classes('text-sm font-medium text-gray-400')
                         
                         # Détection dynamique des caméras disponibles
                         def detect_cameras():
@@ -244,7 +250,7 @@ def perception_page():
                         
                         # Container pour la sélection de caméra avec bouton refresh
                         with ui.row().classes('items-center justify-between w-full gap-2'):
-                            ui.label('Caméra:').classes('text-sm')
+                            ui.label(t('perc_label_camera')).classes('text-sm')
                             
                             # Select avec détection dynamique
                             camera_options = detect_cameras()
@@ -281,14 +287,14 @@ def perception_page():
                         
                         # Option résolution native
                         use_native_toggle = ui.switch(
-                            text='📐 Utiliser résolution native de la source',
+                            text=t('perc_switch_native_res'),
                             value=perception_ui.current_config.get('use_native_resolution', False)
                         ).props('color="cyan"')
-                        ui.label('✨ Préserve la taille exacte de la source (pas de redimensionnement)').classes('text-xs text-gray-500')
+                        ui.label(t('perc_hint_native_res')).classes('text-xs text-gray-500')
                         
                         # Résolution (désactivée en mode chirurgical OU si résolution native)
                         with ui.row().classes('items-center justify-between w-full'):
-                            ui.label('Résolution Stream:').classes('text-sm')
+                            ui.label(t('perc_label_resolution')).classes('text-sm')
                             resolution_select = ui.select(
                                 options={'320x240': '320p', '640x480': '480p', '1280x720': '720p', '1920x1080': '1080p'},
                                 value=perception_ui.current_config.get('capture_resolution', '640x480')
@@ -296,21 +302,21 @@ def perception_page():
                         
                         # Indicateur mode actif
                         resolution_hint = ui.label(
-                            '💡 En mode Normal, choisissez résolution selon besoin'
+                            t('perc_hint_resolution')
                         ).classes('text-xs text-gray-400 italic')
                         
                         # Paramètres avancés
-                        with ui.expansion('Paramètres avancés', icon='settings').classes('w-full'):
+                        with ui.expansion(t('perc_expansion_advanced'), icon='settings').classes('w-full'):
                             with ui.column().style('gap: 12px; padding: 8px;'):
                                 # === VISION AVANCÉE (Regroupée) ===
-                                ui.label('👁️ Vision Avancée').classes('text-sm font-bold text-purple-400 mb-1')
-                                ui.label('Activer un ou plusieurs modes. Si les deux sont activés, une image 3 colonnes est générée.').classes('text-xs text-gray-400 mb-2')
+                                ui.label(t('perc_adv_vision_title')).classes('text-sm font-bold text-purple-400 mb-1')
+                                ui.label(t('perc_adv_vision_hint')).classes('text-xs text-gray-400 mb-2')
                                 
                                 # Depth Map
                                 with ui.row().classes('items-center justify-between w-full').style('background: #2d1b4e; padding: 12px; border-radius: 8px;'):
                                     with ui.column().style('gap: 4px;'):
-                                        ui.label('🌊 Depth Map').classes('text-sm font-bold text-purple-300')
-                                        ui.label('Carte de profondeur 3D').classes('text-xs text-gray-400')
+                                        ui.label(t('perc_adv_depth_label')).classes('text-sm font-bold text-purple-300')
+                                        ui.label(t('perc_adv_depth_desc')).classes('text-xs text-gray-400')
                                     
                                     depth_switch = ui.switch(
                                         value=perception_ui.current_config.get('enable_depth', False)
@@ -319,8 +325,8 @@ def perception_page():
                                 # Analyse Contours
                                 with ui.row().classes('items-center justify-between w-full').style('background: #1e3a1e; padding: 12px; border-radius: 8px;'):
                                     with ui.column().style('gap: 4px;'):
-                                        ui.label('✏️ Analyse Contours').classes('text-sm font-bold text-green-400')
-                                        ui.label('Détection Canny/Sobel - Tracés rouges épais (Unfiltered total)').classes('text-xs text-gray-400')
+                                        ui.label(t('perc_adv_contour_label')).classes('text-sm font-bold text-green-400')
+                                        ui.label(t('perc_adv_contour_desc')).classes('text-xs text-gray-400')
                                     
                                     contour_switch = ui.switch(
                                         value=perception_ui.current_config.get('enable_contour', False)
@@ -328,7 +334,7 @@ def perception_page():
                                 
                                 # Options détaillées Contours (visible si contour activé)
                                 with ui.column().style('gap: 8px; padding-left: 20px; margin-top: 4px;').bind_visibility_from(contour_switch, 'value'):
-                                    ui.label('Méthodes de détection :').classes('text-xs text-gray-400')
+                                    ui.label(t('perc_adv_methods_label')).classes('text-xs text-gray-400')
                                     with ui.row().classes('gap-4'):
                                         contour_canny_cb = ui.checkbox(
                                             'Canny',
@@ -346,33 +352,33 @@ def perception_page():
                                         ).props('dense color="yellow"').classes('text-xs')
                                         
                                         contour_adaptive_cb = ui.checkbox(
-                                            'Adaptatif',
+                                            t('perc_adv_adaptatif'),
                                             value=perception_ui.current_config.get('contour_adaptive', False)
                                         ).props('dense color="blue"').classes('text-xs')
                                     
-                                    ui.label('Paramètres Canny :').classes('text-xs text-gray-400 mt-2')
+                                    ui.label(t('perc_adv_canny_params')).classes('text-xs text-gray-400 mt-2')
                                     with ui.row().classes('gap-4 items-center'):
-                                        ui.label('Seuil bas:').classes('text-xs')
+                                        ui.label(t('perc_adv_low_threshold')).classes('text-xs')
                                         contour_canny_low = ui.slider(
                                             min=0, max=255, step=10,
                                             value=perception_ui.current_config.get('contour_canny_low', 50)
                                         ).props('dense').classes('w-24')
                                         
-                                        ui.label('Seuil haut:').classes('text-xs')
+                                        ui.label(t('perc_adv_high_threshold')).classes('text-xs')
                                         contour_canny_high = ui.slider(
                                             min=0, max=255, step=10,
                                             value=perception_ui.current_config.get('contour_canny_high', 150)
                                         ).props('dense').classes('w-24')
                                         
-                                        ui.label('Épaisseur:').classes('text-xs')
+                                        ui.label(t('perc_adv_thickness')).classes('text-xs')
                                         contour_thickness = ui.slider(
                                             min=1, max=10, step=1,
                                             value=perception_ui.current_config.get('contour_thickness', 2)
                                         ).props('dense').classes('w-20')
                                     
-                                    ui.label('Mode rendu:').classes('text-xs text-gray-400 mt-1')
+                                    ui.label(t('perc_adv_render_mode')).classes('text-xs text-gray-400 mt-1')
                                     contour_render_mode = ui.select(
-                                        options={'overlay': 'Superposé', 'black_bg': 'Fond noir', 'white_bg': 'Fond blanc'},
+                                        options={'overlay': t('perc_adv_overlay'), 'black_bg': t('perc_adv_black_bg'), 'white_bg': t('perc_adv_white_bg')},
                                         value=perception_ui.current_config.get('contour_render_mode', 'overlay')
                                     ).props('dense').classes('w-32')
                                 
@@ -381,11 +387,11 @@ def perception_page():
                                 # Mode Chirurgical 🆕
                                 with ui.row().classes('items-center justify-between w-full').style('background: #1e293b; padding: 12px; border-radius: 8px;'):
                                     with ui.column().style('gap: 4px;'):
-                                        ui.label('🔬 Mode Chirurgical').classes('text-sm font-bold text-blue-400')
-                                        ui.label('Optimisé pour voir détails et captures haute précision').classes('text-xs text-gray-400')
-                                        ui.label('• Stream: 720p @ 80% qualité @ 15 FPS max').classes('text-xs text-gray-500')
-                                        ui.label('• Captures: 1080p natif @ 95% qualité').classes('text-xs text-gray-500')
-                                        ui.label('• CPU: Équivalent mode normal (moins de pixels/s)').classes('text-xs text-green-500')
+                                        ui.label(t('perc_adv_surgical_label')).classes('text-sm font-bold text-blue-400')
+                                        ui.label(t('perc_adv_surgical_desc')).classes('text-xs text-gray-400')
+                                        ui.label(t('perc_adv_surgical_stream')).classes('text-xs text-gray-500')
+                                        ui.label(t('perc_adv_surgical_captures')).classes('text-xs text-gray-500')
+                                        ui.label(t('perc_adv_surgical_cpu')).classes('text-xs text-green-500')
                                     surgical_mode_switch = ui.switch(
                                         value=perception_ui.current_config.get('surgical_mode', False)
                                     ).props('color="blue"')
@@ -393,9 +399,9 @@ def perception_page():
                                 ui.separator()
                                 
                                 # FPS Preview
-                                ui.label('💡 FPS affichage = fluidité stream (15-30 recommandé)').classes('text-xs text-gray-400 italic')
+                                ui.label(t('perc_adv_fps_hint')).classes('text-xs text-gray-400 italic')
                                 with ui.row().classes('items-center justify-between w-full'):
-                                    ui.label('FPS Preview:').classes('text-xs')
+                                    ui.label(t('perc_adv_fps_label')).classes('text-xs')
                                     display_fps_label = ui.label(
                                         f"{perception_ui.current_config.get('display_fps', 15)} fps"
                                     ).classes('text-xs text-gray-400')
@@ -405,9 +411,9 @@ def perception_page():
                                 ).props('label-always color="blue"').classes('w-full')
                                 
                                 # Qualité Stream 🆕
-                                ui.label('💡 Qualité Stream = compromis fluidité/netteté (75% optimal)').classes('text-xs text-gray-400 italic')
+                                ui.label(t('perc_adv_stream_quality_hint')).classes('text-xs text-gray-400 italic')
                                 with ui.row().classes('items-center justify-between w-full'):
-                                    ui.label('Qualité Stream:').classes('text-xs')
+                                    ui.label(t('perc_adv_stream_quality_label')).classes('text-xs')
                                     stream_quality_label = ui.label(
                                         f"{perception_ui.current_config.get('stream_quality', 75)}%"
                                     ).classes('text-xs text-gray-400')
@@ -417,9 +423,9 @@ def perception_page():
                                 ).props('label-always color="cyan"').classes('w-full')
                                 
                                 # Qualité JPEG Capture (renommé)
-                                ui.label('💡 Qualité Capture IA = précision analyse (85-95% selon mode)').classes('text-xs text-gray-400 italic')
+                                ui.label(t('perc_adv_capture_quality_hint')).classes('text-xs text-gray-400 italic')
                                 with ui.row().classes('items-center justify-between w-full'):
-                                    ui.label('Qualité Capture IA:').classes('text-xs')
+                                    ui.label(t('perc_adv_capture_quality_label')).classes('text-xs')
                                     jpeg_quality_label = ui.label(
                                         f"{perception_ui.current_config.get('jpeg_quality', 85)}%"
                                     ).classes('text-xs text-gray-400')
@@ -431,7 +437,7 @@ def perception_page():
                 # Bouton Sauvegarder en bas de la card
                 with ui.row().classes('w-full justify-center').style('margin-top: 16px;'):
                     save_btn = ui.button(
-                        '💾 Sauvegarder Configuration', 
+                        t('perc_btn_save_config'), 
                         icon='save'
                     ).props('color="positive"').classes('w-full')
     
@@ -466,16 +472,16 @@ def perception_page():
                 status = perception_ui.perception_agent.status
                 if status == 'active':
                     status_dot.style('background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);')
-                    status_label.set_text('Actif')
+                    status_label.set_text(t('perc_status_active'))
                 elif status == 'warming_up':
                     status_dot.style('background: #eab308; box-shadow: 0 0 8px rgba(234, 179, 8, 0.6);')
-                    status_label.set_text('Initialisation...')
+                    status_label.set_text(t('perc_status_init'))
                 else:
                     status_dot.style('background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.6);')
-                    status_label.set_text('Inactif')
+                    status_label.set_text(t('perc_status_inactive'))
             else:
                 status_dot.style('background: #dc2626; box-shadow: 0 0 8px rgba(220, 38, 38, 0.6);')
-                status_label.set_text('Désactivé')
+                status_label.set_text(t('perc_status_disabled'))
                 
         except Exception as e:
             print(f"[PERCEPTION-PAGE] ⚠️ Erreur update: {e}")

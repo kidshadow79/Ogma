@@ -13,6 +13,12 @@ import asyncio
 import time
 
 try:
+    from utils.i18n import t
+except Exception:
+    def t(key, **kwargs):
+        return key
+
+try:
     from nicegui import ui
     NICEGUI_AVAILABLE = True
 except ImportError:
@@ -414,7 +420,7 @@ class IntrospectionBox:
             with ui.row().classes('w-full items-center justify-between').style('margin-bottom: 12px;'):
                 with ui.row().classes('items-center gap-2'):
                     ui.icon('psychology', size='24px').style(f'color: {COLORS["conscious"]};')
-                    ui.label('Introspection').style(f'''
+                    ui.label(t('cm_disp_label_introspection')).style(f'''
                         color: {COLORS["text"]};
                         font-size: 16px;
                         font-weight: 600;
