@@ -17,6 +17,7 @@ except Exception:
 
 from pathlib import Path
 import asyncio
+from utils.i18n import t, get_lang, set_lang, reload_strings
 from typing import Optional, Tuple, List, Dict, cast, Any, Callable
 import queue
 import re
@@ -1370,7 +1371,7 @@ def _remove_image(index: int):
         print(f"[IMAGES] ❌ Image {index + 1} supprimée: {filename}")
         _update_file_tab_display()
         try:
-            ui.notify(f'Image {index + 1} supprimée', type='info')
+            ui.notify(t('main_notify_image_removed', index=index + 1), type='info')
         except RuntimeError:
             # Le slot parent a été supprimé lors de _update_file_tab_display
             print(f'[INFO] Image {index + 1} supprimée: {filename}')
@@ -1381,7 +1382,7 @@ def _remove_active_file():
     _active_file_data = None
     _update_file_tab_display()  # Met à jour l'onglet sous la messagerie
     try:
-        ui.notify('Fichier supprimé de la conversation', type='info')
+        ui.notify(t('main_notify_file_removed'), type='info')
     except:
         print('[INFO] Fichier supprimé de la conversation')
 
@@ -1391,7 +1392,7 @@ def _clear_all_active_images():
     _active_images = []
     _update_file_tab_display()
     try:
-        ui.notify('Images supprimées de la conversation', type='info')
+        ui.notify(t('main_notify_images_removed'), type='info')
     except:
         print('[INFO] Images supprimées de la conversation')
 
@@ -1423,7 +1424,7 @@ async def _process_uploaded_file(upload_event):
             if is_image:
                 # Mode multi-images pour les images
                 if len(_active_images) >= MAX_IMAGES:
-                    ui.notify(f'Maximum {MAX_IMAGES} images atteint. Supprimez une image d\'abord.', type='warning')
+                    ui.notify(t('main_notify_max_images', max=MAX_IMAGES), type='warning')
                     print(f'[WARNING] Maximum {MAX_IMAGES} images déjà uploadées')
                     return
                 
@@ -1432,7 +1433,7 @@ async def _process_uploaded_file(upload_event):
                 # Différer le refresh pour éviter l'erreur "parent element deleted"
                 ui.timer(0.1, lambda: _update_file_tab_display(), once=True)
                 print(f'[SUCCESS] Image "{upload_event.name}" ajoutée ({len(_active_images)}/{MAX_IMAGES})')
-                ui.notify(f'Image {len(_active_images)}/{MAX_IMAGES} ajoutée', type='positive')
+                ui.notify(t('main_notify_image_added', count=len(_active_images), max=MAX_IMAGES), type='positive')
             else:
                 # Fichier texte - remplace le précédent comme avant
                 _active_file_data = file_data
@@ -1450,11 +1451,11 @@ def _show_file_upload_dialog():
         with ui.card().classes('popup-content'):
             ui.html('<div class="popup-title">📎 Ajouter un fichier</div>')
             
-            ui.label('Formats supportés: PDF, DOCX, TXT, MD, JSON, Images (JPG, PNG, WebP, GIF)').classes('text-sm text-gray-400 mb-4')
+            ui.label(t('main_upload_formats')).classes('text-sm text-gray-400 mb-4')
             
             # Zone d'upload
             with ui.element().style('border: 2px dashed #4a4a4a; border-radius: 8px; padding: 40px; text-align: center; margin: 20px 0;'):
-                ui.label('Glissez-déposez votre fichier ici ou cliquez pour sélectionner').classes('text-gray-400')
+                ui.label(t('main_upload_dropzone')).classes('text-gray-400')
                 upload_area = ui.upload(
                     on_upload=lambda e: _handle_upload_and_close(e, dialog),
                     multiple=False,
@@ -1462,7 +1463,7 @@ def _show_file_upload_dialog():
                 ).classes('mt-4')
             
             with ui.row().classes('justify-end gap-2 mt-4'):
-                ui.button('Annuler', on_click=dialog.close).classes('action-button')
+                ui.button(t('common_cancel'), on_click=dialog.close).classes('action-button')
     
     dialog.open()
 
@@ -1850,7 +1851,7 @@ async def _request_stop():
         print(f"[STOP] ⚠️ Erreur stop TTS: {e}")
     
     try:
-        ui.notify('⏹️ Arrêt demandé...', type='warning', timeout=2000)
+        ui.notify(t('main_notify_stop_requested'), type='warning', timeout=2000)
     except:
         pass
     # Feedback visuel sur le bouton
@@ -2185,6 +2186,13 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
     if not text:
         print(f"[SEND-CHAT-DEBUG] Texte vide, return")
         return
+
+    # 🌐 NORMALIZER: Convertir phrases magiques EN → FR avant tout check d'extension
+    try:
+        from utils.magic_phrase_normalizer import normalize_magic_phrases
+        text = normalize_magic_phrases(text)
+    except Exception as _norm_err:
+        print(f"[NORMALIZER] ⚠️ Erreur normalisation message: {_norm_err}")
 
     # MODE ÉDITION: Si _editing_message_index est défini, on édite un message existant
     was_editing = False
@@ -2547,6 +2555,12 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                         
                         for scan_text in texts_to_scan:
                             try:
+                                # 🌐 NORMALIZER: Convertir phrases magiques EN → FR avant scan
+                                try:
+                                    from utils.magic_phrase_normalizer import normalize_magic_phrases as _norm_scan
+                                    scan_text = _norm_scan(scan_text)
+                                except Exception as _norm_err:
+                                    print(f"[NORMALIZER] Erreur normalisation introspection: {_norm_err}")
                                 # 1. Phrases magiques mémoire
                                 magic_ai = _extract_magic_memories(scan_text)
                                 if magic_ai:
@@ -4334,7 +4348,7 @@ Réponds naturellement en tenant compte de cette histoire partagée."""
                                     ):
                                         with ui.row().classes('items-center gap-2 mb-2'):
                                             ui.html('<span style="font-size: 20px;">🌅</span>')
-                                            ui.label('Rêve de cette nuit').style('color: #b19cd9; font-weight: bold; font-size: 13px;')
+                                            ui.label(t('main_label_dream_tonight')).style('color: #b19cd9; font-weight: bold; font-size: 13px;')
                                         
                                         # Image avec tooltip et copie prompt
                                         # Utiliser json.dumps pour échapper proprement l'attribut data-prompt
@@ -5219,6 +5233,10 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                 r"je\s+vais\s+(?:faire\s+une\s+)?introspection",
                 r"je\s+lance\s+(?:une\s+)?introspection",
                 r"(?:moment|temps)\s+(?:de\s+)?(?:r[ée]flexion|introspection)",
+                # Patterns EN (pour réponse IA en anglais avant normalisation)
+                r"I\s+need\s+to\s+reflect\s+on",
+                r"I\s+need\s+to\s+think\s+about",
+                r"I\s+(?:need|want)\s+to\s+(?:do|run|start|trigger)\s+(?:an?\s+)?introspection",
             ]
             
             is_ia_introspection_trigger = any(re.search(pattern, reply_text, re.IGNORECASE) for pattern in introspection_self_patterns)
@@ -6290,6 +6308,12 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
             print(f"[MAGIC-DEBUG] Contenu: {cleaned_reply[:100]}...{cleaned_reply[-100:] if len(cleaned_reply) > 100 else ''}")
         
         # 1. Détection "phrase magique" dans la réponse IA et mémorisation
+        # 🌐 NORMALIZER: Convertir phrases magiques EN → FR avant scan réponse IA
+        try:
+            from utils.magic_phrase_normalizer import normalize_magic_phrases
+            cleaned_reply = normalize_magic_phrases(cleaned_reply)
+        except Exception as _norm_err:
+            print(f"[NORMALIZER] ⚠️ Erreur normalisation réponse: {_norm_err}")
         magic_ai = _extract_magic_memories(cleaned_reply)
         if magic_ai:
             print(f"[MAGIC-DEBUG] Phrases détectées: {magic_ai}")
@@ -6870,7 +6894,7 @@ async def _start_audio_recording(input_field, mic_button):
         # ARRÊT de l'enregistrement
         _is_recording = False
         mic_button.props('icon=mic color=primary loading=true')
-        mic_button.props('title="UPDATE Traitement en cours..."')
+        mic_button.props(f'title="{t("tooltip_voice_processing")}"')
         _pending_notifications.append(("🔴 Enregistrement arrêté - Transcription...", 'info'))
         
         # Arrêter l'enregistrement manuel dans AudioManager
@@ -6883,7 +6907,7 @@ async def _start_audio_recording(input_field, mic_button):
     try:
         _is_recording = True
         mic_button.props('icon=stop color=red loading=false')
-        mic_button.props('title="🔴 ENREGISTREMENT EN COURS - Cliquez pour ARRÊTER"')
+        mic_button.props(f'title="{t("tooltip_voice_recording")}"')
         _pending_notifications.append(("🔴 Enregistrement démarré - Parlez maintenant, cliquez pour arrêter", 'info'))
         
         audio_mgr = _ensure_audio_manager()
@@ -6913,7 +6937,7 @@ async def _start_audio_recording(input_field, mic_button):
     finally:
         _is_recording = False
         mic_button.props('icon=mic color=primary loading=false')
-        mic_button.props('title="🎙️ Cliquez pour enregistrer un message vocal"')
+        mic_button.props(f'title="{t("btn_record_voice")}"')
         _pending_notifications.append(("🔴 Enregistrement terminé", 'info'))
 
 
@@ -7414,11 +7438,11 @@ def _show_representation_upload_dialog(is_user: bool):
         with ui.card().classes('popup-content'):
             ui.html(f'<div class="popup-title">{title}</div>')
             
-            ui.label('Cette image sera utilisée pour vous représenter dans les générations.').classes('text-sm text-gray-400 mb-2')
+            ui.label(t('main_user_image_label')).classes('text-sm text-gray-400 mb-2')
             ui.label(f'Dossier: {target_dir}').classes('text-xs text-gray-500 mb-4')
             
             with ui.element().style('border: 2px dashed #4a4a4a; border-radius: 8px; padding: 40px; text-align: center; margin: 20px 0;'):
-                ui.label('Glissez une image ou cliquez pour sélectionner').classes('text-gray-400')
+                ui.label(t('main_upload_image_dropzone')).classes('text-gray-400')
                 ui.upload(
                     on_upload=lambda e: _handle_repr_upload(e, dialog),
                     multiple=False,
@@ -7426,7 +7450,7 @@ def _show_representation_upload_dialog(is_user: bool):
                 ).classes('mt-4')
             
             with ui.row().classes('justify-end gap-2 mt-4'):
-                ui.button('Annuler', on_click=dialog.close).classes('action-button')
+                ui.button(t('common_cancel'), on_click=dialog.close).classes('action-button')
     
     dialog.open()
 
@@ -7446,21 +7470,21 @@ def _input_overlay():
                     _user_repr_button_ref = ui.button(
                         icon='person',
                         on_click=_toggle_user_representation
-                    ).classes('action-button repr-toggle').props('title="Représentation Utilisateur pour I2I"')
+                    ).classes('action-button repr-toggle').props(f'title="{t("btn_repr_user")}"')
                     
                     # Bouton IA representation (psychology icon - cerveau)
                     _ia_repr_button_ref = ui.button(
                         icon='psychology',
                         on_click=_toggle_ia_representation
-                    ).classes('action-button repr-toggle').props('title="Représentation IA pour I2I"')
+                    ).classes('action-button repr-toggle').props(f'title="{t("btn_repr_ia")}"')
                 
                 # Rangée 2: Bouton pièce jointe
                 with ui.element('div').classes('input-left-bottom'):
-                    ui.button(icon='attach_file', on_click=_show_file_upload_dialog).classes('action-button').props('title="Joindre un fichier"')
+                    ui.button(icon='attach_file', on_click=_show_file_upload_dialog).classes('action-button').props(f'title="{t("btn_attach_file")}"')
             
             # === COLONNE CENTRE (Textarea, span 2 rangées) ===
             with ui.element('div').classes('input-center-col'):
-                _input_field = ui.textarea(placeholder='Écrire un message...').props('autogrow').classes('input-field')
+                _input_field = ui.textarea(placeholder=t('main_input_placeholder')).props('autogrow').classes('input-field')
                 input_field = _input_field  # Alias local pour compatibilité
                 
                 # 🚀 PREANALYSIS: Déclencher pré-analyses au focus (optimisation latence)
@@ -7484,18 +7508,18 @@ def _input_overlay():
             with ui.element('div').classes('input-right-col'):
                 # Rangée 1: Bouton Envoyer
                 with ui.element('div').classes('input-right-top'):
-                    ui.button('Envoyer', icon='send', on_click=lambda: asyncio.create_task(_send_chat_message(input_field))).classes('send-button')
+                    ui.button(t('main_btn_send'), icon='send', on_click=lambda: asyncio.create_task(_send_chat_message(input_field))).classes('send-button')
                 
                 # Rangée 2: Mémo, Micro, Stop
                 with ui.element('div').classes('input-right-bottom'):
-                    ui.button(icon='auto_awesome', on_click=lambda: asyncio.create_task(_manual_memorize_current_input(input_field))).classes('action-button').props('title="Mémorisation manuelle"')
+                    ui.button(icon='auto_awesome', on_click=lambda: asyncio.create_task(_manual_memorize_current_input(input_field))).classes('action-button').props(f'title="{t("btn_memorize_manual")}"')
                     
                     mic_button = ui.button(
                         icon='mic', 
                         on_click=lambda: asyncio.create_task(_start_audio_recording(input_field, mic_button))
-                    ).classes('action-button mic-button').props('title="Enregistrer un message vocal"')
+                    ).classes('action-button mic-button').props(f'title="{t("btn_record_voice")}"')
                     
-                    _stop_button_ref = ui.button(icon='stop', on_click=lambda: asyncio.create_task(_request_stop())).classes('action-button stop-button').props('title="Arrêter l\'opération en cours"')
+                    _stop_button_ref = ui.button(icon='stop', on_click=lambda: asyncio.create_task(_request_stop())).classes('action-button stop-button').props(f'title="{t("btn_stop_operation")}"')
         
         # Conteneur pour l'onglet fichier, positionné sous la boîte de messagerie
         global _file_tab_container
@@ -7750,7 +7774,7 @@ async def _async_awakening(notif):
         await asyncio.sleep(0.1)
         
         # Vague 7 : Synchronisation finale
-        notif.message = 'Synchronisation finale du système... ✨'
+        notif.message = t('startup_sync_final')
         if OGMA_CORE_AVAILABLE:
             from modules.ogma_core.compat import sync_globals_to_core
             sync_globals_to_core(globals())
@@ -7760,7 +7784,7 @@ async def _async_awakening(notif):
         await _update_ia_status_indicators()
         
         # Réveil réussi
-        notif.message = 'OGMA est pleinement opérationnel. Bienvenue ! 🌸'
+        notif.message = t('startup_ready')
         notif.spinner = False
         notif.type = 'positive'
         print(f"[INIT] ✅ Éveil terminé avec succès à {datetime.now().strftime('%H:%M:%S')}")
@@ -7786,8 +7810,8 @@ def _show_login_popup():
     login_dialog = ui.dialog().props('persistent')  # Non fermable par ESC/clic extérieur
     
     with login_dialog, ui.card().classes('q-pa-lg login-card').style('min-width: 400px; max-width: 500px; background: #0e1828 !important; color: #cde4f5 !important; border: 1px solid #ffcc00 !important; border-radius: 16px !important; box-shadow: 0 0 6px rgba(255,204,0,0.65), 0 0 22px rgba(255,204,0,0.28), 0 0 50px rgba(255,204,0,0.10) !important;'):
-        ui.label('Connexion OGMA').classes('text-h5 text-center mb-2').style('color: #00d4f5 !important; font-family: Orbitron, monospace; letter-spacing: 0.05em;')
-        ui.label('Identifiez-vous pour continuer').classes('text-center mb-6').style('color: rgba(205, 228, 245, 0.65) !important;')
+        ui.label(t('main_login_title')).classes('text-h5 text-center mb-2').style('color: #00d4f5 !important; font-family: Orbitron, monospace; letter-spacing: 0.05em;')
+        ui.label(t('main_login_subtitle')).classes('text-center mb-6').style('color: rgba(205, 228, 245, 0.65) !important;')
         
         # Pré-remplir avec identity_manager (prioritaire) ou settings.json (fallback)
         sm = _ensure_settings_manager()
@@ -7881,7 +7905,7 @@ def _show_login_popup():
             login_dialog.close()
             
             # 7. Notification bienvenue
-            ui.notify(f'Bienvenue {name} ! 🎉', type='positive', position='top')
+            ui.notify(t('main_login_welcome', name=name), type='positive', position='top')
             
             # 8. Recharger la page pour appliquer changements UI (header, etc.)
             ui.run_javascript('window.location.reload()')
@@ -7889,7 +7913,7 @@ def _show_login_popup():
         # Permettre validation avec Entrée
         name_input.on('keydown.enter', validate_login)
         
-        ui.button('Se connecter', on_click=validate_login).classes('w-full mt-4').props('color=primary size=lg')
+        ui.button(t('main_btn_login'), on_click=validate_login).classes('w-full mt-4').props('color=primary size=lg')
     
     login_dialog.open()
 
@@ -7911,7 +7935,7 @@ def main_page():
         _user_authenticated = True
         summarizer.set_user_tag(stored_user['name'])
         print(f"[SESSION] ✅ Auto-login: {_current_user_name}")
-        ui.notify(f"Session restaurée - Bienvenue {_current_user_name} 👋", 
+        ui.notify(t('session_restored_welcome', name=_current_user_name), 
                   type='info', position='top', timeout=2000)
     else:
         # Pas de session → Popup obligatoire
@@ -7955,7 +7979,7 @@ def main_page():
         awakening_spinner = ui.spinner('dots', size='lg', color='white')
         # Message
         with ui.element('div').style('flex: 1;'):
-            awakening_message = ui.label('Réveil d\'OGMA...').style('''
+            awakening_message = ui.label(t('main_awakening')).style('''
                 color: white;
                 font-size: 15px;
                 font-weight: 500;
@@ -8165,17 +8189,36 @@ def main_page():
     
     # Boutons flottants (shutdown + hamburger + paramètres + logo)
     with ui.element('div').classes('floating-buttons'):
+        # ========== Sélecteur de langue FR / EN ==========
+        def _switch_lang_header(new_lang: str):
+            if new_lang == get_lang():
+                return
+            if set_lang(new_lang):
+                reload_strings()
+                ui.notify(t('notify_lang_switched'), type='info', timeout=1500)
+                ui.timer(0.4, lambda: ui.navigate.reload(), once=True)
+            else:
+                ui.notify(t('common_error'), type='negative')
+
+        _cur_lang = get_lang()
+        with ui.element('div').style('display: flex; flex-direction: column; gap: 3px; margin-right: 4px;'):
+            _fr_props = ('dense color=primary' if _cur_lang == 'fr' else 'dense flat color=grey-7') + ' title="' + t('lang_switch_tooltip_fr') + '"'
+            _en_props = ('dense color=primary' if _cur_lang == 'en' else 'dense flat color=grey-7') + ' title="' + t('lang_switch_tooltip_en') + '"'
+            ui.button('FR', on_click=lambda: _switch_lang_header('fr')).classes('header-btn-lang').props(_fr_props)
+            ui.button('EN', on_click=lambda: _switch_lang_header('en')).classes('header-btn-lang').props(_en_props)
+        # ========== Fin sélecteur de langue ==========
+
         # Bouton Shutdown - À gauche du hamburger
-        shutdown_btn = ui.button(icon='power_settings_new').classes('settings-floating-btn text-red-500').props('title="Fermer OGMA"').style('background: rgba(239, 68, 68, 0.1);')
+        shutdown_btn = ui.button(icon='power_settings_new').classes('settings-floating-btn text-red-500').props(f'title="{t("btn_close_ogma")}"').style('background: rgba(239, 68, 68, 0.1);')
         
         def _show_shutdown_confirmation():
             """Affiche le dialog de confirmation de fermeture"""
             with ui.dialog() as confirm_dialog, ui.card().classes('q-dark p-6').style('min-width: 400px;'):
-                ui.label('Confirmer la fermeture d\'OGMA ?').classes('text-lg font-bold text-red-400 mb-2')
-                ui.label('Tous les processus backend seront arrêtés.').classes('text-sm text-gray-400 mb-4')
+                ui.label(t('main_quit_confirm')).classes('text-lg font-bold text-red-400 mb-2')
+                ui.label(t('main_quit_warning')).classes('text-sm text-gray-400 mb-4')
                 
                 with ui.row().classes('gap-2 mt-4 w-full justify-end'):
-                    ui.button('Annuler', on_click=confirm_dialog.close).props('outline').classes('text-gray-300')
+                    ui.button(t('common_cancel'), on_click=confirm_dialog.close).props('outline').classes('text-gray-300')
                     
                     def shutdown_ogma():
                         """Arrêt propre d'OGMA avec déconnexion"""
@@ -8253,20 +8296,20 @@ def main_page():
                         
                         asyncio.create_task(delayed_shutdown())
                     
-                    ui.button('Fermer OGMA', on_click=shutdown_ogma).classes('bg-red-600 text-white')
+                    ui.button(t('main_btn_quit'), on_click=shutdown_ogma).classes('bg-red-600 text-white')
             
             confirm_dialog.open()
         
         shutdown_btn.on('click', _show_shutdown_confirmation)
         
-        toggle_btn = ui.button(icon='menu').classes('sidebar-toggle').props('title="Masquer/Afficher les conversations"')
+        toggle_btn = ui.button(icon='menu').classes('sidebar-toggle').props(f'title="{t("btn_toggle_conversations")}"')
         # Bouton paramètres flottant (copie des paramètres de la sidebar)
         settings_dialog = _settings_hub_modal()
-        settings_btn = ui.button(icon='settings').classes('settings-floating-btn').props('title="Paramètres généraux"')
+        settings_btn = ui.button(icon='settings').classes('settings-floating-btn').props(f'title="{t("btn_settings")}"')
         settings_btn.on('click', settings_dialog.open)
         ogma_title = ui.label('OGMA').classes('ogma-title').style('font-size: 1.3rem; font-weight: 700; letter-spacing: 0.12em; margin-left: 10px; opacity: 0.85; color: #a07c0a; cursor: pointer;')
         ogma_title.on('click', lambda: ui.run_javascript('location.reload(true)'))
-        ogma_title.props('title="Rafraîchir OGMA (Ctrl+Shift+R)"')
+        ogma_title.props(f'title="{t("btn_refresh_ogma")}"')
     
     # Disposition: barre latérale à gauche + panneau de chat à droite
     with ui.element('div').classes('app-body') as app_body:
@@ -8286,7 +8329,7 @@ def main_page():
 
 
                                 if not _chat_history:
-                                    ui.label('Tapez un message pour commencer...').style('color: var(--text-muted); text-align:center; padding: 16px;')
+                                    ui.label(t('main_empty_chat_hint')).style('color: var(--text-muted); text-align:center; padding: 16px;')
             # Bouton flottant "aller en bas" (apparaît seulement si non en bas)
             with ui.element('div').classes('down-button-overlay'):
                 _down_btn = ui.button(icon='south').classes('scroll-bottom-button')
