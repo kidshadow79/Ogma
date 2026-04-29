@@ -16,10 +16,35 @@ from pathlib import Path
 from datetime import datetime
 
 try:
-    from utils.i18n import t
+    from utils.i18n import t, get_lang
 except Exception:
     def t(key, **kwargs):
         return key
+    def get_lang():
+        return 'fr'
+
+
+def _load_default_identity_instruction(user_name: str) -> str:
+    """Retourne le template d'instruction d'identité dans la langue UI active.
+    Pas de fallback : si get_lang() retourne autre chose que 'fr' ou 'en', défaut FR.
+    """
+    if get_lang() == 'en':
+        return (
+            f"You are speaking with {user_name}.\n\n"
+            f"DIRECTIVE:\n"
+            f"- Use ONLY memories and knowledge concerning {user_name}\n"
+            f"- If you have NO memory of {user_name}, this is a first meeting\n"
+            f"- IGNORE any memories concerning other people (even if they appear below)\n"
+            f"- Adapt your behaviour according to your real relationship with {user_name}"
+        )
+    return (
+        f"Tu dialogues avec {user_name}.\n\n"
+        f"DIRECTIVE :\n"
+        f"- Utilise UNIQUEMENT les souvenirs et connaissances concernant {user_name}\n"
+        f"- Si tu n'as AUCUN souvenir de {user_name}, c'est une première rencontre\n"
+        f"- IGNORE tout souvenir concernant d'autres personnes (même s'ils apparaissent ci-dessous)\n"
+        f"- Adapte ton comportement selon ta relation réelle avec {user_name}"
+    )
 
 
 def _get_ogma_ng_function(func_name):
@@ -61,11 +86,11 @@ def _profile_modal():
             sm = _ensure_settings_manager() if _ensure_settings_manager else None
 
             if not sm:
-                ui.label("❌ Settings Manager non disponible").classes('text-red-500')
+                ui.label(t('profile_settings_mgr_unavailable')).classes('text-red-500')
                 return
 
             # === SECTION DEBUG ===
-            ui.label('🔍 Options de Debug').classes('text-lg font-medium mb-2')
+            ui.label(t('profile_section_debug')).classes('text-lg font-medium mb-2')
 
             # Affichage injections Archiviste
             debug_archiviste = sm.settings.get('debug', {}).get('show_archiviste_injection', False)
@@ -75,20 +100,18 @@ def _profile_modal():
                     sm.settings['debug'] = {}
                 sm.settings['debug']['show_archiviste_injection'] = e.value
                 sm.save_settings()
-                ui.notify('Paramètre debug sauvegardé', type='positive')
-
+                ui.notify(t('profile_debug_saved'), type='positive')
+            
             ui.checkbox(
-                'Afficher les injections de contexte de l\'Archiviste dans le chat',
+                t('profile_debug_archiviste_label'),
                 value=debug_archiviste,
                 on_change=on_debug_archiviste_change
             ).classes('mb-2')
-
-            ui.label('Quand activé, vous verrez les notes de contexte injectées par l\'Archiviste en tant que messages système dans la conversation.').classes('text-xs text-muted mb-4')
-
-            # === SECTION VISION AVANCÉE (TRAITEMENT IMAGES) ===
+            
+            ui.label(t('profile_debug_archiviste_desc')).classes('text-xs text-muted mb-4')
             ui.separator().classes('my-4')
-            ui.label('👁️ Vision Avancée (Traitement d\'Images)').classes('text-lg font-medium mb-2')
-            ui.label('Ces options s\'appliquent aux images envoyées en pièce jointe. Si les deux sont activées, une image 3 colonnes sera générée.').classes('text-xs text-muted mb-3')
+            ui.label(t('profile_section_vision')).classes('text-lg font-medium mb-2')
+            ui.label(t('profile_vision_desc')).classes('text-xs text-muted mb-3')
             
             # Option Depth Map pour Uploads
             process_depth = sm.settings.get('perception', {}).get('process_uploads_with_depth', False)
@@ -98,7 +121,7 @@ def _profile_modal():
                     sm.settings['perception'] = {}
                 sm.settings['perception']['process_uploads_with_depth'] = e.value
                 sm.save_settings()
-                ui.notify('Paramètre Depth Map sauvegardé', type='positive')
+                ui.notify(t('profile_depth_saved'), type='positive')
                 
             ui.checkbox(
                 '🌊 Depth Map (Carte de profondeur 3D)',
@@ -114,7 +137,7 @@ def _profile_modal():
                     sm.settings['perception'] = {}
                 sm.settings['perception']['process_uploads_with_contour'] = e.value
                 sm.save_settings()
-                ui.notify('Paramètre Analyse Contours sauvegardé', type='positive')
+                ui.notify(t('profile_contour_saved'), type='positive')
                 # Afficher/masquer les options détaillées
                 contour_options_container.set_visibility(e.value)
                 
@@ -129,7 +152,7 @@ def _profile_modal():
             contour_options_container.set_visibility(process_contour)
             
             with contour_options_container:
-                ui.label('Méthodes de détection :').classes('text-sm font-medium mb-1')
+                ui.label(t('profile_contour_methods')).classes('text-sm font-medium mb-1')
                 
                 # Canny avec tooltip
                 canny_enabled = sm.settings.get('perception', {}).get('contour_canny', True)
@@ -139,7 +162,7 @@ def _profile_modal():
                     sm.settings['perception']['contour_canny'] = e.value
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
-                    ui.checkbox('Canny (contours nets - recommandé)', value=canny_enabled, on_change=on_canny_change).classes('text-sm')
+                    ui.checkbox(t('profile_contour_canny'), value=canny_enabled, on_change=on_canny_change).classes('text-sm')
                     ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_canny'))
                 
                 # Sobel avec tooltip
@@ -150,7 +173,7 @@ def _profile_modal():
                     sm.settings['perception']['contour_sobel'] = e.value
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
-                    ui.checkbox('Sobel (gradients directionnels)', value=sobel_enabled, on_change=on_sobel_change).classes('text-sm')
+                    ui.checkbox(t('profile_contour_sobel'), value=sobel_enabled, on_change=on_sobel_change).classes('text-sm')
                     ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_sobel'))
                 
                 # Laplacian avec tooltip
@@ -161,7 +184,7 @@ def _profile_modal():
                     sm.settings['perception']['contour_laplacian'] = e.value
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
-                    ui.checkbox('Laplacian (contours fins)', value=laplacian_enabled, on_change=on_laplacian_change).classes('text-sm')
+                    ui.checkbox(t('profile_contour_laplacian'), value=laplacian_enabled, on_change=on_laplacian_change).classes('text-sm')
                     ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_laplacian'))
                 
                 # Adaptive avec tooltip
@@ -172,10 +195,10 @@ def _profile_modal():
                     sm.settings['perception']['contour_adaptive'] = e.value
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
-                    ui.checkbox('Adaptatif (formes contrastées)', value=adaptive_enabled, on_change=on_adaptive_change).classes('text-sm')
+                    ui.checkbox(t('profile_contour_adaptive'), value=adaptive_enabled, on_change=on_adaptive_change).classes('text-sm')
                     ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_adaptive'))
                 
-                ui.label('Paramètres Canny :').classes('text-sm font-medium mt-2 mb-1')
+                ui.label(t('profile_canny_params')).classes('text-sm font-medium mt-2 mb-1')
                 
                 with ui.row().classes('gap-4 items-end'):
                     # Seuil bas Canny avec tooltip
@@ -187,7 +210,7 @@ def _profile_modal():
                         sm.save_settings()
                     with ui.column().classes('gap-0'):
                         with ui.row().classes('items-center gap-1'):
-                            ui.label('Seuil bas').classes('text-xs')
+                            ui.label(t('profile_canny_low')).classes('text-xs')
                             ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_canny_low'))
                         ui.number(value=canny_low, min=0, max=255, step=10, on_change=on_canny_low_change).classes('w-20')
                     
@@ -200,7 +223,7 @@ def _profile_modal():
                         sm.save_settings()
                     with ui.column().classes('gap-0'):
                         with ui.row().classes('items-center gap-1'):
-                            ui.label('Seuil haut').classes('text-xs')
+                            ui.label(t('profile_canny_high')).classes('text-xs')
                             ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_canny_high'))
                         ui.number(value=canny_high, min=0, max=255, step=10, on_change=on_canny_high_change).classes('w-20')
                     
@@ -213,12 +236,12 @@ def _profile_modal():
                         sm.save_settings()
                     with ui.column().classes('gap-0'):
                         with ui.row().classes('items-center gap-1'):
-                            ui.label('Épaisseur').classes('text-xs')
+                            ui.label(t('profile_canny_thickness')).classes('text-xs')
                             ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_thickness'))
                         ui.number(value=thickness, min=1, max=10, step=1, on_change=on_thickness_change).classes('w-20')
                 
                 # Couleur des tracés
-                ui.label('Couleur des tracés :').classes('text-sm font-medium mt-2 mb-1')
+                ui.label(t('profile_line_color')).classes('text-sm font-medium mt-2 mb-1')
                 line_color = sm.settings.get('perception', {}).get('contour_line_color', 'red')
                 def on_line_color_change(e):
                     if 'perception' not in sm.settings:
@@ -227,14 +250,14 @@ def _profile_modal():
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
                     ui.select(
-                        options={'red': '🔴 Rouge', 'white': '⚪ Blanc', 'black': '⚫ Noir'},
+                        options={'red': '🔴 ' + t('profile_color_red'), 'white': '⚪ ' + t('profile_color_white'), 'black': '⚫ ' + t('profile_color_black')},
                         value=line_color,
                         on_change=on_line_color_change
                     ).classes('w-36')
                     ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_line_color'))
                 
                 # Mode de rendu avec tooltip
-                ui.label('Mode de rendu :').classes('text-sm font-medium mt-2 mb-1')
+                ui.label(t('profile_render_mode')).classes('text-sm font-medium mt-2 mb-1')
                 render_mode = sm.settings.get('perception', {}).get('contour_render_mode', 'overlay')
                 def on_render_mode_change(e):
                     if 'perception' not in sm.settings:
@@ -243,17 +266,17 @@ def _profile_modal():
                     sm.save_settings()
                 with ui.row().classes('items-center gap-1'):
                     ui.select(
-                        options={'overlay': 'Superposé (sur image)', 'black_bg': 'Fond noir', 'white_bg': 'Fond blanc'},
+                        options={'overlay': t('profile_render_overlay'), 'black_bg': t('profile_render_black_bg'), 'white_bg': t('profile_render_white_bg')},
                         value=render_mode,
                         on_change=on_render_mode_change
                     ).classes('w-48')
                     ui.icon('help_outline', size='xs').classes('text-gray-400 cursor-help').tooltip(t('profile_tooltip_render_mode'))
             
-            ui.label('Les images traitées sont automatiquement sauvegardées dans le dossier captures/.').classes('text-xs text-muted mb-4')
+            ui.label(t('profile_vision_autosave')).classes('text-xs text-muted mb-4')
 
             # === GESTION DU PROFIL UNIQUE ===
             ui.separator().classes('my-4')
-            ui.label('🏗️ Gestion du Profil Unique').classes('text-lg font-medium mb-2')
+            ui.label(t('profile_section_mgmt')).classes('text-lg font-medium mb-2')
             
             try:
                 from profile_manager import ProfileManager
@@ -266,18 +289,18 @@ def _profile_modal():
                 
                 # Affichage du profil actuel
                 with ui.card().classes('w-full mb-4 p-4 bg-blue-50 border-l-4 border-blue-400'):
-                    ui.label('📊 Profil Actuel').classes('text-md font-medium mb-2')
+                    ui.label(t('profile_current_card_title')).classes('text-md font-medium mb-2')
                     
                     with ui.row().classes('w-full gap-4'):
                         with ui.column().classes('flex-grow'):
-                            ui.label(f"👤 Utilisateur : {identity['user_name']}").classes('text-sm')
-                            ui.label(f"🤖 IA : {identity['ai_name']}").classes('text-sm')
-                            ui.label(f"📝 Description : {identity['ai_description']}").classes('text-sm')
+                            ui.label(t('profile_current_user', name=identity['user_name'])).classes('text-sm')
+                            ui.label(t('profile_current_ai', name=identity['ai_name'])).classes('text-sm')
+                            ui.label(t('profile_current_desc', desc=identity['ai_description'])).classes('text-sm')
                         
                         with ui.column().classes('flex-grow'):
-                            ui.label(f"🧠 Mémoires : {memory_stats['total_memories']} souvenirs").classes('text-sm')
-                            ui.label(f"🏛️ Fondateurs : {memory_stats['founder_memories']} préservés").classes('text-sm')
-                            ui.label(f"💾 Taille totale : {current_analysis['total_size_mb']} MB").classes('text-sm')
+                            ui.label(t('profile_current_memories', n=memory_stats['total_memories'])).classes('text-sm')
+                            ui.label(t('profile_current_founders', n=memory_stats['founder_memories'])).classes('text-sm')
+                            ui.label(t('profile_current_size', size=current_analysis['total_size_mb'])).classes('text-sm')
                 
                 # Boutons de gestion
                 with ui.row().classes('w-full gap-2 mb-4'):
@@ -287,24 +310,24 @@ def _profile_modal():
                         save_dialog = ui.dialog()
                         
                         with save_dialog, ui.card().classes('popup-content q-dark').style('width: min(500px, 90vw);'):
-                            ui.label('💾 Sauvegarder le Profil Actuel').classes('popup-title')
+                            ui.label(t('profile_save_dialog_title')).classes('popup-title')
                             
-                            profile_name_input = ui.input('Nom du profil', 
+                            profile_name_input = ui.input(t('profile_save_name_label'), 
                                                         value=f"profil_{identity['ai_name'].lower()}_{datetime.now().strftime('%Y%m%d')}")
                             profile_name_input.classes('w-full mb-3')
                             
-                            description_input = ui.textarea('Description (optionnel)', 
-                                                          value=f"Sauvegarde de {identity['ai_name']} - {datetime.now().strftime('%d/%m/%Y')}")
+                            description_input = ui.textarea(t('profile_save_desc_label'), 
+                                                          value=t('profile_save_default_desc', name=identity['ai_name'], date=datetime.now().strftime('%d/%m/%Y')))
                             description_input.classes('w-full mb-3')
                             
-                            ui.label(f"Cette sauvegarde inclura toutes les données du profil actuel ({current_analysis['total_size_mb']} MB)").classes('text-sm text-muted mb-3')
+                            ui.label(t('profile_save_size_info', size=current_analysis['total_size_mb'])).classes('text-sm text-muted mb-3')
                             
                             with ui.row().classes('w-full gap-2 justify-end'):
-                                ui.button('Annuler', on_click=save_dialog.close).classes('bg-gray-500')
+                                ui.button(t('profile_btn_cancel'), on_click=save_dialog.close).classes('bg-gray-500')
                                 
                                 def perform_save():
                                     if not profile_name_input.value.strip():
-                                        ui.notify('Le nom du profil est obligatoire', type='negative')
+                                        ui.notify(t('profile_save_name_required'), type='negative')
                                         return
                                     
                                     success, message, backup_path = profile_mgr.save_current_profile(
@@ -313,40 +336,40 @@ def _profile_modal():
                                     )
                                     
                                     if success:
-                                        ui.notify('Profil sauvegardé avec succès !', type='positive')
+                                        ui.notify(t('profile_save_success'), type='positive')
                                         save_dialog.close()
                                         refresh_content()  # Rafraîchir pour afficher la nouvelle sauvegarde
                                     else:
                                         ui.notify(f'Erreur: {message}', type='negative')
                                 
-                                ui.button('💾 Sauvegarder', on_click=perform_save).classes('bg-blue-600')
+                                ui.button(t('profile_btn_save'), on_click=perform_save).classes('bg-blue-600')
                         
                         save_dialog.open()
                     
-                    ui.button('💾 Sauvegarder Profil', icon='save', on_click=open_save_modal).classes('bg-blue-600 text-white')
+                    ui.button(t('profile_btn_save_profile'), icon='save', on_click=open_save_modal).classes('bg-blue-600 text-white')
                     
                     # Bouton Supprimer
                     def open_delete_modal():
                         delete_dialog = ui.dialog()
                         
                         with delete_dialog, ui.card().classes('popup-content q-dark').style('width: min(600px, 90vw);'):
-                            ui.label('🗑️ Supprimer le Profil Actuel').classes('popup-title text-red-500')
+                            ui.label(t('profile_delete_dialog_title')).classes('popup-title text-red-500')
                             
-                            ui.label('⚠️ ATTENTION - SUPPRESSION DÉFINITIVE').classes('text-lg font-medium text-red-500 mb-2')
+                            ui.label(t('profile_delete_warning_title')).classes('text-lg font-medium text-red-500 mb-2')
                             
-                            ui.label('Cette action va supprimer DÉFINITIVEMENT :').classes('text-sm mb-2')
+                            ui.label(t('profile_delete_warning_text')).classes('text-sm mb-2')
                             
                             delete_items = [
-                                f"🧠 {memory_stats['regular_memories']} souvenirs (fondateurs préservés)",
-                                f"💬 Toutes les conversations",
-                                f"🎭 Données de personnalité (ego)",
-                                f"📸 Images générées + captures webcam",
-                                f"📚 Biographies", 
-                                f"📖 Journal de bord",
-                                f"📅 Organic Planner (agenda)",
-                                f"🔑 TOUTES les clés API (sécurité)",
-                                f"🔧 Configurations extensions",
-                                f"🗂️ Fichiers temporaires et logs"
+                                t('profile_delete_item_memories', n=memory_stats['regular_memories']),
+                                t('profile_delete_item_conversations'),
+                                t('profile_delete_item_ego'),
+                                t('profile_delete_item_images'),
+                                t('profile_delete_item_biographies'), 
+                                t('profile_delete_item_journal'),
+                                t('profile_delete_item_planner'),
+                                t('profile_delete_item_apikeys'),
+                                t('profile_delete_item_extensions'),
+                                t('profile_delete_item_logs')
                             ]
                             
                             for item in delete_items:
@@ -355,10 +378,10 @@ def _profile_modal():
                             ui.separator().classes('my-4')
                             
                             # Option sauvegarde avant suppression
-                            save_before_delete = ui.checkbox('💾 Sauvegarder avant suppression (recommandé)', value=True).classes('mb-3')
+                            save_before_delete = ui.checkbox(t('profile_delete_save_before'), value=True).classes('mb-3')
                             
-                            ui.label('Pour confirmer, tapez: DELETE-PROFILE-OGMA').classes('text-sm font-medium mb-2')
-                            confirmation_input = ui.input('Code de confirmation').classes('w-full mb-3')
+                            ui.label(t('profile_delete_confirm_label')).classes('text-sm font-medium mb-2')
+                            confirmation_input = ui.input(t('profile_delete_confirm_input')).classes('w-full mb-3')
                             
                             # Spinner + statut (masqué par défaut)
                             with ui.row().classes('w-full items-center gap-2 mb-2') as _del_spinner_row:
@@ -369,11 +392,11 @@ def _profile_modal():
                             _del_btn_ref = [None]  # référence mutable au bouton
                             
                             with ui.row().classes('w-full gap-2 justify-end'):
-                                ui.button('Annuler', on_click=delete_dialog.close).classes('bg-gray-500')
+                                ui.button(t('profile_btn_cancel'), on_click=delete_dialog.close).classes('bg-gray-500')
                                 
                                 async def perform_delete():
                                     if confirmation_input.value != "DELETE-PROFILE-OGMA":
-                                        ui.notify('Code de confirmation incorrect', type='negative')
+                                        ui.notify(t('profile_delete_wrong_code'), type='negative')
                                         return
                                     
                                     btn = _del_btn_ref[0]
@@ -383,24 +406,24 @@ def _profile_modal():
                                     
                                     # Étape 1 : sauvegarde préalable
                                     if save_before_delete.value:
-                                        _del_status_label.set_text('💾 Sauvegarde en cours...')
+                                        _del_status_label.set_text(t('profile_delete_saving'))
                                         await asyncio.sleep(0.05)
                                         save_name = f"backup_avant_suppression_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
                                         save_ok, save_msg, _ = await asyncio.to_thread(
                                             profile_mgr.save_current_profile,
                                             save_name,
-                                            "Sauvegarde automatique avant suppression du profil"
+                                            t('profile_delete_auto_save_desc')
                                         )
                                         if not save_ok:
                                             _del_spinner_row.set_visibility(False)
                                             if btn:
                                                 btn.enable()
-                                            ui.notify(f'Erreur sauvegarde : {save_msg}', type='negative')
+                                            ui.notify(t('profile_delete_save_error', msg=save_msg), type='negative')
                                             return
-                                        ui.notify('💾 Sauvegarde créée', type='positive')
+                                        ui.notify(t('profile_delete_save_created'), type='positive')
                                     
                                     # Étape 2 : suppression du profil
-                                    _del_status_label.set_text('🗑️ Suppression du profil en cours...')
+                                    _del_status_label.set_text(t('profile_delete_deleting'))
                                     await asyncio.sleep(0.05)
                                     success, message = await asyncio.to_thread(
                                         profile_mgr.delete_current_profile, "DELETE-PROFILE-OGMA"
@@ -411,22 +434,22 @@ def _profile_modal():
                                     if success:
                                         delete_dialog.close()
                                         refresh_content()
-                                        ui.notify('✅ Profil supprimé avec succès !', type='positive', timeout=5000)
-                                        ui.notify('🔄 Redémarrez OGMA pour finaliser la réinitialisation.', type='warning', timeout=0)
+                                        ui.notify(t('profile_delete_success'), type='positive', timeout=5000)
+                                        ui.notify(t('profile_delete_restart_note'), type='warning', timeout=0)
                                     else:
                                         if btn:
                                             btn.enable()
                                         ui.notify(f'Erreur : {message}', type='negative')
                                 
-                                _del_btn_ref[0] = ui.button('🗑️ Supprimer Définitivement', on_click=perform_delete).classes('bg-red-600 text-white')
+                                _del_btn_ref[0] = ui.button(t('profile_btn_delete_permanently'), on_click=perform_delete).classes('bg-red-600 text-white')
                         
                         delete_dialog.open()
                     
-                    ui.button('🗑️ Supprimer Profil', icon='delete', on_click=open_delete_modal).classes('bg-red-600 text-white')
+                    ui.button(t('profile_btn_delete_profile'), icon='delete', on_click=open_delete_modal).classes('bg-red-600 text-white')
                 
                 # Liste des sauvegardes disponibles
                 ui.separator().classes('my-4')
-                ui.label('📂 Sauvegardes Disponibles').classes('text-lg font-medium mb-2')
+                ui.label(t('profile_section_backups')).classes('text-lg font-medium mb-2')
                 
                 backups = profile_mgr.list_available_backups()
                 
@@ -450,35 +473,35 @@ def _profile_modal():
                                         load_dialog = ui.dialog()
                                         
                                         with load_dialog, ui.card().classes('popup-content q-dark').style('width: min(500px, 90vw);'):
-                                            ui.label('📂 Charger une Sauvegarde').classes('popup-title')
+                                            ui.label(t('profile_load_dialog_title')).classes('popup-title')
                                             
-                                            ui.label('⚠️ ATTENTION : Cette action va REMPLACER le profil actuel').classes('text-lg font-medium text-orange-500 mb-3')
+                                            ui.label(t('profile_load_warning')).classes('text-lg font-medium text-orange-500 mb-3')
                                             
-                                            ui.label(f"Profil à charger : {backup['profile_name']}").classes('font-medium mb-2')
+                                            ui.label(t('profile_load_name_label', name=backup['profile_name'])).classes('font-medium mb-2')
                                             ui.label(f"👤 {backup['user_name']} ↔ 🤖 {backup['ai_name']}").classes('text-sm mb-2')
-                                            ui.label(f"💾 Taille : {backup['size_mb']} MB").classes('text-sm mb-3')
+                                            ui.label(t('profile_load_size_label', size=backup['size_mb'])).classes('text-sm mb-3')
                                             
                                             if backup['description']:
                                                 ui.label(f"📝 {backup['description']}").classes('text-sm text-gray-600 mb-3')
                                             
-                                            ui.label('✅ Sera restauré : Mémoires, Clés API, Instructions, Journal, Captures...').classes('text-xs text-green-400 mb-1')
-                                            ui.label('💾 Le profil actuel sera automatiquement sauvegardé avant remplacement.').classes('text-xs text-muted mb-4')
+                                            ui.label(t('profile_load_restored')).classes('text-xs text-green-400 mb-1')
+                                            ui.label(t('profile_load_auto_save_note')).classes('text-xs text-muted mb-4')
                                             
                                             with ui.row().classes('w-full gap-2 justify-end'):
-                                                ui.button('Annuler', on_click=load_dialog.close).classes('bg-gray-500')
+                                                ui.button(t('profile_btn_cancel'), on_click=load_dialog.close).classes('bg-gray-500')
                                                 
                                                 def perform_load():
                                                     backup_path_obj = Path(backup_path)
                                                     success, message = profile_mgr.load_profile_backup(backup_path_obj)
                                                     
                                                     if success:
-                                                        ui.notify('Profil chargé avec succès !', type='positive')
+                                                        ui.notify(t('profile_load_success'), type='positive')
                                                         load_dialog.close()
                                                         refresh_content()  # Rafraîchir complètement l'interface
                                                     else:
                                                         ui.notify(f'Erreur: {message}', type='negative')
                                                 
-                                                ui.button('📂 Charger ce Profil', on_click=perform_load).classes('bg-green-600 text-white')
+                                                ui.button(t('profile_btn_load_profile'), on_click=perform_load).classes('bg-green-600 text-white')
                                         
                                         load_dialog.open()
                                     
@@ -489,27 +512,27 @@ def _profile_modal():
                                         del_dialog = ui.dialog()
                                         
                                         with del_dialog, ui.card().classes('popup-content q-dark').style('width: min(480px, 90vw);'):
-                                            ui.label('🗑️ Supprimer cette sauvegarde').classes('popup-title')
+                                            ui.label(t('profile_delete_backup_title')).classes('popup-title')
                                             
-                                            ui.label('⚠️ Cette action est IRRÉVERSIBLE').classes('text-lg font-medium text-red-500 mb-3')
+                                            ui.label(t('profile_delete_backup_irreversible')).classes('text-lg font-medium text-red-500 mb-3')
                                             
                                             with ui.card().classes('w-full p-3 mb-4 bg-gray-800 border border-red-400'):
                                                 ui.label(f"📁 {bk_name}").classes('font-medium text-sm')
                                                 ui.label(f"👤 {bk_user} ↔ 🤖 {bk_ai}").classes('text-xs text-gray-400')
                                                 ui.label(f"💾 {bk_size} MB").classes('text-xs text-gray-400')
                                             
-                                            ui.label('Le dossier complet sera supprimé du disque. Aucune restauration possible.').classes('text-xs text-gray-400 mb-4')
+                                            ui.label(t('profile_delete_backup_text')).classes('text-xs text-gray-400 mb-4')
                                             
                                             # Spinner suppression backup (masqué par défaut)
                                             with ui.row().classes('items-center gap-2 mb-2') as _bk_spinner_row:
                                                 _bk_spinner_row.set_visibility(False)
                                                 ui.spinner(size='sm').classes('text-orange-400')
-                                                ui.label('🗑️ Suppression en cours...').classes('text-sm text-orange-400')
+                                                ui.label(t('profile_deleting_backup')).classes('text-sm text-orange-400')
                                             
                                             _bk_btn_ref = [None]
                                             
                                             with ui.row().classes('w-full gap-2 justify-end'):
-                                                ui.button('Annuler', on_click=del_dialog.close).classes('bg-gray-500')
+                                                ui.button(t('profile_btn_cancel'), on_click=del_dialog.close).classes('bg-gray-500')
                                                 
                                                 async def perform_delete_backup():
                                                     if _bk_btn_ref[0]:
@@ -530,14 +553,14 @@ def _profile_modal():
                                                             _bk_btn_ref[0].enable()
                                                         ui.notify(f'Erreur : {message}', type='negative')
                                                 
-                                                _bk_btn_ref[0] = ui.button('🗑️ Supprimer définitivement', on_click=perform_delete_backup).classes('bg-red-600 text-white')
+                                                _bk_btn_ref[0] = ui.button(t('profile_btn_delete_def'), on_click=perform_delete_backup).classes('bg-red-600 text-white')
                                         
                                         del_dialog.open()
                                     
                                     return delete_backup_click
                                 
                                 with ui.row().classes('gap-2'):
-                                    ui.button('📂 Charger', icon='folder_open', 
+                                    ui.button(t('profile_btn_load'), icon='folder_open', 
                                              on_click=create_load_handler(backup['path'])).classes('bg-green-600 text-white')
                                     ui.button('🗑️', icon='delete',
                                              on_click=create_delete_handler(
@@ -546,7 +569,7 @@ def _profile_modal():
                                                  backup['size_mb']
                                              )).classes('bg-red-700 text-white').tooltip(t('profile_tooltip_delete_backup'))
                 else:
-                    ui.label('Aucune sauvegarde trouvée').classes('text-gray-500 text-center py-4')
+                    ui.label(t('profile_no_backup')).classes('text-gray-500 text-center py-4')
             
             except Exception as e:
                 ui.label(f'⚠️ Erreur ProfileManager : {e}').classes('text-red-500')
@@ -554,8 +577,8 @@ def _profile_modal():
 
             # === SNAPSHOT CONFIG (Clés API + Instructions) ===
             ui.separator().classes('my-4')
-            ui.label('🔑 Sauvegarde Config (Clés API + Instructions)').classes('text-lg font-medium mb-2')
-            ui.label('Snapshot léger : sauvegarde uniquement les clés API, instructions générales et instructions images (t2i/i2i). Quelques KB seulement.').classes('text-xs text-muted mb-3')
+            ui.label(t('profile_section_config_snapshot')).classes('text-lg font-medium mb-2')
+            ui.label(t('profile_config_snapshot_desc')).classes('text-xs text-muted mb-3')
 
             try:
                 from profile_manager import ProfileManager
@@ -566,17 +589,17 @@ def _profile_modal():
                     save_cfg_dialog = ui.dialog()
 
                     with save_cfg_dialog, ui.card().classes('popup-content q-dark').style('width: min(500px, 90vw);'):
-                        ui.label('🔑 Sauvegarder Config').classes('popup-title')
+                        ui.label(t('profile_config_save_dialog_title')).classes('popup-title')
 
-                        cfg_name_input = ui.input('Nom de la config',
+                        cfg_name_input = ui.input(t('profile_config_name_label'),
                                                   value=f"config_{datetime.now().strftime('%Y%m%d')}")
                         cfg_name_input.classes('w-full mb-3')
 
-                        cfg_desc_input = ui.textarea('Description (optionnel)',
+                        cfg_desc_input = ui.textarea(t('profile_save_desc_label'),
                                                      value='').props('rows=2')
                         cfg_desc_input.classes('w-full mb-3')
 
-                        ui.label('Contenu sauvegardé :').classes('text-sm font-medium mb-1')
+                        ui.label(t('profile_config_saved_content')).classes('text-sm font-medium mb-1')
                         for item in ['🔑 Clés IA providers (Chat, Reasoning, Embedding)',
                                      '🔑 Coffre multi-providers (GROK, OpenAI, Google, Mistral, Kie, WaveSpeed…)',
                                      '🎨 Providers image (text2img, img2img, modèles)',
@@ -587,11 +610,11 @@ def _profile_modal():
                             ui.label(f'  • {item}').classes('text-xs text-gray-400')
 
                         with ui.row().classes('w-full gap-2 justify-end mt-3'):
-                            ui.button('Annuler', on_click=save_cfg_dialog.close).classes('bg-gray-500')
+                            ui.button(t('profile_btn_cancel'), on_click=save_cfg_dialog.close).classes('bg-gray-500')
 
                             def perform_save_config():
                                 if not cfg_name_input.value.strip():
-                                    ui.notify('Le nom est obligatoire', type='negative')
+                                    ui.notify(t('profile_config_save_name_required'), type='negative')
                                     return
                                 success, message, _ = config_mgr.save_config_snapshot(
                                     cfg_name_input.value.strip(),
@@ -604,11 +627,11 @@ def _profile_modal():
                                 else:
                                     ui.notify(f'Erreur: {message}', type='negative')
 
-                            ui.button('💾 Sauvegarder', on_click=perform_save_config).classes('bg-teal-600 text-white')
+                            ui.button(t('profile_btn_save'), on_click=perform_save_config).classes('bg-teal-600 text-white')
 
                     save_cfg_dialog.open()
 
-                ui.button('💾 Sauvegarder Config', icon='key', on_click=open_save_config_modal).classes('bg-teal-600 text-white mb-3')
+                ui.button(t('profile_btn_save_config'), icon='key', on_click=open_save_config_modal).classes('bg-teal-600 text-white mb-3')
 
                 # Liste des snapshots existants
                 config_snapshots = config_mgr.list_config_snapshots()
@@ -629,13 +652,13 @@ def _profile_modal():
                                         load_cfg_dialog = ui.dialog()
 
                                         with load_cfg_dialog, ui.card().classes('popup-content q-dark').style('width: min(480px, 90vw);'):
-                                            ui.label('📂 Charger Config').classes('popup-title')
-                                            ui.label(f'Profil : {snap_name}').classes('font-medium mb-2')
-                                            ui.label('⚠️ Les clés API et instructions actuelles seront remplacées.').classes('text-sm text-orange-400 mb-2')
-                                            ui.label('Les contrôleurs IA seront réinitialisés pour utiliser les nouvelles clés.').classes('text-xs text-gray-400 mb-3')
+                                            ui.label(t('profile_config_load_dialog_title')).classes('popup-title')
+                                            ui.label(t('profile_load_name_label', name=snap_name)).classes('font-medium mb-2')
+                                            ui.label(t('profile_config_load_warning')).classes('text-sm text-orange-400 mb-2')
+                                            ui.label(t('profile_config_load_reset_note')).classes('text-xs text-gray-400 mb-3')
 
                                             with ui.row().classes('w-full gap-2 justify-end'):
-                                                ui.button('Annuler', on_click=load_cfg_dialog.close).classes('bg-gray-500')
+                                                ui.button(t('profile_btn_cancel'), on_click=load_cfg_dialog.close).classes('bg-gray-500')
 
                                                 def perform_load_config():
                                                     success, message = config_mgr.load_config_snapshot(Path(snap_path))
@@ -646,7 +669,7 @@ def _profile_modal():
                                                     else:
                                                         ui.notify(f'Erreur: {message}', type='negative')
 
-                                                ui.button('📂 Charger', on_click=perform_load_config).classes('bg-green-600 text-white')
+                                                ui.button(t('profile_btn_load'), on_click=perform_load_config).classes('bg-green-600 text-white')
 
                                         load_cfg_dialog.open()
                                     return load_config_click
@@ -656,12 +679,12 @@ def _profile_modal():
                                         del_cfg_dialog = ui.dialog()
 
                                         with del_cfg_dialog, ui.card().classes('popup-content q-dark').style('width: min(400px, 90vw);'):
-                                            ui.label('🗑️ Supprimer Config').classes('popup-title')
-                                            ui.label(f'Supprimer : {snap_name}').classes('font-medium mb-2')
-                                            ui.label('Cette action est irréversible.').classes('text-xs text-red-400 mb-3')
+                                            ui.label(t('profile_config_delete_dialog_title')).classes('popup-title')
+                                            ui.label(t('profile_config_delete_text', name=snap_name)).classes('font-medium mb-2')
+                                            ui.label(t('profile_config_irreversible')).classes('text-xs text-red-400 mb-3')
 
                                             with ui.row().classes('w-full gap-2 justify-end'):
-                                                ui.button('Annuler', on_click=del_cfg_dialog.close).classes('bg-gray-500')
+                                                ui.button(t('profile_btn_cancel'), on_click=del_cfg_dialog.close).classes('bg-gray-500')
 
                                                 def perform_delete_config():
                                                     success, message = config_mgr.delete_config_snapshot(Path(snap_path))
@@ -672,18 +695,18 @@ def _profile_modal():
                                                     else:
                                                         ui.notify(f'Erreur: {message}', type='negative')
 
-                                                ui.button('🗑️ Supprimer', on_click=perform_delete_config).classes('bg-red-600 text-white')
+                                                ui.button(t('profile_btn_delete'), on_click=perform_delete_config).classes('bg-red-600 text-white')
 
                                         del_cfg_dialog.open()
                                     return delete_config_click
 
                                 with ui.row().classes('gap-2'):
-                                    ui.button('📂 Charger', icon='download',
+                                    ui.button(t('profile_btn_load'), icon='download',
                                              on_click=create_load_config_handler(snap['path'], snap['name'])).classes('bg-green-600 text-white')
                                     ui.button('🗑️', icon='delete',
                                              on_click=create_delete_config_handler(snap['path'], snap['name'])).classes('bg-red-700 text-white').tooltip(t('profile_tooltip_delete_snapshot'))
                 else:
-                    ui.label('Aucun snapshot de config sauvegardé').classes('text-gray-500 text-center py-2')
+                    ui.label(t('profile_no_config_snapshot')).classes('text-gray-500 text-center py-2')
 
             except Exception as e:
                 ui.label(f'⚠️ Erreur Config Snapshot : {e}').classes('text-red-500')
@@ -693,14 +716,10 @@ def _profile_modal():
             ui.separator().classes('my-4')
             with ui.row().classes('items-center gap-2 mb-1'):
                 ui.icon('wb_incandescent', size='sm').classes('text-amber-400')
-                ui.label('Hologramme Projector').classes('text-lg font-medium')
-                ui.badge('Expérimental', color='orange').classes('text-xs')
+                ui.label(t('profile_hologram_title')).classes('text-lg font-medium')
+                ui.badge(t('profile_hologram_experimental'), color='orange').classes('text-xs')
 
-            ui.label(
-                'Projetez le visage animé d\'OGMA sur une pyramide de Pepper\'s Ghost. '
-                'Cette extension est expérimentale : elle nécessite une page ouverte sur '
-                'un second écran (téléphone ou tablette) connecté au même réseau local.'
-            ).classes('text-xs text-muted mb-3')
+            ui.label(t('profile_hologram_desc')).classes('text-xs text-muted mb-3')
 
             def _get_hologram_lan_url() -> str:
                 """Détecte l'IP LAN du serveur et retourne l'URL hologramme."""
@@ -727,13 +746,13 @@ def _profile_modal():
                     try:
                         from extensions.hologram_projector.state_emitter import set_enabled
                         set_enabled(e.value)
-                        state = 'activé' if e.value else 'désactivé'
-                        ui.notify(f'Hologramme {state}', type='positive' if e.value else 'warning', timeout=2000)
+                        state = t('profile_hologram_state_on') if e.value else t('profile_hologram_state_off')
+                        ui.notify(t('profile_hologram_notify_state', state=state), type='positive' if e.value else 'warning', timeout=2000)
                     except Exception as err:
-                        ui.notify(f'Erreur hologramme : {err}', type='negative')
+                        ui.notify(t('profile_hologram_error', err=err), type='negative')
 
                 holo_toggle = ui.switch(
-                    'Activer l\'hologramme',
+                    t('profile_hologram_toggle'),
                     value=holo_enabled,
                     on_change=_on_holo_toggle,
                 ).classes('mr-2')
@@ -745,61 +764,54 @@ def _profile_modal():
                     with howto_dialog, ui.card().classes('popup-content q-dark').style('width: min(560px, 92vw); max-height: 85vh; overflow-y: auto;'):
                         with ui.row().classes('items-center gap-2 mb-3'):
                             ui.icon('wb_incandescent', size='md').classes('text-amber-400')
-                            ui.label('Hologramme Projector — Comment ça marche ?').classes('popup-title')
+                            ui.label(t('profile_hologram_howto_title')).classes('popup-title')
 
                         ui.separator().classes('mb-3')
 
-                        ui.label('🔺 La pyramide de Pepper\'s Ghost').classes('text-md font-semibold mb-1')
-                        ui.label(
-                            'La technique de Pepper\'s Ghost date du XIXe siècle. Une pyramide creuse en plastique '
-                            'transparent (4 faces triangulaires) posée sur l\'écran de votre téléphone reflète '
-                            'l\'image sous 4 angles, créant l\'illusion d\'un hologramme flottant au centre.'
-                        ).classes('text-sm text-muted mb-3')
+                        ui.label(t('profile_hologram_pyramid_title')).classes('text-md font-semibold mb-1')
+                        ui.label(t('profile_hologram_pyramid_desc')).classes('text-sm text-muted mb-3')
 
-                        ui.label('📱 Étapes d\'utilisation').classes('text-md font-semibold mb-2')
+                        ui.label(t('profile_hologram_steps_title')).classes('text-md font-semibold mb-2')
                         steps = [
-                            '1. Activez l\'hologramme avec le switch ci-dessus.',
-                            '2. Connectez votre téléphone/tablette au même réseau Wi-Fi que ce PC.',
-                            '3. Ouvrez l\'adresse ci-dessous dans le navigateur de votre appareil mobile.',
-                            '4. Passez en mode plein écran (touchez l\'icône ⛶ ou utilisez le menu du navigateur).',
-                            '5. Posez la pyramide de Pepper\'s Ghost au centre de l\'écran.',
-                            '6. Éteignez les lumières et profitez !',
+                            t('profile_hologram_step_1'),
+                            t('profile_hologram_step_2'),
+                            t('profile_hologram_step_3'),
+                            t('profile_hologram_step_4'),
+                            t('profile_hologram_step_5'),
+                            t('profile_hologram_step_6'),
                         ]
                         for step in steps:
                             ui.label(step).classes('text-sm mb-1')
 
                         ui.separator().classes('my-3')
-                        ui.label('🌐 Adresse à ouvrir sur votre appareil mobile').classes('text-md font-semibold mb-2')
+                        ui.label(t('profile_hologram_url_title')).classes('text-md font-semibold mb-2')
 
                         def _copy_url():
                             ui.run_javascript(f"navigator.clipboard.writeText('{url}')")
-                            ui.notify('URL copiée !', type='positive', timeout=1500)
+                            ui.notify(t('profile_hologram_url_copied'), type='positive', timeout=1500)
                         ui.input(value=url).props('readonly outlined dense color=amber').classes('w-full font-mono mb-1')
-                        ui.button('Copier l\'URL', icon='content_copy', on_click=_copy_url).props('flat dense color=grey-4 size=sm').classes('mb-3')
+                        ui.button(t('profile_btn_copy_url'), icon='content_copy', on_click=_copy_url).props('flat dense color=grey-4 size=sm').classes('mb-3')
 
-                        ui.label(
-                            '⚠️ Cette adresse est celle de votre réseau local. Elle change si votre machine '
-                            'obtient une nouvelle adresse IP (redémarrage du routeur, etc.).'
-                        ).classes('text-xs text-orange-400 mb-3')
+                        ui.label(t('profile_hologram_url_warning')).classes('text-xs text-orange-400 mb-3')
 
-                        ui.label('🖥️ Page sphère alternative').classes('text-md font-semibold mb-1')
+                        ui.label(t('profile_hologram_alt_title')).classes('text-md font-semibold mb-1')
                         alt_url = url.replace('/hologram', '/hologram2')
-                        ui.label(f'Version sphère wireframe Three.js : {alt_url}').classes('text-xs text-muted font-mono mb-3')
+                        ui.label(t('profile_hologram_alt_desc', url=alt_url)).classes('text-xs text-muted font-mono mb-3')
 
                         with ui.row().classes('w-full justify-end mt-2'):
-                            ui.button('Fermer', on_click=howto_dialog.close).classes('bg-gray-600')
+                            ui.button(t('profile_btn_close'), on_click=howto_dialog.close).classes('bg-gray-600')
 
                     howto_dialog.open()
 
                 ui.button(
-                    'Comment ça marche ?',
+                    t('profile_btn_hologram_howto'),
                     icon='help_outline',
                     on_click=_open_hologram_howto,
                 ).props('outline color=amber').classes('text-sm')
 
             # === IDENTITÉS ===
             ui.separator().classes('my-4')
-            ui.label('👤 Identités').classes('text-lg font-medium mb-2')
+            ui.label(t('profile_section_identity')).classes('text-lg font-medium mb-2')
             
             # Récupération des identités actuelles
             try:
@@ -809,7 +821,7 @@ def _profile_modal():
                 
                 # Nom utilisateur
                 with ui.row().classes('w-full items-center gap-2 mb-2'):
-                    user_input = ui.input('Nom utilisateur', value=current_identity['user_name']).classes('flex-grow')
+                    user_input = ui.input(t('profile_username_label'), value=current_identity['user_name']).classes('flex-grow')
                     
                     def update_user_name():
                         if user_input.value.strip():
@@ -831,14 +843,8 @@ def _profile_modal():
                                         instruction_input.set_value(updated_instr)
                                         print(f"[IDENTITY] Instruction mise a jour: '{old_name}' -> '{new_name}'")
                                     else:
-                                        # Pas d'instruction sauvegardée : rafraichir le template affiché
-                                        new_template = (
-                                            f"Tu dialogues avec {new_name}.\n\nDIRECTIVE :\n"
-                                            f"- Utilise UNIQUEMENT les souvenirs et connaissances concernant {new_name}\n"
-                                            f"- Si tu n'as AUCUN souvenir de {new_name}, c'est une premiere rencontre\n"
-                                            f"- IGNORE tout souvenir concernant d'autres personnes (meme s'ils apparaissent ci-dessous)\n"
-                                            f"- Adapte ton comportement selon ta relation reelle avec {new_name}"
-                                        )
+                                        # Pas d'instruction sauvegardée : rafraichir le template affiché (langue active)
+                                        new_template = _load_default_identity_instruction(new_name)
                                         instruction_input.set_value(new_template)
 
                                 identity_manager.save_identities()
@@ -881,17 +887,17 @@ def _profile_modal():
                                     print(f"[SESSION] ⚠️ Erreur mise à jour variable: {e}")
                                 # === FIN SYNCHRONISATION ===
                                 
-                                ui.notify(f'Nom utilisateur mis à jour : {new_name}', type='positive')
+                                ui.notify(t('profile_username_updated', name=new_name), type='positive')
                             else:
-                                ui.notify('Erreur lors de la mise à jour', type='negative')
+                                ui.notify(t('profile_update_err'), type='negative')
                         else:
-                            ui.notify('Le nom utilisateur ne peut pas être vide', type='negative')
+                            ui.notify(t('profile_username_empty_err'), type='negative')
                     
-                    ui.button('Valider', on_click=update_user_name).props('color=primary')
+                    ui.button(t('profile_btn_validate'), on_click=update_user_name).props('color=primary')
                 
                 # Nom IA
                 with ui.row().classes('w-full items-center gap-2 mb-4'):
-                    ai_input = ui.input('Nom IA', value=current_identity['ai_name']).classes('flex-grow')
+                    ai_input = ui.input(t('profile_ai_name_label'), value=current_identity['ai_name']).classes('flex-grow')
                     
                     def update_ai_name():
                         if ai_input.value.strip():
@@ -900,17 +906,17 @@ def _profile_modal():
                             if current_profile_id and current_profile_id in identity_manager._data['profiles']:
                                 identity_manager._data['profiles'][current_profile_id]['ai_name'] = ai_input.value.strip()
                                 identity_manager.save_identities()
-                                ui.notify(f'Nom IA mis à jour : {ai_input.value.strip()}', type='positive')
+                                ui.notify(t('profile_ai_updated', name=ai_input.value.strip()), type='positive')
                             else:
-                                ui.notify('Erreur lors de la mise à jour', type='negative')
+                                ui.notify(t('profile_update_err'), type='negative')
                         else:
-                            ui.notify('Le nom IA ne peut pas être vide', type='negative')
+                            ui.notify(t('profile_ai_empty_err'), type='negative')
                     
-                    ui.button('Valider', on_click=update_ai_name).props('color=primary')
+                    ui.button(t('profile_btn_validate'), on_click=update_ai_name).props('color=primary')
                 
                 # Instruction d'identité personnalisée
-                ui.label('📋 Instruction d\'identité').classes('text-sm font-medium mb-1 mt-4')
-                ui.label('Cette instruction sera injectée à chaque conversation pour clarifier qui vous êtes.').classes('text-xs text-gray-400 mb-2')
+                ui.label(t('profile_identity_instr_label')).classes('text-sm font-medium mb-1 mt-4')
+                ui.label(t('profile_identity_instr_desc')).classes('text-xs text-gray-400 mb-2')
                 
                 # Récupérer l'instruction actuelle ou utiliser le template par défaut
                 current_profile_id = identity_manager.get_current_profile_id()
@@ -918,31 +924,27 @@ def _profile_modal():
                 if current_profile_id and current_profile_id in identity_manager._data['profiles']:
                     current_instruction = identity_manager._data['profiles'][current_profile_id].get('identity_instruction', '')
                     # Réparation auto : si l'instruction contient un ancien prénom différent de user_name
+                    # (supporte FR "Tu dialogues avec " et EN "You are speaking with ")
                     if current_instruction:
                         stored_user_name = identity_manager._data['profiles'][current_profile_id].get('user_name', '')
-                        prefix = 'Tu dialogues avec '
-                        if stored_user_name and prefix in current_instruction:
-                            start = current_instruction.index(prefix) + len(prefix)
-                            end = current_instruction.find('.', start)
-                            if end > start:
-                                name_in_instr = current_instruction[start:end]
-                                if name_in_instr.lower() != stored_user_name.lower():
-                                    current_instruction = current_instruction.replace(name_in_instr, stored_user_name)
-                                    identity_manager._data['profiles'][current_profile_id]['identity_instruction'] = current_instruction
-                                    identity_manager.save_identities()
-                                    print(f"[IDENTITY] Instruction réparée automatiquement: '{name_in_instr}' -> '{stored_user_name}'")
+                        for prefix in ('Tu dialogues avec ', 'You are speaking with '):
+                            if stored_user_name and prefix in current_instruction:
+                                start = current_instruction.index(prefix) + len(prefix)
+                                end = current_instruction.find('.', start)
+                                if end > start:
+                                    name_in_instr = current_instruction[start:end]
+                                    if name_in_instr.lower() != stored_user_name.lower():
+                                        current_instruction = current_instruction.replace(name_in_instr, stored_user_name)
+                                        identity_manager._data['profiles'][current_profile_id]['identity_instruction'] = current_instruction
+                                        identity_manager.save_identities()
+                                        print(f"[IDENTITY] Instruction réparée automatiquement: '{name_in_instr}' -> '{stored_user_name}'")
+                                break
                 
-                # Si vide, utiliser le template par défaut
+                # Si vide, utiliser le template par défaut (langue active)
                 if not current_instruction:
-                    current_instruction = f"""Tu dialogues avec {current_identity['user_name']}.
-
-DIRECTIVE :
-- Utilise UNIQUEMENT les souvenirs et connaissances concernant {current_identity['user_name']}
-- Si tu n'as AUCUN souvenir de {current_identity['user_name']}, c'est une première rencontre
-- IGNORE tout souvenir concernant d'autres personnes (même s'ils apparaissent ci-dessous)
-- Adapte ton comportement selon ta relation réelle avec {current_identity['user_name']}"""
+                    current_instruction = _load_default_identity_instruction(current_identity['user_name'])
                 
-                instruction_input = ui.textarea('Instruction', value=current_instruction).classes('w-full').props('rows=6 outlined')
+                instruction_input = ui.textarea(t('profile_identity_textarea_label'), value=current_instruction).classes('w-full').props('rows=6 outlined')
                 
                 def update_identity_instruction():
                     if instruction_input.value.strip():
@@ -953,29 +955,26 @@ DIRECTIVE :
                         if current_profile_id and current_profile_id in identity_manager._data['profiles']:
                             identity_manager._data['profiles'][current_profile_id]['identity_instruction'] = new_instruction
                             identity_manager.save_identities()
-                            ui.notify('✅ Instruction d\'identité mise à jour', type='positive')
+                            ui.notify(t('profile_identity_updated'), type='positive')
                             print(f"[IDENTITY] ✅ Instruction personnalisée sauvegardée ({len(new_instruction)} chars)")
                         else:
-                            ui.notify('Erreur lors de la mise à jour', type='negative')
+                            ui.notify(t('profile_update_err'), type='negative')
                     else:
-                        ui.notify('L\'instruction ne peut pas être vide', type='negative')
+                        ui.notify(t('profile_identity_empty_err'), type='negative')
                 
                 with ui.row().classes('w-full justify-end gap-2 mt-2'):
-                    ui.button('Réinitialiser au défaut', on_click=lambda: instruction_input.set_value(f"""Tu dialogues avec {current_identity['user_name']}.
-
-DIRECTIVE :
-- Utilise UNIQUEMENT les souvenirs et connaissances concernant {current_identity['user_name']}
-- Si tu n'as AUCUN souvenir de {current_identity['user_name']}, c'est une première rencontre
-- IGNORE tout souvenir concernant d'autres personnes (même s'ils apparaissent ci-dessous)
-- Adapte ton comportement selon ta relation réelle avec {current_identity['user_name']}""")).props('flat color=secondary')
-                    ui.button('Valider', on_click=update_identity_instruction).props('color=primary')
+                    ui.button(t('profile_identity_reset_btn'),
+                              on_click=lambda: instruction_input.set_value(
+                                  _load_default_identity_instruction(current_identity['user_name'])
+                              )).props('flat color=secondary')
+                    ui.button(t('profile_btn_validate'), on_click=update_identity_instruction).props('color=primary')
                 
             except Exception as e:
                 ui.label(f"❌ Erreur : {e}").classes('text-red-500')
 
             # === MODE CONVERSATION VOCALE (Module Voice - Janvier 2026) ===
             ui.separator().classes('my-4')
-            ui.label('🎙️ Mode Conversation Vocale').classes('text-lg font-medium mb-2')
+            ui.label(t('profile_section_voice')).classes('text-lg font-medium mb-2')
             
             # Charger la config voice
             voice_config = sm.settings.get('voice', {})
@@ -995,28 +994,28 @@ DIRECTIVE :
                 sm.save_settings()
                 
                 if e.value:
-                    ui.notify('🎙️ Mode vocal activé ! Cliquez dans la zone de message pour commencer.', type='positive')
+                    ui.notify(t('profile_voice_activated_notify'), type='positive')
                 else:
-                    ui.notify('Mode vocal désactivé', type='info')
+                    ui.notify(t('profile_voice_deactivated_notify'), type='info')
                 
                 refresh_content()
             
             with ui.card().classes('w-full p-3 mb-3 bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30'):
-                ui.label('🎤 Conversation Vocale Intelligente').classes('text-md font-medium mb-2')
+                ui.label(t('profile_voice_card_title')).classes('text-md font-medium mb-2')
                 
                 with ui.row().classes('items-center gap-2 mb-2'):
                     ui.checkbox(
-                        'Activer le mode conversation vocale',
+                        t('profile_voice_enable'),
                         value=voice_enabled,
                         on_change=on_voice_mode_change
                     ).classes('mb-0')
                     
                     if voice_enabled:
-                        ui.badge('🎙️ ACTIF', color='positive').classes('text-xs animate-pulse')
+                        ui.badge(t('profile_badge_active'), color='positive').classes('text-xs animate-pulse')
                     else:
-                        ui.badge('⏸️ INACTIF', color='secondary').classes('text-xs')
+                        ui.badge(t('profile_badge_inactive'), color='secondary').classes('text-xs')
                 
-                ui.label('Principe : Cliquez dans la zone de message pour activer l\'écoute. Dites le mot d\'activation pour commencer à dicter, puis le mot d\'envoi pour envoyer.').classes('text-xs text-muted mb-2')
+                ui.label(t('profile_voice_principle')).classes('text-xs text-muted mb-2')
                 
                 if voice_enabled:
                     # Mode conversation continue
@@ -1027,9 +1026,9 @@ DIRECTIVE :
                         sm.save_settings()
                         
                         if e.value:
-                            ui.notify('🔄 Mode conversation continue activé ! Plus besoin du trigger d\'activation.', type='positive')
+                            ui.notify(t('profile_voice_continuous_activated_notify'), type='positive')
                         else:
-                            ui.notify('Mode conversation continue désactivé', type='info')
+                            ui.notify(t('profile_voice_continuous_deactivated_notify'), type='info')
                         
                         # Recharger config dans le module voice
                         try:
@@ -1045,18 +1044,18 @@ DIRECTIVE :
                     ui.separator().classes('my-2')
                     with ui.row().classes('items-center gap-2 mb-2'):
                         ui.checkbox(
-                            '🔄 Mode Conversation Continue',
+                            t('profile_voice_continuous_mode'),
                             value=continuous_mode,
                             on_change=on_continuous_mode_change
                         ).classes('mb-0')
                         
                         if continuous_mode:
-                            ui.badge('🔥 CONTINU', color='warning').classes('text-xs animate-pulse')
+                            ui.badge(t('profile_badge_continuous'), color='warning').classes('text-xs animate-pulse')
                     
                     if continuous_mode:
                         with ui.element('div').classes('text-xs text-orange-300 mb-2 p-2 bg-orange-900/20 rounded'):
-                            ui.label("⚡ Mode continu : Dès que l'IA principale finit de parler, le micro s'active automatiquement.")
-                            ui.label("Pas besoin du trigger d'activation - seul le trigger d'envoi est nécessaire.")
+                            ui.label(t('profile_voice_continuous_desc_1'))
+                            ui.label(t('profile_voice_continuous_desc_2'))
                     
                     # Configuration du mot d'activation
                     def on_trigger_activation_change(e):
@@ -1064,7 +1063,7 @@ DIRECTIVE :
                             sm.settings['voice'] = {}
                         sm.settings['voice']['trigger_activation'] = e.value.lower().strip()
                         sm.save_settings()
-                        ui.notify(f'Mot d\'activation: "{e.value}"', type='positive')
+                        ui.notify(t('profile_voice_activation_saved', word=e.value), type='positive')
                         # Recharger config dans le module voice si disponible
                         try:
                             from modules.voice import get_voice_manager
@@ -1086,7 +1085,7 @@ DIRECTIVE :
                             sm.settings['voice'] = {}
                         sm.settings['voice']['trigger_send'] = e.value.lower().strip()
                         sm.save_settings()
-                        ui.notify(f'Mot d\'envoi: "{e.value}"', type='positive')
+                        ui.notify(t('profile_voice_send_saved', word=e.value), type='positive')
                         # Recharger config dans le module voice si disponible
                         try:
                             from modules.voice import get_voice_manager
@@ -1103,12 +1102,12 @@ DIRECTIVE :
                     ).classes('w-full mb-2').props('dense')
                     
                     with ui.element('div').classes('text-xs text-green-400 space-y-1'):
-                        ui.label(f"💡 Dites \"{trigger_activation}\" pour commencer à dicter ou interrompre l'IA principale.")
-                        ui.label(f"💡 Dites \"{trigger_send}\" pour envoyer votre message.")
+                        ui.label(t('profile_voice_tips_activation', word=trigger_activation))
+                        ui.label(t('profile_voice_tips_send', word=trigger_send))
                     
                     # Paramètres audio avancés
                     ui.separator().classes('my-3')
-                    ui.label('🎚️ Paramètres Audio Avancés').classes('text-sm font-medium mb-2')
+                    ui.label(t('profile_voice_advanced_params')).classes('text-sm font-medium mb-2')
                     
                     # Listening timeout
                     def on_listening_timeout_change(e):
@@ -1118,7 +1117,7 @@ DIRECTIVE :
                                 sm.settings['voice'] = {}
                             sm.settings['voice']['listening_timeout'] = value
                             sm.save_settings()
-                            ui.notify(f'Timeout d\'écoute: {value}s', type='positive')
+                            ui.notify(t('profile_voice_timeout_saved', val=value), type='positive')
                             try:
                                 from modules.voice import get_voice_manager
                                 vm = get_voice_manager()
@@ -1127,7 +1126,7 @@ DIRECTIVE :
                             except:
                                 pass
                         except ValueError:
-                            ui.notify('Valeur invalide', type='negative')
+                            ui.notify(t('profile_voice_invalid_value'), type='negative')
                     
                     ui.number(
                         label=t('profile_label_stt_timeout'),
@@ -1146,7 +1145,7 @@ DIRECTIVE :
                                 sm.settings['voice'] = {}
                             sm.settings['voice']['phrase_time_limit'] = value
                             sm.save_settings()
-                            ui.notify(f'Durée max par segment: {value}s', type='positive')
+                            ui.notify(t('profile_voice_duration_saved', val=value), type='positive')
                             try:
                                 from modules.voice import get_voice_manager
                                 vm = get_voice_manager()
@@ -1155,7 +1154,7 @@ DIRECTIVE :
                             except:
                                 pass
                         except ValueError:
-                            ui.notify('Valeur invalide', type='negative')
+                            ui.notify(t('profile_voice_invalid_value'), type='negative')
                     
                     ui.number(
                         label=t('profile_label_stt_max_duration'),
@@ -1174,7 +1173,7 @@ DIRECTIVE :
                                 sm.settings['voice'] = {}
                             sm.settings['voice']['pause_threshold'] = value
                             sm.save_settings()
-                            ui.notify(f'Seuil de pause: {value}s', type='positive')
+                            ui.notify(t('profile_voice_pause_saved', val=value), type='positive')
                             try:
                                 from modules.voice import get_voice_manager
                                 vm = get_voice_manager()
@@ -1183,7 +1182,7 @@ DIRECTIVE :
                             except:
                                 pass
                         except ValueError:
-                            ui.notify('Valeur invalide', type='negative')
+                            ui.notify(t('profile_voice_invalid_value'), type='negative')
                     
                     ui.number(
                         label=t('profile_label_stt_pause_threshold'),
@@ -1203,9 +1202,9 @@ DIRECTIVE :
                             sm.settings['voice']['auto_send_delay'] = value
                             sm.save_settings()
                             if value > 0:
-                                ui.notify(f'Envoi automatique après {value}s de silence', type='positive')
+                                ui.notify(t('profile_voice_autosend_enabled', val=value), type='positive')
                             else:
-                                ui.notify('Envoi automatique désactivé', type='info')
+                                ui.notify(t('profile_voice_autosend_disabled'), type='info')
                             try:
                                 from modules.voice import get_voice_manager
                                 vm = get_voice_manager()
@@ -1214,7 +1213,7 @@ DIRECTIVE :
                             except:
                                 pass
                         except ValueError:
-                            ui.notify('Valeur invalide', type='negative')
+                            ui.notify(t('profile_voice_invalid_value'), type='negative')
                     
                     ui.number(
                         label=t('profile_label_stt_auto_send'),
@@ -1226,14 +1225,14 @@ DIRECTIVE :
                     ).classes('w-full mb-2').props('dense')
                     
                     with ui.element('div').classes('text-xs text-blue-300 mt-2'):
-                        ui.label('💡 Timeout = délai max avant de commencer à parler')
-                        ui.label('💡 Durée max = durée totale d\'enregistrement par segment')
-                        ui.label('💡 Seuil pause = silence nécessaire pour couper (ne pas couper au milieu d\'une phrase)')
-                        ui.label('💡 Envoi auto = silence total avant d\'envoyer le message (5s recommandé, 30s+ pour désactiver)')
+                        ui.label(t('profile_voice_tip_timeout'))
+                        ui.label(t('profile_voice_tip_duration'))
+                        ui.label(t('profile_voice_tip_pause'))
+                        ui.label(t('profile_voice_tip_autosend'))
 
             # === SYNTHÈSE VOCALE ===
             ui.separator().classes('my-4')
-            ui.label('🔊 Synthèse Vocale (TTS)').classes('text-lg font-medium mb-2')
+            ui.label(t('profile_section_tts')).classes('text-lg font-medium mb-2')
 
             # TTS activé/désactivé
             tts_enabled = sm.settings.get('tts', {}).get('enabled', True)
@@ -1244,26 +1243,26 @@ DIRECTIVE :
                 sm.settings['tts']['enabled'] = e.value
                 sm.save_settings()
 
-                status = "activée" if e.value else "désactivée"
-                ui.notify(f'Synthèse vocale {status}', type='positive')
+                status = t('profile_tts_state_on') if e.value else t('profile_tts_state_off')
+                ui.notify(t('profile_tts_notify_state', state=status), type='positive')
 
                 # Rafraîchir l'affichage pour montrer/cacher les options TTS
                 refresh_content()
 
             with ui.row().classes('items-center gap-2 mb-2'):
                 ui.checkbox(
-                    '🔊 Activer la synthèse vocale',
+                    t('profile_tts_enable'),
                     value=tts_enabled,
                     on_change=on_tts_enabled_change
                 ).classes('mb-0')
                 
                 # Indicateur d'état visuel
                 if tts_enabled:
-                    ui.badge('✅ ACTIF', color='positive').classes('text-xs')
+                    ui.badge(t('profile_tts_status_active'), color='positive').classes('text-xs')
                 else:
-                    ui.badge('❌ INACTIF', color='negative').classes('text-xs')
+                    ui.badge(t('profile_tts_status_inactive'), color='negative').classes('text-xs')
 
-            ui.label('Active le système de synthèse vocale. Décoché = pas de TTS du tout.').classes('text-xs text-muted mb-4')
+            ui.label(t('profile_tts_enable_desc')).classes('text-xs text-muted mb-4')
 
             # Mode automatique (seulement si TTS activé)
             if tts_enabled:
@@ -1274,15 +1273,16 @@ DIRECTIVE :
                         sm.settings['tts'] = {}
                     sm.settings['tts']['auto_speak'] = e.value
                     sm.save_settings()
-                    ui.notify(f'Lecture automatique {"activée" if e.value else "désactivée"}', type='positive')
+                    state = t('profile_tts_auto_read_state_on') if e.value else t('profile_tts_auto_read_state_off')
+                    ui.notify(t('profile_tts_auto_read_notify', state=state), type='positive')
 
                 ui.checkbox(
-                    '▶️ Lecture automatique des réponses IA',
+                    t('profile_tts_auto_read'),
                     value=auto_speak,
                     on_change=on_auto_speak_change
                 ).classes('mb-2')
 
-                ui.label(f'Coché = lecture automatique | Décoché = bouton ▶️ manuel sous chaque réponse.').classes('text-xs text-muted mb-4')
+                ui.label(t('profile_tts_auto_read_desc')).classes('text-xs text-muted mb-4')
                 
                 # Mode streaming TTS (lecture pendant le streaming)
                 if auto_speak:
@@ -1293,32 +1293,33 @@ DIRECTIVE :
                             sm.settings['tts'] = {}
                         sm.settings['tts']['streaming'] = e.value
                         sm.save_settings()
-                        ui.notify(f'TTS streaming {"activé" if e.value else "désactivé"}', type='positive')
+                        state = t('profile_tts_streaming_state_on') if e.value else t('profile_tts_streaming_state_off')
+                        ui.notify(t('profile_tts_streaming_notify', state=state), type='positive')
                     
                     ui.checkbox(
-                        '🔊 Mode streaming (lecture phrase par phrase)',
+                        t('profile_tts_streaming'),
                         value=tts_streaming,
                         on_change=on_tts_streaming_change
                     ).classes('mb-2 ml-4')
                     
-                    ui.label('Coché = lecture progressive pendant le streaming | Décoché = lecture après réponse complète.').classes('text-xs text-muted mb-4 ml-4')
+                    ui.label(t('profile_tts_streaming_desc')).classes('text-xs text-muted mb-4 ml-4')
 
             # Si TTS est activé, afficher les paramètres
             if tts_enabled:
-                ui.label('⚙️ Configuration TTS').classes('text-md font-medium mb-2')
+                ui.label(t('profile_tts_config_title')).classes('text-md font-medium mb-2')
 
                 # Moteur TTS avec système sans conflit intégré
                 # Note: Edge TTS retiré (bloqué par Microsoft depuis 2024)
                 engine_options = {
-                    'conflict_free': '🎵 TTS Sans Conflit (recommandé)',
-                    'gtts': '🌐 Google TTS Offline (Gratuit)',
-                    'system': '🖥️ Système (pyttsx3)',
-                    'azure': '☁️ Azure AI Speech (API)',
-                    'google': '☁️ Google Cloud TTS (API)',
-                    'elevenlabs': '🎯 ElevenLabs (API Premium)',
-                    'fish_audio': '🐟 Fish Audio (API)',
-                    'cartesia': '🎭 Cartesia AI (API)',
-                    'hume_ai': '🧠 Hume AI / Octave (API)'
+                    'conflict_free': t('profile_tts_engine_conflict_free'),
+                    'gtts': t('profile_tts_engine_gtts'),
+                    'system': t('profile_tts_engine_system'),
+                    'azure': t('profile_tts_engine_azure'),
+                    'google': t('profile_tts_engine_google'),
+                    'elevenlabs': t('profile_tts_engine_elevenlabs'),
+                    'fish_audio': t('profile_tts_engine_fish_audio'),
+                    'cartesia': t('profile_tts_engine_cartesia'),
+                    'hume_ai': t('profile_tts_engine_hume_ai')
                 }
                 
                 current_engine = sm.settings.get('tts', {}).get('engine', 'conflict_free')
@@ -1347,9 +1348,9 @@ DIRECTIVE :
                         print(f"[PROFILE-TTS] Erreur reload config: {err}")
                     
                     if e.value == 'conflict_free':
-                        ui.notify('🎵 TTS sans conflit activé (optimal)', type='positive')
+                        ui.notify(t('profile_tts_engine_conflict_free_activated'), type='positive')
                     else:
-                        ui.notify(f'Moteur TTS: {e.value}', type='positive')
+                        ui.notify(t('profile_tts_engine_changed', engine=e.value), type='positive')
 
                     # Rafraîchir pour montrer les options du nouveau moteur
                     refresh_content()
@@ -1369,12 +1370,12 @@ DIRECTIVE :
                         audio_mgr = _ensure_audio_manager()
                         
                         if not audio_mgr:
-                            ui.notify('❌ Audio manager non disponible', type='negative')
+                            ui.notify(t('profile_tts_audio_mgr_unavailable'), type='negative')
                             return
                         
-                        test_text = "Bonjour ! Test de la synthèse vocale. Ça fonctionne parfaitement !"
+                        test_text = t('profile_tts_test_text')
                         
-                        ui.notify('🔊 Test TTS en cours...', type='info')
+                        ui.notify(t('profile_tts_test_in_progress'), type='info')
                         
                         # Utiliser speak_async si disponible, sinon speak synchrone
                         if hasattr(audio_mgr, 'speak_async'):
@@ -1383,33 +1384,33 @@ DIRECTIVE :
                             success = audio_mgr.speak(test_text)
                         
                         if success:
-                            ui.notify('✅ Test TTS réussi !', type='positive')
+                            ui.notify(t('profile_tts_test_success'), type='positive')
                         else:
-                            ui.notify('❌ Échec test TTS', type='negative')
+                            ui.notify(t('profile_tts_test_failed'), type='negative')
                             
                     except Exception as e:
-                        ui.notify(f'❌ Erreur test TTS: {str(e)[:50]}', type='negative')
+                        ui.notify(t('profile_tts_test_error', err=str(e)[:50]), type='negative')
 
-                ui.button('🎤 Tester la voix', on_click=test_tts).classes('mb-3').props('size=sm color=primary')
+                ui.button(t('profile_btn_test_voice'), on_click=test_tts).classes('mb-3').props('size=sm color=primary')
 
                 # Configuration du moteur sélectionné
-                ui.label(f'Configuration: {engine_options.get(current_engine, current_engine)}').classes('text-sm mb-2')
+                ui.label(t('profile_tts_config_label', name=engine_options.get(current_engine, current_engine))).classes('text-sm mb-2')
 
                 # Import et utilisation du configurateur TTS
                 try:
                     from ogma_tts_config import _render_tts_config
                     _render_tts_config(current_engine, sm, refresh_content)
                 except ImportError:
-                    ui.label("❌ Module de configuration TTS non disponible").classes('text-red-500 mb-2')
+                    ui.label(t('profile_tts_config_module_unavailable')).classes('text-red-500 mb-2')
 
             # === SECTION STT (TRANSCRIPTION AUDIO) ===
             ui.separator().classes('my-4')
-            ui.label('🎙️ Transcription Audio (Speech-to-Text)').classes('text-lg font-medium mb-2')
+            ui.label(t('profile_section_stt')).classes('text-lg font-medium mb-2')
             
             # Options de moteur STT
             stt_options = {
-                'google': '🌐 Google Speech Recognition (Gratuit)',
-                'whisper': '🤖 OpenAI Whisper (API - Haute précision)'
+                'google': t('profile_stt_engine_google'),
+                'whisper': t('profile_stt_engine_whisper')
             }
             
             # Charger config STT actuelle
@@ -1452,21 +1453,21 @@ DIRECTIVE :
                                 except Exception as e:
                                     print(f"[PROFILE-STT] Erreur reload: {e}")
                                 
-                                ui.notify('✅ Clé API Whisper sauvegardée', type='positive')
+                                ui.notify(t('profile_stt_whisper_key_saved'), type='positive')
                             
                             ui.button('💾', on_click=save_stt_api_key).props('size=sm color=primary').tooltip(t('profile_tooltip_save_key'))
                         
                         if saved_key:
-                            ui.label(f'✅ Clé configurée: {masked_key}').classes('text-xs text-green-500')
+                            ui.label(t('profile_stt_whisper_key_configured', key=masked_key)).classes('text-xs text-green-500')
                         else:
-                            ui.label('⚠️ Aucune clé API configurée - ajoutez votre clé OpenAI').classes('text-xs text-orange-500')
+                            ui.label(t('profile_stt_whisper_no_key')).classes('text-xs text-orange-500')
                         
-                        ui.label('OpenAI Whisper offre une transcription de haute précision. Nécessite une clé API OpenAI.').classes('text-xs text-muted mt-1')
+                        ui.label(t('profile_stt_whisper_desc')).classes('text-xs text-muted mt-1')
                     
                     else:
                         # Google Speech - pas de configuration nécessaire
-                        ui.label('✅ Google Speech Recognition est gratuit et ne nécessite aucune configuration.').classes('text-xs text-green-500')
-                        ui.label('Précision correcte pour le français. Requiert une connexion internet.').classes('text-xs text-muted mt-1')
+                        ui.label(t('profile_stt_google_free')).classes('text-xs text-green-500')
+                        ui.label(t('profile_stt_google_precision')).classes('text-xs text-muted mt-1')
             
             def on_stt_engine_change(e):
                 if 'stt' not in sm.settings:
@@ -1482,7 +1483,7 @@ DIRECTIVE :
                     print(f"[PROFILE-STT] Erreur reload: {e2}")
                 
                 engine_name = stt_options.get(e.value, e.value)
-                ui.notify(f'Moteur STT: {engine_name}', type='positive')
+                ui.notify(t('profile_stt_engine_changed', engine=engine_name), type='positive')
                 
                 # Rafraîchir les options
                 render_stt_options()
@@ -1501,13 +1502,13 @@ DIRECTIVE :
             async def test_stt():
                 """Test rapide du STT"""
                 try:
-                    ui.notify('🎙️ Parlez maintenant pendant 3 secondes...', type='info')
+                    ui.notify(t('profile_stt_speak_now'), type='info')
                     
                     from audio_manager_wrapper import get_audio_manager
                     audio_mgr = get_audio_manager()
                     
                     if not audio_mgr:
-                        ui.notify('❌ Audio manager non disponible', type='negative')
+                        ui.notify(t('profile_tts_audio_mgr_unavailable'), type='negative')
                         return
                     
                     # Initialiser si nécessaire
@@ -1518,20 +1519,20 @@ DIRECTIVE :
                     if hasattr(audio_mgr, 'record_once'):
                         result = await audio_mgr.record_once(timeout=3.0)
                         if result:
-                            ui.notify(f'✅ Transcription: "{result}"', type='positive')
+                            ui.notify(t('profile_stt_transcription', text=result), type='positive')
                         else:
-                            ui.notify('❌ Aucune transcription obtenue', type='warning')
+                            ui.notify(t('profile_stt_no_transcription'), type='warning')
                     else:
-                        ui.notify('❌ Fonction record_once non disponible', type='negative')
+                        ui.notify(t('profile_stt_record_unavailable'), type='negative')
                         
                 except Exception as e:
-                    ui.notify(f'❌ Erreur test STT: {str(e)[:50]}', type='negative')
+                    ui.notify(t('profile_stt_test_error', err=str(e)[:50]), type='negative')
             
-            ui.button('🎤 Tester la transcription', on_click=test_stt).classes('mb-3').props('size=sm color=primary')
+            ui.button(t('profile_btn_test_stt'), on_click=test_stt).classes('mb-3').props('size=sm color=primary')
 
             # === EXTENSION JOURNAL DE BORD ===
             ui.separator().classes('my-4')
-            ui.label('📔 Extension Journal de Bord').classes('text-lg font-medium mb-2')
+            ui.label(t('profile_section_journal')).classes('text-lg font-medium mb-2')
 
             # Vérifier si l'extension journal est disponible
             journal_available = False
@@ -1557,37 +1558,37 @@ DIRECTIVE :
                         if journal and hasattr(journal, 'config'):
                             # Basculer l'état de l'extension
                             new_state = journal.config.toggle_enabled()
-                            status = "activée" if new_state else "désactivée"
-                            ui.notify(f'Extension Journal de Bord {status}', type='positive')
+                            status = t('profile_journal_state_on') if new_state else t('profile_journal_state_off')
+                            ui.notify(t('profile_journal_toggled_notify', state=status), type='positive')
                             
                             # Log pour debug
                             print(f"[PROFILE-JOURNAL] UPDATE Extension Journal {'ACTIVÉE' if new_state else 'DÉSACTIVÉE'}")
                         else:
-                            ui.notify('Erreur: Journal non initialisé', type='negative')
+                            ui.notify(t('profile_journal_not_init'), type='negative')
                     except Exception as error:
-                        ui.notify(f'Erreur lors du basculement: {error}', type='negative')
+                        ui.notify(t('profile_journal_toggle_err', err=error), type='negative')
                         print(f"[PROFILE-JOURNAL] ERROR Basculement: {error}")
 
                 ui.checkbox(
-                    'Activer l\'extension Journal de Bord',
+                    t('profile_journal_enable'),
                     value=journal_enabled,
                     on_change=on_journal_enabled_change
                 ).classes('mb-2')
 
-                ui.label('Quand activé, le journal injecte automatiquement le contexte de la journée au début des nouvelles conversations (max 3 entrées).').classes('text-xs text-muted mb-4')
+                ui.label(t('profile_journal_desc')).classes('text-xs text-muted mb-4')
                 
                 # Informations sur le statut actuel
                 status_icon = "✅" if journal_enabled else "❌"
-                auto_context = "✅ Injection automatique de contexte" if journal_enabled else "❌ Pas d'injection de contexte"
-                ui.label(f'{status_icon} Statut: {auto_context}').classes('text-sm mb-2')
+                auto_context = t('profile_journal_status_enabled') if journal_enabled else t('profile_journal_status_disabled')
+                ui.label(t('profile_journal_status_label', icon=status_icon, status=auto_context)).classes('text-sm mb-2')
             else:
-                ui.label('❌ Extension Journal de Bord non disponible').classes('text-red-500 mb-2')
-                ui.label('L\'extension n\'est pas chargée ou a rencontré une erreur au démarrage.').classes('text-xs text-muted mb-4')
+                ui.label(t('profile_journal_not_available')).classes('text-red-500 mb-2')
+                ui.label(t('profile_journal_not_loaded')).classes('text-xs text-muted mb-4')
 
             # === SECTION HARDWARE (specs machine pour calcul Ollama) ===
             ui.separator().classes('my-4')
-            ui.label('🖥️ Caractéristiques Hardware').classes('text-lg font-medium mb-2')
-            ui.label('Ces valeurs sont utilisées pour calculer les paramètres Ollama optimaux (context_length, max_tokens, low_vram). Modifiez-les si l\'auto-détection est incorrecte.').classes('text-xs text-muted mb-3')
+            ui.label(t('profile_section_hardware')).classes('text-lg font-medium mb-2')
+            ui.label(t('profile_hardware_desc')).classes('text-xs text-muted mb-3')
 
             hw = sm.settings.get('hardware', {})
 
@@ -1601,7 +1602,7 @@ DIRECTIVE :
             hw_status_label = ui.label('').classes('text-xs text-muted mb-2')
 
             async def _auto_detect_hardware():
-                hw_status_label.set_text('Détection en cours...')
+                hw_status_label.set_text(t('profile_hardware_detecting'))
                 try:
                     detected = {}
                     # RAM via psutil ou WMI
@@ -1680,13 +1681,14 @@ DIRECTIVE :
                     if 'gpu_vram_gb' in detected:
                         hw_vram.value = detected['gpu_vram_gb']
 
-                    hw_status_label.set_text(f'Detecte : RAM {detected.get("ram_total_gb", "?")} Go, '
-                                             f'CPU {detected.get("cpu_threads", "?")} threads, '
-                                             f'GPU {detected.get("gpu_name", "aucun")} '
-                                             f'({detected.get("gpu_vram_gb", 0)} Go VRAM)')
-                    ui.notify('Hardware detecte', type='positive')
+                    hw_status_label.set_text(t('profile_hardware_detected',
+                                             ram=detected.get('ram_total_gb', '?'),
+                                             cpu=detected.get('cpu_threads', '?'),
+                                             gpu=detected.get('gpu_name', 'aucun'),
+                                             vram=detected.get('gpu_vram_gb', 0)))
+                    ui.notify(t('profile_hardware_detected_short'), type='positive')
                 except Exception as e:
-                    hw_status_label.set_text(f'Erreur detection : {e}')
+                    hw_status_label.set_text(t('profile_hardware_detect_error', err=e))
                     ui.notify(f'Erreur : {e}', type='warning')
 
             ui.button(t('profile_btn_detect_auto'), icon='search', on_click=_auto_detect_hardware).classes('action-button mb-3').tooltip(t('profile_tooltip_detect_auto'))
@@ -1708,9 +1710,9 @@ DIRECTIVE :
 
             with ui.row().classes('w-full gap-4 mb-2'):
                 hw_gpu_name = ui.input(
-                    label='GPU (nom)',
+                    label=t('profile_hardware_gpu_name_label'),
                     value=hw.get('gpu_name', '')
-                ).classes('form-input').style('flex: 2;').tooltip('Nom de votre carte graphique.\nExemple : NVIDIA RTX 4060, RTX 3080, etc.\nSi vous n\'avez qu\'un GPU integre (Intel UHD, AMD Vega),\nlaissez vide — le modele sera charge en RAM CPU.')
+                ).classes('form-input').style('flex: 2;').tooltip(t('profile_hardware_gpu_tooltip'))
                 hw_gpu_name.on('blur', lambda: _save_hw('gpu_name', hw_gpu_name.value))
 
                 hw_vram = ui.number(
@@ -1722,7 +1724,7 @@ DIRECTIVE :
 
             # Estimation mémoire pour Ollama
             ui.separator().classes('my-2')
-            ui.label('Estimations Ollama').classes('text-sm font-semibold mb-1')
+            ui.label(t('profile_hardware_estimates_title')).classes('text-sm font-semibold mb-1')
 
             hw_estimate_container = ui.column().classes('w-full mb-2')
 
@@ -1738,20 +1740,20 @@ DIRECTIVE :
 
                 with hw_estimate_container:
                     if ram_go == 0:
-                        ui.label('Renseignez votre RAM pour voir les estimations.').classes('text-xs text-muted')
+                        ui.label(t('profile_hardware_enter_ram')).classes('text-xs text-muted')
                         return
 
-                    ui.label(f'RAM utilisable estimee : ~{ram_usable:.1f} Go (70% de {ram_go:.1f})').classes('text-xs text-muted')
+                    ui.label(t('profile_hardware_ram_usable', ram_usable=f'{ram_usable:.1f}', ram=f'{ram_go:.1f}')).classes('text-xs text-muted')
                     if use_gpu:
-                        ui.label(f'GPU detecte ({vram_go:.0f} Go VRAM) — modeles charges en VRAM (rapide)').classes('text-xs text-green-500')
-                        ui.label(f'low_vram conseille : OFF (tout sur le GPU)').classes('text-xs text-green-500')
+                        ui.label(t('profile_hardware_gpu_detected', vram=f'{vram_go:.0f}')).classes('text-xs text-green-500')
+                        ui.label(t('profile_hardware_low_vram_off_gpu')).classes('text-xs text-green-500')
                     else:
-                        ui.label('Pas de GPU dedie — modeles charges en RAM CPU (plus lent)').classes('text-xs text-orange-500')
-                        ui.label('low_vram conseille : OFF (sans GPU, ce parametre n\'a pas d\'effet)').classes('text-xs text-orange-500')
-                        ui.label(f'Memoire dispo pour les modeles : ~{ram_usable:.1f} Go').classes('text-xs text-orange-500')
+                        ui.label(t('profile_hardware_no_gpu')).classes('text-xs text-orange-500')
+                        ui.label(t('profile_hardware_low_vram_off_cpu')).classes('text-xs text-orange-500')
+                        ui.label(t('profile_hardware_mem_for_models', ram_usable=f'{ram_usable:.1f}')).classes('text-xs text-orange-500')
 
                     ui.label('').classes('mb-1')
-                    ui.label('Modeles Ollama — context_length conseille :').classes('text-xs font-semibold')
+                    ui.label(t('profile_hardware_models_ctx')).classes('text-xs font-semibold')
 
                     # Lire les modèles Ollama installés
                     try:
@@ -1835,18 +1837,18 @@ DIRECTIVE :
                                 except Exception:
                                     ui.label(f'  {model_name} — erreur lecture specs').classes('text-xs text-muted')
                         else:
-                            ui.label('Ollama non disponible — demarrez Ollama pour voir les estimations.').classes('text-xs text-muted')
+                            ui.label(t('profile_hardware_ollama_unavailable')).classes('text-xs text-muted')
                     except Exception:
-                        ui.label('Ollama non joignable (timeout) — demarrez Ollama pour voir les estimations.').classes('text-xs text-muted')
+                        ui.label(t('profile_hardware_ollama_timeout')).classes('text-xs text-muted')
 
             # Timer pour calcul initial (après un court délai pour laisser le UI se construire)
             ui.timer(0.5, _update_estimates, once=True)
 
             # Bouton recalculer
-            ui.button('Recalculer estimations', icon='calculate', on_click=_update_estimates).classes('action-button mt-2').tooltip(t('profile_tooltip_recalculate'))
+            ui.button(t('profile_btn_recalculate'), icon='calculate', on_click=_update_estimates).classes('action-button mt-2').tooltip(t('profile_tooltip_recalculate'))
 
     with d, ui.card().classes('popup-content profile-modal q-dark').style('background: var(--bg-secondary); color: var(--text-primary); width: min(800px, 90vw); max-height: 80vh; overflow-y: auto;'):
-        ui.label('👤 Profil Utilisateur').classes('popup-title')
+        ui.label(t('profile_modal_title')).classes('popup-title')
 
         # Contenu dynamique qui sera rafraîchi
         dynamic_content = ui.column().classes('w-full')
@@ -1856,7 +1858,7 @@ DIRECTIVE :
 
         # Bouton fermer
         with ui.row().classes('mt-4 justify-end'):
-            ui.button('Fermer', on_click=d.close).classes('action-button')
+            ui.button(t('profile_btn_close'), on_click=d.close).classes('action-button')
 
     return d
 
