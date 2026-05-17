@@ -5873,7 +5873,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
 
         # GÉNÉRATION D'IMAGES - Détection et traitement via extension text2img
         try:
-            from logic_callbacks import process_image_generation
+            from modules.logic.image_generation import process_image_generation
             from extensions.text2img import get_text2img_manager, is_available as text2img_available
 
             sm = _ensure_settings_manager()
@@ -6098,7 +6098,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
 
         # 🎨 IMAGE-TO-IMAGE - Détection et traitement modification d'images
         try:
-            from logic_callbacks import process_img2img_generation
+            from modules.logic.image_generation import process_img2img_generation
             
             sm = _ensure_settings_manager()
             img_config = sm.settings.get('image_generation', {})
