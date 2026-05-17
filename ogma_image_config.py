@@ -960,7 +960,7 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     # Mettre à jour les modèles
                     new_models = info.get('models', [])
                     model_select.options = new_models
-                    if new_models:
+                    if new_models and model_select.value not in new_models:
                         model_select.value = new_models[0]
                     model_select.update()
                     # Mettre à jour le coût du modèle
