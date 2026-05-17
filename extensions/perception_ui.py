@@ -10,7 +10,12 @@ import threading
 import time
 import base64
 from typing import Optional, Dict, Any
-import cv2
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    cv2 = None
+    CV2_AVAILABLE = False
 import numpy as np
 
 from .perception_agent import PerceptionAgent

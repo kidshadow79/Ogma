@@ -73,13 +73,20 @@ try:
     _devnull = open(os.devnull, 'w')
     _old_stdout = sys.stdout
     sys.stdout = _devnull
-    import pygame
-    sys.stdout = _old_stdout
-    _devnull.close()
-    PYGAME_AVAILABLE = True
+    try:
+        import pygame
+        PYGAME_AVAILABLE = True
+    finally:
+        # CRITIQUE: restaurer stdout même si pygame crash avec une erreur non-ImportError
+        # (ex: DLL manquante sur Windows) - sinon tous les print() suivants disparaissent
+        sys.stdout = _old_stdout
+        _devnull.close()
 except ImportError:
     PYGAME_AVAILABLE = False
     print("[TTS] pygame non disponible - installez avec: pip install pygame")
+except Exception:
+    PYGAME_AVAILABLE = False
+    print("[TTS] pygame non disponible (erreur de chargement)")
 
 try:
     import azure.cognitiveservices.speech as speechsdk

@@ -30,6 +30,35 @@ if hasattr(sys.stderr, 'buffer'):
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8',
                                   errors='replace', line_buffering=True)
 
+# Tee stdout → logs/ogma.log (capture tous les print() + logging)
+# Doit être fait après le wrapper UTF-8 ci-dessus
+_log_path = Path("logs") / "ogma.log"
+try:
+    Path("logs").mkdir(exist_ok=True)
+    _log_file = open(_log_path, 'a', encoding='utf-8', errors='replace')
+
+    class _TeeStream:
+        """Écrit simultanément dans le stream console et dans le fichier log."""
+        def __init__(self, console, logfile):
+            self._console = console
+            self._logfile = logfile
+        def write(self, data):
+            self._console.write(data)
+            try:
+                self._logfile.write(data)
+                self._logfile.flush()
+            except Exception:
+                pass
+        def flush(self):
+            self._console.flush()
+        def __getattr__(self, name):
+            return getattr(self._console, name)
+
+    sys.stdout = _TeeStream(sys.stdout, _log_file)
+    sys.stderr = _TeeStream(sys.stderr, _log_file)
+except Exception:
+    pass  # Jamais bloquant - si le log échoue, OGMA démarre quand même
+
 # Patch compatibilite Python 3.14 : pkgutil.find_loader supprime en 3.14
 # mais encore utilise par vbuild 0.8.2 (dependance de NiceGUI)
 import pkgutil as _pkgutil

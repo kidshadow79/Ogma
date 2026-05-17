@@ -33,6 +33,9 @@ beautifulsoup4>=4.12.0
 # Configuration
 python-dotenv>=1.0.0
 
+# Vision (perception webcam + traitement images uploadées)
+opencv-python>=4.8.1
+
 # Utilitaires
 aiofiles>=23.2.0
 psutil>=5.9.6

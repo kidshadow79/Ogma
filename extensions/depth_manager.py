@@ -1,5 +1,11 @@
 import os
-import cv2
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    cv2 = None
+    CV2_AVAILABLE = False
+    print("[DEPTH] opencv-python non disponible - Depth Manager desactive")
 import torch
 import numpy as np
 from PIL import Image, ImageDraw

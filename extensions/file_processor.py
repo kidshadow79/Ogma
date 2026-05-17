@@ -9,7 +9,13 @@ except ImportError:
     import PyPDF2 as pypdf
 import base64
 import mimetypes
-import cv2
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    cv2 = None
+    CV2_AVAILABLE = False
+    print("[FILE-PROCESSOR] opencv-python non disponible - analyse visuelle desactivee (pip install opencv-python)")
 import numpy as np
 from datetime import datetime
 

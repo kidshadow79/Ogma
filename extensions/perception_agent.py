@@ -3,7 +3,13 @@
 import threading
 import time
 import queue
-import cv2
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    cv2 = None
+    CV2_AVAILABLE = False
+    print("[PERCEPTION] opencv-python non disponible - webcam desactivee (pip install opencv-python)")
 import base64
 import requests
 import json
