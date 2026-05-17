@@ -100,6 +100,29 @@ _patch*.py
 CODETXT/
 
 # ========================================
+# INSTALLATEUR (distribué via Patreon)
+# ========================================
+installer/
+RAPPORT_CORRECTIONS_ENCODING.md
+
+# ========================================
+# BENCHMARK LONGMEMEVAL (WIP, non publié)
+# ========================================
+# Scripts
+scripts/longmemeval_ogma.py
+scripts/longmemeval_ogma_full.py
+scripts/longmemeval_eval.py
+scripts/longmemeval_run.py
+# Données et résultats
+data/longmemeval/
+data/longmemeval_ogma_results.jsonl
+data/longmemeval_ogma_full_results.jsonl
+data/longmemeval_eval.jsonl
+data/longmemeval_eval_full.jsonl
+# Documentation (résultats provisoires)
+docs/benchmark_longmemeval.md
+
+# ========================================
 # TESTS & DEBUG
 # ========================================
 test_output/

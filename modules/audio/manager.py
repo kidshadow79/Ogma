@@ -6,16 +6,26 @@ Speech-to-Text et Text-to-Speech intégrés
 """
 
 import asyncio
-import pyaudio
+try:
+    import pyaudio
+    PYAUDIO_AVAILABLE = True
+except ImportError:
+    pyaudio = None
+    PYAUDIO_AVAILABLE = False
+    print("[AUDIO] pyaudio non disponible - capture micro desactivee (mode minimal)")
+
 import wave
-import speech_recognition as sr
+try:
+    import speech_recognition as sr
+    SR_AVAILABLE = True
+except ImportError:
+    sr = None
+    SR_AVAILABLE = False
+    print("[AUDIO] speech_recognition non disponible - STT local desactive (mode minimal)")
+
 import os
 import tempfile
 from typing import Optional, Callable, Dict, List
-import speech_recognition as sr
-import tempfile
-import os
-from typing import Optional, Callable
 import threading
 import queue
 import platform
@@ -177,7 +187,7 @@ class AudioManager:
         self.sample_rate = 16000  # 16kHz recommandé pour Whisper
         self.chunk_size = 512     # Plus petit chunk pour moins de latence
         self.channels = 1
-        self.format = pyaudio.paInt16
+        self.format = pyaudio.paInt16 if PYAUDIO_AVAILABLE else None
         self.timeout_recording = 8.0  # Timeout très court pour éviter déconnexions
         self.device_index: Optional[int] = None  # None = micro par défaut, sinon index spécifique
         
@@ -249,16 +259,21 @@ class AudioManager:
         
         # Initialisation composants
         self.pyaudio_instance = None
-        self.recognizer = sr.Recognizer()
+        self.recognizer = sr.Recognizer() if SR_AVAILABLE else None
         # Ajuster le seuil de détection pour meilleure sensibilité
         # Valeur par défaut ~300, on réduit à 200 pour micro plus sensible
-        self.recognizer.energy_threshold = 200
-        self.recognizer.dynamic_energy_threshold = True
+        if self.recognizer is not None:
+            self.recognizer.energy_threshold = 200
+            self.recognizer.dynamic_energy_threshold = True
         self.microphone = None
         self._calibrated = False  # Flag pour calibrage unique au démarrage
         
     async def initialize(self) -> bool:
         """Initialise les composants audio."""
+        # Mode minimal : pyaudio/SR absents -> capture micro indisponible
+        if not PYAUDIO_AVAILABLE or not SR_AVAILABLE:
+            print("[AUDIO] Mode degrade : capture micro indisponible (pyaudio/speech_recognition manquants)")
+            return False
         try:
             # Initialiser PyAudio
             self.pyaudio_instance = pyaudio.PyAudio()
@@ -1924,6 +1939,9 @@ class AudioManager:
 
 def test_microphone() -> bool:
     """Teste si le microphone fonctionne."""
+    if not SR_AVAILABLE or not PYAUDIO_AVAILABLE:
+        print("[AUDIO] Test micro indisponible : pyaudio/speech_recognition manquants")
+        return False
     try:
         r = sr.Recognizer()
         mic = sr.Microphone()

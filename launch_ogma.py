@@ -7,43 +7,71 @@ Script de lancement avec vérification des dépendances et configuration sécuri
 
 import os
 import sys
-import subprocess
+import io
 import traceback
 from pathlib import Path
 
-# Force UTF-8 pour les emojis dans les prints (encodage Windows cp1252 sinon)
-if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
-    os.environ['PYTHONIOENCODING'] = 'utf-8'
+# Force UTF-8 inconditionnellement (Python 3.13 + Windows cp1252 sinon)
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+os.environ['PYTHONUTF8'] = '1'
+if sys.platform == 'win32':
     try:
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        import ctypes
+        ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+        ctypes.windll.kernel32.SetConsoleCP(65001)
     except Exception:
         pass
+# Remplace sys.stdout/stderr par un nouveau wrapper UTF-8 (reconfigure() peut
+# échouer silencieusement sur Python 3.13 selon le contexte d'exécution)
+if hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8',
+                                  errors='replace', line_buffering=True)
+if hasattr(sys.stderr, 'buffer'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8',
+                                  errors='replace', line_buffering=True)
+
+# Patch compatibilite Python 3.14 : pkgutil.find_loader supprime en 3.14
+# mais encore utilise par vbuild 0.8.2 (dependance de NiceGUI)
+import pkgutil as _pkgutil
+if not hasattr(_pkgutil, 'find_loader'):
+    import importlib.util as _ilu
+    def _find_loader_compat(name):
+        try:
+            spec = _ilu.find_spec(name)
+            return spec.loader if spec is not None else None
+        except (ModuleNotFoundError, ValueError):
+            return None
+    _pkgutil.find_loader = _find_loader_compat
 
 def check_dependencies():
-    """Vérifie et installe les dépendances manquantes"""
+    """Vérifie que les dépendances critiques sont présentes (installées par setup_venv.bat)"""
     print("🔍 Vérification des dépendances...")
-    
+    missing = []
+
     try:
         import nicegui
         print("✅ NiceGUI disponible")
     except ImportError:
-        print("❌ NiceGUI manquant. Installation...")
-        subprocess.run([sys.executable, "-m", "pip", "install", "nicegui>=1.4.0"])
-    
+        missing.append("nicegui>=2.0.0")
+
     try:
         import faiss
         print("✅ FAISS disponible")
     except ImportError:
-        print("❌ FAISS manquant. Installation...")
-        subprocess.run([sys.executable, "-m", "pip", "install", "faiss-cpu"])
-    
+        missing.append("faiss-cpu")
+
     try:
         import sqlalchemy
         print("✅ SQLAlchemy disponible")
     except ImportError:
-        print("❌ SQLAlchemy manquant. Installation...")
-        subprocess.run([sys.executable, "-m", "pip", "install", "sqlalchemy"])
+        missing.append("sqlalchemy")
+
+    if missing:
+        print("❌ Packages manquants :", ", ".join(missing))
+        print("   → Lancez : pip install " + " ".join(missing))
+        print("   → Ou relancez l'installateur OGMA.")
+        input("Appuyez sur Entrée pour fermer...")
+        sys.exit(1)
 
 def setup_environment():
     """Configure l'environnement d'exécution"""
