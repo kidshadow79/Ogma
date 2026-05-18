@@ -319,9 +319,30 @@ def ensure_memory_manager() -> Optional[MemoryManager]:
 # ARCHIVISTE & EMBEDDING CONTROLLERS
 # ============================================================================
 def ensure_archiviste_controller():
-    """Retourne contrôleur Archiviste (créé par ensure_memory_manager)."""
+    """Retourne contrôleur Archiviste, reconfiguré à chaque appel depuis les settings."""
     if g._archiviste_controller is None:
         ensure_memory_manager()
+
+    # Reconfigurer à chaque appel (comme ensure_chat_controller) pour prendre en compte
+    # les changements de modèle effectués via l'UI sans redémarrage
+    sm = ensure_settings_manager()
+    arch = sm.settings.get('reasoning_api', {})
+    from utils.backend_utils import map_backend_for_controller
+    arch_backend = map_backend_for_controller(arch.get('backend_type', 'API'))
+    g._archiviste_controller.set_active_backend(arch_backend)
+    g._archiviste_controller.temperature = float(arch.get('temperature', 0.7))
+
+    if arch_backend == 'API':
+        provider = arch.get('provider', 'Aucun')
+        api_key = arch.get('api_key', '')
+        model = arch.get('api_model', '') or arch.get('model', '')
+        print(f"[CTRL-ARCH] configure => provider={provider!r} model={model!r}")
+        g._archiviste_controller.api_manager.configure(provider, api_key, model)
+    elif arch_backend == 'Ollama':
+        url = arch.get('ollama_url') or 'http://localhost:11434'
+        cast(OllamaManager, g._ollama_mgr).api_url = str(url).rstrip('/')
+        g._archiviste_controller.ollama_model = arch.get('ollama_model', '')
+
     return g._archiviste_controller
 
 
@@ -429,6 +450,7 @@ def ensure_chat_controller() -> AIController:
         provider = chat.get('provider', 'Aucun')
         api_key = chat.get('api_key', '')
         model = chat.get('api_model', '') or chat.get('model', '')
+        print(f"[CTRL-CHAT] configure => provider={provider!r} model={model!r}")
         g._chat_controller.api_manager.configure(provider, api_key, model)
         g._chat_controller.api_manager.openrouter_thinking = bool(chat.get('openrouter_thinking', False))
     elif backend == 'Ollama':

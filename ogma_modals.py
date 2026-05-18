@@ -4256,6 +4256,7 @@ def _models_modal():
             for k in list(chat_settings.keys()):
                 if k.startswith('_display_'):
                     del chat_settings[k]
+            print(f"[MODELS-SAVE] chat_model.value={chat_model.value!r} => api_model sera={chat_settings.get('api_model')!r}")
             sm.settings['chat_api'] = chat_settings
 
             # Mise à jour ARCHIVISTE (seulement les champs modifiés)
@@ -4301,6 +4302,7 @@ def _models_modal():
             for k in list(arch_settings.keys()):
                 if k.startswith('_display_'):
                     del arch_settings[k]
+            print(f"[MODELS-SAVE] arch_model.value={arch_model.value!r} => api_model sera={arch_settings.get('api_model')!r}")
             sm.settings['reasoning_api'] = arch_settings
 
             # Mise à jour EMBEDDING (seulement les champs modifiés)
