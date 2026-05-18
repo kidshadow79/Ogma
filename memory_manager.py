@@ -1384,7 +1384,7 @@ Trait ego: {{trait_text}}
 Réponds UNIQUEMENT avec le JSON."""
             
             # Formater le prompt avec le trait
-            ego_prompt = ego_prompt_template.format(trait_text=trait_text)
+            ego_prompt = ego_prompt_template.replace('{trait_text}', trait_text)
             
             # Ajouter instruction score si nécessaire
             if include_score:
