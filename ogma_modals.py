@@ -2890,21 +2890,6 @@ def _models_modal():
             t_arch = ui.tab(t('models_tab_arch'))
             t_embed = ui.tab(t('models_tab_embed'))
 
-        # Voyants d'état
-        with ui.row().classes('items-center gap-4 mb-2'):
-            ui.label(t('models_label_status')).classes('text-muted')
-            chat_dot = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
-            ui.label(t('models_label_status_chat')).classes('text-sm')
-            arch_dot = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
-            ui.label(t('models_label_status_arch')).classes('text-sm')
-            emb_dot = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
-            ui.label(t('models_label_status_embed')).classes('text-sm')
-
-        async def set_dot(el, ok: bool):
-            try:
-                el.style(f'background: {"#16a34a" if ok else "#dc2626"};')
-            except Exception:
-                pass
 
         def _calculate_optimal_ollama(model_name, ollama_url='http://localhost:11434'):
             """Calcule context_length et max_tokens optimaux pour un modèle Ollama selon le hardware."""
@@ -3207,10 +3192,6 @@ def _models_modal():
                 with ui.row().classes('items-center gap-2 mb-2 w-full'):
                     chat_backend = ui.select(chat_backend_opts, value=detect_backend(chat), label=t('models_label_backend')).classes('form-select narrow-field').style('min-width: 200px; flex: 1;')
                     ui.button('🔄', on_click=lambda: _refresh_chat_interface()).classes('action-button').style('min-width: 40px; height: 40px; flex-shrink: 0;').tooltip(t('models_tooltip_refresh_iface'))
-
-                with ui.row().classes('items-center gap-2 mb-2'):
-                    ui.label(t('models_label_availability')).classes('text-sm text-muted')
-                    chat_dot_inline = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
 
                 # Zone API
                 with ui.column() as chat_api_zone:
@@ -3574,18 +3555,6 @@ def _models_modal():
                 _bind_chat_visibility()
                 ui.timer(0.05, lambda: _init_models_ui('chat', chat_backend, chat_provider, chat_model, chat_api_key, chat_api_zone, chat_ollama_zone, chat_ollama_model, chat_gguf_zone, chat_gguf_model_files, chat_kobold_zone, ollama_url_input=chat_ollama_url, kobold_url_input=chat_kobold_url), once=True)
 
-                async def _auto_check_chat():
-                    backend = chat_backend.value
-                    ok = False
-                    try:
-                        models, err = await _list_models(backend, (chat_provider.value if backend=='API' else None), (chat_api_key.value if backend=='API' else None))
-                        ok = (err is None) and bool(models or backend in ['GGUF', 'KoboldCpp'])
-                    except Exception:
-                        ok = False
-                    await set_dot(chat_dot, ok)
-                    await set_dot(chat_dot_inline, ok)
-                from nicegui_client_guard import safe_async_timer_callback
-                ui.timer(0.2, safe_async_timer_callback(lambda: asyncio.create_task(_auto_check_chat())), once=True)
 
             # --- Archiviste IA ---
             with ui.tab_panel(t_arch):
@@ -3613,10 +3582,6 @@ def _models_modal():
                 with ui.row().classes('items-center gap-2 mb-2 w-full'):
                     arch_backend = ui.select(arch_backend_opts, value=detect_backend(arch), label=t('models_label_backend')).classes('form-select narrow-field').style('min-width: 200px; flex: 1;')
                     ui.button('🔄', on_click=lambda: _refresh_arch_interface()).classes('action-button').style('min-width: 40px; height: 40px; flex-shrink: 0;').tooltip(t('models_tooltip_refresh_iface'))
-
-                with ui.row().classes('items-center gap-2 mb-2'):
-                    ui.label(t('models_label_availability')).classes('text-sm text-muted')
-                    arch_dot_inline = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
 
                 with ui.column() as arch_api_zone:
                     arch_provider_opts = ['Aucun'] + REMOTE_PROVIDERS[:-1] + ['AIHorde']
@@ -3879,18 +3844,6 @@ def _models_modal():
                 _bind_arch_visibility()
                 ui.timer(0.05, lambda: _init_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key, arch_api_zone, arch_ollama_zone, arch_ollama_model, arch_gguf_zone, arch_gguf_model_files, arch_kobold_zone, ollama_url_input=arch_ollama_url, kobold_url_input=arch_kobold_url), once=True)
 
-                async def _auto_check_arch():
-                    backend = arch_backend.value
-                    ok = False
-                    try:
-                        models, err = await _list_models(backend, (arch_provider.value if backend=='API' else None), (arch_api_key.value if backend=='API' else None))
-                        ok = (err is None) and bool(models or backend in ['GGUF', 'KoboldCpp'])
-                    except Exception:
-                        ok = False
-                    await set_dot(arch_dot, ok)
-                    await set_dot(arch_dot_inline, ok)
-                from nicegui_client_guard import safe_async_timer_callback
-                ui.timer(0.2, safe_async_timer_callback(lambda: asyncio.create_task(_auto_check_arch())), once=True)
 
             # --- Embeddings IA ---
             with ui.tab_panel(t_embed):
@@ -3918,10 +3871,6 @@ def _models_modal():
                 with ui.row().classes('items-center gap-2 mb-2 w-full'):
                     emb_backend = ui.select(emb_backend_opts, value=detect_embed_backend(emb), label=t('models_label_backend')).classes('form-select narrow-field').style('min-width: 200px; flex: 1;')
                     ui.button('🔄', on_click=lambda: _refresh_embed_interface()).classes('action-button').style('min-width: 40px; height: 40px; flex-shrink: 0;').tooltip(t('models_tooltip_refresh_iface'))
-
-                with ui.row().classes('items-center gap-2 mb-2'):
-                    ui.label(t('models_label_availability')).classes('text-sm text-muted')
-                    emb_dot_inline = ui.element('div').style('width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 4px; background: #dc2626;').classes('status-dot')  # Remplacement de _status_dot(initial='#dc2626')  # Rouge par défaut
 
                 with ui.column() as emb_api_zone:
                     emb_provider_opts = ['Aucun'] + EMBED_SUPPORTED_PROVIDERS
@@ -4164,18 +4113,7 @@ def _models_modal():
                 _bind_embed_visibility()
                 ui.timer(0.05, lambda: _init_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key, emb_api_zone, emb_ollama_zone, emb_ollama_model, emb_gguf_zone, emb_gguf_model_files, None, ollama_url_input=emb_ollama_url), once=True)
 
-                async def _auto_check_emb():
-                    backend = emb_backend.value
-                    ok = False
-                    try:
-                        models, err = await _list_models(backend, (emb_provider.value if backend=='API' else None), (emb_api_key.value if backend=='API' else None))
-                        ok = (err is None) and bool(models or backend in ['GGUF'])
-                    except Exception:
-                        ok = False
-                    await set_dot(emb_dot, ok)
-                    await set_dot(emb_dot_inline, ok)
-                from nicegui_client_guard import safe_async_timer_callback
-                ui.timer(0.2, safe_async_timer_callback(lambda: asyncio.create_task(_auto_check_emb())), once=True)
+
 
         def save_and_close():
             # Sauvegarder les clés API dans le vault pour réutilisation future
@@ -4355,6 +4293,13 @@ def _models_modal():
             msg = sm.save_settings()
             ui.notify(msg or t('models_notify_save_default'), type='positive')
             dialog.close()
+            # Mettre à jour les labels du header immédiatement après sauvegarde
+            try:
+                import asyncio
+                from ogma_ui_conversations import _update_ia_status_indicators
+                asyncio.create_task(_update_ia_status_indicators())
+            except Exception as _e:
+                print(f"[MODELS-SAVE] Erreur mise à jour header: {_e}")
 
         with ui.row().classes('justify-end gap-2 mt-2'):
             ui.button(t('models_btn_cancel'), on_click=dialog.close).classes('action-button')
