@@ -1184,6 +1184,18 @@ class APIManager:
                     payload = {"model": self.model, "messages": final_api_messages, "max_tokens": final_max_tokens, "temperature": temperature}
                     if is_json:
                         payload["response_format"] = {"type": "json_object"}
+                    # Cache explicite pour Claude/Gemini via OpenRouter (project_rag)
+                    if use_cache and system_prompt:
+                        _or_model = self.model.lower()
+                        if 'claude' in _or_model:
+                            _or_cc = {"type": "ephemeral", "ttl": "1h"}
+                        elif 'gemini' in _or_model:
+                            _or_cc = {"type": "ephemeral"}
+                        else:
+                            _or_cc = None
+                        if _or_cc and final_api_messages and final_api_messages[0].get('role') == 'system':
+                            final_api_messages[0]['content'] = [{"type": "text", "text": system_prompt, "cache_control": _or_cc}]
+                            print(f"[OPENROUTER] Cache systeme active pour {self.model} (TTL: {_or_cc.get('ttl', '5m')})")
                     # Gère le thinking selon le paramètre utilisateur
                     _or_thinking_models = ["qwen3", "deepseek-r1", "/o1", "/o3", "claude-3-7", "gemini-2.5", "gemini-2.0-flash-thinking", "gemini-3"]
                     # Modèles où le reasoning est OBLIGATOIRE (ne pas envoyer effort=none)
@@ -1841,6 +1853,19 @@ class APIManager:
                         else:
                             payload["reasoning"] = {"effort": "none"}
                             print(f"[OPENROUTER] Thinking désactivé (streaming) pour: {self.model}")
+                
+                # Cache explicite pour Claude/Gemini via OpenRouter (project_rag) - streaming
+                if self.provider == "OpenRouter" and use_cache and system_prompt:
+                    _or_model = self.model.lower()
+                    if 'claude' in _or_model:
+                        _or_cc = {"type": "ephemeral", "ttl": "1h"}
+                    elif 'gemini' in _or_model:
+                        _or_cc = {"type": "ephemeral"}
+                    else:
+                        _or_cc = None
+                    if _or_cc and final_api_messages and final_api_messages[0].get('role') == 'system':
+                        final_api_messages[0]['content'] = [{"type": "text", "text": system_prompt, "cache_control": _or_cc}]
+                        print(f"[OPENROUTER] Cache systeme active streaming pour {self.model} (TTL: {_or_cc.get('ttl', '5m')})")
                 
                 # Gère le thinking pour Mistral magistral (streaming)
                 if self.provider == "Mistral" and 'magistral' in self.model.lower() and self.openrouter_thinking:
