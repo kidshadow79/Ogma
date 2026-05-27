@@ -1286,7 +1286,7 @@ class APIManager:
                 # Ajouter le message système comme paramètre racine pour Anthropic
                 if system_prompt:
                     if use_cache:
-                        payload["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+                        payload["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral", "ttl": "1h"}}]
                         headers["anthropic-beta"] = "prompt-caching-2024-07-31"
                     else:
                         payload["system"] = system_prompt
@@ -1986,7 +1986,7 @@ class APIManager:
                 }
                 if system_prompt:
                     if use_cache:
-                        payload["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+                        payload["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral", "ttl": "1h"}}]
                         headers["anthropic-beta"] = "prompt-caching-2024-07-31"
                     else:
                         payload["system"] = system_prompt
