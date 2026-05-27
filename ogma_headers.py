@@ -104,7 +104,7 @@ def _header():
                 pass
 
             # Indicateurs d'état IA dans le header
-            with ui.element('div').classes('ia-status-container').style('display: flex; align-items: center; gap: 16px; position: absolute; left: 50%; transform: translateX(-50%); justify-content: center;'):
+            with ui.element('div').classes('ia-status-container').style('display: flex; align-items: flex-start; gap: 16px; position: absolute; left: 50%; transform: translateX(-50%); justify-content: center;'):
                 # IA PRINCIPALE (Chat)
                 with ui.element('div').classes('ia-status-item').style('display: flex; align-items: center;'):
                     chat_dot = None
