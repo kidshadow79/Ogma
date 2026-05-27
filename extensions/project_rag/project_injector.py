@@ -58,14 +58,58 @@ class ProjectInjector:
         if instruction and instruction.strip():
             parts.append(f"[PROJET: {self.config.name}]\n{instruction.strip()}")
 
-        # 2. Chunks pertinents (recherche sémantique)
+        # 2. Chunks pertinents (recherche sémantique) ou Texte Intégral (Cache Complet)
         try:
-            chunks = await self.retriever.search(user_message)
-            if chunks:
-                chunks_text = self._format_chunks(chunks)
-                parts.append(chunks_text)
+            if getattr(self.config, 'use_full_cache', False):
+                # Mode Cache Complet
+                full_text_parts = []
+                for f_record in self.config.files:
+                    file_id = f_record['id']
+                    filename = f_record['filename']
+                    text_path = self.config.files_dir / f"{file_id}.txt"
+                    
+                    # Générer à la volée si manquant (ex: fichiers ajoutés avant la mise à jour)
+                    if not text_path.exists():
+                        try:
+                            orig_path = self.config.files_dir / f"{file_id}_{filename}"
+                            if orig_path.exists():
+                                print(f"[PROJECT-INJECTOR] Génération version texte pour {filename}...")
+                                from extensions.file_processor import process_file
+                                result = process_file(orig_path)
+                                if result and result.get('type') == 'text':
+                                    content = result.get('content', '')
+                                    if content:
+                                        text_path.write_text(content, encoding='utf-8')
+                                        print(f"[PROJECT-INJECTOR] OK texte extrait.")
+                                    else:
+                                        content = orig_path.read_text(encoding='utf-8', errors='ignore')
+                                        text_path.write_text(content, encoding='utf-8')
+                                else:
+                                    content = orig_path.read_text(encoding='utf-8', errors='ignore')
+                                    text_path.write_text(content, encoding='utf-8')
+                        except Exception as e_ext:
+                            print(f"[PROJECT-INJECTOR] Échec extraction texte {filename}: {e_ext}")
+
+                    if text_path.exists():
+                        with open(text_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            full_text_parts.append(f"--- Fichier: {filename} ---\n{content}")
+                
+                if full_text_parts:
+                    cache_warning = (
+                        "[INTEGRALITE DU PROJET CHARGE EN CACHE API]\n"
+                        "Voici l'intégralité des documents du projet. Utilise-les comme SOURCE PRIMAIRE absolue "
+                        "pour répondre avec une précision parfaite.\n\n"
+                    )
+                    parts.append(cache_warning + "\n\n".join(full_text_parts))
+            else:
+                # Mode Super Chunk FAISS
+                chunks = await self.retriever.search(user_message)
+                if chunks:
+                    chunks_text = self._format_chunks(chunks)
+                    parts.append(chunks_text)
         except Exception as e:
-            print(f"[PROJECT-INJECTOR] Erreur recherche chunks: {e}")
+            print(f"[PROJECT-INJECTOR] Erreur extraction (FAISS ou Cache): {e}")
 
         if not parts:
             return None
@@ -79,10 +123,11 @@ class ProjectInjector:
 
         lines = [
             "[DOCUMENTS PROJET - Extraits pertinents]",
-            "IMPORTANT: Ces extraits proviennent de documents réels indexés dans ce projet. "
-            "Ils constituent ta SOURCE PRIMAIRE d'information. Utilise-les PRIORITAIREMENT "
-            "avant tes connaissances générales. Si les extraits parlent d'une personne, "
-            "ces données la concernent directement.",
+            "IMPORTANT: Ces extraits proviennent de documents de travail indexés dans le projet en cours. ",
+            "Ils constituent ta SOURCE PRIMAIRE d'information pour répondre aux questions sur ce projet.",
+            "ATTENTION: Ces documents peuvent contenir de la fiction, des personnages ou des concepts abstraits. ",
+            "Ne confonds jamais le contenu de ces documents avec l'utilisateur avec qui tu parles ou avec ta propre identité. ",
+            "Garde une distinction stricte entre la réalité de votre relation et le contenu de ce projet.",
         ]
 
         for i, chunk in enumerate(chunks, 1):

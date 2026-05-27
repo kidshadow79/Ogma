@@ -146,12 +146,13 @@ def get_ui_components() -> Dict[str, Any]:
     Retourne les composants UI pour intégration dans le header OGMA.
 
     Returns:
-        Dict avec callback pour le bouton sidebar
+        Dict avec callback pour le bouton sidebar et l'instance ui
     """
     if not _initialized:
         return {}
 
     return {
+        'ui': _ui,
         'header_button': {
             'icon': 'folder_open',
             'tooltip': t('pr_header_tooltip'),

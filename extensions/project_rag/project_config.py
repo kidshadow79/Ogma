@@ -115,6 +115,15 @@ class ProjectConfig:
         self._save()
 
     @property
+    def use_full_cache(self) -> bool:
+        return self._config.get("use_full_cache", False)
+
+    @use_full_cache.setter
+    def use_full_cache(self, value: bool):
+        self._config["use_full_cache"] = bool(value)
+        self._save()
+
+    @property
     def files(self) -> List[Dict[str, Any]]:
         return self._config.get("files", [])
 

@@ -19,7 +19,7 @@ import asyncio
 import requests
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Callable
 import datetime
 import traceback
 import shutil
@@ -1090,7 +1090,8 @@ class APIManager:
             # Éviter toute fuite de clé API dans les erreurs (ex: URL avec ?key=...)
             return [], f"Une erreur est survenue: {_redact_error(str(e))}"
         return [], "Une erreur inattendue est survenue."
-    async def call_chat_api(self, messages: List[Dict], max_tokens: int, context_length: int, temperature: float, is_json: bool = True) -> tuple[Optional[str], Optional[str]]:
+    from typing import Callable
+    async def call_chat_api(self, messages: List[Dict], max_tokens: int, context_length: int, temperature: float, is_json: bool = True, use_cache: bool = False, usage_callback: Optional[Callable[[Dict], None]] = None) -> tuple[Optional[str], Optional[str]]:
         if not self.is_available: return None, "Le gestionnaire API n'est pas configuré."
         if not self.model: return None, "Aucun nom de modèle n'a été défini."
         headers, payload, url, response = {"Content-Type": "application/json"}, {}, "", None
@@ -1284,7 +1285,11 @@ class APIManager:
                 
                 # Ajouter le message système comme paramètre racine pour Anthropic
                 if system_prompt:
-                    payload["system"] = system_prompt
+                    if use_cache:
+                        payload["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+                        headers["anthropic-beta"] = "prompt-caching-2024-07-31"
+                    else:
+                        payload["system"] = system_prompt
                 
                 # Contrôle extended thinking pour modèles Anthropic (Claude 3.5+)
                 _anthropic_thinking_models = ['claude-3-5', 'claude-3.5', 'claude-3-7', 'claude-3.7', 'claude-4']
@@ -1544,6 +1549,9 @@ class APIManager:
                         if not response_text and not thinking_parts:
                             # Format legacy simple (ancien Anthropic sans thinking)
                             response_text = response_data['content'][0].get('text', '')
+                            
+                        if usage_callback and 'usage' in response_data:
+                            usage_callback(response_data['usage'])
                     except (KeyError, IndexError) as e:
                         print(f"[DEBUG] Structure de réponse Anthropic inattendue : {e} - {str(response_data)[:500]}")
                         return None, "Format de réponse Anthropic invalide"
@@ -1651,7 +1659,7 @@ class APIManager:
             return None, error_message
 
     async def call_chat_api_streaming(self, messages: List[Dict], max_tokens: int, context_length: int, 
-                                       temperature: float, callback=None) -> tuple[Optional[str], Optional[str]]:
+                                       temperature: float, callback=None, use_cache: bool = False, usage_callback: Optional[Callable[[Dict], None]] = None) -> tuple[Optional[str], Optional[str]]:
         """
         Appel API avec streaming - affiche les tokens au fur et à mesure.
         
@@ -1977,7 +1985,11 @@ class APIManager:
                     "stream": True  # STREAMING ACTIVÉ
                 }
                 if system_prompt:
-                    payload["system"] = system_prompt
+                    if use_cache:
+                        payload["system"] = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+                        headers["anthropic-beta"] = "prompt-caching-2024-07-31"
+                    else:
+                        payload["system"] = system_prompt
                 
                 # Contrôle extended thinking pour modèles Anthropic (Claude 3.5+) - streaming
                 _anthropic_thinking_models = ['claude-3-5', 'claude-3.5', 'claude-3-7', 'claude-3.7', 'claude-4']
@@ -2233,12 +2245,16 @@ class APIManager:
                                         usage = data.get('message', {}).get('usage', {})
                                         input_tokens = usage.get('input_tokens', '?')
                                         print(f"[STREAM] 📊 Anthropic message_start - input_tokens: {input_tokens}")
+                                        if usage_callback:
+                                            usage_callback(usage)
                                     elif event_type == 'message_delta':
                                         # Fin de message, log raison d'arrêt
                                         stop_reason = data.get('delta', {}).get('stop_reason', '?')
                                         usage = data.get('usage', {})
                                         output_tokens = usage.get('output_tokens', '?')
                                         print(f"[STREAM] 📊 Anthropic message_delta - stop: {stop_reason}, output_tokens: {output_tokens}")
+                                        if usage_callback:
+                                            usage_callback(usage)
                                 
                                 if chunk:
                                     full_response += chunk
@@ -2653,7 +2669,7 @@ RÉPONSE ATTENDUE (format JSON strict) :
         if backend_upper == "KOBOLDCPP": return "KoboldCpp"
         return "[UNK] Inconnu"
         
-    async def call_chat_api(self, messages: List[Dict], max_tokens: int, context_length: int, temperature: float, is_json: bool = True, log_source: str = "unknown") -> tuple[Optional[str], Optional[str]]:
+    async def call_chat_api(self, messages: List[Dict], max_tokens: int, context_length: int, temperature: float, is_json: bool = True, log_source: str = "unknown", use_cache: bool = False, usage_callback: Optional[Callable[[Dict], None]] = None) -> tuple[Optional[str], Optional[str]]:
         manager = self.get_active_manager()
         if not manager: return None, f"Le backend actif '{self.backend_type}' n'est pas disponible."
         # Normalisation case-insensitive
@@ -2662,7 +2678,15 @@ RÉPONSE ATTENDUE (format JSON strict) :
             print(f"[AI-CONTROLLER-DEBUG] Backend Ollama, ollama_model: '{self.ollama_model}'")
             response, error = await manager.call_chat_api(self.ollama_model, messages, max_tokens, context_length, temperature, is_json)
         else:
-            response, error = await manager.call_chat_api(messages, max_tokens, context_length, temperature, is_json)
+            if backend_upper == "API" and hasattr(manager, 'call_chat_api'):
+                import inspect
+                sig = inspect.signature(manager.call_chat_api)
+                kwargs = {}
+                if 'use_cache' in sig.parameters: kwargs['use_cache'] = use_cache
+                if 'usage_callback' in sig.parameters: kwargs['usage_callback'] = usage_callback
+                response, error = await manager.call_chat_api(messages, max_tokens, context_length, temperature, is_json, **kwargs)
+            else:
+                response, error = await manager.call_chat_api(messages, max_tokens, context_length, temperature, is_json)
         
         # ╔═══════════════════════════════════════════════════════════════════════╗
         # ║  🔬 DEBUG_TOKEN_TRACKING - LOG ARCHIVISTE                             ║
@@ -2688,7 +2712,7 @@ RÉPONSE ATTENDUE (format JSON strict) :
         return response, error
     
     async def call_chat_api_streaming(self, messages: List[Dict], max_tokens: int, context_length: int, 
-                                       temperature: float, callback=None) -> tuple[Optional[str], Optional[str]]:
+                                       temperature: float, callback=None, use_cache: bool = False, usage_callback: Optional[Callable[[Dict], None]] = None) -> tuple[Optional[str], Optional[str]]:
         """
         Appel API avec streaming - route vers le bon manager.
         
@@ -2711,7 +2735,12 @@ RÉPONSE ATTENDUE (format JSON strict) :
         
         # API streaming natif
         if backend_upper == "API" and hasattr(manager, 'call_chat_api_streaming'):
-            return await manager.call_chat_api_streaming(messages, max_tokens, context_length, temperature, callback)
+            import inspect
+            sig = inspect.signature(manager.call_chat_api_streaming)
+            kwargs = {}
+            if 'use_cache' in sig.parameters: kwargs['use_cache'] = use_cache
+            if 'usage_callback' in sig.parameters: kwargs['usage_callback'] = usage_callback
+            return await manager.call_chat_api_streaming(messages, max_tokens, context_length, temperature, callback, **kwargs)
         # GGUF streaming natif (llama-cpp-python stream=True)
         elif backend_upper in ("GGUF", "GGUF/LLAMA.CPP") and hasattr(manager, 'call_chat_api_streaming'):
             return await manager.call_chat_api_streaming(messages, max_tokens, context_length, temperature, callback)

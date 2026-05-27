@@ -1,4 +1,4 @@
-﻿"""
+"""
 🧠 Ego Compiler - Système de Compilation Incrémentale Boolean
 
 Analyse les souvenirs ego de la DB et génère une structure JSON compacte avec :
@@ -289,7 +289,7 @@ Retourne UNIQUEMENT le JSON, aucun texte avant/après."""
             messages = [{"role": "user", "content": prompt}]
             response, error = await self.archiviste_controller.call_chat_api(
                 messages=messages,
-                max_tokens=500,
+                max_tokens=2000,
                 context_length=20000,  # Pour le catalogue complet
                 temperature=0.2,  # Analytique
                 is_json=True
@@ -301,7 +301,17 @@ Retourne UNIQUEMENT le JSON, aucun texte avant/après."""
             
             # Parse JSON
             try:
-                analysis = json.loads(response)
+                # Nettoyer les blocs de code Markdown éventuels
+                cleaned_response = response.strip()
+                if cleaned_response.startswith("```json"):
+                    cleaned_response = cleaned_response[7:]
+                elif cleaned_response.startswith("```"):
+                    cleaned_response = cleaned_response[3:]
+                if cleaned_response.endswith("```"):
+                    cleaned_response = cleaned_response[:-3]
+                cleaned_response = cleaned_response.strip()
+                
+                analysis = json.loads(cleaned_response)
                 
                 # Validation structure
                 if not all(k in analysis for k in ['groups', 'flags', 'keywords', 'description']):
@@ -313,7 +323,7 @@ Retourne UNIQUEMENT le JSON, aucun texte avant/après."""
                 
             except json.JSONDecodeError as e:
                 print(f"[EGO-COMPILER] ❌ Parse JSON error pour {memory['id']}: {e}")
-                print(f"Response: {response[:200]}")
+                print(f"Response: {response[:400]}")
                 return None
                 
         except Exception as e:

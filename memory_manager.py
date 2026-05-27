@@ -758,19 +758,43 @@ class MemoryManager:
             
             # Utiliser le score de l'IA Principale si disponible, sinon celui de l'Archiviste
             final_score = initial_score if initial_score is not None else enriched_ego.get('score_impact', 50.0)
+            try:
+                if isinstance(final_score, list):
+                    final_score = final_score[0]
+                final_score = float(final_score)
+            except Exception:
+                final_score = 50.0
             
             # Extraire valence (gérer -1/0/1 de l'Archiviste)
             ego_valence = enriched_ego.get('valence', 0)
+            if isinstance(ego_valence, list):
+                ego_valence = ego_valence[0] if ego_valence else 0
+            try:
+                ego_valence = int(ego_valence)
+            except Exception:
+                ego_valence = 0
             # Mapper valence ego (-1/0/1) vers valence mémoire (1-10)
             # -1 (aversion) → 2, 0 (neutre) → 5, 1 (valeur) → 8
             valence_mapping = {-1: 2, 0: 5, 1: 8}
             mapped_valence = valence_mapping.get(ego_valence, 5)
             
+            title_val = enriched_ego.get('title', f"Quel trait ? Quelle caractéristique ?")
+            if isinstance(title_val, list):
+                title_val = " | ".join(str(item) for item in title_val)
+            elif not isinstance(title_val, str):
+                title_val = str(title_val)
+
+            summary_val = enriched_ego.get('summary', trait_text)
+            if isinstance(summary_val, list):
+                summary_val = " | ".join(str(item) for item in summary_val)
+            elif not isinstance(summary_val, str):
+                summary_val = str(summary_val)
+            
             structured_memory = {
-                "summary": enriched_ego.get('summary', trait_text),
-                "lesson": enriched_ego.get('summary', trait_text),  # Pour ego, lesson = summary
+                "summary": summary_val,
+                "lesson": summary_val,  # Pour ego, lesson = summary
                 "type": enriched_ego.get('type', 'ego_trait'),
-                "title": enriched_ego.get('title', f"Quel trait ? Quelle caractéristique ?"),
+                "title": title_val,
                 "valence": mapped_valence,
                 "score_impact": final_score,
                 "metadata": {
@@ -3332,9 +3356,11 @@ Note contextuelle pour l'IA principale:"""
             jaccard = intersection / union if union > 0 else 0.0
             
             # Détection titres identiques (forte indication doublon)
+            title1 = mem1.get('title') or ''
+            title2 = mem2.get('title') or ''
             same_title = (
-                mem1.get('title', '').lower().strip() == mem2.get('title', '').lower().strip() 
-                and len(mem1.get('title', '')) > 3
+                title1.lower().strip() == title2.lower().strip() 
+                and len(title1) > 3
             )
             
             is_similar = jaccard >= threshold or same_title

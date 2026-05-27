@@ -24,6 +24,8 @@ try:
 except ImportError:
     NICEGUI_AVAILABLE = False
 
+from .project_cache_ui import ProjectCacheUI
+
 
 def _get_ogma_ng_function(func_name):
     """Helper pour récupérer une fonction d'ogma_ng."""
@@ -170,6 +172,17 @@ class ProjectUI:
                         ''')
 
                     with ui.row().classes('items-center gap-2'):
+                        # Composant de Cache Complet (NotebookLM style)
+                        ogma_ng = sys.modules.get('ogma_ng')
+                        sm = ogma_ng._ensure_settings_manager() if hasattr(ogma_ng, '_ensure_settings_manager') else None
+                        
+                        cache_container = ui.row().classes('items-center mr-4')
+                        self.cache_ui = ProjectCacheUI(
+                            container=cache_container,
+                            config=self.config,
+                            settings_manager=sm
+                        )
+
                         # Toggle ON/OFF
                         self._toggle_switch = ui.switch(
                             t('pr_switch_active'),
@@ -306,6 +319,10 @@ class ProjectUI:
                 dest_path.unlink(missing_ok=True)
                 return
 
+            # Sauver la version texte pour le Full Cache API
+            text_path = self.config.files_dir / f"{file_id}.txt"
+            text_path.write_text(text_content, encoding='utf-8')
+
             # Chunking adaptatif
             from .project_chunker import chunk_file
             settings = self.config.settings
@@ -433,8 +450,20 @@ class ProjectUI:
     async def _remove_file(self, file_id: str):
         """Supprime un fichier et ses chunks."""
         try:
+            # Récupérer les infos AVANT suppression pour nettoyer le disque
+            files = self.memory.get_all_files()
+            file_data = next((f for f in files if f['id'] == file_id), None)
+            
             self.memory.remove_file(file_id)
             self.config.remove_file_record(file_id)
+            
+            # Suppression physique
+            if file_data:
+                dest_path = self.config.files_dir / f"{file_id}_{file_data['filename']}"
+                dest_path.unlink(missing_ok=True)
+            text_path = self.config.files_dir / f"{file_id}.txt"
+            text_path.unlink(missing_ok=True)
+            
             self.retriever.clear_cache()
             ui.notify(t('pr_notify_file_removed'), type='info')
             self._refresh_file_list()

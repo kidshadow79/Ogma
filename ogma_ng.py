@@ -4882,6 +4882,96 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                     # Phrase magique en cours - on n'envoie rien au TTS
                     pass
         
+        # === PROJECT RAG CACHE LOGIC ===
+        p_use_cache = False
+        p_usage_cb = None
+        if 'extensions.project_rag' in sys.modules:
+            try:
+                from extensions.project_rag import get_project_injector, get_ui_components
+                p_injector = get_project_injector()
+                
+                if p_injector and p_injector.is_active():
+                    p_use_cache = getattr(p_injector.config, 'use_full_cache', False)
+                    if p_use_cache:
+                        def _cache_usage_cb(usage):
+                            try:
+                                in_toks = usage.get('input_tokens', 0)
+                                c_read = usage.get('cache_read_input_tokens', 0)
+                                c_write = usage.get('cache_creation_input_tokens', 0)
+                                out_toks = usage.get('output_tokens', 0)
+                                
+                                # Charger les tarifs si absent
+                                if not hasattr(p_injector.config, 'cache_pricing_data') or not p_injector.config.cache_pricing_data:
+                                    try:
+                                        import json
+                                        from pathlib import Path
+                                        pricing_file = Path(__file__).parent / "extensions" / "project_rag" / "pricing_config.json"
+                                        if pricing_file.exists():
+                                            with open(pricing_file, "r", encoding="utf-8") as f:
+                                                p_injector.config.cache_pricing_data = json.load(f)
+                                    except Exception as e:
+                                        print(f"[PROJECT-RAG] Erreur chargement tarifs dans callback: {e}")
+                                
+                                pricing_data = getattr(p_injector.config, 'cache_pricing_data', {}) or {}
+                                pricing = pricing_data.get('models', {}) or {}
+                                model_name = ctrl.model.lower()
+                                model_price = None
+                                
+                                def clean_model_name(n):
+                                    return n.lower().replace('.', '').replace('-', '').replace('_', '').replace('/', '')
+                                
+                                cleaned_ctrl = clean_model_name(model_name)
+                                
+                                # 1. Recherche exacte
+                                for k, v in pricing.items():
+                                    if k.lower() == model_name:
+                                        model_price = v
+                                        break
+                                # 2. Recherche partielle normalisée
+                                if not model_price:
+                                    for k, v in pricing.items():
+                                        cleaned_k = clean_model_name(k)
+                                        if cleaned_k == cleaned_ctrl or cleaned_k in cleaned_ctrl or cleaned_ctrl in cleaned_k:
+                                            model_price = v
+                                            break
+                                # Fallback default
+                                if not model_price:
+                                    model_price = pricing.get('default', {
+                                        "base_input": 3.0,
+                                        "cache_write": 3.75,
+                                        "cache_read": 0.30,
+                                        "output": 15.0
+                                    })
+                                
+                                cost = (in_toks * model_price.get('base_input', 3) / 1000000) + \
+                                       (c_read * model_price.get('cache_read', 0.3) / 1000000) + \
+                                       (c_write * model_price.get('cache_write', 3.75) / 1000000) + \
+                                       (out_toks * model_price.get('output', 15) / 1000000)
+                                
+                                print(f"[PROJECT-RAG] _cache_usage_cb appelé! in:{in_toks} read:{c_read} write:{c_write} out:{out_toks} cost:{cost}")
+                                
+                                if not hasattr(p_injector.config, 'cache_current_cost'):
+                                    p_injector.config.cache_current_cost = 0.0
+                                p_injector.config.cache_current_cost += cost
+                                
+                                if c_read > 0 or c_write > 0:
+                                    import time
+                                    p_injector.config.cache_expiration_timestamp = time.time() + 3600
+                                
+                                # Mettre à jour l'UI en direct si disponible
+                                p_ui_comps = get_ui_components()
+                                p_ui = p_ui_comps.get('ui')
+                                if p_ui and hasattr(p_ui, 'cache_ui') and p_ui.cache_ui:
+                                    try:
+                                        p_ui.cache_ui.update_ui_display()
+                                    except Exception as ui_err:
+                                        print(f"[PROJECT-RAG] Erreur update UI dans cb: {ui_err}")
+                            except Exception as e:
+                                print(f"[PROJECT-RAG] Erreur hook cache cb: {e}")
+                        p_usage_cb = _cache_usage_cb
+            except Exception as e:
+                print(f"[PROJECT-RAG] Erreur hook cache: {e}")
+
         # 🌀 SPINNER: Activer le spinner IA Principale avant l'appel
         set_ia_working(True)
         
@@ -4890,7 +4980,9 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
             max_tokens=ctrl.max_tokens, 
             context_length=ctrl.context_length, 
             temperature=ctrl.temperature,
-            callback=streaming_callback
+            callback=streaming_callback,
+            use_cache=p_use_cache,
+            usage_callback=p_usage_cb
         )
         
         # 🔍 DEBUG: Log temps total streaming
@@ -5011,6 +5103,96 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
         # 📦 Mode classique pour backends locaux restants (Ollama, KoboldCpp)
         print(f"[STREAM] 📦 Mode classique pour backend {backend_type}")
         
+        # === PROJECT RAG CACHE LOGIC ===
+        p_use_cache = False
+        p_usage_cb = None
+        if 'extensions.project_rag' in sys.modules:
+            try:
+                from extensions.project_rag import get_project_injector, get_ui_components
+                p_injector = get_project_injector()
+                
+                if p_injector and p_injector.is_active():
+                    p_use_cache = getattr(p_injector.config, 'use_full_cache', False)
+                    if p_use_cache:
+                        def _cache_usage_cb(usage):
+                            try:
+                                in_toks = usage.get('input_tokens', 0)
+                                c_read = usage.get('cache_read_input_tokens', 0)
+                                c_write = usage.get('cache_creation_input_tokens', 0)
+                                out_toks = usage.get('output_tokens', 0)
+                                
+                                # Charger les tarifs si absent
+                                if not hasattr(p_injector.config, 'cache_pricing_data') or not p_injector.config.cache_pricing_data:
+                                    try:
+                                        import json
+                                        from pathlib import Path
+                                        pricing_file = Path(__file__).parent / "extensions" / "project_rag" / "pricing_config.json"
+                                        if pricing_file.exists():
+                                            with open(pricing_file, "r", encoding="utf-8") as f:
+                                                p_injector.config.cache_pricing_data = json.load(f)
+                                    except Exception as e:
+                                        print(f"[PROJECT-RAG] Erreur chargement tarifs dans callback (non-stream): {e}")
+                                
+                                pricing_data = getattr(p_injector.config, 'cache_pricing_data', {}) or {}
+                                pricing = pricing_data.get('models', {}) or {}
+                                model_name = ctrl.model.lower()
+                                model_price = None
+                                
+                                def clean_model_name(n):
+                                    return n.lower().replace('.', '').replace('-', '').replace('_', '').replace('/', '')
+                                
+                                cleaned_ctrl = clean_model_name(model_name)
+                                
+                                # 1. Recherche exacte
+                                for k, v in pricing.items():
+                                    if k.lower() == model_name:
+                                        model_price = v
+                                        break
+                                # 2. Recherche partielle normalisée
+                                if not model_price:
+                                    for k, v in pricing.items():
+                                        cleaned_k = clean_model_name(k)
+                                        if cleaned_k == cleaned_ctrl or cleaned_k in cleaned_ctrl or cleaned_ctrl in cleaned_k:
+                                            model_price = v
+                                            break
+                                # Fallback default
+                                if not model_price:
+                                    model_price = pricing.get('default', {
+                                        "base_input": 3.0,
+                                        "cache_write": 3.75,
+                                        "cache_read": 0.30,
+                                        "output": 15.0
+                                    })
+                                
+                                cost = (in_toks * model_price.get('base_input', 3) / 1000000) + \
+                                       (c_read * model_price.get('cache_read', 0.3) / 1000000) + \
+                                       (c_write * model_price.get('cache_write', 3.75) / 1000000) + \
+                                       (out_toks * model_price.get('output', 15) / 1000000)
+                                
+                                print(f"[PROJECT-RAG] _cache_usage_cb appelé (non-stream)! in:{in_toks} read:{c_read} write:{c_write} out:{out_toks} cost:{cost}")
+                                
+                                if not hasattr(p_injector.config, 'cache_current_cost'):
+                                    p_injector.config.cache_current_cost = 0.0
+                                p_injector.config.cache_current_cost += cost
+                                
+                                if c_read > 0 or c_write > 0:
+                                    import time
+                                    p_injector.config.cache_expiration_timestamp = time.time() + 3600
+                                
+                                # Mettre à jour l'UI en direct si disponible
+                                p_ui_comps = get_ui_components()
+                                p_ui = p_ui_comps.get('ui')
+                                if p_ui and hasattr(p_ui, 'cache_ui') and p_ui.cache_ui:
+                                    try:
+                                        p_ui.cache_ui.update_ui_display()
+                                    except Exception as ui_err:
+                                        print(f"[PROJECT-RAG] Erreur update UI dans cb (non-stream): {ui_err}")
+                            except Exception as e:
+                                print(f"[PROJECT-RAG] Erreur hook cache cb non-stream: {e}")
+                        p_usage_cb = _cache_usage_cb
+            except Exception as e:
+                print(f"[PROJECT-RAG] Erreur hook cache: {e}")
+                
         # 🌀 SPINNER: Activer le spinner IA Principale avant l'appel
         set_ia_working(True)
         
@@ -5019,7 +5201,9 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
             max_tokens=ctrl.max_tokens, 
             context_length=ctrl.context_length, 
             temperature=ctrl.temperature, 
-            is_json=False
+            is_json=False,
+            use_cache=p_use_cache,
+            usage_callback=p_usage_cb
         )
         
         # 🌀 SPINNER: Désactiver le spinner IA Principale

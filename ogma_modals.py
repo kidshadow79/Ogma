@@ -482,8 +482,8 @@ C. MULTIPLICATEURS (0.0 à 1.0):
 [SCHÉMA JSON CIBLE]
 {
   "type": "affectif | conceptuel | sensoriel | événement",
-  "titre": "STYLE_JEOPARDY (2 questions distinctes dont le texte est la réponse. Max 20 mots)",
-  "résumé": "ENTITÉS_CLÉS (Une phrase résumant l'idée générale du texte original et une liste séparée par points: Noms. Lieux. Dates. Concepts)",
+  "titre": "String - STYLE_JEOPARDY. 2 questions distinctes, directes et claires, rédigées sous la forme d'une unique chaîne de caractères (pas de liste/array JSON). La réponse à ces deux questions doit être le texte_original. Exemple : 'Quel arbre verdit au printemps ? Quelle couleur prennent les feuilles de l''arbre en mai ?'",
+  "résumé": "String - Un résumé court, rédigé en langage naturel clair et fluide (1 à 2 phrases max, pas de liste de mots-clés séparés par des points ou des pipes '|'). Décris précisément ce qui s'est passé ou ce qui a été partagé. Exemple : 'L''utilisateur discute du cycle des saisons et observe que les feuilles des arbres reverdissent avec l''arrivée du printemps.'",
   "lieu": "String | null",
   "présence": "String (ex: 'Moi seul', 'IA & Utilisateur')",
   "intensite_mnéacloud": FLOAT (Selon echelle A),
@@ -587,30 +587,30 @@ B. BASE_FACTOR (10 à 125):
    [10-30: Goût/Style] | [31-50: Préférence marquée] | [51-75: Valeur structurante] | [76-100: Principe éthique] | [101-125: Identité fondamentale]
 
 C. MULTIPLICATEURS (0.0 à 1.0):
-   LIBERTÉ (Impact sur autonomie) | CRÉATION (Influence créative) | PROCRÉATION (Transmission identitaire) | INTENSITÉ_CTX (Importance existentielle)
+   LIBERTÉ (Impact sur autonomie) | CRÉATION (Influence créative) | TRANSMISSION (Transmission identitaire) | INTENSITÉ_CTX (Importance existentielle)
 
 [SCHÉMA JSON CIBLE]
 {
   \"type\": \"affectif | éthique | comportemental | identitaire\",
-  \"title\": \"Quelle valeur fondamentale guide ce comportement ? Quelle conviction exprime ce trait ?\",
-  \"summary\": \"trait. valeur-clé. contexte.\",
+  \"title\": \"String - STYLE_JEOPARDY. 2 questions distinctes, directes et claires, rédigées sous la forme d'une unique chaîne de caractères (pas de liste/array JSON). La réponse à ces deux questions doit être le trait_original. Exemple : 'Quelle est ma posture face au bien-être d''autrui ? Quel principe éthique régit ma bienveillance ?'\",
+  \"summary\": \"String - Un résumé rédigé en langage naturel, clair, fluide et compréhensible du trait de personnalité ego ou de la conviction morale (1 à 2 phrases max, pas de liste de mots-clés séparés par des points, pas de séparateur pipe '|'). Exemple : 'L''IA affirme son orientation bienveillante et son désir sincère de soutenir autrui de manière désintéressée.'\",
   \"intensite\": FLOAT (Selon échelle A),
   \"multiplicateur_impact\": {
     \"liberté\": FLOAT,
     \"création\": FLOAT,
-    \"procréation\": FLOAT,
+    \"transmission\": FLOAT,
     \"intensité_contextuelle\": FLOAT,
     \"base_factor\": INT (Selon échelle B)
   },
   \"valence\": INT (-1: rejet/aversion | 0: neutre | 1: adhésion/valeur),
   \"commentaire_archiviste\": \"Ton analyse de ce trait ego et son rôle identitaire\",
-  \"score_impact\": FLOAT (Calcul: intensite × base_factor × (liberté + création + procréation + intensité_contextuelle)),
+  \"score_impact\": FLOAT (Calcul: intensite × base_factor × (liberté + création + transmission + intensité_contextuelle)),
   \"trait_original\": \"VERBATIM_STRICT (Copie exacte de l'input)\"
 }
 
 ATTENTION: 'title' doit TOUJOURS être 2 VRAIES QUESTIONS (terminant par '?') dont la réponse EST le trait.
 Ne jamais copier la description du schéma — générer des questions réelles sur le trait spécifique.
-ATTENTION: 'summary' doit être une liste de mots-clés courts séparés par des points. Pas de phrase narrative.
+ATTENTION: 'summary' doit être rédigé en langage naturel clair et fluide (1 à 2 phrases max). Ne génère JAMAIS de liste de mots-clés séparés par des points.
 
 Trait ego à encoder:
 {trait_text}
