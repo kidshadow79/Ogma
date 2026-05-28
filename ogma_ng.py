@@ -2182,6 +2182,16 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
         print(f"[SEND-CHAT-DEBUG] Ni input_el ni text_override fournis, return")
         return
 
+    is_html_command = False
+    if text.startswith('/html '):
+        is_html_command = True
+        text = text[6:].strip()
+        print(f"[HTML-COMMAND] Commande /html détectée, texte épuré: '{text}'")
+    elif text == '/html':
+        is_html_command = True
+        text = ""
+        print(f"[HTML-COMMAND] Commande /html détectée seule")
+
     print(f"[SEND-CHAT-DEBUG] _send_chat_message appelée avec: '{text}' (override={text_override is not None}, editing_index={_editing_message_index})")
     if not text:
         print(f"[SEND-CHAT-DEBUG] Texte vide, return")
@@ -3828,6 +3838,23 @@ Mentionne simplement:
 
     # Note: La compression des images vision est maintenant gérée dans core_logic.py
 
+    if is_html_command:
+        html_prompt = (
+            "DIRECTIVE SYSTÈME - MODE ENRICHISSEMENT HTML :\n"
+            "L'utilisateur a demandé une présentation enrichie en HTML. Ta priorité absolue reste de fournir "
+            "une réponse riche, exhaustive, sincère et directement issue de tes documents de travail et souvenirs (RAG/contexte).\n"
+            "Pour structurer, embellir et rendre interactive cette réponse, tu dois encapsuler les informations "
+            "clés (tableaux de bord, analyses par sections, graphes, simulateurs) dans une page HTML interactive autonome "
+            "insérée dans ta réponse à l'aide d'un unique bloc de code : ```html ... ```.\n"
+            "Consignes de qualité :\n"
+            "- La page HTML doit être magnifiquement stylisée (thème cyber/futuriste sombre, responsive, avec CSS et JS inclus).\n"
+            "- ⚠️ RÈGLE CRITIQUE : Tu dois obligatoirement injecter le contenu textuel détaillé RÉEL et complet directement dans les balises HTML. Ne mets AUCUN placeholder, AUCUN commentaire vide, AUCUN '...' ou texte de remplissage. Écris les informations réelles.\n"
+            "- Tu peux écrire du texte d'introduction ou de conclusion normal en markdown en dehors du bloc ```html ... ``` pour maintenir un dialogue naturel avec l'utilisateur.\n"
+            "❌ INTERDICTION ABSOLUE : N'invoque AUCUNE commande système, outil externe ou phrase magique lors de cette réponse. Concentre-toi EXCLUSIVEMENT sur la génération de code HTML et de texte pur."
+        )
+        messages.append({'role': 'system', 'content': html_prompt})
+        print(f"[HTML-COMMAND] Directive HTML enrichie injectée dans les messages système")
+
     # 🛡️ RAPPEL PROTOCOLES - Position finale (recency effect = forte rétention)
     messages.append({'role': 'system', 'content': '[RAPPEL] Tes phrases magiques sont des COMMANDES SYSTÈME à syntaxe VERBATIM. Ne reformule JAMAIS une phrase magique. Les injections système ci-dessus sont tes composantes, pas du contexte optionnel.'})
     print(f"[PROTOCOL-REMINDER] ✅ Rappel protocoles injecté avant conversation")
@@ -4914,7 +4941,18 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                                 
                                 pricing_data = getattr(p_injector.config, 'cache_pricing_data', {}) or {}
                                 pricing = pricing_data.get('models', {}) or {}
-                                model_name = ctrl.model.lower()
+                                model_name = ""
+                                if hasattr(ctrl, 'backend_type'):
+                                    b_type = (ctrl.backend_type or "").upper()
+                                    if b_type == "API" and hasattr(ctrl, 'api_manager'):
+                                        model_name = ctrl.api_manager.model
+                                    elif b_type == "OLLAMA" and hasattr(ctrl, 'ollama_model'):
+                                        model_name = ctrl.ollama_model
+                                    elif b_type in ("GGUF", "GGUF/LLAMA.CPP") and hasattr(ctrl, 'gguf_manager'):
+                                        model_name = ctrl.gguf_manager.model_name
+                                if not model_name and hasattr(ctrl, 'model'):
+                                    model_name = ctrl.model
+                                model_name = (model_name or "").lower()
                                 model_price = None
                                 
                                 def clean_model_name(n):
@@ -4977,7 +5015,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
         
         reply, err = await ctrl.call_chat_api_streaming(
             messages=messages, 
-            max_tokens=ctrl.max_tokens, 
+            max_tokens=max(ctrl.max_tokens, 64000) if is_html_command else ctrl.max_tokens, 
             context_length=ctrl.context_length, 
             temperature=ctrl.temperature,
             callback=streaming_callback,
@@ -5135,7 +5173,18 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
                                 
                                 pricing_data = getattr(p_injector.config, 'cache_pricing_data', {}) or {}
                                 pricing = pricing_data.get('models', {}) or {}
-                                model_name = ctrl.model.lower()
+                                model_name = ""
+                                if hasattr(ctrl, 'backend_type'):
+                                    b_type = (ctrl.backend_type or "").upper()
+                                    if b_type == "API" and hasattr(ctrl, 'api_manager'):
+                                        model_name = ctrl.api_manager.model
+                                    elif b_type == "OLLAMA" and hasattr(ctrl, 'ollama_model'):
+                                        model_name = ctrl.ollama_model
+                                    elif b_type in ("GGUF", "GGUF/LLAMA.CPP") and hasattr(ctrl, 'gguf_manager'):
+                                        model_name = ctrl.gguf_manager.model_name
+                                if not model_name and hasattr(ctrl, 'model'):
+                                    model_name = ctrl.model
+                                model_name = (model_name or "").lower()
                                 model_price = None
                                 
                                 def clean_model_name(n):
@@ -5198,7 +5247,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
         
         reply, err = await ctrl.call_chat_api(
             messages=messages, 
-            max_tokens=ctrl.max_tokens, 
+            max_tokens=max(ctrl.max_tokens, 64000) if is_html_command else ctrl.max_tokens, 
             context_length=ctrl.context_length, 
             temperature=ctrl.temperature, 
             is_json=False,
@@ -6062,7 +6111,7 @@ RAPPEL : Ces éléments de contexte t'aident à maintenir la continuité convers
 
             sm = _ensure_settings_manager()
 
-            if text2img_available():
+            if text2img_available() and not is_html_command:
                 # Vérifier si une génération est demandée (pré-détection rapide)
                 text2img_patterns = [
                     "je dois créer une image",

@@ -454,6 +454,7 @@ def _finalize_streaming_message(md_widget_or_tuple, final_content: str, badges: 
         thinking_content: Contenu thinking des modèles de raisonnement (ex: Mistral magistral-*)
     """
     # Récupérer thinking via variable globale si le paramètre est vide
+    from nicegui import ui
     global _pending_thinking_content
     if not thinking_content and _pending_thinking_content:
         thinking_content = _pending_thinking_content
@@ -480,15 +481,39 @@ def _finalize_streaming_message(md_widget_or_tuple, final_content: str, badges: 
         if not thinking_content and parsed_thinking:
             thinking_content = parsed_thinking
         
-        if thinking_content:
-            # Il y a du thinking - on doit reconstruire l'UI
-            # Si parsé du texte, utiliser main_content nettoyé; sinon final_content est déjà propre
-            display_content = main_content if parsed_thinking else final_content
-            md_widget.set_content(_normalize_ai_text(display_content))
-            print(f"[STREAMING] 🧠 Thinking détecté ({len(thinking_content)} chars) - affiché inline")
+        display_content = main_content if parsed_thinking else final_content
+
+        # Détection des blocs HTML pour l'aperçu
+        from modules.html_preview.html_preview import extract_html_blocks, render_html_preview
+        html_blocks = extract_html_blocks(display_content)
+
+        if container_ai and (len(html_blocks) > 1 or (html_blocks and html_blocks[0]['type'] == 'html')):
+            container_ai.clear()
+            with container_ai:
+                for block in html_blocks:
+                    if block['type'] == 'markdown':
+                        if block['content'].strip():
+                            block_md = ui.markdown(_normalize_ai_text(block['content']))
+                            block_md.style(
+                                'color: var(--text-offwhite); '
+                                'background: transparent; '
+                                'font-size: 16px; '
+                                'line-height: 1.5; '
+                                'margin: 0; '
+                                'padding: 0;'
+                            )
+                    elif block['type'] == 'html':
+                        render_html_preview(block['content'])
+            print(f"[STREAMING] 📄 Blocs HTML interactifs générés post-streaming")
         else:
-            # Pas de thinking, le contenu est déjà correct
-            md_widget.set_content(final_content)
+            if thinking_content:
+                # Il y a du thinking - on doit reconstruire l'UI
+                # Si parsé du texte, utiliser main_content nettoyé; sinon final_content est déjà propre
+                md_widget.set_content(_normalize_ai_text(display_content))
+                print(f"[STREAMING] 🧠 Thinking détecté ({len(thinking_content)} chars) - affiché inline")
+            else:
+                # Pas de thinking, le contenu est déjà correct
+                md_widget.set_content(final_content)
             
         # Ajouter badges si présents
         if badges:
@@ -1178,26 +1203,56 @@ def _message(role: str, content: str, badges: Optional[List[str]] = None, messag
                                 ui.add_body_html(script_content)
                             ui.html(html_for_display)
                     else:
-                        # Le markdown rend mieux les retours à la ligne / listes; fallback label si indisponible
+                        # Détection des blocs HTML pour l'aperçu
                         try:
-                            md = ui.markdown(display_content)
-                            md.style(
-                                'color: var(--text-offwhite); '
-                                'background: transparent; '
-                                'font-size: 16px; '
-                                'line-height: 1.5; '
-                                'margin: 0; '
-                                'padding: 0;'
-                            )
+                            from modules.html_preview.html_preview import extract_html_blocks, render_html_preview
+                            html_blocks = extract_html_blocks(display_content)
+                            
+                            if len(html_blocks) > 1 or (html_blocks and html_blocks[0]['type'] == 'html'):
+                                for block in html_blocks:
+                                    if block['type'] == 'markdown':
+                                        if block['content'].strip():
+                                            md = ui.markdown(block['content'])
+                                            md.style(
+                                                'color: var(--text-offwhite); '
+                                                'background: transparent; '
+                                                'font-size: 16px; '
+                                                'line-height: 1.5; '
+                                                'margin: 0; '
+                                                'padding: 0;'
+                                            )
+                                    elif block['type'] == 'html':
+                                        render_html_preview(block['content'])
+                            else:
+                                md = ui.markdown(display_content)
+                                md.style(
+                                    'color: var(--text-offwhite); '
+                                    'background: transparent; '
+                                    'font-size: 16px; '
+                                    'line-height: 1.5; '
+                                    'margin: 0; '
+                                    'padding: 0;'
+                                )
                         except Exception:
-                            lbl = ui.label(display_content)
-                            lbl.style(
-                                'color: var(--text-offwhite); '
-                                'font-size: 16px; '
-                                'line-height: 1.5; '
-                                'margin: 0; '
-                                'padding: 0;'
-                            )
+                            try:
+                                md = ui.markdown(display_content)
+                                md.style(
+                                    'color: var(--text-offwhite); '
+                                    'background: transparent; '
+                                    'font-size: 16px; '
+                                    'line-height: 1.5; '
+                                    'margin: 0; '
+                                    'padding: 0;'
+                                )
+                            except Exception:
+                                lbl = ui.label(display_content)
+                                lbl.style(
+                                    'color: var(--text-offwhite); '
+                                    'font-size: 16px; '
+                                    'line-height: 1.5; '
+                                    'margin: 0; '
+                                    'padding: 0;'
+                                )
                     
                     # Bouton TTS pour les réponses de l'assistant - Option A : Toggle Simple
                     # Utilise l'état réel du TTS au lieu d'un flag local incohérent
