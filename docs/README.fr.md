@@ -2,9 +2,10 @@
 
 # Yohan BROCARD
 
-Employé de cinéma. Autodidacte. Aucune notion de code avant mai 2025.
+Je suis Yohan Brocard, un autodidacte passionné. J'aborde le développement non pas comme une démonstration technique, mais comme un espace de recherche personnelle et de questionnement, tout particulièrement autour des systèmes d'intelligence artificielle. 
+Mon approche repose entièrement sur l'expérimentation pratique : explorer des concepts, concevoir des idées en tandem avec l'IA, observer et moduler les comportements des modèles, et itérer continuellement pour donner vie à ce qui m'intrigue.
 
-Depuis, je construis **OGMA** — un assistant conversationnel à mémoire persistante — avec l'aide d'IA codeuses, en apprenant au fur et à mesure. Ce que je ne savais pas faire hier, je le comprends aujourd'hui. Ce que je ne comprends pas encore, je l'explore demain.
+Depuis mai 2025, je construis **OGMA** — un assistant conversationnel à mémoire persistante — avec l'aide d'IA codeuses, en apprenant au fur et à mesure. Ce que je ne savais pas faire hier, je le comprends aujourd'hui. Ce que je ne comprends pas encore, je l'explore demain.
 
 ---
 
