@@ -58,9 +58,37 @@ class ProjectInjector:
         if instruction and instruction.strip():
             parts.append(f"[PROJET: {self.config.name}]\n{instruction.strip()}")
 
-        # 2. Chunks pertinents (recherche sémantique) ou Texte Intégral (Cache Complet)
+        # 2. Injection directe (Mode 3) — sans cache provider, compatible FAISS
+        direct_ids = list(getattr(self.config, 'direct_inject_files', []))
+        if direct_ids:
+            direct_parts = []
+            files_by_id = {f['id']: f for f in self.config.files}
+            for file_id in direct_ids:
+                f_record = files_by_id.get(file_id)
+                if not f_record:
+                    continue
+                filename = f_record['filename']
+                text_path = self.config.files_dir / f"{file_id}.txt"
+                if text_path.exists():
+                    content = text_path.read_text(encoding='utf-8')
+                    print(f"[PROJECT-INJECTOR] Injection directe: {filename} -> {len(content)} chars")
+                    direct_parts.append(f"--- Document: {filename} ---\n{content}")
+                else:
+                    print(f"[PROJECT-INJECTOR] Injection directe: {filename} introuvable (.txt manquant)")
+            if direct_parts:
+                direct_header = (
+                    "[DOCUMENTS EN INJECTION DIRECTE]\n"
+                    "Voici les documents selectionnes par l'utilisateur pour ce message. "
+                    "Utilise-les comme SOURCE PRIMAIRE pour repondre. "
+                    "Ce contenu est deja present dans ce message, ne le cherche pas dans les conversations passees. "
+                    "Si une information est absente, dis-le directement.\n\n"
+                )
+                parts.append(direct_header + "\n\n".join(direct_parts))
+
+        # 3. Chunks pertinents (recherche sémantique) ou Texte Intégral (Cache Complet)
+        #    Full Cache desactive si Mode 3 actif (exclusivite)
         try:
-            if getattr(self.config, 'use_full_cache', False):
+            if not direct_ids and getattr(self.config, 'use_full_cache', False):
                 # Mode Cache Complet
                 full_text_parts = []
                 for f_record in self.config.files:
@@ -93,13 +121,17 @@ class ProjectInjector:
                     if text_path.exists():
                         with open(text_path, 'r', encoding='utf-8') as f:
                             content = f.read()
-                            full_text_parts.append(f"--- Fichier: {filename} ---\n{content}")
+                        print(f"[PROJECT-INJECTOR] Full Cache: {filename} -> {len(content)} chars charges")
+                        full_text_parts.append(f"--- Fichier: {filename} ---\n{content}")
                 
                 if full_text_parts:
                     cache_warning = (
                         "[INTEGRALITE DU PROJET CHARGE EN CACHE API]\n"
-                        "Voici l'intégralité des documents du projet. Utilise-les comme SOURCE PRIMAIRE absolue "
-                        "pour répondre avec une précision parfaite.\n\n"
+                        "Voici l'integralite des documents du projet. Utilise-les comme SOURCE PRIMAIRE absolue "
+                        "pour repondre avec une precision parfaite.\n"
+                        "IMPORTANT: Le contenu de ces fichiers est deja present dans ce message. "
+                        "Ne cherche JAMAIS ces informations dans les conversations passees. "
+                        "Si une information est absente des documents, dis-le directement.\n\n"
                     )
                     parts.append(cache_warning + "\n\n".join(full_text_parts))
             else:

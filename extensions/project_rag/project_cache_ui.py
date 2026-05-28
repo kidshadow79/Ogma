@@ -114,7 +114,8 @@ class ProjectCacheUI:
         with ui.row().classes('items-center gap-2'):
             # Switch de bascule
             is_gguf = self._is_gguf_active()
-            
+            has_direct_inject = len(getattr(self.config, 'direct_inject_files', [])) > 0
+
             with ui.column().classes('gap-0'):
                 self.switch = ui.switch(
                     'Mise en cache complet', 
@@ -130,6 +131,9 @@ class ProjectCacheUI:
             if is_gguf:
                 self.switch.props('disable')
                 self.switch.tooltip("Le cache intégral API n'est pas compatible avec le modèle local GGUF.")
+            elif has_direct_inject:
+                self.switch.props('disable')
+                self.switch.tooltip("Désélectionne les fichiers en injection directe pour activer le cache complet.")
             else:
                 self.switch.tooltip("Charge tout le projet en RAM serveur (coût initial plus élevé, mais vision parfaite du texte). Désactivez pour utiliser FAISS.")
 
@@ -150,6 +154,11 @@ class ProjectCacheUI:
                     self.cost_label = ui.label(f"${self.config.cache_current_cost:.4f}").classes('text-xs text-emerald-400 font-mono')
 
     def _on_switch_change(self, e):
+        # Bloquer si Mode 3 actif
+        if e.value and len(getattr(self.config, 'direct_inject_files', [])) > 0:
+            self.switch.set_value(False)
+            ui.notify("Désélectionne les fichiers en injection directe avant d'activer le cache complet.", type='warning')
+            return
         self.cache_active = e.value
         # Sauvegarde dans la config
         self.config.use_full_cache = self.cache_active
@@ -170,6 +179,24 @@ class ProjectCacheUI:
             
         if self.on_toggle_callback:
             self.on_toggle_callback(self.cache_active)
+
+    def update_state(self):
+        """Rafraichit l'etat du switch selon la config (appele apres un toggle Mode 3)."""
+        if not hasattr(self, 'switch'):
+            return
+        has_direct = len(getattr(self.config, 'direct_inject_files', [])) > 0
+        is_gguf = self._is_gguf_active()
+        if has_direct or is_gguf:
+            self.switch.props('disable')
+            tooltip = (
+                "Désélectionne les fichiers en injection directe pour activer le cache complet."
+                if has_direct else
+                "Le cache intégral API n'est pas compatible avec le modèle local GGUF."
+            )
+            self.switch.tooltip(tooltip)
+        else:
+            self.switch.props(remove='disable')
+            self.switch.tooltip("Charge tout le projet en RAM serveur (coût initial plus élevé, mais vision parfaite du texte). Désactivez pour utiliser FAISS.")
 
     def get_remaining_seconds(self) -> int:
         """Calcule dynamiquement le nombre de secondes restantes."""

@@ -223,9 +223,9 @@ class ArchivisteMemoryOptimizer:
             # ================================================================
             candidates_for_filtering = memories_batch[:7] if len(memories_batch) >= 7 else memories_batch
             
-            print(f"[MEMORY-OPTIMIZER-V2] 🎯 {len(candidates_for_filtering)} candidats pour filtrage Archiviste:")
+            print(f"[MEMORY-OPTIMIZER-V2] {len(candidates_for_filtering)} candidats pour filtrage Archiviste:")
             for i, mem in enumerate(candidates_for_filtering, 1):
-                print(f"  {i}. {mem.get('title', 'N/A')[:50]} (score={mem.get('hybrid_score', 0):.3f}, impact={mem.get('score_impact', 0)})")
+                print(f"  {i}. {(mem.get('title') or 'N/A')[:50]} (score={mem.get('hybrid_score', 0):.3f}, impact={mem.get('score_impact', 0)})")
             
             # ================================================================
             # ÉTAPE 4: FILTRAGE CONTEXTUEL PAR L'ARCHIVISTE

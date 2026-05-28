@@ -380,7 +380,21 @@ class ProjectUI:
             ui.notify(t('pr_notify_error', ex=ex), type='negative')
 
     def _extract_text(self, file_path: Path, extension: str) -> str:
-        """Extrait le texte d'un fichier via file_processor d'OGMA."""
+        """Extrait le texte d'un fichier via file_processor d'OGMA.
+        Pour .txt, lecture directe avec cascade d'encodages (UTF-8, cp1252...).
+        """
+        if extension == '.txt':
+            for enc in ('utf-8-sig', 'utf-8', 'cp1252', 'latin-1'):
+                try:
+                    content = file_path.read_text(encoding=enc)
+                    print(f"[PROJECT-UI] Extraction .txt OK ({enc}, {len(content)} chars)")
+                    return content
+                except (UnicodeDecodeError, ValueError):
+                    continue
+            # Dernier recours : UTF-8 avec remplacement des caracteres invalides
+            content = file_path.read_text(encoding='utf-8', errors='replace')
+            print(f"[PROJECT-UI] Extraction .txt fallback errors=replace ({len(content)} chars)")
+            return content
         try:
             from extensions.file_processor import process_file
             result = process_file(file_path)
@@ -440,8 +454,34 @@ class ProjectUI:
                         t('pr_label_file_meta', chunks=file_data.get('chunk_count', 0), size=size_kb)
                     ).classes('text-xs').style(f'color: {th["muted"]}; line-height: 1.2;')
 
-            # Bouton supprimer
+            # Bouton injection directe (Mode 3)
             file_id = file_data['id']
+            is_injecting = file_id in self.config.direct_inject_files
+
+            def _toggle_inject(fid=file_id, size=file_data.get('file_size', 0)):
+                currently = fid in self.config.direct_inject_files
+                self.config.set_direct_inject(fid, not currently)
+                if not currently and size and size > 50_000:
+                    ui.notify(
+                        f"Fichier volumineux ({size // 1024} KB). "
+                        "Pour les gros documents, le mode Full Cache est plus économique.",
+                        type='warning', timeout=4000
+                    )
+                self._refresh_file_list()
+                if hasattr(self, 'cache_ui') and self.cache_ui:
+                    self.cache_ui.update_state()
+
+            ui.button(
+                icon='bolt',
+                on_click=_toggle_inject
+            ).props(
+                f'flat round size=sm color={"amber" if is_injecting else "grey-5"}'
+            ).tooltip(
+                "Injection directe active (désactiver)" if is_injecting
+                else "Injecter ce document entier dans chaque message"
+            )
+
+            # Bouton supprimer
             ui.button(
                 icon='delete',
                 on_click=lambda fid=file_id: self._remove_file(fid)

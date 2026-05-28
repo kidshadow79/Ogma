@@ -29,6 +29,7 @@ DEFAULT_PROJECT = {
     "instruction": "",
     "active": False,
     "files": [],
+    "direct_inject_files": [],
     "settings": DEFAULT_SETTINGS.copy(),
     "created_at": "",
     "updated_at": "",
@@ -122,6 +123,22 @@ class ProjectConfig:
     def use_full_cache(self, value: bool):
         self._config["use_full_cache"] = bool(value)
         self._save()
+
+    @property
+    def direct_inject_files(self) -> List[str]:
+        """IDs des fichiers en injection directe (Mode 3 — sans cache provider)."""
+        return self._config.get("direct_inject_files", [])
+
+    def set_direct_inject(self, file_id: str, enabled: bool):
+        """Active ou desactive l'injection directe pour un fichier."""
+        ids = list(self._config.get("direct_inject_files", []))
+        if enabled and file_id not in ids:
+            ids.append(file_id)
+        elif not enabled and file_id in ids:
+            ids.remove(file_id)
+        self._config["direct_inject_files"] = ids
+        self._save()
+        print(f"[PROJECT-CONFIG] Injection directe {'activee' if enabled else 'desactivee'}: {file_id}")
 
     @property
     def files(self) -> List[Dict[str, Any]]:
