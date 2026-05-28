@@ -11,8 +11,8 @@
 --extra-index-url https://download.pytorch.org/whl/cu128
 --extra-index-url https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu128
 
-# --- Core OGMA (standard CPU) ---
--r ../requirements.txt
+# --- Tous les modules OGMA ---
+-r requirements-full.txt
 
 # --- Surcharge GPU (remplace torch CPU) ---
 -r requirements-nvidia.txt

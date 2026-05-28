@@ -1,4 +1,4 @@
-﻿# OGMA — Assistant IA à Mémoire Persistante
+# OGMA — Assistant IA à Mémoire Persistante
 
 > 🇺🇸 [English version (README.md)](README.md)
 
@@ -132,7 +132,7 @@ OGMA construit un **profil factuel** de l’utilisateur au fil des échanges, sa
 ### 🗓️ Organic Planner — Agenda Cognitif
 Les événements planifiés sont traités comme des **souvenirs du futur** : l'IA les garde en tête naturellement, les mentionne quand ils approchent, et adapte son ton au ressenti noté pour chaque événement. Pas une liste de tâches — une présence diffuse de l'agenda dans sa conscience conversationnelle.
 
-### �️ Project RAG — Mémoire Documentaire Isolée
+### 🗂️ Project RAG — Mémoire Documentaire Isolée
 
 > ⚗️ **Prototype** — Fonctionnel mais en développement actif. L'API, la stratégie de chunking et la gestion multi-projets peuvent évoluer de façon significative.
 
@@ -141,6 +141,7 @@ Chaque projet dispose de sa propre mémoire sémantique, totalement isolée de l
 - Documents indexés par projet (PDF, texte, code, Word...)
 - Chunking adaptatif selon le type de fichier
 - Recherche sémantique via index FAISS + SQLite dédiés
+- **Prompt Caching** natif (Anthropic Claude, Google Gemini) pour réduire drastiquement les coûts sur de gros contextes
 - Chunks pertinents injectés automatiquement dans le contexte lors du travail sur un projet
 - Plusieurs projets simultanés, chacun avec sa configuration indépendante
 
@@ -279,13 +280,18 @@ GGUF (llama-cpp-python) exécute les modèles localement sur ta machine. Les per
 
 ### Fichiers de dépendances
 
-| Fichier | Usage |
-|---|---|
-| `requirements.txt` | Installation standard (recommandé pour commencer) |
-| `config/requirements-minimal.txt` | Dépendances minimales uniquement |
-| `config/requirements-nvidia.txt` | Surcouche GPU NVIDIA/CUDA (à installer en plus) |
+OGMA utilise un système d'installation modulaire pour éviter de télécharger des paquets lourds dont tu n'aurais pas besoin (comme `torch` pour l'audio local ou `llama-cpp-python` pour l'IA locale).
 
-### Option A — Avec environnement virtuel (recommandé)
+| Fichier / Script | Usage |
+|---|---|
+| `install_ogma.bat` | ⭐ **Installeur Interactif (Recommandé sur Windows)**. Te guide pour choisir tes modules (Audio, Vision, IA Locale). |
+| `requirements.txt` | Moteur principal uniquement (Mode API, sans traitements locaux lourds). |
+| `requirements/requirements-full.txt` | Installation complète (Core + Audio + Vision + IA Locale). |
+| `requirements/requirements-nvidia.txt` | Surcouche GPU NVIDIA/CUDA (à installer par-dessus la version complète ou locale). |
+
+### Option A — Installation Interactive (Recommandé sous Windows)
+
+Isole les dépendances d'OGMA du reste de ton système Python.
 
 ```bash
 # 1. Cloner le dépôt
@@ -296,22 +302,29 @@ cd Ogma
 python -m venv venv
 venv\Scripts\activate
 
-# 3. Mettre pip à jour
-python -m pip install --upgrade pip
-
-# 4. Installer les dépendances
-pip install -r requirements.txt
+# 3. Lancer l'installeur interactif
+install_ogma.bat
 ```
 
 > **Note** : À chaque nouvelle session, pensez à réactiver le venv (`venv\Scripts\activate`) avant de lancer OGMA.
 
-### Option B — Sans environnement virtuel
+### Option B — Installation Manuelle
+
+Si tu préfères utiliser `pip install` directement ou que tu es sous Linux/Mac :
 
 ```bash
 git clone https://github.com/kidshadow79/Ogma.git
 cd Ogma
 python -m pip install --upgrade pip
+
+# Pour la version Core uniquement (le plus rapide)
 pip install -r requirements.txt
+
+# OU Pour la version Complète (tout inclus)
+pip install -r requirements/requirements-full.txt
+
+# Pour le GPU NVIDIA (CUDA) — étape additionnelle
+# pip install -r requirements/requirements-nvidia.txt
 ```
 
 ---

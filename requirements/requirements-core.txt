@@ -1,10 +1,7 @@
 # ==============================================================================
 # OGMA - Requirements de Base (Core)
 # ==============================================================================
-# Ceci est le coeur d'Ogma (Mode API sans audio ni vision locale)
-#
-# Pour une installation complete et sur-mesure, utilisez plutot le script :
-# > install_ogma.bat (sous Windows)
+# Identique au requirements.txt a la racine.
 # ==============================================================================
 
 # Interface principale

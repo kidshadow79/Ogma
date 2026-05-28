@@ -1,0 +1,10 @@
+# OGMA - Installation Complète (CPU)
+# =============================================================
+# Installe TOUS les modules (Core, Audio, Vision, Local-AI).
+# Usage : pip install -r requirements/requirements-full.txt
+# =============================================================
+
+-r requirements-core.txt
+-r requirements-audio.txt
+-r requirements-vision.txt
+-r requirements-local-ai.txt

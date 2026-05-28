@@ -1,0 +1,4 @@
+# ==============================
+# EXTENSIONS PERCEPTUELLES (VISION)
+# ==============================
+opencv-python>=4.8.1
