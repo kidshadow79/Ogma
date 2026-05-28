@@ -65,9 +65,7 @@ OGMA repose sur quatre piliers fondamentaux :
 
 ## 🌱 Genèse
 
-En **mai 2025**, Yohan BROCARD — employé de cinéma, sans aucune notion de programmation — découvre les LLMs et décide de construire, avec eux, l'assistant qu'il aurait voulu avoir.
-
-L'apprentissage du code s'est fait entièrement par la pratique : aucun livre, aucune formation, uniquement le dialogue avec une IA codeuse, l'expérimentation et l'observation de ce qui fonctionnait.
+Je suis Yohan Brocard, un autodidacte passionné. J'aborde le développement non pas comme une démonstration technique, mais comme un espace de recherche personnelle et de questionnement, tout particulièrement autour des systèmes d'intelligence artificielle. Mon approche repose entièrement sur l'expérimentation pratique : explorer des concepts, concevoir des idées en tandem avec l'IA, observer et moduler les comportements des modèles, et itérer continuellement pour donner vie à ce qui m'intrigue.
 
 De **Octopus** (juin 2025, premier prototype) à **OGMA** (juillet 2025), l'architecture a évolué progressivement : Gradio cédant la place à NiceGUI, un système mémoire hybride prenant forme, des extensions s'ajoutant au fil des besoins. `ogma_ng.py` dépasse aujourd'hui 7000 lignes — monolithique par pragmatisme, assumé et contrôlé : chaque partie est connue, testée et maintenue par une IA codeuse dédiée.
 

@@ -67,9 +67,7 @@ OGMA is built on four core pillars:
 
 ## 🌱 Origin Story
 
-In **May 2025**, Yohan BROCARD — a cinema professional with zero programming background — discovered LLMs and decided to build, with their help, the assistant he had always wanted.
-
-The entire coding journey happened through practice: no books, no courses — just dialogue with a coding AI, experimentation, and observation of what worked.
+I am Yohan Brocard, a passionate autodidact. I approach software development not as a technical showcase, but as a space for personal research and questioning, particularly around artificial intelligence systems. My approach is entirely hands-on and experimental: exploring concepts, testing ideas in tandem with AI, observing and guiding the behavior of AI models, and continuously iterating to bring intriguing ideas to life.
 
 From **Octopus** (June 2025, first prototype) to **OGMA** (July 2025), the architecture evolved progressively: Gradio giving way to NiceGUI, a hybrid memory system taking shape, extensions added as needs emerged.
 
