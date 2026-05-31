@@ -148,11 +148,18 @@ class WebNavigatorConfig:
     
     def has_valid_api_key(self) -> bool:
         """Vérifie si une clé API Serper valide est configurée"""
-        api_key = self.get("serper_api_key", "")
+        api_key = self.get_serper_api_key()
         return api_key and len(api_key.strip()) > 10  # Clés Serper font plus de 10 caractères
     
     def get_serper_api_key(self) -> str:
         """Retourne la clé API Serper"""
+        try:
+            import api_keys_vault
+            key = api_keys_vault.get_api_key("Serper")
+            if key:
+                return key
+        except ImportError:
+            pass
         return self.get("serper_api_key", "")
 
     def get_search_provider(self) -> str:

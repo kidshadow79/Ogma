@@ -44,9 +44,14 @@ def reload_stt_config():
                 settings = json.load(f)
             
             stt_settings = settings.get('stt', {})
+            vault = settings.get('api_keys_vault', {})
             
-            # Chercher la clé API OpenAI
-            openai_key = stt_settings.get('api_key') or stt_settings.get('openai_api_key')
+            # 1. Chercher la clé dans le vault
+            openai_key = vault.get('OpenAI_STT') or vault.get('OpenAI')
+            
+            # 2. Fallbacks legacy
+            if not openai_key:
+                openai_key = stt_settings.get('api_key') or stt_settings.get('openai_api_key')
             
             if not openai_key:
                 for provider_key in ['openai_api', 'OpenAI']:
@@ -93,18 +98,21 @@ def _get_real_audio_manager():
                     
                     # Vérifier si on utilise l'API Whisper (OpenAI)
                     stt_settings = settings.get('stt', {})
+                    vault = settings.get('api_keys_vault', {})
                     
-                    # 1. Chercher clé STT dédiée dans settings.stt
-                    openai_key = stt_settings.get('api_key') or stt_settings.get('openai_api_key')
+                    # 1. Chercher dans le vault
+                    openai_key = vault.get('OpenAI_STT') or vault.get('OpenAI')
                     
-                    # 2. Chercher dans openai_api ou OpenAI sections
+                    # 2. Fallbacks legacy
+                    if not openai_key:
+                        openai_key = stt_settings.get('api_key') or stt_settings.get('openai_api_key')
+                    
                     if not openai_key:
                         for provider_key in ['openai_api', 'OpenAI']:
                             if settings.get(provider_key, {}).get('api_key'):
                                 openai_key = settings[provider_key]['api_key']
                                 break
                     
-                    # 3. En dernier recours, chat_api SEULEMENT si c'est OpenAI
                     if not openai_key:
                         chat_provider = settings.get('chat_api', {}).get('provider', '').lower()
                         if chat_provider == 'openai':

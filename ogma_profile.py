@@ -1,4 +1,4 @@
-﻿"""
+"""
 OGMA Profile Management
 =======================
 Gestion du profil utilisateur et nettoyage des données.
@@ -88,6 +88,15 @@ def _profile_modal():
             if not sm:
                 ui.label(t('profile_settings_mgr_unavailable')).classes('text-red-500')
                 return
+
+            # === COFFRE-FORT API (Général) ===
+            ui.label('🔐 Gestion Centrale des Clés API').classes('text-lg font-medium mb-2')
+            ui.label("Accédez au Coffre-Fort pour configurer toutes vos clés API (LLM, Voix, Images, etc.).").classes('text-xs text-muted mb-3')
+            
+            from api_keys_vault_ui import open_vault_modal
+            ui.button('Ouvrir le Coffre-Fort API', on_click=open_vault_modal, icon='lock').classes('w-full mb-4').props('color=primary')
+            
+            ui.separator().classes('my-4')
 
             # === SECTION DEBUG ===
             ui.label(t('profile_section_debug')).classes('text-lg font-medium mb-2')
@@ -1428,39 +1437,22 @@ def _profile_modal():
                     current_engine = 'whisper' if sm.settings.get('stt', {}).get('use_whisper_api', False) else 'google'
                     
                     if current_engine == 'whisper':
-                        # Afficher le champ API Key pour Whisper
-                        saved_key = sm.settings.get('stt', {}).get('api_key', '')
-                        masked_key = f"{saved_key[:7]}...{saved_key[-4:]}" if len(saved_key) > 15 else ('***' if saved_key else '')
+                        # Afficher l'indicateur API Key pour Whisper
+                        from api_keys_vault_ui import api_key_status_indicator
                         
-                        with ui.row().classes('w-full items-center gap-2'):
-                            api_input = ui.input(
-                                label=t('profile_label_openai_key'),
-                                value=saved_key,
-                                password=True,
-                                password_toggle_button=True
-                            ).classes('flex-grow')
+                        with ui.row().classes('w-full mb-2'):
+                            api_key_status_indicator('OpenAI_STT', t('profile_label_openai_key'))
                             
-                            def save_stt_api_key():
-                                if 'stt' not in sm.settings:
-                                    sm.settings['stt'] = {}
-                                sm.settings['stt']['api_key'] = api_input.value
-                                sm.save_settings()
-                                
-                                # Recharger la config STT dans l'audio manager
-                                try:
-                                    from audio_manager_wrapper import reload_stt_config
-                                    reload_stt_config()
-                                except Exception as e:
-                                    print(f"[PROFILE-STT] Erreur reload: {e}")
-                                
-                                ui.notify(t('profile_stt_whisper_key_saved'), type='positive')
-                            
-                            ui.button('💾', on_click=save_stt_api_key).props('size=sm color=primary').tooltip(t('profile_tooltip_save_key'))
+                        # Bouton reload pour STT
+                        def reload_stt_api_key():
+                            try:
+                                from audio_manager_wrapper import reload_stt_config
+                                reload_stt_config()
+                                ui.notify('Configuration rechargée', type='positive')
+                            except Exception as e:
+                                print(f"[PROFILE-STT] Erreur reload: {e}")
                         
-                        if saved_key:
-                            ui.label(t('profile_stt_whisper_key_configured', key=masked_key)).classes('text-xs text-green-500')
-                        else:
-                            ui.label(t('profile_stt_whisper_no_key')).classes('text-xs text-orange-500')
+                        ui.button('🔄 Recharger configuration', on_click=reload_stt_api_key).props('size=sm flat color=primary')
                         
                         ui.label(t('profile_stt_whisper_desc')).classes('text-xs text-muted mt-1')
                     

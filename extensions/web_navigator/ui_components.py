@@ -89,23 +89,19 @@ class WebNavigatorUI:
                 ui.markdown(t('wn_step_4'))
                 ui.markdown(t('wn_free_quota')).style('color: #27ae60; font-weight: bold;')
                 
-                with ui.row().classes('w-full items-center'):
-                    self.api_key_input = ui.input(
-                        t('wn_label_api_key'),
-                        value=self.config.get_serper_api_key(),
-                        placeholder=t('wn_placeholder_api_key'),
-                        password=True
-                    ).on_value_change(self._on_api_key_changed).classes('flex-1')
-                    
-                    ui.button(
-                        t('wn_btn_save'),
-                        on_click=self._save_api_key
-                    ).classes('bg-green-500 ml-2')
-                    
+                with ui.row().classes('w-full items-center mb-2'):
+                    try:
+                        from api_keys_vault_ui import api_key_status_indicator, VirtualKeyInput
+                        api_key_status_indicator('Serper', t('wn_label_api_key'))
+                        # Remplacement transparent pour la configuration
+                        self.api_key_input = VirtualKeyInput(lambda: "Serper")
+                    except ImportError:
+                        pass
+                        
                     ui.button(
                         t('wn_btn_test'),
                         on_click=self._test_serper_connection
-                    ).classes('bg-blue-500 ml-2')
+                    ).classes('bg-blue-500 ml-auto')
                     
                 self.api_status_label = ui.label().classes('mt-2')
                 self._update_api_status()
@@ -282,20 +278,20 @@ class WebNavigatorUI:
         if not self.api_status_label:
             return
             
-        current_key = self.api_key_input.value.strip() if self.api_key_input and self.api_key_input.value else ""
-        saved_key = self.config.get_serper_api_key()
-        
+        try:
+            import api_keys_vault
+            current_key = api_keys_vault.get_api_key("Serper")
+        except ImportError:
+            current_key = self.api_key_input.value.strip() if hasattr(self, 'api_key_input') and self.api_key_input and hasattr(self.api_key_input, 'value') and self.api_key_input.value else ""
+            
         if not current_key:
-            status = "❌ Aucune clé API saisie"
+            status = "❌ Aucune clé API saisie dans le Coffre-Fort"
             color = "text-red-400"
         elif len(current_key) < 10:
             status = "⚠️ Clé API trop courte (minimum 10 caractères)"
             color = "text-orange-400"
-        elif current_key != saved_key:
-            status = "💾 Clé modifiée - Cliquez sur 'Sauver' pour enregistrer"
-            color = "text-yellow-400"
         elif self.config.has_valid_api_key():
-            status = "✅ Clé API valide et sauvegardée"
+            status = "✅ Clé API valide et sauvegardée dans le Coffre-Fort"
             color = "text-green-400"
         else:
             status = "❌ Clé API invalide"
@@ -423,8 +419,7 @@ class WebNavigatorUI:
         """Recharge les valeurs dans l'interface après reset"""
         if self.enabled_switch:
             self.enabled_switch.value = self.config.is_enabled()
-        if self.api_key_input:
-            self.api_key_input.value = self.config.get_serper_api_key()
+        # L'input est maintenant géré par le vault, pas besoin de le recharger ici
         if self.web_search_switch:
             self.web_search_switch.value = self.config.is_web_search_enabled()
         if self.news_search_switch:

@@ -76,19 +76,18 @@ class TelegramConnectorUI:
                     ).tooltip(t('tg_tooltip_auto_start'))
                 
                 # Token
-                with ui.row().classes('w-full items-end gap-2'):
-                    self._token_input = ui.input(
-                        t('tg_input_token'),
-                        value=self.config.bot_token,
-                        password=True,
-                        password_toggle_button=True,
-                        on_change=lambda e: self._save_setting('bot_token', e.value)
-                    ).classes('flex-grow')
+                with ui.row().classes('w-full items-center gap-2 mb-2'):
+                    try:
+                        from api_keys_vault_ui import api_key_status_indicator, VirtualKeyInput
+                        api_key_status_indicator('Telegram', t('tg_input_token'))
+                        self._token_input = VirtualKeyInput(lambda: "Telegram")
+                    except ImportError:
+                        pass
                     
                     ui.button(
                         '🔗',
                         on_click=lambda: ui.run_javascript('window.open("https://t.me/BotFather", "_blank")')
-                    ).tooltip(t('tg_tooltip_botfather'))
+                    ).tooltip(t('tg_tooltip_botfather')).classes('ml-auto')
                 
                 # Bouton démarrer/arrêter
                 with ui.row().classes('w-full justify-center mt-4'):
@@ -292,8 +291,7 @@ class TelegramConnectorUI:
             self._enabled_switch.value = self.config.enabled
         if self._auto_start_switch:
             self._auto_start_switch.value = self.config.auto_start
-        if self._token_input:
-            self._token_input.value = self.config.bot_token
+        # Le token est géré par le vault, pas besoin de le rafraîchir ici
         if self._voice_input_switch:
             self._voice_input_switch.value = self.config.voice_input_enabled
         if self._voice_output_switch:

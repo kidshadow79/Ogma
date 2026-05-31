@@ -3197,31 +3197,33 @@ def _models_modal():
                 with ui.column() as chat_api_zone:
                     chat_provider_opts = ['Aucun'] + REMOTE_PROVIDERS[:-1] + ['AIHorde']
                     
+                    chat_provider = ui.select(
+                        chat_provider_opts,
+                        value=_safe(chat.get('provider', 'Aucun'), chat_provider_opts),
+                        label=t('models_label_provider')
+                    ).classes('form-select mb-2 narrow-field')
+                    chat_model = ui.select([], value=None, label=t('models_label_api_model')).classes('form-select mb-2 narrow-field')
+                    
+                    from api_keys_vault_ui import VirtualKeyInput, api_key_status_indicator
+                    chat_api_key = VirtualKeyInput(lambda: chat_provider.value)
+                    chat_api_key_container = ui.row().classes('mb-2 w-full items-center')
+                    def _update_chat_indicator():
+                        chat_api_key_container.clear()
+                        with chat_api_key_container:
+                            if chat_provider.value and chat_provider.value != 'Aucun':
+                                api_key_status_indicator(chat_provider.value, t('models_label_api_key'))
+                    _update_chat_indicator()
+                    
                     def on_chat_provider_change(e):
-                        """Charge la clé API depuis le vault au changement de provider et recharge les modèles"""
                         try:
-                            from api_keys_vault import get_api_key, has_saved_key
                             provider = e.value
-                            if provider and provider != 'Aucun' and has_saved_key(provider):
-                                saved_key = get_api_key(provider)
-                                if saved_key:
-                                    chat_api_key.value = saved_key
-                                    ui.notify(t('models_notify_vault_loaded', provider=provider), type='info')
-                            # Recharger les modèles pour le nouveau provider
+                            _update_chat_indicator()
                             if provider and provider != 'Aucun':
                                 refresh_cb = _refresh_models_ui('chat', chat_backend, chat_provider, chat_model, chat_api_key)
                                 ui.timer(0.1, lambda: asyncio.create_task(refresh_cb()), once=True)
                         except Exception as ex:
-                            print(f"[API-VAULT] Erreur chargement clé chat: {ex}")
-                    
-                    chat_provider = ui.select(
-                        chat_provider_opts,
-                        value=_safe(chat.get('provider', 'Aucun'), chat_provider_opts),
-                        label=t('models_label_provider'),
-                        on_change=on_chat_provider_change
-                    ).classes('form-select mb-2 narrow-field')
-                    chat_model = ui.select([], value=None, label=t('models_label_api_model')).classes('form-select mb-2 narrow-field')
-                    chat_api_key = ui.input(label=t('models_label_api_key'), password=True, value=chat.get('api_key', '')).classes('form-input mb-2 narrow-field')
+                            print(f"[API-VAULT] Erreur chargement chat: {ex}")
+                    chat_provider.on('change', on_chat_provider_change)
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
                         ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('chat', chat_backend, chat_provider, chat_model, chat_api_key)).classes('action-button')
                         ui.button(t('models_btn_test'), on_click=_test_connection_ui('chat', chat_backend, chat_provider, chat_api_key)).classes('action-button')
@@ -3586,31 +3588,33 @@ def _models_modal():
                 with ui.column() as arch_api_zone:
                     arch_provider_opts = ['Aucun'] + REMOTE_PROVIDERS[:-1] + ['AIHorde']
                     
+                    arch_provider = ui.select(
+                        arch_provider_opts,
+                        value=_safe(arch.get('provider', 'Aucun'), arch_provider_opts),
+                        label=t('models_label_provider')
+                    ).classes('form-select mb-2 narrow-field')
+                    arch_model = ui.select([], value=None, label=t('models_label_api_model')).classes('form-select mb-2 narrow-field')
+                    
+                    from api_keys_vault_ui import VirtualKeyInput, api_key_status_indicator
+                    arch_api_key = VirtualKeyInput(lambda: arch_provider.value)
+                    arch_api_key_container = ui.row().classes('mb-2 w-full items-center')
+                    def _update_arch_indicator():
+                        arch_api_key_container.clear()
+                        with arch_api_key_container:
+                            if arch_provider.value and arch_provider.value != 'Aucun':
+                                api_key_status_indicator(arch_provider.value, t('models_label_api_key'))
+                    _update_arch_indicator()
+                    
                     def on_arch_provider_change(e):
-                        """Charge la clé API depuis le vault au changement de provider et recharge les modèles"""
                         try:
-                            from api_keys_vault import get_api_key, has_saved_key
                             provider = e.value
-                            if provider and provider != 'Aucun' and has_saved_key(provider):
-                                saved_key = get_api_key(provider)
-                                if saved_key:
-                                    arch_api_key.value = saved_key
-                                    ui.notify(t('models_notify_vault_loaded', provider=provider), type='info')
-                            # Recharger les modèles pour le nouveau provider
+                            _update_arch_indicator()
                             if provider and provider != 'Aucun':
                                 refresh_cb = _refresh_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key)
                                 ui.timer(0.1, lambda: asyncio.create_task(refresh_cb()), once=True)
                         except Exception as ex:
-                            print(f"[API-VAULT] Erreur chargement clé arch: {ex}")
-                    
-                    arch_provider = ui.select(
-                        arch_provider_opts,
-                        value=_safe(arch.get('provider', 'Aucun'), arch_provider_opts),
-                        label=t('models_label_provider'),
-                        on_change=on_arch_provider_change
-                    ).classes('form-select mb-2 narrow-field')
-                    arch_model = ui.select([], value=None, label=t('models_label_api_model')).classes('form-select mb-2 narrow-field')
-                    arch_api_key = ui.input(label=t('models_label_api_key'), password=True, value=arch.get('api_key', '')).classes('form-input mb-2 narrow-field')
+                            print(f"[API-VAULT] Erreur chargement arch: {ex}")
+                    arch_provider.on('change', on_arch_provider_change)
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
                         ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('arch', arch_backend, arch_provider, arch_model, arch_api_key)).classes('action-button')
                         ui.button(t('models_btn_test'), on_click=_test_connection_ui('arch', arch_backend, arch_provider, arch_api_key)).classes('action-button')
@@ -3875,31 +3879,33 @@ def _models_modal():
                 with ui.column() as emb_api_zone:
                     emb_provider_opts = ['Aucun'] + EMBED_SUPPORTED_PROVIDERS
                     
+                    emb_provider = ui.select(
+                        emb_provider_opts,
+                        value=_safe(emb.get('provider', 'Aucun'), emb_provider_opts),
+                        label=t('models_label_provider')
+                    ).classes('form-select mb-2 narrow-field')
+                    emb_model = ui.select([], value=None, label=t('models_label_embed_model')).classes('form-select mb-2 narrow-field')
+                    
+                    from api_keys_vault_ui import VirtualKeyInput, api_key_status_indicator
+                    emb_api_key = VirtualKeyInput(lambda: emb_provider.value)
+                    emb_api_key_container = ui.row().classes('mb-2 w-full items-center')
+                    def _update_emb_indicator():
+                        emb_api_key_container.clear()
+                        with emb_api_key_container:
+                            if emb_provider.value and emb_provider.value != 'Aucun':
+                                api_key_status_indicator(emb_provider.value, t('models_label_api_key'))
+                    _update_emb_indicator()
+                    
                     def on_emb_provider_change(e):
-                        """Charge la clé API depuis le vault au changement de provider et recharge les modèles"""
                         try:
-                            from api_keys_vault import get_api_key, has_saved_key
                             provider = e.value
-                            if provider and provider != 'Aucun' and has_saved_key(provider):
-                                saved_key = get_api_key(provider)
-                                if saved_key:
-                                    emb_api_key.value = saved_key
-                                    ui.notify(t('models_notify_vault_loaded', provider=provider), type='info')
-                            # Recharger les modèles pour le nouveau provider
+                            _update_emb_indicator()
                             if provider and provider != 'Aucun':
                                 refresh_cb = _refresh_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key)
                                 ui.timer(0.1, lambda: asyncio.create_task(refresh_cb()), once=True)
                         except Exception as ex:
-                            print(f"[API-VAULT] Erreur chargement clé emb: {ex}")
-                    
-                    emb_provider = ui.select(
-                        emb_provider_opts,
-                        value=_safe(emb.get('provider', 'Aucun'), emb_provider_opts),
-                        label=t('models_label_provider'),
-                        on_change=on_emb_provider_change
-                    ).classes('form-select mb-2 narrow-field')
-                    emb_model = ui.select([], value=None, label=t('models_label_embed_model')).classes('form-select mb-2 narrow-field')
-                    emb_api_key = ui.input(label=t('models_label_api_key'), password=True, value=emb.get('api_key', '')).classes('form-input mb-2 narrow-field')
+                            print(f"[API-VAULT] Erreur chargement emb: {ex}")
+                    emb_provider.on('change', on_emb_provider_change)
                     with ui.row().classes('items-center gap-2 mb-2 narrow-actions'):
                         ui.button(t('models_btn_refresh_models'), on_click=_refresh_models_ui('embed', emb_backend, emb_provider, emb_model, emb_api_key)).classes('action-button')
                         ui.button(t('models_btn_test'), on_click=_test_connection_ui('embed', emb_backend, emb_provider, emb_api_key)).classes('action-button')

@@ -87,10 +87,22 @@ class TelegramConfig:
     
     @property
     def bot_token(self) -> str:
+        try:
+            import api_keys_vault
+            key = api_keys_vault.get_api_key("Telegram")
+            if key:
+                return key
+        except ImportError:
+            pass
         return self._config.get('bot_token', '')
     
     @bot_token.setter
     def bot_token(self, value: str):
+        try:
+            import api_keys_vault
+            api_keys_vault.save_api_key("Telegram", value)
+        except ImportError:
+            pass
         self._config['bot_token'] = value
     
     @property

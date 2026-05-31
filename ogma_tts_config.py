@@ -165,21 +165,12 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         ui.label(t('tts_section_config', provider='Google Cloud TTS')).classes('text-sm font-medium mb-2')
 
         # Clé API Google
-        google_api_key = sm.settings.get('tts', {}).get('google_api_key', '')
-        def on_google_key_change(e):
-            if 'tts' not in sm.settings:
-                sm.settings['tts'] = {}
-            sm.settings['tts']['google_api_key'] = e.value
-            sm.save_settings()
-            ui.notify(t('tts_notify_key_saved', provider='Google'), type='positive')
-
-        ui.input(
-            label='Clé API Google Cloud',
-            placeholder=t('tts_placeholder_key', provider='Google Cloud'),
-            password=True,
-            value=google_api_key,
-            on_change=on_google_key_change
-        ).classes('mb-3')
+        import api_keys_vault
+        from api_keys_vault_ui import api_key_status_indicator
+        google_api_key = api_keys_vault.get_api_key('Google_TTS') or ''
+        
+        with ui.row().classes('w-full mb-3'):
+            api_key_status_indicator('Google_TTS', 'Clé API Google Cloud')
 
         # Voix Google
         google_voice = sm.settings.get('tts', {}).get('google_voice', 'fr-FR-Standard-A')
@@ -214,7 +205,9 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         def test_google_tts():
             async def _test():
                 _audio_manager = _get_global_var('_audio_manager')
-                if not google_api_key:
+                import api_keys_vault
+                current_key = api_keys_vault.get_api_key('Google_TTS') or ''
+                if not current_key:
                     _notify_safe('❌ Clé API Google manquante', 'negative')
                     return
 
@@ -224,7 +217,7 @@ def _render_tts_config(current_engine, sm, refresh_callback):
                         success = await _audio_manager.speak_google_tts(
                             test_text,
                             google_voice,
-                            google_api_key
+                            current_key
                         )
                         if success:
                             _notify_safe('🔊 Test Google TTS réussi', 'positive')
@@ -251,23 +244,12 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         ui.label(t('tts_section_config', provider='ElevenLabs')).classes('text-sm font-medium mb-2')
 
         # Clé API ElevenLabs
-        elevenlabs_api_key = sm.settings.get('tts', {}).get('elevenlabs_api_key', '')
-        def on_elevenlabs_key_change(e):
-            if 'tts' not in sm.settings:
-                sm.settings['tts'] = {}
-            sm.settings['tts']['elevenlabs_api_key'] = e.value
-            sm.save_settings()
-            # Recharger la config TTS dans l'audio manager
-            _reload_tts_config()
-            ui.notify(t('tts_notify_key_saved', provider='ElevenLabs'), type='positive')
-
-        ui.input(
-            label='Clé API ElevenLabs',
-            placeholder=t('tts_placeholder_key', provider='ElevenLabs'),
-            password=True,
-            value=elevenlabs_api_key,
-            on_change=on_elevenlabs_key_change
-        ).classes('mb-3')
+        import api_keys_vault
+        from api_keys_vault_ui import api_key_status_indicator
+        elevenlabs_api_key = api_keys_vault.get_api_key('ElevenLabs') or ''
+        
+        with ui.row().classes('w-full mb-3'):
+            api_key_status_indicator('ElevenLabs', 'Clé API ElevenLabs')
 
         # ID de voix ElevenLabs
         elevenlabs_voice_id = sm.settings.get('tts', {}).get('elevenlabs_voice_id', 'pNInz6obpgDQGcFmaJgB')
@@ -388,7 +370,8 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             async def _test():
                 _audio_manager = _get_global_var('_audio_manager')
                 # Relire les valeurs actuelles depuis settings (pas les captures de closure)
-                current_key = sm.settings.get('tts', {}).get('elevenlabs_api_key', '')
+                import api_keys_vault
+                current_key = api_keys_vault.get_api_key('ElevenLabs') or ''
                 current_voice = sm.settings.get('tts', {}).get('elevenlabs_voice_id', 'pNInz6obpgDQGcFmaJgB')
                 
                 if not current_key:
@@ -432,22 +415,12 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         ui.label(t('tts_section_config', provider='Fish Audio')).classes('text-sm font-medium mb-2')
 
         # Clé API Fish Audio
-        fish_audio_api_key = sm.settings.get('tts', {}).get('fish_audio_api_key', '')
-        def on_fish_audio_key_change(e):
-            if 'tts' not in sm.settings:
-                sm.settings['tts'] = {}
-            sm.settings['tts']['fish_audio_api_key'] = e.value
-            sm.save_settings()
-            _reload_tts_config()
-            ui.notify(t('tts_notify_key_saved', provider='Fish Audio'), type='positive')
-
-        ui.input(
-            label='Clé API Fish Audio',
-            placeholder=t('tts_placeholder_key', provider='Fish Audio'),
-            password=True,
-            value=fish_audio_api_key,
-            on_change=on_fish_audio_key_change
-        ).classes('mb-3')
+        import api_keys_vault
+        from api_keys_vault_ui import api_key_status_indicator
+        fish_audio_api_key = api_keys_vault.get_api_key('FishAudio') or ''
+        
+        with ui.row().classes('w-full mb-3'):
+            api_key_status_indicator('FishAudio', 'Clé API Fish Audio')
 
         # ID de voix Fish Audio (reference_id)
         fish_audio_voice_id = sm.settings.get('tts', {}).get('fish_audio_voice_id', '')
@@ -598,7 +571,8 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             async def _test():
                 _audio_manager = _get_global_var('_audio_manager')
                 # Relire les valeurs actuelles depuis settings
-                current_key = sm.settings.get('tts', {}).get('fish_audio_api_key', '')
+                import api_keys_vault
+                current_key = api_keys_vault.get_api_key('FishAudio') or ''
                 current_voice = sm.settings.get('tts', {}).get('fish_audio_voice_id', '')
                 
                 if not current_key:
@@ -641,22 +615,12 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         ui.label(t('tts_section_config', provider='Cartesia AI')).classes('text-sm font-medium mb-2')
 
         # Clé API Cartesia
-        cartesia_api_key = sm.settings.get('tts', {}).get('cartesia_api_key', '')
-        def on_cartesia_key_change(e):
-            if 'tts' not in sm.settings:
-                sm.settings['tts'] = {}
-            sm.settings['tts']['cartesia_api_key'] = e.value
-            sm.save_settings()
-            _reload_tts_config()
-            ui.notify(t('tts_notify_key_saved', provider='Cartesia'), type='positive')
-
-        ui.input(
-            label='Clé API Cartesia',
-            placeholder=t('tts_placeholder_key', provider='Cartesia'),
-            password=True,
-            value=cartesia_api_key,
-            on_change=on_cartesia_key_change
-        ).classes('mb-3')
+        import api_keys_vault
+        from api_keys_vault_ui import api_key_status_indicator
+        cartesia_api_key = api_keys_vault.get_api_key('Cartesia') or ''
+        
+        with ui.row().classes('w-full mb-3'):
+            api_key_status_indicator('Cartesia', 'Clé API Cartesia')
 
         # ID de voix Cartesia
         cartesia_voice_id = sm.settings.get('tts', {}).get('cartesia_voice_id', '')
@@ -756,7 +720,8 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             async def _test():
                 _audio_manager = _get_global_var('_audio_manager')
                 # Relire les valeurs actuelles depuis settings
-                current_key = sm.settings.get('tts', {}).get('cartesia_api_key', '')
+                import api_keys_vault
+                current_key = api_keys_vault.get_api_key('Cartesia') or ''
                 current_voice = sm.settings.get('tts', {}).get('cartesia_voice_id', '')
                 current_model = sm.settings.get('tts', {}).get('cartesia_model', 'sonic-2')
                 
@@ -801,23 +766,12 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         ui.label(t('tts_section_config', provider='Hume AI (Octave TTS)')).classes('text-sm font-medium mb-2')
 
         # Clé API Hume AI
-        hume_ai_api_key = sm.settings.get('tts', {}).get('hume_ai_api_key', '')
-        def on_hume_ai_key_change(e):
-            if 'tts' not in sm.settings:
-                sm.settings['tts'] = {}
-            sm.settings['tts']['hume_ai_api_key'] = e.value
-            sm.save_settings()
-            # Appliquer la config
-            _reload_tts_config()
-            ui.notify(t('tts_notify_key_saved', provider='Hume AI'), type='positive')
-
-        ui.input(
-            label='Clé API Hume AI',
-            placeholder=t('tts_placeholder_key', provider='Hume AI'),
-            password=True,
-            value=hume_ai_api_key,
-            on_change=on_hume_ai_key_change
-        ).classes('mb-3')
+        import api_keys_vault
+        from api_keys_vault_ui import api_key_status_indicator
+        hume_ai_api_key = api_keys_vault.get_api_key('HumeAI') or ''
+        
+        with ui.row().classes('w-full mb-3'):
+            api_key_status_indicator('HumeAI', 'Clé API Hume AI')
 
         # Sélecteur version Octave
         hume_ai_version = sm.settings.get('tts', {}).get('hume_ai_version', 2)
@@ -917,7 +871,8 @@ def _render_tts_config(current_engine, sm, refresh_callback):
             async def _test():
                 _audio_manager = _get_global_var('_audio_manager')
                 # Relire les valeurs actuelles depuis settings
-                current_key = sm.settings.get('tts', {}).get('hume_ai_api_key', '')
+                import api_keys_vault
+                current_key = api_keys_vault.get_api_key('HumeAI') or ''
                 current_voice_name = sm.settings.get('tts', {}).get('hume_ai_voice_name', '')
                 current_voice_id = sm.settings.get('tts', {}).get('hume_ai_voice_id', '')
                 current_desc = sm.settings.get('tts', {}).get('hume_ai_description', '')
@@ -967,21 +922,12 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         ui.label(t('tts_section_config', provider='Azure AI Speech')).classes('text-sm font-medium mb-2')
 
         # Clé API Azure
-        azure_api_key = sm.settings.get('tts', {}).get('azure_api_key', '')
-        def on_azure_key_change(e):
-            if 'tts' not in sm.settings:
-                sm.settings['tts'] = {}
-            sm.settings['tts']['azure_api_key'] = e.value
-            sm.save_settings()
-            ui.notify(t('tts_notify_key_saved', provider='Azure'), type='positive')
-
-        ui.input(
-            label='Clé API Azure',
-            placeholder=t('tts_placeholder_key', provider='Azure Speech'),
-            password=True,
-            value=azure_api_key,
-            on_change=on_azure_key_change
-        ).classes('mb-3')
+        import api_keys_vault
+        from api_keys_vault_ui import api_key_status_indicator
+        azure_api_key = api_keys_vault.get_api_key('Azure') or ''
+        
+        with ui.row().classes('w-full mb-3'):
+            api_key_status_indicator('Azure', 'Clé API Azure')
 
         # Région Azure
         azure_region = sm.settings.get('tts', {}).get('azure_region', 'eastus')
@@ -1047,7 +993,9 @@ def _render_tts_config(current_engine, sm, refresh_callback):
         def test_azure_tts():
             async def _test():
                 _audio_manager = _get_global_var('_audio_manager')
-                if not azure_api_key:
+                import api_keys_vault
+                current_key = api_keys_vault.get_api_key('Azure') or ''
+                if not current_key:
                     _notify_safe('❌ Clé API Azure manquante', 'negative')
                     return
 

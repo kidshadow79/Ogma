@@ -776,16 +776,21 @@ def _apply_tts_config_from_settings(audio_mgr):
         tts_settings = sm.settings.get('tts', {})
         engine_type = tts_settings.get('engine', 'system')
         
+        import api_keys_vault
+        def _get_tts_key(provider_name, old_setting_key):
+            vault_key = api_keys_vault.get_api_key(provider_name)
+            return vault_key if vault_key else tts_settings.get(old_setting_key)
+        
         print(f"[TTS] Configuration depuis settings: engine={engine_type}")
         
         if engine_type == 'google':
             audio_mgr.configure_tts_engine(
                 'google',
-                api_key=tts_settings.get('google_api_key'),
+                api_key=_get_tts_key('Google_TTS', 'google_api_key'),
                 voice=tts_settings.get('google_voice', 'fr-FR-Standard-A')
             )
         elif engine_type == 'elevenlabs':
-            eleven_key = tts_settings.get('elevenlabs_api_key')
+            eleven_key = _get_tts_key('ElevenLabs', 'elevenlabs_api_key')
             eleven_voice = tts_settings.get('elevenlabs_voice_id', 'pNInz6obpgDQGcFmaJgB')
             eleven_model = tts_settings.get('elevenlabs_model', 'eleven_multilingual_v2')
             eleven_stability = tts_settings.get('elevenlabs_stability', 0.5)
@@ -808,7 +813,7 @@ def _apply_tts_config_from_settings(audio_mgr):
         elif engine_type == 'azure':
             audio_mgr.configure_tts_engine(
                 'azure',
-                api_key=tts_settings.get('azure_api_key'),
+                api_key=_get_tts_key('Azure', 'azure_api_key'),
                 voice=tts_settings.get('azure_voice', 'fr-FR-DeniseNeural'),
                 region=tts_settings.get('azure_region', 'westeurope')
             )
@@ -823,7 +828,7 @@ def _apply_tts_config_from_settings(audio_mgr):
                 voice=tts_settings.get('edge_tts_voice', 'fr-FR-DeniseNeural')
             )
         elif engine_type == 'fish_audio':
-            fish_key = tts_settings.get('fish_audio_api_key')
+            fish_key = _get_tts_key('FishAudio', 'fish_audio_api_key')
             fish_voice = tts_settings.get('fish_audio_voice_id', '')
             fish_model = tts_settings.get('fish_audio_model', 's2-pro')
             fish_latency = tts_settings.get('fish_audio_latency', 'normal')
@@ -844,7 +849,7 @@ def _apply_tts_config_from_settings(audio_mgr):
                 emotion=fish_emotion
             )
         elif engine_type == 'cartesia':
-            cartesia_key = tts_settings.get('cartesia_api_key')
+            cartesia_key = _get_tts_key('Cartesia', 'cartesia_api_key')
             cartesia_voice = tts_settings.get('cartesia_voice_id', '')
             cartesia_model = tts_settings.get('cartesia_model', 'sonic-2')
             cartesia_speed = tts_settings.get('cartesia_speed', 1.0)
@@ -859,7 +864,7 @@ def _apply_tts_config_from_settings(audio_mgr):
                 emotion=cartesia_emotion
             )
         elif engine_type == 'hume_ai':
-            hume_key = tts_settings.get('hume_ai_api_key')
+            hume_key = _get_tts_key('HumeAI', 'hume_ai_api_key')
             hume_voice_name = tts_settings.get('hume_ai_voice_name', '')
             hume_voice_id = tts_settings.get('hume_ai_voice_id', '')
             hume_desc = tts_settings.get('hume_ai_description', '')

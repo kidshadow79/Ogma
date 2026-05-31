@@ -1,4 +1,4 @@
-﻿"""
+"""
 ⚡ Ego Activation - Sélection Dynamique de Groupes par Archiviste
 
 Workflow runtime (chaque message):
@@ -146,7 +146,15 @@ Retourne UNIQUEMENT JSON, rien d'autre."""
             
             # Parse sélection
             try:
-                selection = json.loads(response)
+                cleaned_response = response.strip()
+                if "```json" in cleaned_response:
+                    cleaned_response = cleaned_response.split("```json")[1].split("```")[0].strip()
+                elif "```" in cleaned_response:
+                    parts = cleaned_response.split("```")
+                    if len(parts) >= 3:
+                        cleaned_response = parts[1].strip()
+                
+                selection = json.loads(cleaned_response)
                 selected_groups = selection.get('groups', [])
                 reasoning = selection.get('reasoning', 'Analyse Archiviste')
                 

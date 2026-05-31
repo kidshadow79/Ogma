@@ -615,13 +615,11 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('local_fire_department').classes('text-orange-400')
                         ui.label('GROK (xAI)').classes('w-32')
-                        grok_key_input = ui.input(
-                            label=t('image_label_api_grok'),
-                            password=True,
-                            value=current_vault.get('GROK', ''),
-                            on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
-                        ).classes('flex-1').props('dense')
+                        from api_keys_vault_ui import VirtualKeyInput, api_key_status_indicator
+                        grok_key_input = VirtualKeyInput(lambda: 'GROK')
                         api_key_inputs['GROK'] = grok_key_input
+                        with ui.row().classes('flex-1 items-center'):
+                            api_key_status_indicator('GROK', t('image_label_api_grok'))
                         
                         def test_grok():
                             if grok_key_input.value:
@@ -640,13 +638,11 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('palette').classes('text-green-400')
                         ui.label('OpenAI').classes('w-32')
-                        openai_key_input = ui.input(
-                            label=t('image_label_api_openai'),
-                            password=True,
-                            value=current_vault.get('OpenAI', ''),
-                            on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
-                        ).classes('flex-1').props('dense')
+                        from api_keys_vault_ui import VirtualKeyInput, api_key_status_indicator
+                        openai_key_input = VirtualKeyInput(lambda: 'OpenAI')
                         api_key_inputs['OpenAI'] = openai_key_input
+                        with ui.row().classes('flex-1 items-center'):
+                            api_key_status_indicator('OpenAI', t('image_label_api_openai'))
                         
                         def test_openai():
                             if openai_key_input.value:
@@ -664,13 +660,11 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('language').classes('text-blue-400')
                         ui.label('Google').classes('w-32')
-                        google_key_input = ui.input(
-                            label=t('image_label_api_google'),
-                            password=True,
-                            value=current_vault.get('Google', ''),
-                            on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
-                        ).classes('flex-1').props('dense')
+                        from api_keys_vault_ui import VirtualKeyInput, api_key_status_indicator
+                        google_key_input = VirtualKeyInput(lambda: 'Google')
                         api_key_inputs['Google'] = google_key_input
+                        with ui.row().classes('flex-1 items-center'):
+                            api_key_status_indicator('Google', t('image_label_api_google'))
                         
                         def test_google():
                             if google_key_input.value:
@@ -688,13 +682,11 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('bolt').classes('text-purple-400')
                         ui.label('Kie.ai').classes('w-32')
-                        kie_key_input = ui.input(
-                            label=t('image_label_api_kie'),
-                            password=True,
-                            value=current_vault.get('Kie', ''),
-                            on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
-                        ).classes('flex-1').props('dense')
+                        from api_keys_vault_ui import VirtualKeyInput, api_key_status_indicator
+                        kie_key_input = VirtualKeyInput(lambda: 'Kie')
                         api_key_inputs['Kie'] = kie_key_input
+                        with ui.row().classes('flex-1 items-center'):
+                            api_key_status_indicator('Kie', t('image_label_api_kie'))
                         
                         def test_kie():
                             if kie_key_input.value:
@@ -713,13 +705,11 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('waves').classes('text-pink-400')
                         ui.label('WaveSpeed').classes('w-32')
-                        wavespeed_key_input = ui.input(
-                            label=t('image_label_api_wavespeed'),
-                            password=True,
-                            value=current_vault.get('WaveSpeed', ''),
-                            on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
-                        ).classes('flex-1').props('dense')
+                        from api_keys_vault_ui import VirtualKeyInput, api_key_status_indicator
+                        wavespeed_key_input = VirtualKeyInput(lambda: 'WaveSpeed')
                         api_key_inputs['WaveSpeed'] = wavespeed_key_input
+                        with ui.row().classes('flex-1 items-center'):
+                            api_key_status_indicator('WaveSpeed', t('image_label_api_wavespeed'))
                         
                         def test_wavespeed():
                             if wavespeed_key_input.value:
@@ -738,13 +728,11 @@ Score < 6 = à refaire. Sois EXIGEANTE.""",
                     with ui.row().classes('items-center gap-2 w-full'):
                         ui.icon('cloud').classes('text-sky-400')
                         ui.label('AtlasCloud').classes('w-32')
-                        atlascloud_key_input = ui.input(
-                            label=t('image_label_api_atlascloud'),
-                            password=True,
-                            value=current_vault.get('AtlasCloud', ''),
-                            on_change=lambda e: refresh_providers_fn['fn']() if refresh_providers_fn['fn'] else None
-                        ).classes('flex-1').props('dense')
+                        from api_keys_vault_ui import VirtualKeyInput, api_key_status_indicator
+                        atlascloud_key_input = VirtualKeyInput(lambda: 'AtlasCloud')
                         api_key_inputs['AtlasCloud'] = atlascloud_key_input
+                        with ui.row().classes('flex-1 items-center'):
+                            api_key_status_indicator('AtlasCloud', t('image_label_api_atlascloud'))
                         
                         def test_atlascloud():
                             if atlascloud_key_input.value:
