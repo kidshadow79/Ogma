@@ -22,14 +22,26 @@ class CapabilityAdvisorConfig:
     EXTENSION_VERSION = "2.0"
     
     # Seuils et timing
-    CONFIDENCE_THRESHOLD_GLOBAL = 0.70
+    CONFIDENCE_THRESHOLD_GLOBAL = 0.7
     LED_TIMEOUT = 30
     COOLDOWN_MESSAGES = 3
-    
+
     # Archiviste
     MAX_TOKENS_ANALYSIS = 500
     TEMPERATURE = 0.3
     RECENT_CONTEXT_MESSAGES = 3
+
+    # Seuils par capacite (source de verite pour la reconstruction du JSON)
+    DEFAULT_CAPABILITY_THRESHOLDS = {
+        "memory": 0.85,
+        "ego_memory": 0.8,
+        "introspection": 0.7,
+        "image_gen": 0.7,
+        "webcam": 0.8,
+        "web_search": 0.75,
+        "biography": 0.8,
+        "contextual_recall": 0.7
+    }
     
     # UI
     ENABLE_OVERLAY = True
@@ -91,7 +103,7 @@ EXAMPLES:
             "max_tokens": self.MAX_TOKENS_ANALYSIS,
             "temperature": self.TEMPERATURE,
             "recent_context_messages": self.RECENT_CONTEXT_MESSAGES,
-            "capability_thresholds": {}
+            "capability_thresholds": self.DEFAULT_CAPABILITY_THRESHOLDS
         }
         
         try:
