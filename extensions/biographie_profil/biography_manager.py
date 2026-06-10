@@ -1533,10 +1533,12 @@ Genere UNIQUEMENT le JSON, rien d'autre."""
             import time
             start_time = time.time()
 
+            # max_tokens=8000: la biographie peut depasser 4000 tokens (22+ faits + signaux).
+            # Mistral large plafond = 8192 sortie; on laisse 192 de marge.
             chat_task = asyncio.create_task(
                 chat_controller.call_chat_api(
                     messages=messages,
-                    max_tokens=4000,
+                    max_tokens=8000,
                     context_length=chat_controller.context_length,
                     temperature=0.3,
                     is_json=True
@@ -1578,9 +1580,21 @@ Genere UNIQUEMENT le JSON, rien d'autre."""
 
                 # Retirer les balises markdown
                 if cleaned_content.startswith('```'):
+                    # Cas nominal: balise ouvrante ET fermante presentes
                     match = re.search(r'^```(?:json)?\s*\n(.*)```\s*$', cleaned_content, re.DOTALL)
                     if match:
                         cleaned_content = match.group(1).strip()
+                    else:
+                        # Reponse tronquee (finish_reason=length): balise fermante absente.
+                        # On extrait quand meme tout ce qui suit la balise ouvrante.
+                        trunc_match = re.search(r'^```(?:json)?\s*\n(.*)', cleaned_content, re.DOTALL)
+                        if trunc_match:
+                            cleaned_content = trunc_match.group(1).strip()
+                            print(f"[BIOGRAPHY-MANAGER] WARN JSON tronque (reponse coupee): tentative de recuperation partielle")
+                            # Tenter de reparer: couper apres le dernier '}' valide
+                            last_brace = cleaned_content.rfind('}')
+                            if last_brace != -1:
+                                cleaned_content = cleaned_content[:last_brace + 1]
 
                 structured_data = json.loads(cleaned_content)
 

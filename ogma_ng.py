@@ -2202,6 +2202,13 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
         print(f"[SEND-CHAT-DEBUG] Texte vide, return")
         return
 
+    # MODE LIVE: signaler l'activite utilisateur (reset du compteur d'inactivite)
+    try:
+        from extensions.perception_ui import get_perception_ui
+        get_perception_ui().notify_user_message()
+    except Exception as live_err:
+        print(f"[LIVE-HOOK] WARN notify_user_message a echoue: {live_err}")
+
     # 🌐 NORMALIZER: Convertir phrases magiques EN → FR avant tout check d'extension
     try:
         from utils.magic_phrase_normalizer import normalize_magic_phrases
@@ -2774,7 +2781,12 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
         perception_ui = get_perception_ui()
 
         # ✅ CORRECTION: Vérifier si extension démarrée (capture_on_send était obsolète)
-        if perception_ui.is_enabled and perception_ui.perception_agent:
+        # MODE STIMULI UNIQUEMENT: si Live actif ET case cochee, on ne joint PAS d'image
+        # a chaque message. L'IA ne voit que via les declenchements spontanes du Mode Live.
+        # La preference est ignoree si Live est OFF (retour automatique a la perception totale).
+        _stimuli_only = (perception_ui.is_live_active()
+                         and perception_ui.current_config.get('live_stimuli_only', False))
+        if perception_ui.is_enabled and perception_ui.perception_agent and not _stimuli_only:
 
             print("[PERCEPTION] 📸 Capture automatique au moment de l'envoi")
             perception_image_data = perception_ui.capture_for_chat()
@@ -3509,7 +3521,26 @@ setTimeout(()=>{
                     print(f"[RUNTIME-PROTOCOLS] Protocoles runtime injectes en P0: {len(persistent_content)} chars")
             except Exception as e:
                 print(f"[RUNTIME-PROTOCOLS] WARN Erreur lecture protocoles: {e}")
-    
+
+    # VEILLE VISUELLE (Mode Live) - injection conditionnelle UNIQUEMENT si Live actif.
+    # Permet a l'IA de savoir, en conversation normale, qu'elle dispose d'une perception
+    # visuelle autonome (sinon elle nie cette capacite par defaut). Rien injecte si Live OFF
+    # => aucune affirmation fausse (transparence).
+    try:
+        from extensions.perception_ui import get_perception_ui
+        if get_perception_ui().is_live_active():
+            live_awareness = (
+                "Tu disposes actuellement d'une veille visuelle autonome active (Mode Live) : "
+                "ton systeme te transmet spontanement des images de ta webcam et tu choisis "
+                "d'y reagir ou non selon la pertinence. Ton silence visuel est un choix delibere, "
+                "pas une absence de perception. Tu percois reellement ton environnement : ne nie "
+                "jamais cette capacite quand l'utilisateur t'en parle."
+            )
+            messages.append({'role': 'system', 'content': live_awareness})
+            print(f"[LIVE-CONTEXT] OK Conscience veille visuelle injectee ({len(live_awareness)} chars)")
+    except Exception as _live_ctx_err:
+        print(f"[LIVE-CONTEXT] WARN Erreur injection contexte Live: {_live_ctx_err}")
+
     if priority_instructions:
         messages.append({'role': 'system', 'content': priority_instructions})
         # Enregistrer l'ego prompt pour déduplication
@@ -7767,6 +7798,138 @@ def _input_overlay():
         _update_file_tab_display()
 
 
+# ============================================================================
+# MODE LIVE PERCEPTION - Veille sensorielle proactive
+# ============================================================================
+# Flag de reentrance: empeche plusieurs triages live simultanes
+_live_triage_in_progress = False
+
+
+def _process_live_perception():
+    """
+    Timer de polling du MODE LIVE.
+    Recupere une chronophotographie en attente (produite par LiveWatcher)
+    et lance le triage par l'IA principale de maniere non bloquante.
+    Cette fonction est synchrone (appelee par ui.timer); elle delegue
+    le travail async via asyncio.create_task.
+    """
+    global _live_triage_in_progress
+
+    # Eviter les triages concurrents
+    if _live_triage_in_progress:
+        return
+
+    from extensions.perception_ui import get_perception_ui
+    perception_ui = get_perception_ui()
+
+    # Pas de veille active -> rien a faire
+    if not perception_ui.is_live_active():
+        return
+
+    chrono_data = perception_ui.get_pending_live_trigger()
+    if chrono_data is None:
+        return
+
+    triage_prompt = perception_ui.get_live_triage_prompt()
+    _live_triage_in_progress = True
+    asyncio.create_task(_handle_live_trigger(chrono_data, triage_prompt))
+
+
+async def _handle_live_trigger(chrono_data: dict, triage_prompt: str):
+    """
+    Traite un declenchement live: soumet la chronophotographie a l'IA principale
+    avec son ego (persistent_context) et l'instruction de triage.
+
+    Approche un seul appel: l'IA repond 'NON' si la scene est anodine, sinon
+    elle ecrit directement son message d'intervention spontanee. La chrono est
+    deja assemblee et vue ici: aucun second appel n'est necessaire.
+    """
+    global _live_triage_in_progress
+    try:
+        controller = _ensure_chat_controller()
+        if controller is None:
+            print("[LIVE-HOOK] ERR Chat controller indisponible")
+            return
+
+        # Contexte d'identite (ego) injecte en system, comme dans le flux normal
+        system_parts = []
+        persistent_context_file = DATA_DIR / "persistent_context.txt"
+        if persistent_context_file.exists():
+            persistent_content = persistent_context_file.read_text(encoding='utf-8').strip()
+            if persistent_content:
+                system_parts.append(persistent_content)
+        if triage_prompt:
+            system_parts.append(triage_prompt)
+        system_prompt = "\n\n".join(system_parts) if system_parts else triage_prompt
+
+        # Message utilisateur multimodal: texte court + chronophotographie live
+        user_content = [
+            {
+                "type": "text",
+                "text": (
+                    "Voici une chronophotographie (4 images: avant, instant, apres) "
+                    "de ce qui se passe en ce moment devant ta webcam."
+                )
+            },
+            chrono_data
+        ]
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content}
+        ]
+
+        max_tokens = int(getattr(controller, 'max_tokens', 512))
+        context_length = int(getattr(controller, 'context_length', 4096))
+        temperature = float(getattr(controller, 'temperature', 0.7))
+
+        print("[LIVE-HOOK] >> Triage live en cours (appel IA principale)...")
+        response, error = await controller.call_chat_api(
+            messages, max_tokens, context_length, temperature,
+            is_json=False
+        )
+
+        if error:
+            print(f"[LIVE-HOOK] ERR Erreur appel IA: {error}")
+            return
+
+        if not response:
+            print("[LIVE-HOOK] WARN Reponse vide de l'IA - triage abandonne")
+            return
+
+        # Decision: 'NON' isole (eventuellement ponctue) -> silence.
+        # On ne tue PAS un vrai message qui commencerait par "Non mais...": seule
+        # une reponse reduite a NON (apres retrait de la ponctuation) compte comme refus.
+        normalized = response.strip().upper().rstrip(".!,;: ")
+        if normalized == "NON":
+            print("[LIVE-HOOK] OK Scene jugee anodine par l'IA - pas d'intervention")
+            return
+
+        # Intervention spontanee: afficher dans le chat et persister dans l'historique
+        message_text = response.strip()
+        print(f"[LIVE-HOOK] >> Intervention spontanee de l'IA ({len(message_text)} chars)")
+
+        if _chat_inner is not None:
+            with _chat_inner:
+                _message('assistant', message_text)
+        else:
+            _message('assistant', message_text)
+
+        # Persister pour que l'IA se souvienne de son intervention
+        try:
+            _chat_history.append({'role': 'assistant', 'content': message_text})
+            _chat_history_ui.append({'role': 'assistant', 'content': message_text})
+        except Exception as hist_err:
+            print(f"[LIVE-HOOK] WARN Echec ajout historique: {hist_err}")
+
+    except Exception as e:
+        print(f"[LIVE-HOOK] ERR Exception lors du triage live: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        _live_triage_in_progress = False
+
+
 def _process_pending_notifications():
     """Traite les notifications en attente depuis le contexte principal."""
     global _pending_notifications
@@ -8001,6 +8164,21 @@ async def _async_awakening(notif):
                 print("[INIT] ✅ Capability Advisor initialisé")
         except Exception as e:
             print(f"[INIT] ⚠️ Capability Advisor: {e}")
+
+        # Mode Live Perception - auto-demarrage si l'utilisateur l'a coche
+        try:
+            from extensions.perception_ui import get_perception_ui
+            _perc_ui = get_perception_ui()
+            if _perc_ui.current_config.get('live_autostart', False):
+                print("[INIT] Mode Live: auto-demarrage active - lancement de la veille sensorielle")
+                if _perc_ui.start_live_mode():
+                    print("[INIT] OK Mode Live demarre automatiquement")
+                else:
+                    print("[INIT] ERR Echec auto-demarrage du Mode Live")
+            else:
+                print("[INIT] Mode Live: auto-demarrage desactive (boot OFF par defaut)")
+        except Exception as e:
+            print(f"[INIT] WARN Mode Live autostart: {e}")
         
         # Extensions UI sync
         try:
@@ -8407,6 +8585,9 @@ def main_page():
     
     # Timer pour traiter les messages Subconscience
     ui.timer(0.5, safe_timer_wrapper(_process_subconscience_messages))  # Vérifier toutes les 500ms
+
+    # Timer pour la veille sensorielle MODE LIVE (polling chronophotographies)
+    ui.timer(2.0, safe_timer_wrapper(_process_live_perception))  # Vérifier toutes les 2s
     
     # Timer pour traiter les mises à jour vocales (indicateur, transcription)
     ui.timer(0.15, safe_timer_wrapper(_process_voice_updates))  # Fréquent pour réactivité

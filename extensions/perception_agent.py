@@ -914,3 +914,266 @@ class PerceptionAgent:
                     print(f"[PERCEPTION] ⚠️ Erreur libération webcam: {e}")
                 
             print("[PERCEPTION] Threads arrêtés: capture principale + buffer motion")
+
+
+class LiveWatcher:
+    """
+    Veille sensorielle proactive (MODE LIVE).
+
+    Surveille en arriere-plan le flux webcam fourni par un PerceptionAgent.
+    Ne possede PAS sa propre webcam: lit agent.current_frame sous frame_lock
+    (reutilise la boucle de capture existante, evite tout conflit OpenCV).
+
+    Principe:
+    - Cache tournant de N images capturees a 1 fps (memoire visuelle court terme)
+    - Detection de mouvement par difference d'images (grayscale + blur + absdiff)
+    - Declenchement uniquement si l'utilisateur est inactif depuis live_inactivity_delay
+      ET hors periode de cooldown
+    - Au declenchement: assemble une chronophotographie de 4 images
+      [t-1s cache] + [T trigger] + [t+1s] + [t+2s] (Option A)
+    - Depose le resultat dans une file thread-safe; c'est la couche UI/IA qui
+      effectue le triage (OUI/NON) et l'eventuel message.
+
+    Cette classe reste PURE: capture + OpenCV + file. Aucun appel UI ni IA ici.
+    """
+
+    def __init__(self, agent: 'PerceptionAgent', config: dict):
+        self.agent = agent
+        self.config = config
+
+        # Cache tournant: liste de tuples (frame_bgr, timestamp)
+        cache_size = int(config.get('live_cache_size', 15))
+        self.frame_cache = collections.deque(maxlen=cache_size)
+
+        # File des declenchements en attente de traitement par la couche UI/IA
+        self.trigger_queue = queue.Queue(maxsize=4)
+
+        # Etat
+        self.running = False
+        self.thread = None
+
+        # Suivi inactivite utilisateur (timestamp du dernier message ENVOYE)
+        # Initialise a maintenant: pas de declenchement immediat au demarrage
+        self.last_user_message_time = time.time()
+
+        # Suivi cooldown (timestamp du dernier declenchement)
+        self.last_trigger_time = 0.0
+
+        # Reference de la derniere frame analysee pour le diff
+        self._prev_gray = None
+
+        print(f"[LIVE-WATCHER] Initialise (cache={cache_size} images @1fps)")
+
+    def update_config(self, new_config: dict):
+        """Met a jour la configuration live a chaud."""
+        self.config.update(new_config)
+        # Redimensionner le cache si la taille a change
+        new_size = int(new_config.get('live_cache_size', self.frame_cache.maxlen))
+        if new_size != self.frame_cache.maxlen:
+            old_frames = list(self.frame_cache)
+            self.frame_cache = collections.deque(old_frames, maxlen=new_size)
+            print(f"[LIVE-WATCHER] Cache redimensionne: {new_size} images")
+
+    def notify_user_message(self):
+        """
+        A appeler quand l'utilisateur ENVOIE un message.
+        Reinitialise le timer d'inactivite (lecture/navigation = inactif, pas reset).
+        """
+        self.last_user_message_time = time.time()
+
+    def _is_user_inactive(self) -> bool:
+        """Vrai si aucun message envoye depuis live_inactivity_delay secondes."""
+        delay = float(self.config.get('live_inactivity_delay', 20))
+        return (time.time() - self.last_user_message_time) >= delay
+
+    def _is_in_cooldown(self) -> bool:
+        """Vrai si un declenchement a eu lieu il y a moins de live_cooldown secondes."""
+        cooldown = float(self.config.get('live_cooldown', 30))
+        return (time.time() - self.last_trigger_time) < cooldown
+
+    def _grab_current_frame(self):
+        """Recupere une copie thread-safe de la frame courante de l'agent."""
+        with self.agent.frame_lock:
+            if self.agent.current_frame is None:
+                return None
+            return self.agent.current_frame.copy()
+
+    def _compute_motion(self, frame) -> int:
+        """
+        Calcule l'ampleur du mouvement entre la frame courante et la precedente.
+
+        Retourne le nombre de pixels ayant change (sur une frame reduite 320x240).
+        Retourne 0 si pas de reference precedente (premiere frame).
+        """
+        # Reduction pour rapidite et stabilite du seuil
+        small = cv2.resize(frame, (320, 240), interpolation=cv2.INTER_LINEAR)
+        gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (21, 21), 0)
+
+        if self._prev_gray is None:
+            self._prev_gray = gray
+            return 0
+
+        delta = cv2.absdiff(self._prev_gray, gray)
+        thresh = cv2.threshold(delta, 25, 255, cv2.THRESH_BINARY)[1]
+        thresh = cv2.dilate(thresh, None, iterations=2)
+        changed_pixels = int(cv2.countNonZero(thresh))
+
+        self._prev_gray = gray
+        return changed_pixels
+
+    def _build_live_chronophoto(self, trigger_frame, trigger_ts):
+        """
+        Assemble la chronophotographie 4 images (Option A):
+        [t-1s du cache] + [T trigger] + [t+1s] + [t+2s].
+
+        Les images "apres" sont capturees a 1 fps depuis le flux courant.
+        Reutilise agent._create_film_strip pour l'assemblage.
+
+        Retourne un dict {type: image_url, image_url: {url: data:...}} pour le chat,
+        ou None si l'assemblage echoue.
+        """
+        frames = []
+        timestamps = []
+
+        # Image t-1s: derniere image du cache anterieure au trigger
+        before_frame = None
+        before_ts = None
+        for cached_frame, cached_ts in reversed(self.frame_cache):
+            if cached_ts < trigger_ts:
+                before_frame = cached_frame
+                before_ts = cached_ts
+                break
+
+        if before_frame is not None:
+            frames.append(before_frame)
+            timestamps.append(before_ts)
+
+        # Image T (declencheur)
+        frames.append(trigger_frame)
+        timestamps.append(trigger_ts)
+
+        # Images t+1s et t+2s: captures fraiches a 1 fps
+        for _ in range(2):
+            time.sleep(1.0)
+            fresh = self._grab_current_frame()
+            if fresh is not None:
+                frames.append(fresh)
+                timestamps.append(time.time())
+
+        if len(frames) < 2:
+            print("[LIVE-WATCHER] ERR Pas assez de frames pour la chronophoto")
+            return None
+
+        # Assemblage 2x2 (4 images) via la logique existante
+        composite = self.agent._create_film_strip(
+            frames, timestamps,
+            layout='2x2',
+            show_timeline=False,
+            show_annotations=True
+        )
+
+        if composite is None:
+            print("[LIVE-WATCHER] ERR Echec assemblage chronophoto live")
+            return None
+
+        # Sauvegarde locale (toujours, comme les pellicules motion)
+        self.agent._save_image_if_enabled(composite, "pellicule_live")
+
+        # Encodage base64
+        jpeg_quality = int(self.config.get('jpeg_quality', 85))
+        ok, buffer = cv2.imencode('.jpg', composite, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+        if not ok:
+            print("[LIVE-WATCHER] ERR Echec encodage JPEG chronophoto live")
+            return None
+
+        image_base64 = base64.b64encode(buffer).decode('utf-8')
+        print(f"[LIVE-WATCHER] OK Chronophoto live assemblee ({len(frames)} images)")
+
+        return {
+            'type': 'image_url',
+            'image_url': {
+                'url': f'data:image/jpeg;base64,{image_base64}'
+            }
+        }
+
+    def _run(self):
+        """Boucle principale de la veille (1 fps)."""
+        print("[LIVE-WATCHER] >> Demarrage boucle de veille (1 fps)")
+
+        while self.running:
+            loop_start = time.time()
+
+            frame = self._grab_current_frame()
+            if frame is None:
+                # L'agent n'a pas encore de frame (webcam en chauffe)
+                time.sleep(1.0)
+                continue
+
+            now = time.time()
+            self.frame_cache.append((frame, now))
+
+            # Calcul du mouvement (met a jour _prev_gray a chaque passage)
+            changed_pixels = self._compute_motion(frame)
+
+            # Conditions de declenchement
+            threshold = int(self.config.get('live_motion_threshold', 500))
+            motion_detected = changed_pixels >= threshold
+
+            if motion_detected:
+                if self._is_in_cooldown():
+                    print(f"[LIVE-WATCHER] Mouvement ({changed_pixels}px) ignore: cooldown actif")
+                elif not self._is_user_inactive():
+                    print(f"[LIVE-WATCHER] Mouvement ({changed_pixels}px) ignore: utilisateur actif")
+                else:
+                    print(f"[LIVE-WATCHER] >> Mouvement notable detecte ({changed_pixels}px) - declenchement")
+                    self.last_trigger_time = time.time()
+
+                    chrono = self._build_live_chronophoto(frame, now)
+                    if chrono is not None:
+                        try:
+                            self.trigger_queue.put_nowait(chrono)
+                            print("[LIVE-WATCHER] OK Chronophoto deposee dans la file de triage")
+                        except queue.Full:
+                            print("[LIVE-WATCHER] WARN File de triage pleine, declenchement abandonne")
+
+            # Cadence 1 fps (compense le temps de traitement)
+            elapsed = time.time() - loop_start
+            sleep_time = max(0.0, 1.0 - elapsed)
+            time.sleep(sleep_time)
+
+        print("[LIVE-WATCHER] >> Boucle de veille arretee")
+
+    def get_pending_trigger(self):
+        """
+        Recupere un declenchement en attente (chronophoto prete pour triage).
+        Non bloquant. Retourne le dict image ou None si rien en attente.
+        A appeler par la couche UI/IA (polling).
+        """
+        try:
+            return self.trigger_queue.get_nowait()
+        except queue.Empty:
+            return None
+
+    def start(self):
+        """Demarre la veille (suppose que l'agent webcam tourne deja)."""
+        if self.running:
+            print("[LIVE-WATCHER] Deja actif - skip")
+            return
+        self.running = True
+        self._prev_gray = None
+        self.last_user_message_time = time.time()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+        print("[LIVE-WATCHER] OK Veille demarree")
+
+    def stop(self):
+        """Arrete la veille proprement."""
+        if not self.running:
+            return
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=5.0)
+        self.frame_cache.clear()
+        self._prev_gray = None
+        print("[LIVE-WATCHER] OK Veille arretee")

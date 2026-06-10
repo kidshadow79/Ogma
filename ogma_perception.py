@@ -273,6 +273,14 @@ def perception_page():
                             # Bouton de rafraîchissement des caméras
                             def refresh_cameras():
                                 """Rafraîchit la liste des caméras disponibles"""
+                                # Si l'agent tourne, scanner rouvrirait la webcam active
+                                # et casserait la preview. On bloque et on informe.
+                                if perception_ui.perception_agent:
+                                    ui.notify(
+                                        'Arrete la perception pour rescanner les cameras',
+                                        type='warning', position='top'
+                                    )
+                                    return
                                 print("[PERCEPTION-UI] 🔄 Rafraîchissement liste caméras...")
                                 new_cameras = detect_cameras()
                                 camera_select.options = new_cameras
@@ -434,6 +442,82 @@ def perception_page():
                                     value=perception_ui.current_config.get('jpeg_quality', 85)
                                 ).props('label-always color="green"').classes('w-full')
                 
+                # Mode Live (veille sensorielle proactive)
+                with ui.card().classes('w-full').style('border: 1px solid #6d28d9;'):
+                    with ui.column().style('gap: 12px; padding: 12px;'):
+                        with ui.row().classes('items-center justify-between w-full'):
+                            with ui.column().style('gap: 2px;'):
+                                ui.label('Mode Live - Veille sensorielle').classes('text-sm font-bold text-purple-300')
+                                ui.label("L'IA surveille la webcam et intervient seule si une scene merite son attention").classes('text-xs text-gray-400')
+                            live_toggle = ui.switch(
+                                value=perception_ui.is_live_active()
+                            ).props('color="purple"')
+                            live_toggle.tooltip("Active la veille en temps reel : l'IA observe la webcam en continu et peut reagir d'elle-meme. La webcam demarre automatiquement si elle est eteinte.")
+
+                        # Case a cocher: demarrer la veille automatiquement au boot d'OGMA
+                        live_autostart_cb = ui.checkbox(
+                            'Activer automatiquement au demarrage d\'OGMA',
+                            value=perception_ui.current_config.get('live_autostart', False)
+                        ).props('color="purple"').classes('text-xs')
+                        live_autostart_cb.tooltip("Si coche, le Mode Live se lance tout seul a chaque demarrage d'OGMA. Sinon il reste eteint au boot et doit etre active manuellement.")
+
+                        live_params = ui.column().style('gap: 12px;')
+                        with live_params:
+                            ui.separator()
+
+                            # Mode Stimuli uniquement: pas d'image a chaque message
+                            live_stimuli_only_cb = ui.checkbox(
+                                'Stimuli uniquement (ne pas envoyer d\'image a chaque message)',
+                                value=perception_ui.current_config.get('live_stimuli_only', False)
+                            ).props('color="purple"').classes('text-xs')
+                            live_stimuli_only_cb.tooltip("Si coche, aucune image n'est jointe a tes messages : l'IA ne te voit QUE lorsque la veille declenche d'elle-meme sur un mouvement notable. Plus economique. Si decoche, une image webcam accompagne chaque message (perception totale).")
+
+                            # Delai d'inactivite
+                            with ui.row().classes('items-center justify-between w-full'):
+                                ui.label("Inactivite avant veille").classes('text-sm').tooltip("Duree de silence (sans message envoye) avant que la veille puisse declencher. Tant que tu echanges activement, l'IA n'interrompt pas. Lecture ou navigation comptent comme de l'inactivite.")
+                                live_inactivity_label = ui.label(
+                                    f"{int(perception_ui.current_config.get('live_inactivity_delay', 20))}s"
+                                ).classes('text-sm text-gray-400')
+                            live_inactivity_slider = ui.slider(
+                                min=5, max=120, step=5,
+                                value=perception_ui.current_config.get('live_inactivity_delay', 20)
+                            ).props('label-always color="purple"').classes('w-full')
+                            live_inactivity_slider.tooltip("Duree de silence (sans message envoye) avant que la veille puisse declencher. Tant que tu echanges activement, l'IA n'interrompt pas. Lecture ou navigation comptent comme de l'inactivite.")
+
+                            # Cooldown
+                            with ui.row().classes('items-center justify-between w-full'):
+                                ui.label("Cooldown entre declenchements").classes('text-sm').tooltip("Temps minimum entre deux declenchements de la veille. Evite que l'IA reagisse en rafale a chaque petit mouvement. Plus la valeur est haute, plus les interventions sont espacees.")
+                                live_cooldown_label = ui.label(
+                                    f"{int(perception_ui.current_config.get('live_cooldown', 30))}s"
+                                ).classes('text-sm text-gray-400')
+                            live_cooldown_slider = ui.slider(
+                                min=5, max=300, step=5,
+                                value=perception_ui.current_config.get('live_cooldown', 30)
+                            ).props('label-always color="purple"').classes('w-full')
+                            live_cooldown_slider.tooltip("Temps minimum entre deux declenchements de la veille. Evite que l'IA reagisse en rafale a chaque petit mouvement. Plus la valeur est haute, plus les interventions sont espacees.")
+
+                            # Seuil de mouvement
+                            with ui.row().classes('items-center justify-between w-full'):
+                                ui.label("Sensibilite mouvement").classes('text-sm').tooltip("Quantite de pixels qui doivent changer entre deux images pour considerer qu'il y a un mouvement notable. Valeur basse = tres sensible (reagit a un petit geste). Valeur haute = ne reagit qu'aux grands mouvements.")
+                                live_threshold_label = ui.label(
+                                    f"{int(perception_ui.current_config.get('live_motion_threshold', 500))} px"
+                                ).classes('text-sm text-gray-400')
+                            live_threshold_slider = ui.slider(
+                                min=100, max=5000, step=100,
+                                value=perception_ui.current_config.get('live_motion_threshold', 500)
+                            ).props('label-always color="purple"').classes('w-full')
+                            live_threshold_slider.tooltip("Quantite de pixels qui doivent changer entre deux images pour considerer qu'il y a un mouvement notable. Valeur basse = tres sensible (reagit a un petit geste). Valeur haute = ne reagit qu'aux grands mouvements.")
+                            ui.label("Plus la valeur est basse, plus la veille est sensible").classes('text-xs text-gray-500')
+
+                            # Prompt de triage
+                            ui.separator()
+                            ui.label("Instruction de triage (decision OUI/NON)").classes('text-sm font-medium text-gray-400')
+                            live_triage_input = ui.textarea(
+                                value=perception_ui.current_config.get('live_triage_prompt', '')
+                            ).props('outlined dense autogrow color=purple').classes('w-full text-xs')
+                            live_triage_input.tooltip("Consigne envoyee a l'IA avec la chronophotographie pour qu'elle decide d'intervenir (OUI) ou de rester silencieuse (NON). Ne concerne QUE cette decision de triage, pas le contenu du message.")
+                            ui.label("Guide l'IA pour decider si la scene merite une intervention spontanee").classes('text-xs text-gray-500')
+
                 # Bouton Sauvegarder en bas de la card
                 with ui.row().classes('w-full justify-center').style('margin-top: 16px;'):
                     save_btn = ui.button(
@@ -801,6 +885,68 @@ def perception_page():
             ui.notify('🔧 Redimensionnement activé selon résolution choisie', type='info')
             resolution_hint.set_text('💡 En mode Normal, choisissez résolution selon besoin')
     
+    def on_live_toggle(e):
+        """Active/desactive le mode Live (veille sensorielle)."""
+        enabled = e.args if isinstance(e.args, bool) else live_toggle.value
+        live_params.set_visibility(enabled)
+        if enabled:
+            # Idempotent: si la veille tourne deja, ne pas relancer (evite double-start
+            # sur evenement parasite a la reouverture de page)
+            if perception_ui.is_live_active():
+                return
+            ok = perception_ui.start_live_mode()
+            if ok:
+                ui.notify('Mode Live active - veille sensorielle en cours', type='positive')
+            else:
+                ui.notify('Impossible de demarrer le mode Live', type='negative')
+                live_toggle.set_value(False)
+                live_params.set_visibility(False)
+        else:
+            # Idempotent: ne stopper que si reellement actif
+            if not perception_ui.is_live_active():
+                return
+            perception_ui.stop_live_mode()
+            ui.notify('Mode Live desactive', type='info')
+
+    def on_live_inactivity_change(e):
+        value = int(e.args) if isinstance(e.args, (int, float)) else int(live_inactivity_slider.value)
+        perception_ui.current_config['live_inactivity_delay'] = value
+        live_inactivity_label.set_text(f'{value}s')
+        if perception_ui.live_watcher:
+            perception_ui.live_watcher.update_config({'live_inactivity_delay': value})
+
+    def on_live_cooldown_change(e):
+        value = int(e.args) if isinstance(e.args, (int, float)) else int(live_cooldown_slider.value)
+        perception_ui.current_config['live_cooldown'] = value
+        live_cooldown_label.set_text(f'{value}s')
+        if perception_ui.live_watcher:
+            perception_ui.live_watcher.update_config({'live_cooldown': value})
+
+    def on_live_threshold_change(e):
+        value = int(e.args) if isinstance(e.args, (int, float)) else int(live_threshold_slider.value)
+        perception_ui.current_config['live_motion_threshold'] = value
+        live_threshold_label.set_text(f'{value} px')
+        if perception_ui.live_watcher:
+            perception_ui.live_watcher.update_config({'live_motion_threshold': value})
+
+    def on_live_triage_change(e):
+        value = e.args if isinstance(e.args, str) else live_triage_input.value
+        perception_ui.current_config['live_triage_prompt'] = value
+        if perception_ui.live_watcher:
+            perception_ui.live_watcher.update_config({'live_triage_prompt': value})
+
+    def on_live_autostart_change(e):
+        """Memorise la preference d'auto-demarrage du mode Live au boot d'OGMA."""
+        value = e.args if isinstance(e.args, bool) else live_autostart_cb.value
+        perception_ui.current_config['live_autostart'] = value
+        perception_ui._save_config_to_settings()
+
+    def on_live_stimuli_only_change(e):
+        """Memorise la preference 'stimuli uniquement' (pas d'image a chaque message)."""
+        value = e.args if isinstance(e.args, bool) else live_stimuli_only_cb.value
+        perception_ui.current_config['live_stimuli_only'] = value
+        perception_ui._save_config_to_settings()
+
     # Connecter les handlers
     perception_toggle.on('update:model-value', on_toggle_perception)
     capture_btn.on('click', on_capture_click)
@@ -831,8 +977,20 @@ def perception_page():
     contour_render_mode.on('update:model-value', on_contour_render_mode_change)
     surgical_mode_switch.on('update:model-value', on_surgical_mode_change)
     save_btn.on('click', save_config)  # Bouton sauvegarder
-    
+
+    # Handlers Mode Live
+    live_toggle.on('update:model-value', on_live_toggle)
+    live_autostart_cb.on('update:model-value', on_live_autostart_change)
+    live_stimuli_only_cb.on('update:model-value', on_live_stimuli_only_change)
+    live_inactivity_slider.on('update:model-value', on_live_inactivity_change)
+    live_cooldown_slider.on('update:model-value', on_live_cooldown_change)
+    live_threshold_slider.on('update:model-value', on_live_threshold_change)
+    live_triage_input.on('update:model-value', on_live_triage_change)
+
     # Initialiser visibilité motion params
     motion_params.set_visibility(perception_ui.current_config.get('motion_capture_enabled', False))
-    
-    print("[PERCEPTION-PAGE] ✅ Page Perception chargée")
+
+    # Initialiser visibilité live params (etat reel de la veille, pas le flag sauvegarde)
+    live_params.set_visibility(perception_ui.is_live_active())
+
+    print("[PERCEPTION-PAGE] Page Perception chargee")

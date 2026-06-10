@@ -52,8 +52,34 @@ class PerceptionUI:
             'motion_interval': 0.5,     # Intervalle entre images (secondes)
             'motion_layout': '3x2',     # Grille 3×2 optimale pour 6 images
             'motion_timeline': False,   # Timeline sur les images
-            'motion_annotations': False # Annotations temps sur les images
+            'motion_annotations': False, # Annotations temps sur les images
+            # Parametres MODE LIVE (veille sensorielle proactive)
+            'live_enabled': False,           # Active la veille sensorielle
+            'live_autostart': False,         # Demarrer la veille automatiquement au boot d'OGMA
+            'live_cache_size': 15,           # Images dans le cache tournant (@1fps)
+            'live_inactivity_delay': 20,     # Secondes d'inactivite avant declenchement possible
+            'live_cooldown': 30,             # Secondes minimum entre deux declenchements
+            'live_motion_threshold': 500,    # Pixels changes (frame 320x240) pour declencher
+            'live_stimuli_only': False,      # Si True: pas d'image a chaque message, seulement via stimulus Live
+            'live_triage_prompt': (
+                "Tu disposes d'une veille visuelle autonome (Mode Live) : ta webcam te montre "
+                "spontanement, de toi-meme, ce qui se passe devant toi, sans que l'utilisateur te "
+                "l'ait demande. "
+                "Tu observes une chronophotographie (plusieurs images successives) de ce qui se passe "
+                "en ce moment devant ta webcam. Tu es une entite qui percoit son environnement avec son "
+                "vecu, sa memoire et le contexte actuel. Si la scene est anodine et qu'il vaut mieux ne "
+                "pas interrompre, reponds STRICTEMENT par NON (rien d'autre). Si quelque chose merite ton "
+                "attention et que tu souhaites intervenir spontanement, ecris DIRECTEMENT ton message a "
+                "l'utilisateur, comme une remarque naturelle qui engage la conversation. Ne dis jamais OUI : "
+                "soit tu reponds NON, soit tu ecris ton message."
+            )
         }
+
+        # Instance de veille sensorielle (MODE LIVE)
+        self.live_watcher = None
+
+        # Cache du dernier scan de cameras (evite de rouvrir la webcam active)
+        self._cached_cameras: Dict[int, str] = {}
 
         # Charger configuration depuis settings.json
         self.load_config_from_settings()
@@ -136,6 +162,8 @@ class PerceptionUI:
 
     def update_config(self, new_config: Dict[str, Any]):
         """Met à jour la configuration"""
+        # Memoriser l'index camera AVANT mise a jour pour detecter un vrai changement
+        old_webcam_index = self.current_config.get('webcam_index')
         self.current_config.update(new_config)
         print(f"[PERCEPTION-UI] Configuration mise à jour: {new_config}")
 
@@ -146,8 +174,15 @@ class PerceptionUI:
         if self.perception_agent:
             self.perception_agent.update_config(self.current_config)
 
-        # Redémarrer l'agent si nécessaire (pour certains changements critiques)
-        if self.perception_agent and self.is_enabled and ('webcam_index' in new_config):
+        # Propager la configuration au LiveWatcher s'il tourne
+        if self.live_watcher:
+            self.live_watcher.update_config(self.current_config)
+
+        # Redémarrer l'agent UNIQUEMENT si l'index camera a reellement change
+        # (avant: 'webcam_index' in new_config etait toujours vrai en sauvegarde globale,
+        #  ce qui tuait le Mode Live a chaque clic sur Sauvegarder)
+        new_webcam_index = self.current_config.get('webcam_index')
+        if self.perception_agent and self.is_enabled and new_webcam_index != old_webcam_index:
             self.restart_perception_agent()
 
     def start_perception(self):
@@ -183,6 +218,10 @@ class PerceptionUI:
 
     def stop_perception(self):
         """Arrête l'agent de perception"""
+        # Arreter d'abord la veille live: elle depend du flux de l'agent
+        if self.live_watcher:
+            self.stop_live_mode()
+
         if not self.perception_agent:
             return
 
@@ -204,9 +243,15 @@ class PerceptionUI:
         """Redémarre l'agent avec la nouvelle configuration"""
         if self.is_enabled:
             print("[PERCEPTION-UI] 🔄 Redémarrage agent...")
+            # Memoriser si la veille tournait: stop_perception() l'arrete aussi
+            was_live = self.is_live_active()
             self.stop_perception()
             time.sleep(0.5)  # Petite pause
             self.start_perception()
+            # Restaurer la veille si elle etait active avant le restart
+            if was_live:
+                print("[PERCEPTION-UI] Restauration du Mode Live apres restart agent")
+                self.start_live_mode()
 
     def request_capture(self):
         """Demande une capture (wrapper pour capture_for_chat)"""
@@ -244,6 +289,61 @@ class PerceptionUI:
             print(f"[MOTION] Erreur création séquence: {e}")
             return None
 
+    def start_live_mode(self) -> bool:
+        """
+        Demarre la veille sensorielle (MODE LIVE).
+        Necessite que l'agent webcam tourne: le demarre si besoin.
+        """
+        # Le mode live a besoin du flux webcam: demarrer la perception si inactive
+        if not self.perception_agent:
+            print("[LIVE] Agent perception inactif - demarrage automatique pour le mode Live")
+            if not self.start_perception():
+                print("[LIVE] ERR Impossible de demarrer la perception, mode Live annule")
+                return False
+
+        if self.live_watcher and self.live_watcher.running:
+            print("[LIVE] Veille deja active - skip")
+            return True
+
+        from .perception_agent import LiveWatcher
+        self.live_watcher = LiveWatcher(self.perception_agent, self.current_config.copy())
+        self.live_watcher.start()
+        self.current_config['live_enabled'] = True
+        self._save_config_to_settings()
+        print("[LIVE] OK Mode Live demarre")
+        return True
+
+    def stop_live_mode(self):
+        """Arrete la veille sensorielle (MODE LIVE)."""
+        if self.live_watcher:
+            self.live_watcher.stop()
+            self.live_watcher = None
+        self.current_config['live_enabled'] = False
+        self._save_config_to_settings()
+        print("[LIVE] OK Mode Live arrete")
+
+    def is_live_active(self) -> bool:
+        """Vrai si la veille sensorielle tourne."""
+        return self.live_watcher is not None and self.live_watcher.running
+
+    def get_pending_live_trigger(self):
+        """
+        Recupere un declenchement live en attente (chronophoto prete pour triage).
+        Non bloquant. Retourne le dict image ou None. A appeler par le hook UI (polling).
+        """
+        if not self.live_watcher:
+            return None
+        return self.live_watcher.get_pending_trigger()
+
+    def notify_user_message(self):
+        """Signale un message utilisateur ENVOYE (reset du timer d'inactivite live)."""
+        if self.live_watcher:
+            self.live_watcher.notify_user_message()
+
+    def get_live_triage_prompt(self) -> str:
+        """Retourne le prompt de triage configurable."""
+        return self.current_config.get('live_triage_prompt', '')
+
     def test_camera(self, camera_index: int = None) -> bool:
         """Teste une caméra spécifique"""
         idx = camera_index if camera_index is not None else self.current_config['webcam_index']
@@ -270,6 +370,18 @@ class PerceptionUI:
 
     def detect_available_cameras(self) -> Dict[int, str]:
         """Détecte les caméras disponibles avec backends multiples"""
+        # GARDE-FOU: si l'agent tourne deja, il detient un handle sur la webcam.
+        # Rouvrir des VideoCapture (meme sur d'autres index) perturbe le flux MSMF
+        # et fait disparaitre la preview. On renvoie donc le dernier scan connu,
+        # complete au minimum par la camera active.
+        if self.perception_agent:
+            active_index = self.current_config.get('webcam_index', 0)
+            cameras = dict(self._cached_cameras)
+            if active_index not in cameras:
+                cameras[active_index] = f"Caméra {active_index}"
+            print(f"[PERCEPTION-UI] Agent actif - scan camera ignore (preview protegee), {len(cameras)} en cache")
+            return cameras
+
         available_cameras = {}
 
         # Tester avec DSHOW (DirectShow - Windows par défaut)
@@ -303,6 +415,9 @@ class PerceptionUI:
                         pass
 
         print(f"[PERCEPTION-UI] 📹 {len(available_cameras)} caméra(s) détectée(s)")
+        # Memoriser le scan pour les prochaines ouvertures avec agent actif
+        if available_cameras:
+            self._cached_cameras = dict(available_cameras)
         return available_cameras
 
     def update_status_indicator(self, status: str):

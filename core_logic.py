@@ -295,7 +295,23 @@ class SettingsManager:
             
             # Créer un backup avant sauvegarde
             self._create_backup()
-            
+
+            # PROTECTION VAULT: fusionner api_keys_vault depuis le disque avant d'ecraser.
+            # Le vault (api_keys_vault.py) ecrit directement sur le disque sans passer par
+            # sm.settings. Si on ecrase naïvement, les cles ajoutees en cours de session
+            # (ex: cles audio) disparaissent. On relit le vault sur disque et on le merge.
+            try:
+                if self.filepath.exists():
+                    with open(self.filepath, 'r', encoding='utf-8') as _f:
+                        _disk = json.load(_f)
+                    _disk_vault = _disk.get('api_keys_vault', {})
+                    if _disk_vault:
+                        _mem_vault = self.settings.get('api_keys_vault', {})
+                        # Le disque est la source de verite pour le vault
+                        self.settings['api_keys_vault'] = {**_mem_vault, **_disk_vault}
+            except Exception as _vault_err:
+                print(f"[SAVE] WARN Fusion vault impossible: {_vault_err}")
+
             # Sauvegarder avec encodage UTF-8 sans BOM
             with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(self.settings, f, indent=2, ensure_ascii=False)
