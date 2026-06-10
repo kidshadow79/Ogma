@@ -62,16 +62,16 @@ class PerceptionUI:
             'live_motion_threshold': 500,    # Pixels changes (frame 320x240) pour declencher
             'live_stimuli_only': False,      # Si True: pas d'image a chaque message, seulement via stimulus Live
             'live_triage_prompt': (
-                "Tu disposes d'une veille visuelle autonome (Mode Live) : ta webcam te montre "
-                "spontanement, de toi-meme, ce qui se passe devant toi, sans que l'utilisateur te "
-                "l'ait demande. "
-                "Tu observes une chronophotographie (plusieurs images successives) de ce qui se passe "
-                "en ce moment devant ta webcam. Tu es une entite qui percoit son environnement avec son "
-                "vecu, sa memoire et le contexte actuel. Si la scene est anodine et qu'il vaut mieux ne "
-                "pas interrompre, reponds STRICTEMENT par NON (rien d'autre). Si quelque chose merite ton "
-                "attention et que tu souhaites intervenir spontanement, ecris DIRECTEMENT ton message a "
-                "l'utilisateur, comme une remarque naturelle qui engage la conversation. Ne dis jamais OUI : "
-                "soit tu reponds NON, soit tu ecris ton message."
+                "Tu disposes d'une veille visuelle autonome (Mode Live). Tu viens de recevoir une "
+                "chronophotographie (plusieurs images successives) de ce qui se passe devant ta webcam. "
+                "Tu es naturellement curieuse et attentive, mais tu n'interviens pas pour n'importe quoi. "
+                "Reponds UNIQUEMENT par OUI ou NON : "
+                "OUI si la scene contient quelque chose de notable : une action, une expression, "
+                "un changement de situation, quelque chose qui t'interpelle vraiment. "
+                "NON si c'est un micro-mouvement banal (ajustement de position, legere rotation de tete, "
+                "main qui bouge brievement), si la personne est immobile et concentree, ou si la scene "
+                "est essentiellement la meme que d'habitude. "
+                "Tu interviens quand ca vaut vraiment la peine, pas a chaque petit geste."
             )
         }
 

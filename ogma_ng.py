@@ -580,6 +580,9 @@ _active_file_data: Optional[Dict] = None  # Données du fichier texte actuel
 _active_images: List[Dict] = []  # Liste des images uploadées (max 3)
 MAX_IMAGES = 3  # Nombre maximum d'images uploadables simultanément
 
+# MODE LIVE: chronophoto en attente d'injection dans _send_chat_message (phase 2)
+_pending_live_stimulus: Optional[Dict] = None
+
 # ===== REPRÉSENTATION VISUELLE USER/IA POUR I2I =====
 _user_representation_active: bool = False  # Bouton User enfoncé
 _ia_representation_active: bool = False    # Bouton IA enfoncé
@@ -2939,7 +2942,7 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                     _notify_safe(f"Erreur Organic Planner Update: {e}", 'warning')
     
     cleaned_text = _strip_magic_phrases(text) or text
-    global _active_file_data
+    global _active_file_data, _pending_live_stimulus
     final_message = cleaned_text
     message_content = cleaned_text
 
@@ -2949,7 +2952,13 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
     # Ajouter image de perception si disponible
     if perception_image_data:
         content_parts.append(perception_image_data)
-        print("[PERCEPTION] 🖼️ Image ajoutée au message pour l'IA")
+        print("[PERCEPTION] 🖼️ Image ajoutee au message pour l'IA")
+
+    # MODE LIVE - PHASE 2: injecter la chronophoto du stimulus si en attente
+    if _pending_live_stimulus is not None:
+        content_parts.append(_pending_live_stimulus)
+        print("[LIVE-HOOK] OK Chronophoto stimulus injectee dans le message IA")
+        _pending_live_stimulus = None  # Consommer le stimulus
 
     # Ajouter fichier actif si disponible
     if _active_file_data:
@@ -2984,7 +2993,7 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
         print(f"[SESSION] 🏷️ Tag utilisateur ajouté: {user_prefix}")
     # === FIN INJECTION PRÉNOM ===
 
-    # Ajouter à l'historique seulement si pas skip_history_append (édition)
+    # Ajouter à l'historique seulement si pas skip_history_append (stimulus live Mode Live)
     if not skip_history_append:
         msg = {'role': 'user', 'content': final_message, 'memorized': user_memorized, 'display_content': cleaned_text}
         _chat_history.append(msg)
@@ -3017,8 +3026,26 @@ async def _send_chat_message(input_el=None, text_override: Optional[str] = None,
                     icon = get_file_icon(filename)
                     display_text = f"{cleaned_text}\n\n{icon} {filename}"
                 _message('user', display_text, ['mémorisé'] if user_memorized else None, message_index=len(_chat_history)-1)
-        try:
-            ui.run_javascript(r'''
+    else:
+        # skip_history_append=True : c'est un stimulus live (pas un message utilisateur)
+        # Afficher un indicateur visuel discret dans le chat
+        if _chat_inner is not None:
+            with _chat_inner:
+                ui.html(
+                    '<div style="text-align:center; color:#9e9e9e; font-size:11px; '
+                    'padding:4px 0; font-style:italic; opacity:0.7;">'
+                    '[veille visuelle]</div>'
+                )
+        else:
+            ui.html(
+                '<div style="text-align:center; color:#9e9e9e; font-size:11px; '
+                'padding:4px 0; font-style:italic; opacity:0.7;">'
+                '[veille visuelle]</div>'
+            )
+
+    # Scroll en bas du chat (messages utilisateur ET stimulus live)
+    try:
+        ui.run_javascript(r'''
 setTimeout(()=>{
     const el = document.querySelector('[data-role="chat-scroll"]');
     if(el){
@@ -3030,8 +3057,8 @@ setTimeout(()=>{
     }
 }, 50);
 ''')
-        except Exception:
-            pass
+    except Exception:
+        pass
 
     # Vider input seulement si pas text_override (édition)
     if input_el and not text_override:
@@ -4041,7 +4068,13 @@ Mentionne simplement:
             if m.get('thinking'):
                 msg_for_api['thinking'] = m['thinking']
             messages.append(msg_for_api)
-    
+
+    # MODE LIVE - PHASE 2: le message stimulus n'est pas dans _chat_history.
+    # L'ajouter maintenant comme dernier message user (avec chronophoto incluse dans ai_content).
+    if skip_history_append and ai_content:
+        messages.append({'role': 'user', 'content': ai_content})
+        print("[LIVE-HOOK] OK Message stimulus (texte + chronophoto) injecte dans les messages API")
+
     for i, msg in enumerate(messages):
         role = msg['role']
         content_preview = msg['content'][:100] + "..." if len(msg['content']) > 100 else msg['content']
@@ -7837,21 +7870,27 @@ def _process_live_perception():
 
 async def _handle_live_trigger(chrono_data: dict, triage_prompt: str):
     """
-    Traite un declenchement live: soumet la chronophotographie a l'IA principale
-    avec son ego (persistent_context) et l'instruction de triage.
+    Traite un declenchement live en deux phases :
 
-    Approche un seul appel: l'IA repond 'NON' si la scene est anodine, sinon
-    elle ecrit directement son message d'intervention spontanee. La chrono est
-    deja assemblee et vue ici: aucun second appel n'est necessaire.
+    PHASE 1 - Triage leger (OUI/NON) :
+        Appel minimal a l'IA : ego + triage_prompt + chronophoto.
+        Max 20 tokens. Reponse attendue : "NON" (silence) ou autre (intervention).
+
+    PHASE 2 - Intervention via le flux chat normal :
+        Si l'IA decide d'intervenir, on injecte la chronophoto dans
+        _pending_live_stimulus et on appelle _send_chat_message avec un
+        texte systeme qui informe l'IA que c'est un stimulus de son propre
+        systeme de veille (pas un message utilisateur).
+        Cela garantit : historique complet, memoire FAISS, TTS, streaming.
     """
-    global _live_triage_in_progress
+    global _live_triage_in_progress, _pending_live_stimulus
     try:
         controller = _ensure_chat_controller()
         if controller is None:
             print("[LIVE-HOOK] ERR Chat controller indisponible")
             return
 
-        # Contexte d'identite (ego) injecte en system, comme dans le flux normal
+        # --- PHASE 1 : TRIAGE OUI/NON ---
         system_parts = []
         persistent_context_file = DATA_DIR / "persistent_context.txt"
         if persistent_context_file.exists():
@@ -7862,68 +7901,71 @@ async def _handle_live_trigger(chrono_data: dict, triage_prompt: str):
             system_parts.append(triage_prompt)
         system_prompt = "\n\n".join(system_parts) if system_parts else triage_prompt
 
-        # Message utilisateur multimodal: texte court + chronophotographie live
-        user_content = [
+        triage_user_content = [
             {
                 "type": "text",
                 "text": (
-                    "Voici une chronophotographie (4 images: avant, instant, apres) "
-                    "de ce qui se passe en ce moment devant ta webcam."
+                    "Voici ce que ta webcam vient de capturer. "
+                    "Reponds UNIQUEMENT par OUI (tu veux en parler) ou NON (rien a dire)."
                 )
             },
             chrono_data
         ]
 
-        messages = [
+        triage_messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content}
+            {"role": "user", "content": triage_user_content}
         ]
 
-        max_tokens = int(getattr(controller, 'max_tokens', 512))
         context_length = int(getattr(controller, 'context_length', 4096))
         temperature = float(getattr(controller, 'temperature', 0.7))
 
-        print("[LIVE-HOOK] >> Triage live en cours (appel IA principale)...")
+        print("[LIVE-HOOK] >> Triage live en cours (phase 1, max 20 tokens)...")
         response, error = await controller.call_chat_api(
-            messages, max_tokens, context_length, temperature,
+            triage_messages, 20, context_length, temperature,
             is_json=False
         )
 
         if error:
-            print(f"[LIVE-HOOK] ERR Erreur appel IA: {error}")
+            print(f"[LIVE-HOOK] ERR Erreur appel triage: {error}")
             return
 
         if not response:
-            print("[LIVE-HOOK] WARN Reponse vide de l'IA - triage abandonne")
+            print("[LIVE-HOOK] WARN Reponse vide - triage abandonne")
             return
 
-        # Decision: 'NON' isole (eventuellement ponctue) -> silence.
-        # On ne tue PAS un vrai message qui commencerait par "Non mais...": seule
-        # une reponse reduite a NON (apres retrait de la ponctuation) compte comme refus.
+        # "NON" seul = scene anodine, silence
         normalized = response.strip().upper().rstrip(".!,;: ")
         if normalized == "NON":
-            print("[LIVE-HOOK] OK Scene jugee anodine par l'IA - pas d'intervention")
+            print("[LIVE-HOOK] OK Scene jugee anodine - pas d'intervention")
             return
 
-        # Intervention spontanee: afficher dans le chat et persister dans l'historique
-        message_text = response.strip()
-        print(f"[LIVE-HOOK] >> Intervention spontanee de l'IA ({len(message_text)} chars)")
+        # --- PHASE 2 : INTERVENTION VIA FLUX CHAT NORMAL ---
+        print("[LIVE-HOOK] >> Intervention validee - passage au flux chat complet")
 
-        if _chat_inner is not None:
-            with _chat_inner:
-                _message('assistant', message_text)
-        else:
-            _message('assistant', message_text)
+        # Stocker la chronophoto pour injection dans _send_chat_message
+        _pending_live_stimulus = chrono_data
 
-        # Persister pour que l'IA se souvienne de son intervention
-        try:
-            _chat_history.append({'role': 'assistant', 'content': message_text})
-            _chat_history_ui.append({'role': 'assistant', 'content': message_text})
-        except Exception as hist_err:
-            print(f"[LIVE-HOOK] WARN Echec ajout historique: {hist_err}")
+        # Texte systeme qui informe l'IA de la nature du declenchement.
+        # N'est PAS affiche dans le chat (skip_history_append=True pour ce "message").
+        # L'IA recoit ce texte comme role "user" mais comprend que c'est son systeme.
+        stimulus_text = (
+            "[STIMULUS VISUEL - SYSTEME] "
+            "Ton systeme de veille autonome (Mode Live) t'a transmis cette chronophotographie. "
+            "Ce n'est pas un message de l'utilisateur : c'est ton propre systeme de perception "
+            "qui te signale quelque chose devant ta webcam. "
+            "Reponds naturellement, dans la continuite de la conversation en cours, "
+            "comme si tu observais spontanement la scene et decidais d'en parler."
+        )
+
+        # Appel via le flux normal : historique complet, memoire, TTS, streaming
+        await _send_chat_message(
+            text_override=stimulus_text,
+            skip_history_append=True
+        )
 
     except Exception as e:
-        print(f"[LIVE-HOOK] ERR Exception lors du triage live: {e}")
+        print(f"[LIVE-HOOK] ERR Exception: {e}")
         import traceback
         traceback.print_exc()
     finally:
