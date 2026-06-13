@@ -28,7 +28,7 @@ For each documentation page:
 
 | Target page | Mechanisms to document | Main sources | Status |
 | --- | --- | --- | --- |
-| `docs/en/core/01_entry_points.md` | Launch scripts, folder init, NiceGUI startup, app lifecycle | `launch_ogma.py`, `start_ogma.py`, `ogma_ng.py`, `stop_signal.py` | To verify |
+| `docs/en/core/01_entry_points.md` | Launch scripts, folder init, NiceGUI startup, app lifecycle | `launch_ogma.py`, `ogma_ng.py`, `stop_signal.py` | To verify |
 | `docs/en/core/02_app_orchestration.md` | Main orchestration, lazy init, event routing, extension loading | `ogma_ng.py`, `modules/ogma_core/` | To verify |
 | `docs/en/core/03_stop_signal.md` | Global stop signal and interruption of long operations | `stop_signal.py` | To verify |
 

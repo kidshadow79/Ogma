@@ -330,11 +330,7 @@ pip install -r requirements/requirements-full.txt
 ## ▶️ Démarrage
 
 ```bash
-# Recommandé — avec vérifications automatiques
 python launch_ogma.py
-
-# Développement rapide — minimal
-python start_ogma.py
 ```
 
 OGMA démarre automatiquement sur `http://localhost:8080` (retry sur les ports 8080–8090).
@@ -349,8 +345,7 @@ Ogma/
 ├── core_logic.py               # Contrôleurs IA (multi-providers & backends)
 ├── memory_manager.py           # Mémoire hybride SQLite + FAISS
 ├── audio_manager.py            # Pipeline STT/TTS
-├── launch_ogma.py              # Point d'entrée production
-├── start_ogma.py               # Point d'entrée développement
+├── launch_ogma.py              # Point d'entrée (production + première installation)
 │
 ├── extensions/                 # Extensions modulaires
 │   ├── dream_engine/           # Métabolisme cognitif onirique

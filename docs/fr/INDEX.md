@@ -42,7 +42,7 @@ Ces fichiers existent deja et peuvent servir de base, mais doivent etre relus av
 
 | Page cible | Mecanismes a documenter | Sources principales | Statut |
 | --- | --- | --- | --- |
-| `docs/core/01_entry_points.md` | Scripts de lancement, initialisation des dossiers, demarrage NiceGUI, cycle de vie applicatif | `launch_ogma.py`, `start_ogma.py`, `ogma_ng.py`, `stop_signal.py` | Verifie |
+| `docs/core/01_entry_points.md` | Scripts de lancement, initialisation des dossiers, demarrage NiceGUI, cycle de vie applicatif | `launch_ogma.py`, `ogma_ng.py`, `stop_signal.py` | Verifie |
 | `docs/core/02_app_orchestration.md` | Orchestration principale, initialisation paresseuse, routage des evenements, chargement extensions | `ogma_ng.py`, `modules/ogma_core/` | A verifier |
 | `docs/core/03_stop_signal.md` | Signal global d'arret et interruption des operations longues | `stop_signal.py` | A verifier |
 

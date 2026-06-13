@@ -1,19 +1,18 @@
 # Points d'entrée et cycle de vie applicatif
 
-**Sources vérifiées** : `launch_ogma.py`, `start_ogma.py`, `ogma_ng.py`, `stop_signal.py`
+**Sources vérifiées** : `launch_ogma.py`, `ogma_ng.py`, `stop_signal.py`
 
 ---
 
 ## Vue d'ensemble
 
-OGMA démarre toujours par l'un de ces deux scripts :
+OGMA démarre via un seul script :
 
-| Script | Usage recommandé |
+| Script | Usage |
 |---|---|
-| `launch_ogma.py` | Démarrage normal — vérifie l'environnement, installe les dépendances manquantes, bootstrap les fichiers de données. |
-| `start_ogma.py` | Démarrage rapide — flux minimal, idéal pour le développement. |
+| `launch_ogma.py` | Point d'entrée unique — vérifie l'environnement, installe les dépendances manquantes, bootstrap les fichiers de données au premier lancement. |
 
-Les deux scripts aboutissent au même appel : `run_ogma()` dans `ogma_ng.py`.
+Ce script aboutit à l'appel de `run_ogma()` dans `ogma_ng.py`.
 
 ## `launch_ogma.py` — le lanceur complet
 
@@ -36,12 +35,6 @@ Cette logique utilise une condition "si le fichier cible est absent", donc une c
 ### Sélection du port
 
 Par défaut, le serveur écoute sur `0.0.0.0:8080`. Ces valeurs sont surchargeables via les variables d'environnement `OGMA_HOST` et `OGMA_PORT`. Si le port demandé est occupé, le script tente automatiquement les neuf ports suivants (8080 → 8089).
-
----
-
-## `start_ogma.py` — le lanceur minimal
-
-Ce script fait le strict minimum : il configure l'encodage UTF-8, crée les dossiers de données s'ils n'existent pas, et appelle `run_ogma()` sur `localhost:8080`. Si ce port est pris, il réessaie sur `8081`. Il n'y a pas de vérification de dépendances, pas de bootstrap de fichiers, pas de lecture de `.env`.
 
 ---
 

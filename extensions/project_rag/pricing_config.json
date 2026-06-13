@@ -81,10 +81,10 @@
       "output": 0.3
     },
     "deepseek-chat": {
-      "base_input": 0.2288,
-      "cache_write": 0.286,
-      "cache_read": 0.0229,
-      "output": 0.9144
+      "base_input": 0.2002,
+      "cache_write": 0.2503,
+      "cache_read": 0.02,
+      "output": 0.8001
     },
     "deepseek-reasoner": {
       "base_input": 0.55,
@@ -315,16 +315,16 @@
       "output": 0.0
     },
     "deepseek-v4-flash": {
-      "base_input": 0.1,
-      "cache_write": 0.125,
-      "cache_read": 0.01,
-      "output": 0.2
+      "base_input": 0.0983,
+      "cache_write": 0.1229,
+      "cache_read": 0.0098,
+      "output": 0.1966
     },
     "deepseek/deepseek-v4-flash": {
-      "base_input": 0.1,
-      "cache_write": 0.125,
-      "cache_read": 0.01,
-      "output": 0.2
+      "base_input": 0.0983,
+      "cache_write": 0.1229,
+      "cache_read": 0.0098,
+      "output": 0.1966
     },
     "gpt-5.4-image-2": {
       "base_input": 8.0,
@@ -414,13 +414,13 @@
       "base_input": 0.12,
       "cache_write": 0.15,
       "cache_read": 0.012,
-      "output": 0.37
+      "output": 0.36
     },
     "google/gemma-4-31b-it": {
       "base_input": 0.12,
       "cache_write": 0.15,
       "cache_read": 0.012,
-      "output": 0.37
+      "output": 0.36
     },
     "grok-4.20-multi-agent": {
       "base_input": 2.0,
@@ -807,16 +807,16 @@
       "output": 0.431
     },
     "deepseek-v3.2": {
-      "base_input": 0.252,
-      "cache_write": 0.315,
-      "cache_read": 0.0252,
-      "output": 0.378
+      "base_input": 0.2288,
+      "cache_write": 0.286,
+      "cache_read": 0.0229,
+      "output": 0.3432
     },
     "deepseek/deepseek-v3.2": {
-      "base_input": 0.252,
-      "cache_write": 0.315,
-      "cache_read": 0.0252,
-      "output": 0.378
+      "base_input": 0.2288,
+      "cache_write": 0.286,
+      "cache_read": 0.0229,
+      "output": 0.3432
     },
     "claude-opus-4.5": {
       "base_input": 5.0,
@@ -1179,15 +1179,15 @@
       "output": 0.0
     },
     "gpt-oss-20b": {
-      "base_input": 0.03,
-      "cache_write": 0.0375,
-      "cache_read": 0.003,
+      "base_input": 0.029,
+      "cache_write": 0.0363,
+      "cache_read": 0.0029,
       "output": 0.14
     },
     "openai/gpt-oss-20b": {
-      "base_input": 0.03,
-      "cache_write": 0.0375,
-      "cache_read": 0.003,
+      "base_input": 0.029,
+      "cache_write": 0.0363,
+      "cache_read": 0.0029,
       "output": 0.14
     },
     "claude-opus-4.1": {
@@ -1503,28 +1503,28 @@
       "output": 0.555
     },
     "gemma-3-4b-it": {
-      "base_input": 0.04,
-      "cache_write": 0.05,
-      "cache_read": 0.004,
-      "output": 0.08
+      "base_input": 0.05,
+      "cache_write": 0.0625,
+      "cache_read": 0.005,
+      "output": 0.1
     },
     "google/gemma-3-4b-it": {
-      "base_input": 0.04,
-      "cache_write": 0.05,
-      "cache_read": 0.004,
-      "output": 0.08
+      "base_input": 0.05,
+      "cache_write": 0.0625,
+      "cache_read": 0.005,
+      "output": 0.1
     },
     "gemma-3-12b-it": {
-      "base_input": 0.04,
-      "cache_write": 0.05,
-      "cache_read": 0.004,
-      "output": 0.13
+      "base_input": 0.05,
+      "cache_write": 0.0625,
+      "cache_read": 0.005,
+      "output": 0.15
     },
     "google/gemma-3-12b-it": {
-      "base_input": 0.04,
-      "cache_write": 0.05,
-      "cache_read": 0.004,
-      "output": 0.13
+      "base_input": 0.05,
+      "cache_write": 0.0625,
+      "cache_read": 0.005,
+      "output": 0.15
     },
     "gpt-4o-mini-search-preview": {
       "base_input": 0.15,
@@ -1665,10 +1665,10 @@
       "output": 2.5
     },
     "deepseek/deepseek-chat": {
-      "base_input": 0.2288,
-      "cache_write": 0.286,
-      "cache_read": 0.0229,
-      "output": 0.9144
+      "base_input": 0.2002,
+      "cache_write": 0.2503,
+      "cache_read": 0.02,
+      "output": 0.8001
     },
     "openai/o1": {
       "base_input": 15.0,
@@ -1987,6 +1987,30 @@
       "cache_write": 6.25,
       "cache_read": 0.5,
       "output": 25.0
+    },
+    "claude-fable-latest": {
+      "base_input": 10.0,
+      "cache_write": 12.5,
+      "cache_read": 1.0,
+      "output": 50.0
+    },
+    "~anthropic/claude-fable-latest": {
+      "base_input": 10.0,
+      "cache_write": 12.5,
+      "cache_read": 1.0,
+      "output": 50.0
+    },
+    "claude-fable-5": {
+      "base_input": 10.0,
+      "cache_write": 12.5,
+      "cache_read": 1.0,
+      "output": 50.0
+    },
+    "anthropic/claude-fable-5": {
+      "base_input": 10.0,
+      "cache_write": 12.5,
+      "cache_read": 1.0,
+      "output": 50.0
     }
   }
 }
