@@ -3285,7 +3285,7 @@ setTimeout(()=>{
                 set_archiviste_working(True)
                 # Passer les titres + extrait contenu des souvenirs pour informer le Meta-Analyzer
                 _memory_titles_for_meta = [
-                    f"{m.get('title', '')[:60]} | {(m.get('summary') or m.get('text_original', ''))[:100]}"
+                    f"{(m.get('title') or '')[:60]} | {(m.get('summary') or m.get('text_original') or '')[:100]}"
                     for m in detailed_memories[:4]
                 ] if detailed_memories else []
                 optimized_ctx = await get_optimized_context_for_message(

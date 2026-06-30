@@ -503,7 +503,7 @@ async def generate_web_search_query(
         
         # Titres des souvenirs aléatoires à haut impact
         if fuel.get('random_memories'):
-            random_titles = [m.get('title', '')[:50] for m in fuel['random_memories'][:3]]
+            random_titles = [(m.get('title') or '')[:50] for m in fuel['random_memories'][:3]]
             context_parts.append("Souvenirs marquants: " + ", ".join(random_titles))
         
         # Résumés de conversations
