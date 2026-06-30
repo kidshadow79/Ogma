@@ -309,7 +309,7 @@ class ArchivisteMemoryOptimizer:
                 'efficiency_pct': efficiency_pct,
                 'candidates_for_filtering': len(candidates_for_filtering),
                 'filtered_memories': len(filtered_memories),
-                'filtered_titles': [m.get('title', 'N/A')[:40] for m in filtered_memories],
+                'filtered_titles': [(m.get('title') or 'N/A')[:40] for m in filtered_memories],
                 'candidates_bruts': batch_metrics.get('candidates_bruts', 0),
                 'candidates_unique': batch_metrics.get('candidates_l3_injection', 0),
                 'dedup_ratio': batch_metrics.get('dedup_ratio', 0),
@@ -1030,10 +1030,10 @@ Reponds UNIQUEMENT le JSON:"""
             removed = len(candidates) - len(filtered)
             print(f"[ARCHIVISTE-FILTER] Filtrage: {len(candidates)} candidats -> {len(filtered)} retenus ({removed} exclus)")
             for i, mem in enumerate(filtered, 1):
-                print(f"  {i}. {mem.get('title', 'N/A')[:50]} (score={mem.get('hybrid_score', 0):.3f})")
+                print(f"  {i}. {(mem.get('title') or 'N/A')[:50]} (score={mem.get('hybrid_score', 0):.3f})")
             
             if removed > 0:
-                excluded_titles = [m.get('title', 'N/A')[:40] for m in candidates 
+                excluded_titles = [(m.get('title') or 'N/A')[:40] for m in candidates 
                                    if (m.get('id') or m.get('memory_id')) not in selected_ids]
                 for title in excluded_titles:
                     print(f"  EXCLU: {title}")
